@@ -46,6 +46,10 @@
     It cuts the subject out with a small segmentation network (U&sup2;-Net, 4.4&nbsp;MB, downloaded
     once on first start and run through OpenCV), leaving the background as bare paper. Without the
     model it falls back to GrabCut, which is worse but keeps the feature working.</li>
+    <li>An <b>infill line distance of 0</b> paints outlines only. A nominal 1&nbsp;mm stroke
+    width stands in for the brush, since the config then states none.</li>
+    <li>Files are named after the picture and the colours used &mdash;
+    <code>vali_letten_c1_infill.gcode</code> &mdash; with the tray numbers the form shows.</li>
     <li>The ink/paper split is found per image rather than fixed, so a print on cream paper is
     not read as one solid block of ink. It is taken on the darkest colour channel, so a light
     ink such as yellow still counts as ink.</li>

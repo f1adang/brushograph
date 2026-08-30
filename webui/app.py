@@ -127,6 +127,21 @@ def _woodcut_params(form) -> dict:
     }
 
 
+def _gcode_name(images: dict, entries: list, conf: dict, infill: bool) -> str:
+    """Name the file after the picture and the colours that painted it.
+
+    `vali_letten_c1_infill.gcode`: the source image, then the tray numbers the
+    form showed for each colour used, then whether the shapes were filled. The
+    numbers are the ones on screen, so a file can be matched to the run that
+    made it without opening it.
+    """
+    used = [e for e in entries if e["tray"] in images]
+    first = images[used[0]["tray"]].filename if used else ""
+    stem = "".join(c for c in Path(first).stem if c.isalnum() or c in "-_") or "brushograph"
+    colours = "".join(f"_c{e['index']}" for e in used)
+    return f"{stem}{colours}{'_infill' if infill else ''}.gcode"
+
+
 def _scale_params(form) -> dict:
     """How wide the picture will be painted, and how wide a stroke.
 
@@ -134,9 +149,14 @@ def _scale_params(form) -> dict:
     working resolution from the Detail control, so only it can turn these into
     a pixel size that is still correct afterwards.
     """
+    # A line distance of 0 means "no infill", not "an infinitely fine brush".
+    # The woodcut's finest mark is measured in brush widths too, so it takes the
+    # same nominal width the outline does.
+    spacing = _num(form, "slicer-infill_line_distance", 1.0)
+    brush = spacing if spacing > 0 else gcode_pipeline.NOMINAL_BRUSH_MM
     return {
         "width_mm": _num(form, "brushograph-width", 150.0),
-        "brush_mm": max(_num(form, "slicer-infill_line_distance", 1.0), 0.05),
+        "brush_mm": max(brush, 0.05),
     }
 
 
@@ -277,11 +297,18 @@ def options_form_post():
             headers={"Content-Disposition": f'attachment; filename="{stem}.conf"'},
         )
 
+    entries = tray_entries(conf)
     images = {e["tray"]: request.files.get(f"trays-{e['tray']}-image")
-              for e in tray_entries(conf) if e["image"]}
+              for e in entries if e["image"]}
     images = {k: v for k, v in images.items() if v and v.filename}
     if not images:
         return jsonify(error="No images selected"), 400
+
+    try:
+        infill = float(conf.get("slicer", {}).get("infill_line_distance", 1)) > 0
+    except (TypeError, ValueError):
+        infill = True
+    download_name = _gcode_name(images, entries, conf, infill)
 
     with GENERATE_LOCK:
         work = Path(tempfile.mkdtemp(prefix="brushograph_", dir=session_dir(sid)))
@@ -308,7 +335,7 @@ def options_form_post():
                                     woodcut.ink_fraction(converted) * 100)
                 saved[tray] = p
             log_lines: list[str] = []
-            out = work / f"{stem}.gcode"
+            out = work / download_name
             gcode_pipeline.generate(conf, saved, work, out, log_lines.append)
             data = out.read_bytes()
         except gcode_pipeline.PipelineError as exc:
@@ -322,7 +349,7 @@ def options_form_post():
 
     return app.response_class(
         data, mimetype="text/plain",
-        headers={"Content-Disposition": f'attachment; filename="{stem}.gcode"'},
+        headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
     )
 
 

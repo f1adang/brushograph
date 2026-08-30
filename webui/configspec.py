@@ -135,6 +135,7 @@ def tray_entries(conf: dict) -> list[dict]:
             {
                 "tray": "water",
                 "color": None,
+                "index": 0,
                 "label": "Water",
                 "image": False,
                 "x": trays["water"].get("x", 0),
@@ -146,6 +147,7 @@ def tray_entries(conf: dict) -> list[dict]:
             {
                 "tray": tray_name,
                 "color": color,
+                "index": order.index(tray_name),
                 "label": f"Tray {order.index(tray_name)}",
                 "image": True,
                 "x": trays[tray_name].get("x", 0),

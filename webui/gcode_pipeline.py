@@ -63,6 +63,10 @@ BRIDGE_MULTIPLE = 1.5
 # what reach the machine.
 BED_MARGIN = 50.0
 
+# Stroke width assumed when the config asks for no infill and so states no
+# spacing to take one from.
+NOMINAL_BRUSH_MM = 1.0
+
 # Bridging further than this does not pay. A bridge replaces a lift and a travel
 # with painted distance, and painted distance is what forces trips to the paint
 # tray: copicograf re-inks every paint_per_run. Past a few line widths the trips
@@ -642,12 +646,21 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # that is the extrusion width, not the nozzle bore; feeding it in as a
     # nozzle diameter made PrusaSlicer reject any value below the layer height.
     try:
-        line_w = float(slicer_conf.get("infill_line_distance", 1) or 1)
+        requested = float(slicer_conf.get("infill_line_distance", 1))
     except (TypeError, ValueError):
-        line_w = 1.0
-    line_w = min(max(line_w, 0.05), 20.0)
+        requested = 1.0
+    # Zero means draw the outlines and leave the shapes unfilled. The brush
+    # still has a width, and the perimeter and the woodcut's finest mark are
+    # both measured in it, so a nominal one stands in — the config offers no
+    # other figure to take it from.
+    infill = requested > 0
+    line_w = min(max(requested, 0.05), 20.0) if infill else NOMINAL_BRUSH_MM
     # One layer only: the extrusion is the painting, height carries no meaning.
     layer_h = min(line_w * 0.8, 0.8)
+
+    if not infill:
+        log(f"infill off (line distance 0): outlines only, "
+            f"{NOMINAL_BRUSH_MM:g} mm nominal stroke width")
 
     want = str(slicer_conf.get("infill_pattern", FALLBACK_PATTERN)).strip().lower()
     pattern = PATTERN_MAP.get(want, FALLBACK_PATTERN)
@@ -704,7 +717,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 "--perimeters", str(int(float(slicer_conf.get("wall_line_count", 1) or 1))),
                 "--top-solid-layers", "0", "--bottom-solid-layers", "0",
                 "--fill-pattern", pattern,
-                "--fill-density", "100%",
+                "--fill-density", "100%" if infill else "0%",
                 "--skirts", "0", "--brim-width", "0",
                 "--nozzle-diameter", f"{line_w}",
                 "--extrusion-width", f"{line_w}",
@@ -760,6 +773,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         f"; image area: {width_mm:g} x {height_mm:g} mm",
     ]
     out_path.write_text("\n".join(header + start_sequence(conf) + lines) + "\n")
+    stats["infill"] = infill
     stats["lines"] = len(lines) + len(header)
     stats["bytes"] = out_path.stat().st_size
     log(f"wrote {out_path.name}: {stats['lines']} lines, {stats['bytes'] / 1024:.0f} KB")

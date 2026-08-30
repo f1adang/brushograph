@@ -57,7 +57,18 @@ Two actions:
 
 - **Download Config** returns the edited config as a `.conf`. Types are
   preserved and keys the form does not cover are passed through untouched.
-- **Generate Gcode** runs the pipeline and returns one G-code file.
+- **Generate Gcode** runs the pipeline and returns one G-code file, named after
+  the picture and the colours that painted it:
+  `vali_letten_c1_infill.gcode`. The numbers are the tray numbers shown in the
+  form, so a file can be matched to the run that made it without opening it, and
+  `_infill` says whether the shapes were filled or only outlined. With several
+  trays the name carries each in painting order — `photo_c1_c2.gcode`.
+
+An **infill line distance of 0** means no infill: outlines only. The brush still
+has a width — the perimeter and the woodcut's finest mark are both measured in
+it — so a nominal 1 mm stands in, the config offering no other figure to take
+one from. On the test logo, at the same stroke width, that is 4.4 m of painting
+against 11.9 m filled.
 
 ## The G-code pipeline
 
