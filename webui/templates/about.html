@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>About — Brushograph WebUI</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='webui.css') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div><h1>About Brushograph</h1><p>What this interface does</p></div>
+  </div>
+</header>
+<main class="wrap prose">
+  <p>A simple interface to the Brushograph software: it turns uploaded thresholded
+  images into G-code for Brushograph-style brush plotters.</p>
+
+  <h2>How a run works</h2>
+  <ol>
+    <li>A machine config (<code>.conf</code>) describes the machine. Every option below it is generated from that file.</li>
+    <li>You upload one thresholded image per tray, in the order given by <code>color_order</code>.</li>
+    <li>Each image is traced to vectors with <b>potrace</b>, extruded to a solid with <b>OpenSCAD</b>, and filled with <b>PrusaSlicer</b> to get brush strokes.</li>
+    <li><b>copicograf</b> turns those strokes into brush choreography: dipping in the paint tray, knocking off drips on the rim, washing in water, and re-inking every few hundred millimetres.</li>
+  </ol>
+
+  <h2>Tool status on this machine</h2>
+  <table class="tools">
+    {% for tool, path in preflight.tools.items() %}
+    <tr><td>{{ tool }}</td><td class="{{ 'ok' if path else 'bad' }}">{{ path or 'not found' }}</td></tr>
+    {% endfor %}
+  </table>
+  {% if not preflight.ok %}
+  <p class="error">G-code generation needs all three. Install the missing ones with
+  <code>brew install potrace openscad</code> and the PrusaSlicer app.</p>
+  {% endif %}
+
+  <h2>Notes</h2>
+  <ul>
+    <li>Ink is anything that is not white, so light inks such as yellow survive the threshold.</li>
+    <li>copicograf detects brush-up and brush-down from two exact Z lines that only
+    <code>cura-slicer</code> emits. Slicer output is rewritten into that form before it is
+    handed over, so any installed slicer works.</li>
+    <li>Configs naming a generator other than <code>copicograf</code> render their options here,
+    but cannot be built — that generator is not part of this repository.</li>
+  </ul>
+  <p><a href="/">← Back to the WebUI</a></p>
+</main>
+</body>
+</html>

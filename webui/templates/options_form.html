@@ -1,0 +1,92 @@
+{% macro field(f) %}
+<label class="field {{ 'is-check' if f.type == 'checkbox' }}">
+  <span>
+    {{ f.label }}{% if f.help %} <button type="button" class="info-btn" title="{{ f.help }}" aria-label="{{ f.help }}">ⓘ</button>{% endif %}
+  </span>
+  {% if f.type == 'checkbox' %}
+    <input type="hidden" name="{{ f.name }}" value="false">
+    <input type="checkbox" name="{{ f.name }}" value="true" {{ 'checked' if f.value }}>
+  {% elif f.type == 'select' %}
+    <select name="{{ f.name }}">
+      {% for o in f.options %}<option value="{{ o }}" {{ 'selected' if o == f.value }}>{{ o }}</option>{% endfor %}
+    </select>
+  {% elif f.type == 'number' %}
+    <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="any" required>
+  {% else %}
+    <input type="text" name="{{ f.name }}" value="{{ f.value }}" required>
+  {% endif %}
+</label>
+{% endmacro %}
+
+<form method="POST" id="options-form" action="options_form" enctype="multipart/form-data">
+  <input type="hidden" name="session_id" value="{{ session_id }}">
+  <input type="hidden" name="machine_config_name" value="{{ machine_config_name }}">
+  <input type="hidden" name="machine_config_mode" value="{{ machine_config_mode }}">
+
+  <div class="sketch-card">
+    <div class="sketch-head">
+      <h2>Machine sketch</h2>
+      <span class="tag">{{ machine_config_name }}{% if generator != 'copicograf' %} · generator: {{ generator }}{% endif %}</span>
+    </div>
+    <img id="machine-sketch" alt="Machine sketch" title="Machine sketch" src="">
+    <p class="sketch-note">Updates as you edit. Trays drawn to scale with their entry and drip radii.</p>
+  </div>
+
+  {% for section in schema %}
+  <fieldset class="card open">
+    <legend class="toggle">{{ section.title }}<span class="caret">▾</span></legend>
+    <div class="card-body">
+
+      {% if section.key == 'trays' %}
+        <p class="sub">One thresholded image per tray, in the order the machine paints them. Ink is anything that is not white.</p>
+        {% for t in section.trays %}
+        <div class="tray {{ 'tray-water' if not t.color }}">
+          <div class="tray-head">
+            <span class="dot" data-tray="{{ t.tray }}" style="{% if t.tray.startswith('#') %}background:{{ t.tray }}{% endif %}"></span>
+            <b>{{ t.label }}</b>
+            <span class="tag">{{ t.tray }}{% if t.color %} · {{ t.color }}{% endif %}</span>
+          </div>
+          <div class="tray-grid">
+            {% if t.image %}
+            <label class="field">
+              <span>Thresholded Image</span>
+              <input type="file" name="trays-{{ t.tray }}-image" accept="image/*">
+            </label>
+            {% endif %}
+            <label class="field"><span>Tray X</span>
+              <input type="number" name="trays-{{ t.tray }}-x" value="{{ t.x }}" step="any" required></label>
+            <label class="field"><span>Tray Y</span>
+              <input type="number" name="trays-{{ t.tray }}-y" value="{{ t.y }}" step="any" required></label>
+          </div>
+        </div>
+        {% endfor %}
+
+      {% else %}
+        <div class="grid">
+          {% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}
+        </div>
+        {% for g in section.fields %}{% if g.group %}
+        <div class="subgroup">
+          <h3>{{ g.group }}{% if g.help %} <button type="button" class="info-btn" title="{{ g.help }}" aria-label="{{ g.help }}">ⓘ</button>{% endif %}</h3>
+          <div class="grid">{% for f in g.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+          {% for gg in g.fields %}{% if gg.group %}
+          <div class="subgroup nested">
+            <h4>{{ gg.group }}</h4>
+            <div class="grid">{% for f in gg.fields %}{{ field(f) }}{% endfor %}</div>
+          </div>
+          {% endif %}{% endfor %}
+        </div>
+        {% endif %}{% endfor %}
+      {% endif %}
+
+    </div>
+  </fieldset>
+  {% endfor %}
+
+  <div class="actions">
+    <button type="submit" class="secondary" id="options-form-machine-config">Download Config</button>
+    <button type="submit" class="primary" id="options-form-gcode">Generate Gcode</button>
+  </div>
+  <p class="error" id="form-error" hidden></p>
+  <p class="status" id="form-status" hidden></p>
+</form>

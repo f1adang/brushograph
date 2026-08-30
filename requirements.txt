@@ -7,7 +7,6 @@ filelock==3.8.0
 idna==3.4
 importlib-metadata==4.12.0
 numpy==1.26.4
-packaging==22.0
 Pillow==9.2.0
 pyparsing==3.0.9
 PyYAML==6.0.1
@@ -23,3 +22,4 @@ opencv-python==4.10.0.84
 opencv-contrib-python==4.10.0.84
 openscad-runner==1.1.1
 Wand==0.6.13
+Flask==3.1.3

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Brushograph WebUI — turn thresholded images into G-code for Brushograph-style brush plotters.">
+<title>Brushograph WebUI</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='webui.css') }}">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🖌️</text></svg>">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div>
+      <h1>Brushograph WebUI</h1>
+      <p>Thresholded images → G-code for brush plotters</p>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <fieldset class="card">
+    <legend>Machine Config</legend>
+    <p class="sub">The config describes the machine: tray positions, canvas size, brush behaviour. Everything below is generated from it.</p>
+    <div class="cfg-row">
+      <label class="field">
+        <span>Select preset</span>
+        <span class="with-btn">
+          <select name="machine-config" id="machine-config">
+            <option selected disabled value="">Choose config…</option>
+            {% for p in presets %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+          </select>
+          <button type="button" class="icon" id="cfg-download" title="Download preset" aria-label="Download preset">↓</button>
+        </span>
+      </label>
+      <label class="field">
+        <span>Or upload your own</span>
+        <input type="file" name="machine-config-file" id="machine-config-file" accept=".conf">
+      </label>
+    </div>
+    <p class="error" id="cfg-error" hidden></p>
+  </fieldset>
+
+  <div id="options-form-container">
+    <div class="placeholder">
+      <svg viewBox="0 0 210 130" aria-hidden="true">
+        <rect x="26" y="16" width="120" height="86" class="pl-bed"/>
+        <rect x="38" y="26" width="96" height="62" class="pl-canvas"/>
+        <circle cx="42" cy="112" r="8" class="pl-t1"/>
+        <circle cx="66" cy="112" r="8" class="pl-t2"/>
+        <circle cx="90" cy="112" r="8" class="pl-t3"/>
+        <path d="M158 100 V34" class="pl-arm"/><circle cx="158" cy="30" r="5" class="pl-arm-d"/>
+      </svg>
+      <p>Choose a machine config to begin.</p>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <a href="/about">About Brushograph</a>
+</footer>
+
+<dialog id="info-dialog"></dialog>
+<script>const SESSION_ID = "{{ session_id }}";</script>
+<script src="{{ url_for('static', filename='webui.js') }}"></script>
+</body>
+</html>
