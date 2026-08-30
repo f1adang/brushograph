@@ -38,9 +38,13 @@
 
   <h2>Notes</h2>
   <ul>
-    <li>A tray's image can be <b>already thresholded</b> or a <b>photo</b>. A photo is turned
-    into rough woodcut black and white first &mdash; bold shapes, no grey, nothing finer than the
-    brush can paint &mdash; with a preview so you can judge it before running.</li>
+    <li>A tray's image can be <b>already thresholded</b> or a <b>photo</b>. A photo becomes a
+    woodcut first: shadows go solid black, midtones are carried by hatching that thickens as the
+    tone darkens, highlights stay as paper. Hatch spacing follows the brush width, so every mark
+    is one the machine can actually paint. Preview it before running.</li>
+    <li>If a person or prominent object is detected in the photo, an <b>Isolate</b> option appears.
+    It cuts the subject from its background with GrabCut, leaving the rest as bare paper &mdash;
+    on the test photo, 56% ink down to 39%.</li>
     <li>Ink is anything that is not white, so light inks such as yellow survive the threshold.</li>
     <li><b>Set <code>infill_line_distance</code> to roughly the width your brush lays down.</b>
     It is the gap between fill lines; a pen-plotter value such as 0.5&nbsp;mm paints the same

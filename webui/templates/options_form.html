@@ -84,17 +84,27 @@
                     aria-label="Woodcut conversion help">&#9432;</button>
           </h3>
           <div class="grid">
-            <label class="field"><span>Simplify <output id="wc-simplify-out">60</output></span>
-              <input type="range" name="woodcut_simplify" id="wc-simplify" min="0" max="100" value="60"></label>
-            <label class="field"><span>Black / White <output id="wc-threshold-out">12</output></span>
-              <input type="range" name="woodcut_threshold" id="wc-threshold" min="-50" max="50" value="12"></label>
-            <label class="field"><span>Edge Roughness <output id="wc-roughness-out">45</output></span>
-              <input type="range" name="woodcut_roughness" id="wc-roughness" min="0" max="100" value="45"></label>
+            <label class="field"><span>Detail <output id="wc-detail-out">65</output></span>
+              <input type="range" name="woodcut_detail" id="wc-detail" min="0" max="100" value="65"></label>
+            <label class="field"><span>Hatching <output id="wc-hatching-out">65</output></span>
+              <input type="range" name="woodcut_hatching" id="wc-hatching" min="0" max="100" value="65"></label>
+            <label class="field"><span>Black / White <output id="wc-threshold-out">8</output></span>
+              <input type="range" name="woodcut_threshold" id="wc-threshold" min="-50" max="50" value="8"></label>
+            <label class="field"><span>Edge Roughness <output id="wc-roughness-out">40</output></span>
+              <input type="range" name="woodcut_roughness" id="wc-roughness" min="0" max="100" value="40"></label>
             <label class="field is-check">
               <span>Contour Lines</span>
               <input type="hidden" name="woodcut_outlines" value="false">
               <input type="checkbox" name="woodcut_outlines" id="wc-outlines" value="true" checked>
             </label>
+          </div>
+          <div class="subject-row" id="wc-subject-row" hidden>
+            <label class="field is-check">
+              <span id="wc-subject-label">Isolate subject</span>
+              <input type="hidden" name="woodcut_isolate" value="false">
+              <input type="checkbox" name="woodcut_isolate" id="wc-isolate" value="true">
+            </label>
+            <span class="ratio-note" id="wc-subject-note"></span>
           </div>
           <div class="wc-preview">
             <button type="button" class="ratio-btn" id="wc-preview-btn" disabled>Preview woodcut</button>

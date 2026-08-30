@@ -204,24 +204,28 @@ function wireForm() {
   }
 
   if (wcPanel) {
-    for (const [id, out] of [["wc-simplify", "wc-simplify-out"],
+    for (const [id, out] of [["wc-detail", "wc-detail-out"],
+                             ["wc-hatching", "wc-hatching-out"],
                              ["wc-threshold", "wc-threshold-out"],
                              ["wc-roughness", "wc-roughness-out"]]) {
       const el = $(id);
       if (el) el.addEventListener("input", () => { $(out).value = el.value; });
     }
     form.querySelectorAll("select.image-kind").forEach((s) =>
-      s.addEventListener("change", refreshWoodcut));
+      s.addEventListener("change", () => { refreshWoodcut(); detectSubject(); }));
 
     wcBtn.addEventListener("click", async () => {
       const target = photoTray();
       if (!target) return;
       const fd = new FormData();
       fd.append("image", target.file);
-      for (const n of ["woodcut_simplify", "woodcut_threshold", "woodcut_roughness"]) {
-        fd.append(n, form.querySelector(`[name="${n}"]`).value);
+      for (const n of ["woodcut_detail", "woodcut_hatching", "woodcut_threshold",
+                       "woodcut_roughness", "brushograph-width", "slicer-infill_line_distance"]) {
+        const el = form.querySelector(`[name="${n}"]`);
+        if (el) fd.append(n, el.value);
       }
       fd.append("woodcut_outlines", $("wc-outlines").checked ? "true" : "false");
+      fd.append("woodcut_isolate", $("wc-isolate") && $("wc-isolate").checked ? "true" : "false");
 
       const label = wcBtn.textContent;
       wcBtn.textContent = "Converting…";
@@ -253,11 +257,45 @@ function wireForm() {
       }
     });
     refreshWoodcut();
+    detectSubject();
+  }
+
+  /* ---- is there a person or prominent object worth isolating? ---- */
+  let lastDetected = null;
+  async function detectSubject() {
+    const row = $("wc-subject-row");
+    if (!row) return;
+    const target = photoTray();
+    if (!target) { row.hidden = true; return; }
+    if (lastDetected === target.file) return;      // already asked about this file
+    lastDetected = target.file;
+
+    const fd = new FormData();
+    fd.append("image", target.file);
+    try {
+      const res = await fetch("detect_subject", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.found) {
+        row.hidden = true;
+        if ($("wc-isolate")) $("wc-isolate").checked = false;
+        return;
+      }
+      const what = data.kind === "person"
+        ? (data.count > 1 ? `${data.count} people` : "a person")
+        : "a prominent object";
+      $("wc-subject-label").textContent = `Isolate ${what}`;
+      $("wc-subject-note").textContent =
+        `found by ${data.how}, covering ${Math.round(data.coverage * 100)}% of the frame` +
+        " — the background becomes bare paper";
+      row.hidden = false;
+    } catch (err) {
+      row.hidden = true;
+    }
   }
 
   if (ratioBtn) {
     form.querySelectorAll('input[type="file"]').forEach((i) =>
-      i.addEventListener("change", () => { measure(i); refreshWoodcut(); }));
+      i.addEventListener("change", () => { measure(i); refreshWoodcut(); detectSubject(); }));
 
     ratioBtn.addEventListener("click", () => {
       const entries = [...shapes.entries()];

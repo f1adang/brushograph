@@ -17,6 +17,7 @@ from flask import (Flask, abort, jsonify, render_template, request, send_file,
 from PIL import Image
 
 import gcode_pipeline
+import subject
 import woodcut
 from configspec import apply_form, build_schema, tray_entries
 from sketch import render as render_sketch
@@ -81,18 +82,63 @@ def index():
     )
 
 
+def _num(form, name, default):
+    try:
+        return float(form.get(name, default))
+    except (TypeError, ValueError):
+        return default
+
+
+def _flag(form, name, default="true"):
+    return (form.get(name) or default).lower() in {"1", "true", "on", "yes"}
+
+
 def _woodcut_params(form) -> dict:
-    def num(name, default):
-        try:
-            return float(form.get(name, default))
-        except (TypeError, ValueError):
-            return default
     return {
-        "simplify": num("woodcut_simplify", 60.0),
-        "threshold": num("woodcut_threshold", 12.0),
-        "roughness": num("woodcut_roughness", 45.0),
-        "outlines": (form.get("woodcut_outlines") or "true").lower() in {"1", "true", "on", "yes"},
+        "detail": _num(form, "woodcut_detail", 65.0),
+        "threshold": _num(form, "woodcut_threshold", 8.0),
+        "roughness": _num(form, "woodcut_roughness", 40.0),
+        "hatching": _num(form, "woodcut_hatching", 65.0),
+        "outlines": _flag(form, "woodcut_outlines"),
     }
+
+
+def _feature_px(form, image: Image.Image) -> float:
+    """The brush width, in pixels of the uploaded image.
+
+    Hatching is only worth drawing at a spacing the brush can actually render,
+    so the conversion needs to know how wide a stroke will be once the picture
+    is scaled onto the canvas.
+    """
+    width_mm = _num(form, "brushograph-width", 150.0)
+    brush_mm = _num(form, "slicer-infill_line_distance", 1.0)
+    return woodcut.feature_px(image.width, width_mm, max(brush_mm, 0.05))
+
+
+def _subject_mask(form, image: Image.Image, log=None):
+    """The isolation mask, or None when isolation was not asked for or found."""
+    if not _flag(form, "woodcut_isolate", "false"):
+        return None
+    found = subject.detect(image)
+    if not found.get("found"):
+        if log:
+            log(f"isolation skipped: {found.get('reason', 'nothing detected')}")
+        return None
+    return subject.isolate(image, found["box"])
+
+
+@app.post("/detect_subject")
+def detect_subject():
+    """Report whether a person or prominent object is worth isolating."""
+    upload = request.files.get("image")
+    if not upload or not upload.filename:
+        return jsonify(error="No image supplied"), 400
+    try:
+        with Image.open(upload.stream) as im:
+            im.load()
+            return jsonify(subject.detect(im))
+    except Exception as exc:  # noqa: BLE001
+        return jsonify(error=f"Could not inspect that image: {exc}"), 400
 
 
 @app.post("/woodcut_preview")
@@ -104,7 +150,12 @@ def woodcut_preview():
     try:
         with Image.open(upload.stream) as im:
             im.load()
-            converted = woodcut.convert(im, **_woodcut_params(request.form))
+            converted = woodcut.convert(
+                im,
+                min_feature_px=_feature_px(request.form, im),
+                mask=_subject_mask(request.form, im),
+                **_woodcut_params(request.form),
+            )
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not convert that image: {exc}"), 400
     buf = io.BytesIO()
@@ -220,11 +271,16 @@ def options_form_post():
                 if request.form.get(f"trays-{tray}-image_kind") == "photo":
                     with Image.open(p) as im:
                         im.load()
-                        converted = woodcut.convert(im, **wc)
+                        converted = woodcut.convert(
+                            im,
+                            min_feature_px=_feature_px(request.form, im),
+                            mask=_subject_mask(request.form, im, app.logger.info),
+                            **wc,
+                        )
                     p = work / f"woodcut_{tray}.png"
                     converted.convert("L").save(p)
-                    log_pre = f"[{tray}] woodcut: {woodcut.ink_fraction(converted) * 100:.1f}% ink"
-                    app.logger.info(log_pre)
+                    app.logger.info("[%s] woodcut: %.1f%% ink", tray,
+                                    woodcut.ink_fraction(converted) * 100)
                 saved[tray] = p
             log_lines: list[str] = []
             out = work / f"{stem}.gcode"

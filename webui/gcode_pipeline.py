@@ -670,14 +670,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         # `--dont-arrange` does that; `--center` would place the *traced
         # content* rather than the canvas, shifting any image whose subject does
         # not run to the edges, and it refuses outright on some geometry.
-        # The bed is a fiction here, so it gets margin: an object flush with the
-        # bed edge is reported as outside the print volume, and PrusaSlicer says
-        # so on stdout while still exiting 0.
+        # The bed is a fiction here, so it is drawn generously around the
+        # artwork and starts *below* the origin. Tracing routinely puts an edge
+        # a rounding error either side of zero, and with --dont-arrange any part
+        # outside the bed rectangle makes the whole object "outside of the print
+        # volume" — reported on stdout, with a zero exit code.
         bed_w = max(float(bg.get("max_width", width_mm)), width_mm) + BED_MARGIN
         bed_h = max(float(bg.get("max_height", height_mm)), height_mm) + BED_MARGIN
+        lo = -BED_MARGIN
         slice_cmd = [
                 pre["tools"]["slicer"], "--export-gcode", "--output", sliced.name,
-                "--bed-shape", f"0x0,{bed_w}x0,{bed_w}x{bed_h},0x{bed_h}",
+                "--bed-shape", f"{lo}x{lo},{bed_w}x{lo},{bed_w}x{bed_h},{lo}x{bed_h}",
                 "--dont-arrange",
                 "--layer-height", f"{layer_h}", "--first-layer-height", f"{layer_h}",
                 "--perimeters", str(int(float(slicer_conf.get("wall_line_count", 1) or 1))),
