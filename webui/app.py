@@ -13,7 +13,7 @@ import traceback
 from pathlib import Path
 
 from flask import (Flask, abort, jsonify, render_template, request, send_file,
-                   session)
+                   session, url_for)
 from PIL import Image
 
 import gcode_pipeline
@@ -37,6 +37,30 @@ SESSIONS_DIR.mkdir(exist_ok=True)
 GENERATE_LOCK = threading.Lock()
 
 SAFE_NAME = re.compile(r"^[A-Za-z0-9._-]+$")
+
+# Never let a browser run yesterday's JavaScript. Editing a script and reloading
+# is not enough on its own: the page keeps the copy it already parsed, and a
+# stale copy is indistinguishable from a bug in the new one.
+app.config["SEND_FILE_MAX_AGE_DEFAULT"] = 0
+
+
+@app.context_processor
+def _asset_helper():
+    def asset(filename: str) -> str:
+        """A static URL stamped with the file's modification time."""
+        path = Path(app.static_folder) / filename
+        stamp = int(path.stat().st_mtime) if path.exists() else 0
+        return url_for("static", filename=filename, v=stamp)
+    return {"asset": asset}
+
+
+@app.after_request
+def _no_store(response):
+    # Everything this app serves is either generated per request or a small
+    # local file; none of it is worth caching, and all of it is worth being
+    # current.
+    response.headers.setdefault("Cache-Control", "no-store, must-revalidate")
+    return response
 
 
 # ------------------------------------------------------------------- sessions

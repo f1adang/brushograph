@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Brushograph WebUI — turn thresholded images into G-code for Brushograph-style brush plotters.">
 <title>Brushograph WebUI</title>
-<link rel="stylesheet" href="{{ url_for('static', filename='webui.css') }}">
+<link rel="stylesheet" href="{{ asset('webui.css') }}">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🖌️</text></svg>">
 </head>
 <body>
@@ -65,6 +65,6 @@
 
 <dialog id="info-dialog"></dialog>
 <script>const SESSION_ID = "{{ session_id }}";</script>
-<script src="{{ url_for('static', filename='webui.js') }}"></script>
+<script src="{{ asset('webui.js') }}"></script>
 </body>
 </html>

@@ -321,6 +321,14 @@ untouched and any installed slicer works.
 instances; the pipeline always passes an explicit list so one run cannot append
 onto the previous one.
 
+## Assets are never cached
+
+Static URLs carry the file's modification time (`webui.js?v=1788098129`) and
+every response is sent `no-store`. Editing a script and reloading is otherwise
+not enough — the page keeps the copy it already parsed, and a stale copy is
+indistinguishable from a bug in the new one. Changing a file changes its URL, so
+the browser has to fetch it.
+
 ## Limits
 
 - **One generation at a time**, behind a lock: `copicograf` keeps state on the
