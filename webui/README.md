@@ -139,9 +139,33 @@ at a fixed level, so coverage holds steady whether the photograph is bright or
 dim:
 
 - **shadows** become solid black,
-- **midtones** become hatching that thickens as the tone darkens, cross-hatched
-  in the darkest third,
+- **midtones** become hatching that thickens as the tone darkens,
 - **highlights** are left as paper.
+
+#### The hatching follows the form
+
+A cut is made with a knife travelling along the shape, so its lines curve around
+a cheek and run the length of a limb. Straight stripes at a fixed angle — and
+the lattice you get from crossing two of them — read as a screen laid over the
+picture rather than as something carved.
+
+So the lines follow the picture's own directions. The structure tensor gives, at
+every pixel, the direction the form runs in; a coarse noise field is then
+smeared along that flow, and the streaks that come out are continuous, bend with
+the contours and fan around features. Where an image has no direction of its own
+— an open sky, a flat wall — the field falls back to a steady diagonal, so those
+areas still read as cut rather than blank.
+
+Two ratios decide whether a mark looks carved. Spacing comes from the brush, so
+the lines stay paintable. Length against width comes from how far the noise is
+smeared against how coarse it is: short smears over coarse noise give dabs, long
+smears over fine noise give lines. The streaks are grown at a reduced working
+size and scaled up — following a flow field costs with the square of the
+resolution, and the pattern is smooth enough to lose nothing on the way back.
+
+This suits the machine as well as the eye: flowing lines are long and
+continuous, where a cross-hatch lattice is thousands of short crossing segments.
+One photograph that way is 125 brush-downs for 3.1 m of painting.
 
 Hatch spacing is derived from `infill_line_distance` and the output width, so the
 thinnest line is always one the brush can paint. Contours are added as knife

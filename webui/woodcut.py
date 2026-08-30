@@ -18,6 +18,8 @@ from PIL import Image
 # limit what survives; at the bottom the picture is deliberately coarsened.
 MIN_WORK_SIDE = 1400
 MAX_WORK_SIDE = 2400
+# Resolution the hatching streaks are grown at before being scaled up.
+LIC_SIDE = 900
 
 
 def working_side(detail: float) -> int:
@@ -89,7 +91,7 @@ def convert(
     ink = tone < solid_at
 
     if hatching > 0:
-        ink |= _hatch(tone, solid_at, paper_at, hatching, min_feature, ease)
+        ink |= _hatch(tone, solid_at, paper_at, hatching, min_feature, ease, gray)
 
     if outlines:
         ink |= _contours(tone, gray, detail, min_feature)
@@ -152,39 +154,133 @@ def _roughen(tone: np.ndarray, roughness: float, short_side: int) -> np.ndarray:
                    0, 255).astype(np.uint8)
 
 
-def _hatch(tone: np.ndarray, solid_at: float, paper_at: float,
-           hatching: float, min_feature: float, detail_ease: float = 0.0) -> np.ndarray:
-    """Carve the midtones as parallel lines that thicken as the tone darkens.
+def _flow_field(gray: np.ndarray, sigma: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """The direction the form runs in at each pixel, and how sure we are of it.
 
-    Line spacing and the thinnest line are both held at or above what the brush
-    can paint, so the tone is carried by marks the machine can actually make
-    rather than by a pattern that collapses when it is traced.
+    From the structure tensor: its dominant eigenvector points across an edge,
+    so the perpendicular runs along it. Blurring the tensor rather than the
+    angles is what makes the field continuous — angles wrap at pi and cannot be
+    averaged directly.
+    """
+    g = gray.astype(np.float32) / 255.0
+    gx = cv2.Sobel(g, cv2.CV_32F, 1, 0, ksize=5)
+    gy = cv2.Sobel(g, cv2.CV_32F, 0, 1, ksize=5)
+    jxx = cv2.GaussianBlur(gx * gx, (0, 0), sigma)
+    jyy = cv2.GaussianBlur(gy * gy, (0, 0), sigma)
+    jxy = cv2.GaussianBlur(gx * gy, (0, 0), sigma)
+
+    theta = 0.5 * np.arctan2(2.0 * jxy, jxx - jyy)   # across the edge
+    tangent = theta + np.pi / 2.0                    # along it
+    vx, vy = np.cos(tangent), np.sin(tangent)
+
+    # How directional the neighbourhood is. Where nothing runs anywhere —
+    # an open sky, a flat wall — this falls to zero and the field is meaningless.
+    diff = np.sqrt((jxx - jyy) ** 2 + 4.0 * jxy ** 2)
+    total = jxx + jyy
+    coherence = np.where(total > 1e-8, diff / (total + 1e-8), 0.0).astype(np.float32)
+    return vx.astype(np.float32), vy.astype(np.float32), coherence
+
+
+def _hatch(tone: np.ndarray, solid_at: float, paper_at: float,
+           hatching: float, min_feature: float, detail_ease: float = 0.0,
+           gray: np.ndarray | None = None) -> np.ndarray:
+    """Carve the midtones as lines that follow the form.
+
+    A cut is made with a knife travelling along the shape, so its lines curve
+    around a cheek and run the length of a limb. Straight stripes at a fixed
+    angle, and the lattice you get from crossing two of them, read as a screen
+    laid over the picture rather than as something carved.
+
+    The lines here are grown by smearing a coarse noise field along the image's
+    own tangent flow — the streaks that come out are continuous, follow the
+    contours, and fan around features. Their spacing is set by how coarse the
+    noise is, so it still answers to the brush; how much of each becomes ink is
+    set by the tone, so darkness still reads as darkness.
     """
     h, w = tone.shape
-    # Spacing is set so the thinnest line is a fixed fraction of the gap. That
-    # keeps the lightest hatch light even for a wide brush, where a fixed
-    # spacing would force every line to be thick and flood the midtones.
     spacing = min_feature * (5.6 - 2.5 * hatching / 100 - 0.6 * detail_ease)
-    yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
+    spacing = max(spacing, min_feature * 2.0)
 
     t = tone.astype(np.float32)
-    # 0 at the edge of the solid blacks, 1 where the paper starts.
     ramp = np.clip((t - solid_at) / max(paper_at - solid_at, 1e-6), 0, 1)
     in_band = (t >= solid_at) & (t < paper_at)
+    if not in_band.any():
+        return np.zeros_like(in_band)
 
-    duty_min = min_feature / spacing
-    duty = duty_min + (1.0 - ramp) * (0.5 - duty_min)
+    vx, vy, coherence = _flow_field(gray if gray is not None else tone,
+                                    sigma=max(2.0, spacing * 0.9))
+    # Where the picture has no direction of its own, fall back to a steady
+    # diagonal so flat areas still read as cut rather than as blank.
+    steady = np.pi / 4.0
+    weight = np.clip(coherence * 3.0, 0, 1)[..., None] if False else np.clip(coherence * 3.0, 0, 1)
+    vx = vx * weight + np.cos(steady) * (1 - weight)
+    vy = vy * weight + np.sin(steady) * (1 - weight)
+    norm = np.sqrt(vx * vx + vy * vy) + 1e-8
+    vx, vy = (vx / norm).astype(np.float32), (vy / norm).astype(np.float32)
 
-    def lines(angle, offset=0.0):
-        proj = (xx * np.cos(angle) + yy * np.sin(angle)) / spacing + offset
-        return (proj - np.floor(proj)) < duty
+    # The streaks are grown at a working size and scaled up. Following a flow
+    # field a step at a time is the expensive part of this, and it costs with
+    # the square of the resolution; the pattern itself is smooth enough that
+    # nothing of it is lost on the way back up.
+    lic_scale = min(1.0, LIC_SIDE / max(h, w))
+    lh, lw = max(8, int(h * lic_scale)), max(8, int(w * lic_scale))
+    lic_spacing = max(2.0, spacing * lic_scale)
 
-    out = lines(np.pi / 4) & in_band
-    # The darkest third of the band gets a second pass, the way a cut is
-    # cross-hatched to hold a deeper tone.
-    if hatching > 35:
-        out |= lines(-np.pi / 4, 0.5) & in_band & (ramp < 0.34)
-    return out
+    # Fine noise smeared a long way. The ratio of the two is what makes a mark
+    # read as a cut line rather than a blot: short smears over coarse noise give
+    # dabs, and it is length against width that says "carved".
+    rng = np.random.default_rng(11)
+    cell = max(1, int(round(lic_spacing * 0.22)))
+    noise = rng.random((max(2, lh // cell), max(2, lw // cell))).astype(np.float32)
+    noise = cv2.resize(noise, (lw, lh), interpolation=cv2.INTER_LINEAR)
+
+    small_vx = cv2.resize(vx, (lw, lh), interpolation=cv2.INTER_LINEAR)
+    small_vy = cv2.resize(vy, (lw, lh), interpolation=cv2.INTER_LINEAR)
+    # Renormalise after the resize: averaging neighbouring directions shortens
+    # the vectors, and the smear steps one length at a time.
+    scale_norm = np.sqrt(small_vx ** 2 + small_vy ** 2) + 1e-8
+    small_vx = (small_vx / scale_norm).astype(np.float32)
+    small_vy = (small_vy / scale_norm).astype(np.float32)
+
+    lic = _smear_along(noise, small_vx, small_vy, steps=max(8, int(lic_spacing * 9)))
+    if lic_scale < 1.0:
+        lic = cv2.resize(lic, (w, h), interpolation=cv2.INTER_LINEAR)
+    # Normalise locally, so the streak pattern is comparable everywhere and the
+    # threshold below means the same thing in a bright region as in a dark one.
+    blur = max(3, _odd(int(spacing * 6)))
+    local_mean = cv2.GaussianBlur(lic, (blur, blur), 0)
+    local_dev = np.sqrt(cv2.GaussianBlur((lic - local_mean) ** 2, (blur, blur), 0)) + 1e-6
+    z = (lic - local_mean) / local_dev
+    level = np.clip(z, -3, 3) / 6.0 + 0.5      # roughly 0..1
+
+    duty_min = min(0.45, min_feature / spacing)
+    duty = duty_min + (1.0 - ramp) * (0.62 - duty_min)
+    return (level < duty) & in_band
+
+
+def _smear_along(field: np.ndarray, vx: np.ndarray, vy: np.ndarray, steps: int) -> np.ndarray:
+    """Average a field along the flow through every pixel, both ways.
+
+    Line integral convolution: following the field a step at a time and
+    resampling it as we go is what lets a streak bend with the form instead of
+    running off straight.
+    """
+    h, w = field.shape
+    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
+    total = field.copy()
+    count = np.ones_like(field)
+    for direction in (1.0, -1.0):
+        px, py = xs.copy(), ys.copy()
+        for _ in range(steps):
+            dx = cv2.remap(vx, px, py, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+            dy = cv2.remap(vy, px, py, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+            px = px + direction * dx
+            py = py + direction * dy
+            np.clip(px, 0, w - 1, out=px)
+            np.clip(py, 0, h - 1, out=py)
+            total += cv2.remap(field, px, py, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
+            count += 1.0
+    return total / count
 
 
 def _drop_specks(mask: np.ndarray, min_area: float) -> np.ndarray:
