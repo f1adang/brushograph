@@ -19,6 +19,10 @@ class Copicograf:
         self.move_to_other_shape_lift = int(self.conf["brushograph"]["move_to_other_shape_lift"])
 
         self.tray_enter_radius = int(self.conf["brushograph"]["tray_enter_radius"])
+        # How far the brush descends into a cup. Was fixed at -4, which is deeper
+        # than a shallow petri dish wants. Absent from a config, that stays the
+        # behaviour.
+        self.dip_depth = float(self.conf["brushograph"].get("dip_depth", -4))
         self.remove_drops_radius = int(self.conf["brushograph"]["remove_drops_radius"])
 
         self.offset_y = float(self.conf["brushograph"]["offset_y"])
@@ -188,7 +192,7 @@ class Copicograf:
                 # down in the paint where the brush is already inside.        #
                 ###############################################################
                 self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
-                self.gcodes.append(GCodeRapidMove(Z=-4))
+                self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
                 self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
                 self.gcodes.append(GCodeRapidMove(X=second_coords[0], Y=second_coords[1]))
                 self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))

@@ -464,13 +464,15 @@ function parseGcode(text) {
       const v = parseFloat(value);
       if (axis === "X") nx = v; else if (axis === "Y") ny = v; else nz = v;
     }
-    // Z at or below the canvas is painting; well below it is a trip into a cup.
+    // Z at the canvas is painting; anything below it is a trip into a cup.
+    // Not a fixed depth: the dip is configurable, and a shallow one would
+    // otherwise be drawn as painting.
     const down = nz <= 0.001;
-    const inCup = nz <= -1;
+    const inCup = nz < -0.001;
     const d = Math.hypot(nx - x, ny - y);
     if (down && wasDown && !inCup) paintMM += d; else travelMM += d;
     if (down && !wasDown) strokes++;
-    if (inCup && z > -1) dips++;
+    if (inCup && z >= -0.001) dips++;
     moves.push({ x1: x, y1: y, x2: nx, y2: ny, down: down && wasDown, cup: inCup, tray: trayIndex });
     wasDown = down; x = nx; y = ny; z = nz;
   }

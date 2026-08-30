@@ -38,6 +38,17 @@ a config carrying different keys brings its own fields with it.
   when the uploaded images disagree on ratio, or when the result exceeds
   `max_height`.
 
+### Dip depth
+
+How far the brush descends into a cup was fixed at Z −4 in `copicograf`, which
+is deeper than a shallow petri dish wants — the brush went in past its ferrule.
+It is now `brushograph.dip_depth` in the config, so it appears in the form like
+any other setting. A config that does not mention it still gets −4.
+
+The preview reads a dip as *any* Z below the canvas rather than a fixed depth.
+Keyed to −4, a shallower dip would have been drawn as painting and left out of
+the dip count.
+
 ### Calibration is a macro, not a preamble
 
 `copicograf` opened every run by mixing the colour, washing the brush and
