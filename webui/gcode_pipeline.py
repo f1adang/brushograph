@@ -57,6 +57,11 @@ FALLBACK_PATTERN = "concentric"
 # cost of painting over slightly more bare paper.
 BRIDGE_MULTIPLE = 1.5
 
+# Clearance added around the artwork when telling the slicer how big the bed is.
+# The bed only exists to stop it complaining; the artwork's own coordinates are
+# what reach the machine.
+BED_MARGIN = 50.0
+
 # Bridging further than this does not pay. A bridge replaces a lift and a travel
 # with painted distance, and painted distance is what forces trips to the paint
 # tray: copicograf re-inks every paint_per_run. Past a few line widths the trips
@@ -95,6 +100,24 @@ class PipelineError(RuntimeError):
     pass
 
 
+_PROGRESS = re.compile(r"^\s*\d+\s*=>")
+
+
+def _complaint(proc) -> str:
+    """The most useful line a tool printed, ignoring progress chatter.
+
+    PrusaSlicer reports several fatal conditions on stdout and still exits 0,
+    so its own words are the only reliable explanation of an empty run.
+    """
+    for stream in (proc.stderr, proc.stdout):
+        for line in reversed((stream or "").splitlines()):
+            line = line.strip()
+            if not line or _PROGRESS.match(line) or line.startswith("Slicing result"):
+                continue
+            return line
+    return ""
+
+
 def _run(cmd: list[str], log, cwd: Path | None = None):
     log(f"$ {' '.join(str(c) for c in cmd)}")
     p = subprocess.run([str(c) for c in cmd], cwd=cwd, capture_output=True, text=True)
@@ -103,7 +126,10 @@ def _run(cmd: list[str], log, cwd: Path | None = None):
         if line.strip():
             log("  " + line.rstrip())
     if p.returncode != 0:
-        raise PipelineError(f"{Path(cmd[0]).name} exited {p.returncode}")
+        detail = _complaint(p)
+        raise PipelineError(
+            f"{Path(cmd[0]).name} exited {p.returncode}" + (f": {detail}" if detail else "")
+        )
     return p
 
 
@@ -639,16 +665,20 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         _run([pre["tools"]["openscad"], "-o", stl.name, scad.name], log, cwd=workdir)
 
         log(f"[{tray}] slicing")
-        # OpenSCAD already emits the artwork in canvas coordinates (0,0)-(w,h).
-        # Without an explicit bed and centre PrusaSlicer would re-centre it on
-        # its own default bed and the painting would land in the wrong place.
-        bed_w = max(float(bg.get("max_width", width_mm)), width_mm)
-        bed_h = max(float(bg.get("max_height", height_mm)), height_mm)
-        _run(
-            [
+        # OpenSCAD already emits the artwork in canvas coordinates (0,0)-(w,h),
+        # so the only thing asked of the slicer is to leave it where it is.
+        # `--dont-arrange` does that; `--center` would place the *traced
+        # content* rather than the canvas, shifting any image whose subject does
+        # not run to the edges, and it refuses outright on some geometry.
+        # The bed is a fiction here, so it gets margin: an object flush with the
+        # bed edge is reported as outside the print volume, and PrusaSlicer says
+        # so on stdout while still exiting 0.
+        bed_w = max(float(bg.get("max_width", width_mm)), width_mm) + BED_MARGIN
+        bed_h = max(float(bg.get("max_height", height_mm)), height_mm) + BED_MARGIN
+        slice_cmd = [
                 pre["tools"]["slicer"], "--export-gcode", "--output", sliced.name,
                 "--bed-shape", f"0x0,{bed_w}x0,{bed_w}x{bed_h},0x{bed_h}",
-                "--center", f"{width_mm / 2},{height_mm / 2}",
+                "--dont-arrange",
                 "--layer-height", f"{layer_h}", "--first-layer-height", f"{layer_h}",
                 "--perimeters", str(int(float(slicer_conf.get("wall_line_count", 1) or 1))),
                 "--top-solid-layers", "0", "--bottom-solid-layers", "0",
@@ -660,16 +690,16 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 "--filament-diameter", "1",
                 "--temperature", "0", "--first-layer-temperature", "0",
                 stl.name,
-            ],
-            log, cwd=workdir,
-        )
+        ]
+        proc = _run(slice_cmd, log, cwd=workdir)
 
         if not sliced.is_file():
             # PrusaSlicer reports some rejected settings on stdout and still
             # exits 0, so a missing file is the only reliable signal.
+            detail = _complaint(proc)
             raise PipelineError(
-                f"the slicer produced no G-code for {tray}. Check Slicer Options — "
-                f"infill line distance {line_w:g} mm."
+                f"the slicer produced no G-code for {tray}"
+                + (f": {detail}" if detail else " and gave no reason")
             )
         n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w,
                                  mask=InkMask(ink, width_mm, height_mm))

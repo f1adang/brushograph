@@ -57,10 +57,15 @@ Notes on things that needed care:
   point per pixel and OpenSCAD honours the declared unit, so the PNG's DPI
   metadata is irrelevant. Reading the SVG's own width/height is what keeps the
   painting at the size the config asks for.
-- **The slicer is pinned to the config's coordinates.** OpenSCAD emits the
-  artwork at `(0,0)-(width,height)`; without an explicit `--bed-shape` and
-  `--center` PrusaSlicer re-centres it on its default bed and the painting lands
-  in the wrong place.
+- **The slicer is told to leave the artwork alone.** OpenSCAD emits it at
+  `(0,0)-(width,height)` already, so the slicer gets `--dont-arrange`. Not
+  `--center`: that places the *traced content* rather than the canvas, so any
+  image whose subject does not run to the edges gets shifted within the frame,
+  and on some geometry it refuses to slice at all.
+- **The bed is a fiction, so it gets margin.** An object flush with the bed edge
+  is rejected as outside the print volume — and PrusaSlicer says so on stdout
+  while still exiting 0, which is why an empty result has to be read back out of
+  its own output rather than guessed at.
 - **`infill_line_distance` is an extrusion width, not a nozzle bore.** Passing it
   as a nozzle diameter makes PrusaSlicer silently reject any value below the
   layer height, exit 0, and write nothing.
