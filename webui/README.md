@@ -38,6 +38,23 @@ a config carrying different keys brings its own fields with it.
   when the uploaded images disagree on ratio, or when the result exceeds
   `max_height`.
 
+### Calibration is a macro, not a preamble
+
+`copicograf` opened every run by mixing the colour, washing the brush and
+loading it, each trip ending with a touch on the paper at the origin. In a job
+that repeated once per tray and left the dots inside the artwork's coordinate
+space.
+
+That sequence is now off in generated jobs and available on its own as
+**Download calibration.g**, built from the config on screen so the tray
+positions, lifts and feed rates match the machine. Run it before a job.
+
+**The job no longer primes the brush.** It starts painting with whatever is on
+it, so the macro — or a manual dip — has to come first.
+
+The closing wash at the end of each tray is untouched, and still leaves one dot
+at the origin per tray.
+
 ### G-code preview
 
 Below the options is a preview of the path the brush will take, drawn as soon as
@@ -57,12 +74,14 @@ Two actions:
 
 - **Download Config** returns the edited config as a `.conf`. Types are
   preserved and keys the form does not cover are passed through untouched.
-- **Generate Gcode** runs the pipeline and returns one G-code file, named after
+- **Generate Gcode** runs the pipeline and offers one G-code file, named after
   the picture and the colours that painted it:
   `vali_letten_c1_infill.gcode`. The numbers are the tray numbers shown in the
   form, so a file can be matched to the run that made it without opening it, and
   `_infill` says whether the shapes were filled or only outlined. With several
-  trays the name carries each in painting order — `photo_c1_c2.gcode`.
+  trays the name carries each in painting order — `photo_c1_c2.gcode`. The file
+  is not saved automatically: it is drawn in the preview first and downloaded
+  from a button, so a run can be looked at before it is kept.
 
 An **infill line distance of 0** means no infill: outlines only. The brush still
 has a width — the perimeter and the woodcut's finest mark are both measured in

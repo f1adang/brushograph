@@ -327,6 +327,36 @@ function wireForm() {
     });
   }
 
+  /* ---- the calibration macro, built from the config on screen ---- */
+  const calBtn = $("options-form-calibration");
+  if (calBtn) {
+    calBtn.addEventListener("click", async () => {
+      const errBox = $("form-error");
+      errBox.hidden = true;
+      const fd = new FormData(form);
+      form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
+      fd.append("calibration_only", "true");
+      const label = calBtn.textContent;
+      calBtn.textContent = "Building…";
+      calBtn.disabled = true;
+      try {
+        const res = await fetch(form.action, { method: "POST", body: fd });
+        if (!res.ok) {
+          let msg = `Server returned ${res.status}`;
+          try { msg = (await res.json()).error || msg; } catch (_) { /* not json */ }
+          throw new Error(msg);
+        }
+        saveBlob(await res.blob(), "calibration.g");
+      } catch (err) {
+        errBox.textContent = String(err.message || err);
+        errBox.hidden = false;
+      } finally {
+        calBtn.textContent = label;
+        calBtn.disabled = false;
+      }
+    });
+  }
+
   /* ---- submit ---- */
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -368,24 +398,25 @@ function wireForm() {
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename="?([^";]+)"?/);
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = match ? match[1] : (wantsGcode ? "brushograph.gcode" : "machine.conf");
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
-      statusBox.textContent = `Downloaded ${a.download} (${(blob.size / 1024).toFixed(0)} KB).`;
+      const filename = match ? match[1] : (wantsGcode ? "brushograph.gcode" : "machine.conf");
+
+      if (!wantsGcode) {
+        saveBlob(blob, filename);
+        statusBox.textContent = `Downloaded ${filename} (${(blob.size / 1024).toFixed(0)} KB).`;
+        statusBox.hidden = false;
+        return;
+      }
+      // The G-code is offered rather than saved: look at the preview first, and
+      // download when it is what you wanted.
+      const text = await blob.text();
+      offerDownload(blob, filename);
+      statusBox.textContent =
+        `Ready: ${filename} (${(blob.size / 1024).toFixed(0)} KB). Preview below.`;
       statusBox.hidden = false;
-      // After the download, never before: drawing the preview is a nicety and
-      // must not be able to cost someone the file they asked for.
-      if (wantsGcode) {
-        try {
-          showGcode(await blob.text());
-        } catch (err) {
-          console.error("preview failed", err);
-        }
+      try {
+        showGcode(text);
+      } catch (err) {
+        console.error("preview failed", err);
       }
     } catch (err) {
       statusBox.hidden = true;
@@ -453,6 +484,31 @@ function trayColour(name, index) {
 }
 
 const sim = { data: null, upto: 1 };
+
+function saveBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+let pendingFile = null;
+function offerDownload(blob, filename) {
+  pendingFile = { blob, filename };
+  const button = $("gcode-download");
+  const note = $("gcode-note");
+  if (!button) return;
+  button.textContent = `Download ${filename}`;
+  button.hidden = false;
+  if (note) {
+    note.textContent = `${(blob.size / 1024).toFixed(0)} KB`;
+    note.hidden = false;
+  }
+}
 
 function drawGcode() {
   const canvas = $("gcode-canvas");
@@ -598,11 +654,18 @@ function wireSimulator() {
       if (sim.upto >= 1) { clearInterval(simTimer); simTimer = null; play.textContent = "▶ Play"; }
     }, 40);
   });
+  const download = $("gcode-download");
+  if (download) {
+    download.addEventListener("click", () => {
+      if (pendingFile) saveBlob(pendingFile.blob, pendingFile.filename);
+    });
+  }
   if (open) {
     open.addEventListener("change", async () => {
       const file = open.files[0];
       if (!file) return;
       showGcode(await file.text());
+      offerDownload(file, file.name);
       open.value = "";
     });
   }
