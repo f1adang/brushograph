@@ -30,8 +30,8 @@ a config carrying different keys brings its own fields with it.
 - **Machine sketch** — a to-scale drawing of bed, image area and trays with
   their entry and drip radii, redrawn as you edit. Trays parked outside the bed
   are called out rather than quietly cropped.
-- **Match image** — sets Height from the configured Width and the uploaded
-  image's aspect ratio. The pixel grid is mapped onto width x height regardless
+- **Match image** — sets Height, in whole millimetres, from the configured Width
+  and the uploaded image's aspect ratio. The pixel grid is mapped onto width x height regardless
   of aspect, so a mismatch stretches the painting rather than fitting it. Warns
   when the uploaded images disagree on ratio, or when the result exceeds
   `max_height`.
@@ -152,6 +152,9 @@ onto the previous one.
   of this repository.
 - The form never invents config keys: a posted field that does not already exist
   in the config is ignored.
+- Backlash compensation is on unless a config turns it off. A config carrying no
+  backlash figures still goes through that step, but compensating by zero is a
+  no-op, so nothing changes for it.
 - `copicograf` emits `G28 X Y` once, near the top. Marlin reads bare axis words
   as "home these axes" and keeps it. GRBL and FluidNC require a value after each
   word and reject the line outright (`Bad GCode number format`, ALARM:17), so it

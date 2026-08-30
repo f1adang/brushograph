@@ -596,7 +596,9 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     stats["dropped_marlin_lines"] = dropped
     stats["controller"] = controller
 
-    if bg.get("backlash_compensation"):
+    # On unless the config turns it off. A config carrying no backlash figures
+    # at all still passes through here, but compensating by zero is a no-op.
+    if bg.get("backlash_compensation", True):
         before = len(lines)
         lines = apply_backlash(lines, float(bg.get("backlash_x", 0)), float(bg.get("backlash_y", 0)))
         log(f"backlash compensation: +{len(lines) - before} corrective moves")

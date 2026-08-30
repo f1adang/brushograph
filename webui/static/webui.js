@@ -186,7 +186,8 @@ function wireForm() {
       if (!isFinite(width) || width <= 0) return note("set a width first", true);
 
       const [tray, shape] = entries[0];
-      const height = Math.round(width * (shape.h / shape.w) * 100) / 100;
+      // Whole millimetres: the ratio is a guide, not a tolerance.
+      const height = Math.max(1, Math.round(width * (shape.h / shape.w)));
       heightInput.value = height;
       // Bubbles to the form listener, so the sketch redraws.
       heightInput.dispatchEvent(new Event("input", { bubbles: true }));
