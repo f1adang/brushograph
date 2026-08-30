@@ -13,7 +13,15 @@ import cv2
 import numpy as np
 from PIL import Image
 
-MAX_SIDE = 1600
+# Working resolution, and how hard the cleanup stages press, both follow the
+# Detail control. At the top of the range only the brush itself is allowed to
+# limit what survives; at the bottom the picture is deliberately coarsened.
+MIN_WORK_SIDE = 1400
+MAX_WORK_SIDE = 2400
+
+
+def working_side(detail: float) -> int:
+    return int(MIN_WORK_SIDE + (MAX_WORK_SIDE - MIN_WORK_SIDE) * float(detail) / 100.0)
 
 
 def _odd(n, lo: int = 1) -> int:
@@ -28,7 +36,9 @@ def convert(
     roughness: float = 40.0,    # 0-100: how irregular the carved edges look
     outlines: bool = True,      # keep dark contours as knife lines
     hatching: float = 70.0,     # 0-100: how much midtone is carried by hatching
-    min_feature_px: float = 3.0,  # thinnest mark the brush can actually paint
+    min_feature_px: float | None = None,  # thinnest mark the brush can paint
+    width_mm: float | None = None,   # how wide the picture will be painted
+    brush_mm: float | None = None,   # how wide a stroke the brush lays down
     mask: np.ndarray | None = None,  # optional subject mask; outside becomes paper
 ) -> Image.Image:
     """Return a 1-bit image: black where the brush should paint."""
@@ -39,20 +49,27 @@ def convert(
 
     rgb = np.asarray(image.convert("RGB"))
     h, w = rgb.shape[:2]
-    scale = min(1.0, MAX_SIDE / max(h, w))
+    scale = min(1.0, working_side(detail) / max(h, w))
     if scale < 1.0:
         rgb = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA)
         if mask is not None:
             mask = cv2.resize(mask, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_NEAREST)
     gray = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY)
     short_side = min(gray.shape)
-    min_feature = max(1.0, float(min_feature_px))
+    # Derived after the resize, so the brush width is expressed in the pixels
+    # actually being worked on. Passing it in precomputed went stale the moment
+    # the working resolution started following Detail.
+    if width_mm and brush_mm:
+        min_feature = max(1.2, float(brush_mm) * rgb.shape[1] / float(width_mm))
+    else:
+        min_feature = max(1.0, float(min_feature_px or 3.0))
+    ease = detail / 100.0
 
     gray = cv2.createCLAHE(clipLimit=2.6, tileGridSize=(8, 8)).apply(gray)
 
     # Smoothing is now light: it exists to stop sensor noise becoming marks, not
     # to flatten the picture. More detail means less of it.
-    d = _odd(short_side * (0.014 - 0.0125 * detail / 100), 3)
+    d = _odd(short_side * (0.014 - 0.0132 * detail / 100), 3)
     tone = cv2.bilateralFilter(gray, d=min(d, 15), sigmaColor=95 - 0.65 * detail, sigmaSpace=d)
 
     if roughness > 0:
@@ -72,7 +89,7 @@ def convert(
     ink = tone < solid_at
 
     if hatching > 0:
-        ink |= _hatch(tone, solid_at, paper_at, hatching, min_feature)
+        ink |= _hatch(tone, solid_at, paper_at, hatching, min_feature, ease)
 
     if outlines:
         ink |= _contours(tone, gray, detail, min_feature)
@@ -80,10 +97,10 @@ def convert(
     solid = ink.astype(np.uint8)
     # Only a light close, and never an open: an open with a kernel wider than a
     # hatch line would erase the hatching that carries the tone.
-    k = _odd(max(2.0, min_feature * 0.9), 3)
+    k = _odd(max(2.0, min_feature * (0.95 - 0.6 * ease)), 3)
     solid = cv2.morphologyEx(solid, cv2.MORPH_CLOSE,
                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
-    solid = _drop_specks(solid, min_area=(min_feature * 1.25) ** 2)
+    solid = _drop_specks(solid, min_area=(min_feature * (1.3 - 0.75 * ease)) ** 2)
 
     if mask is not None:
         solid = np.where(mask > 0, solid, 0).astype(np.uint8)
@@ -99,12 +116,16 @@ def _contours(tone: np.ndarray, gray: np.ndarray, detail: float, min_feature: fl
     contours a carver would actually cut, and the speckle that would otherwise
     become hundreds of unpaintable dabs is gone.
     """
-    lo = int(64 - 34 * detail / 100)
+    lo = int(64 - 46 * detail / 100)
     edges = cv2.Canny(cv2.GaussianBlur(tone, (0, 0), 1.1), lo, int(lo * 2.6)) > 0
     if detail > 55:
-        edges |= cv2.Canny(cv2.GaussianBlur(gray, (0, 0), 0.7), lo + 30, int((lo + 30) * 2.8)) > 0
+        edges |= cv2.Canny(cv2.GaussianBlur(gray, (0, 0), 0.7), lo + 24, int((lo + 24) * 2.8)) > 0
+    if detail > 85:
+        # A third, sharper pass: the fine interior lines — eyelids, folds,
+        # strands — that only appear once the picture stops being smoothed.
+        edges |= cv2.Canny(gray, lo + 46, int((lo + 46) * 3.0)) > 0
 
-    min_run = max(4.0, min_feature * (4.6 - 2.6 * detail / 100))
+    min_run = max(3.0, min_feature * (4.6 - 3.4 * detail / 100))
     n, labels, stats, _ = cv2.connectedComponentsWithStats(edges.astype(np.uint8), connectivity=8)
     keep = np.zeros(n, bool)
     for i in range(1, n):
@@ -132,7 +153,7 @@ def _roughen(tone: np.ndarray, roughness: float, short_side: int) -> np.ndarray:
 
 
 def _hatch(tone: np.ndarray, solid_at: float, paper_at: float,
-           hatching: float, min_feature: float) -> np.ndarray:
+           hatching: float, min_feature: float, detail_ease: float = 0.0) -> np.ndarray:
     """Carve the midtones as parallel lines that thicken as the tone darkens.
 
     Line spacing and the thinnest line are both held at or above what the brush
@@ -143,7 +164,7 @@ def _hatch(tone: np.ndarray, solid_at: float, paper_at: float,
     # Spacing is set so the thinnest line is a fixed fraction of the gap. That
     # keeps the lightest hatch light even for a wide brush, where a fixed
     # spacing would force every line to be thick and flood the midtones.
-    spacing = min_feature * (5.6 - 2.5 * hatching / 100)
+    spacing = min_feature * (5.6 - 2.5 * hatching / 100 - 0.6 * detail_ease)
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
 
     t = tone.astype(np.float32)
@@ -176,14 +197,6 @@ def _drop_specks(mask: np.ndarray, min_area: float) -> np.ndarray:
             if stats[i, cv2.CC_STAT_AREA] < min_area:
                 mask[labels == i] = 1 - value
     return mask
-
-
-def feature_px(image_px: int, image_mm: float, brush_mm: float) -> float:
-    """Brush width expressed in pixels of the working image."""
-    if image_mm <= 0 or image_px <= 0:
-        return 3.0
-    working = min(image_px, MAX_SIDE)
-    return max(1.5, brush_mm * working / image_mm)
 
 
 def ink_fraction(img: Image.Image) -> float:

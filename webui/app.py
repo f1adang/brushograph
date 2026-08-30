@@ -103,16 +103,17 @@ def _woodcut_params(form) -> dict:
     }
 
 
-def _feature_px(form, image: Image.Image) -> float:
-    """The brush width, in pixels of the uploaded image.
+def _scale_params(form) -> dict:
+    """How wide the picture will be painted, and how wide a stroke.
 
-    Hatching is only worth drawing at a spacing the brush can actually render,
-    so the conversion needs to know how wide a stroke will be once the picture
-    is scaled onto the canvas.
+    Passed as millimetres rather than pixels: the conversion picks its own
+    working resolution from the Detail control, so only it can turn these into
+    a pixel size that is still correct afterwards.
     """
-    width_mm = _num(form, "brushograph-width", 150.0)
-    brush_mm = _num(form, "slicer-infill_line_distance", 1.0)
-    return woodcut.feature_px(image.width, width_mm, max(brush_mm, 0.05))
+    return {
+        "width_mm": _num(form, "brushograph-width", 150.0),
+        "brush_mm": max(_num(form, "slicer-infill_line_distance", 1.0), 0.05),
+    }
 
 
 def _subject_mask(form, image: Image.Image, log=None):
@@ -152,8 +153,8 @@ def woodcut_preview():
             im.load()
             converted = woodcut.convert(
                 im,
-                min_feature_px=_feature_px(request.form, im),
                 mask=_subject_mask(request.form, im),
+                **_scale_params(request.form),
                 **_woodcut_params(request.form),
             )
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
@@ -273,8 +274,8 @@ def options_form_post():
                         im.load()
                         converted = woodcut.convert(
                             im,
-                            min_feature_px=_feature_px(request.form, im),
                             mask=_subject_mask(request.form, im, app.logger.info),
+                            **_scale_params(request.form),
                             **wc,
                         )
                     p = work / f"woodcut_{tray}.png"

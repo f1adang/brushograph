@@ -102,6 +102,19 @@ Five controls — Detail, Hatching, Black/White, Edge Roughness, Contour Lines �
 with a **Preview woodcut** button. Painted area is what drives run time, so it is
 worth watching: Black/White moves it a long way.
 
+**Detail** drives every stage that discards fine structure, not just the
+smoothing: the working resolution, how hard the morphological cleanup presses,
+the smallest speck kept, how short a contour may be and still count, and how
+many scales of contour are traced (a third, sharper pass appears above 85). At
+0 the picture is deliberately coarsened to a poster; at 100 nothing limits what
+survives except the brush itself. Across that range the boundary detail in the
+finished cut roughly doubles.
+
+Brush width is handed to the conversion in millimetres rather than pixels,
+because the working resolution follows Detail — a pixel size computed outside
+would be wrong as soon as the slider moved. The picture is never scaled up past
+the source: enlarging it would add pixels but no detail.
+
 The noise seed is fixed, so the same photo and settings always print the same.
 
 ### Isolating a person or object
