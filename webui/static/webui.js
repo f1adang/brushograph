@@ -123,6 +123,83 @@ function wireForm() {
   });
   updateSketch();
 
+  /* ---- match height to the uploaded image's aspect ratio ---- */
+  /* i2gc maps the pixel grid onto width x height regardless of aspect, so a
+     mismatch stretches the painting rather than fitting it. */
+  const ratioBtn = $("match-ratio");
+  const ratioNote = $("ratio-note");
+  const widthInput = form.querySelector('[name="brushograph-width"]');
+  const heightInput = form.querySelector('[name="brushograph-height"]');
+  const shapes = new Map();   // tray name -> {w, h}
+
+  const note = (text, warn) => {
+    if (!ratioNote) return;
+    ratioNote.textContent = text || "";
+    ratioNote.hidden = !text;
+    ratioNote.classList.toggle("warn", !!warn);
+  };
+
+  function measure(input) {
+    const tray = (input.name.match(/^trays-(.+)-image$/) || [])[1];
+    if (!tray) return;
+    const file = input.files[0];
+    if (!file) { shapes.delete(tray); refreshRatio(); return; }
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      shapes.set(tray, { w: img.naturalWidth, h: img.naturalHeight });
+      URL.revokeObjectURL(url);
+      refreshRatio();
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); shapes.delete(tray); refreshRatio(); };
+    img.src = url;
+  }
+
+  function refreshRatio() {
+    if (!ratioBtn) return;
+    const entries = [...shapes.entries()];
+    ratioBtn.disabled = entries.length === 0;
+    if (!entries.length) {
+      ratioBtn.title = "Upload a tray image first";
+      note(null);
+      return;
+    }
+    const ratios = entries.map(([, s]) => s.h / s.w);
+    const mixed = Math.max(...ratios) - Math.min(...ratios) > 0.005;
+    const [tray, shape] = entries[0];
+    ratioBtn.title = `Set height from the width and ${tray}'s ${shape.w}x${shape.h} px ratio`;
+    if (mixed) {
+      note(`images differ in aspect ratio — will use ${tray} (${shape.w}x${shape.h})`, true);
+    } else {
+      note(`${shape.w}x${shape.h} px · ratio ${(shape.w / shape.h).toFixed(3)}`);
+    }
+  }
+
+  if (ratioBtn) {
+    form.querySelectorAll('input[type="file"]').forEach((i) =>
+      i.addEventListener("change", () => measure(i)));
+
+    ratioBtn.addEventListener("click", () => {
+      const entries = [...shapes.entries()];
+      if (!entries.length) return;
+      const width = parseFloat(widthInput.value);
+      if (!isFinite(width) || width <= 0) return note("set a width first", true);
+
+      const [tray, shape] = entries[0];
+      const height = Math.round(width * (shape.h / shape.w) * 100) / 100;
+      heightInput.value = height;
+      // Bubbles to the form listener, so the sketch redraws.
+      heightInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+      const maxH = parseFloat((form.querySelector('[name="brushograph-max_height"]') || {}).value);
+      if (isFinite(maxH) && height > maxH) {
+        note(`height ${height} mm from ${tray} — over the machine's ${maxH} mm limit`, true);
+      } else {
+        note(`height ${height} mm, matching ${tray}'s ${shape.w}x${shape.h} px`);
+      }
+    });
+  }
+
   /* ---- submit ---- */
   form.addEventListener("submit", async (e) => {
     e.preventDefault();

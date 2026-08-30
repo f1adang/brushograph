@@ -11,7 +11,16 @@
       {% for o in f.options %}<option value="{{ o }}" {{ 'selected' if o == f.value }}>{{ o }}</option>{% endfor %}
     </select>
   {% elif f.type == 'number' %}
+    {%- if f.name == 'brushograph-height' %}
+    <span class="with-btn">
+      <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="any" required>
+      <button type="button" class="ratio-btn" id="match-ratio" disabled
+              title="Upload a tray image first">Match image</button>
+    </span>
+    <span class="ratio-note" id="ratio-note" hidden></span>
+    {%- else %}
     <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="any" required>
+    {%- endif %}
   {% else %}
     <input type="text" name="{{ f.name }}" value="{{ f.value }}" required>
   {% endif %}

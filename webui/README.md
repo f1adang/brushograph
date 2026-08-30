@@ -30,6 +30,11 @@ a config carrying different keys brings its own fields with it.
 - **Machine sketch** — a to-scale drawing of bed, image area and trays with
   their entry and drip radii, redrawn as you edit. Trays parked outside the bed
   are called out rather than quietly cropped.
+- **Match image** — sets Height from the configured Width and the uploaded
+  image's aspect ratio. The pixel grid is mapped onto width x height regardless
+  of aspect, so a mismatch stretches the painting rather than fitting it. Warns
+  when the uploaded images disagree on ratio, or when the result exceeds
+  `max_height`.
 
 Two actions:
 
@@ -106,7 +111,9 @@ onto the previous one.
   of this repository.
 - The form never invents config keys: a posted field that does not already exist
   in the config is ignored.
-- `copicograf` emits `G28 X Y` once, near the top. On Marlin that homes X and Y;
-  on GRBL and FluidNC `G28` instead means "move to the stored G28 position", and
-  homing is `$H`. That line is left exactly as copicograf writes it — changing
-  what a machine does at the start of a run is not something to guess at.
+- `copicograf` emits `G28 X Y` once, near the top. Marlin reads bare axis words
+  as "home these axes" and keeps it. GRBL and FluidNC require a value after each
+  word and reject the line outright (`Bad GCode number format`, ALARM:17), so it
+  is replaced with a comment. It is not rewritten to `$H`: that needs limit
+  switches, and a machine without them is zeroed where it stands via FluidNC's
+  `startup_line0: G10 P0 L20 …`. Home or zero before streaming.

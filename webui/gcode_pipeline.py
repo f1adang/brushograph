@@ -226,6 +226,13 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log) -> int:
 # error and stop executing, so leaving them in bricks the run on its first line.
 MARLIN_ONLY = re.compile(r"^\s*M(204|203|400)\b", re.I)
 
+# copicograf emits `G28 X Y` to home. Marlin reads bare axis words as "home
+# these axes"; GRBL and FluidNC require a value after each word and reject the
+# line outright ("Bad GCode number format"), which alarms the controller. Even
+# written as `G28 X0 Y0` it would not home there — it rapids to the stored G28
+# position, and homing is `$H`.
+HOMING = re.compile(r"^\s*G0*28\b", re.I)
+
 
 def sanitize_for_controller(lines: list[str], controller: str) -> tuple[list[str], int]:
     """Drop commands the target controller cannot parse.
@@ -237,8 +244,21 @@ def sanitize_for_controller(lines: list[str], controller: str) -> tuple[list[str
     """
     if controller.strip().lower() == "marlin":
         return lines, 0
-    kept = [ln for ln in lines if not MARLIN_ONLY.match(ln)]
-    return kept, len(lines) - len(kept)
+    kept = []
+    dropped = 0
+    for ln in lines:
+        if MARLIN_ONLY.match(ln):
+            dropped += 1
+            continue
+        if HOMING.match(ln):
+            # Not rewritten to `$H`: that needs limit switches, and a machine
+            # without them is zeroed where it stands (FluidNC's startup_line0
+            # `G10 P0 L20 …` idiom). Homing is left to the operator.
+            kept.append("; homing removed for " + controller + " — home or zero the machine first")
+            dropped += 1
+            continue
+        kept.append(ln)
+    return kept, dropped
 
 
 def start_sequence(conf: dict) -> list[str]:
@@ -429,7 +449,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     controller = str(conf.get("controller", {}).get("controller_type") or "GRBL")
     lines, dropped = sanitize_for_controller(lines, controller)
     if dropped:
-        log(f"{controller}: dropped {dropped} Marlin-only lines (M204/M203/M400)")
+        log(f"{controller}: dropped {dropped} Marlin-only lines (M204/M203/M400/G28)")
     stats["dropped_marlin_lines"] = dropped
     stats["controller"] = controller
 
