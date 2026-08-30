@@ -175,9 +175,89 @@ function wireForm() {
     }
   }
 
+  /* ---- woodcut conversion ---- */
+  const wcPanel = $("woodcut-panel");
+  const wcBtn = $("wc-preview-btn");
+  const wcImg = $("wc-image");
+  const wcNote = $("wc-note");
+
+  // Which tray is set to "photo" and actually has a file chosen.
+  function photoTray() {
+    for (const sel of form.querySelectorAll("select.image-kind")) {
+      if (sel.value !== "photo") continue;
+      const tray = (sel.name.match(/^trays-(.+)-image_kind$/) || [])[1];
+      const input = form.querySelector(`input[name="trays-${CSS.escape(tray)}-image"]`);
+      if (input && input.files.length) return { tray, file: input.files[0] };
+    }
+    return null;
+  }
+
+  function refreshWoodcut() {
+    if (!wcPanel) return;
+    const anyPhoto = [...form.querySelectorAll("select.image-kind")].some((s) => s.value === "photo");
+    wcPanel.hidden = !anyPhoto;
+    const target = photoTray();
+    if (wcBtn) {
+      wcBtn.disabled = !target;
+      wcBtn.title = target ? `Convert ${target.tray}'s photo` : "Choose a photo for a tray first";
+    }
+  }
+
+  if (wcPanel) {
+    for (const [id, out] of [["wc-simplify", "wc-simplify-out"],
+                             ["wc-threshold", "wc-threshold-out"],
+                             ["wc-roughness", "wc-roughness-out"]]) {
+      const el = $(id);
+      if (el) el.addEventListener("input", () => { $(out).value = el.value; });
+    }
+    form.querySelectorAll("select.image-kind").forEach((s) =>
+      s.addEventListener("change", refreshWoodcut));
+
+    wcBtn.addEventListener("click", async () => {
+      const target = photoTray();
+      if (!target) return;
+      const fd = new FormData();
+      fd.append("image", target.file);
+      for (const n of ["woodcut_simplify", "woodcut_threshold", "woodcut_roughness"]) {
+        fd.append(n, form.querySelector(`[name="${n}"]`).value);
+      }
+      fd.append("woodcut_outlines", $("wc-outlines").checked ? "true" : "false");
+
+      const label = wcBtn.textContent;
+      wcBtn.textContent = "Converting…";
+      wcBtn.disabled = true;
+      wcNote.hidden = true;
+      try {
+        const res = await fetch("woodcut_preview", { method: "POST", body: fd });
+        if (!res.ok) {
+          let msg = `Server returned ${res.status}`;
+          try { msg = (await res.json()).error || msg; } catch (_) { /* not json */ }
+          throw new Error(msg);
+        }
+        const blob = await res.blob();
+        if (wcImg.dataset.url) URL.revokeObjectURL(wcImg.dataset.url);
+        const url = URL.createObjectURL(blob);
+        wcImg.dataset.url = url;
+        wcImg.src = url;
+        wcImg.hidden = false;
+        wcNote.textContent = `${target.tray}: ${target.file.name}`;
+        wcNote.classList.remove("warn");
+        wcNote.hidden = false;
+      } catch (err) {
+        wcNote.textContent = String(err.message || err);
+        wcNote.classList.add("warn");
+        wcNote.hidden = false;
+      } finally {
+        wcBtn.textContent = label;
+        wcBtn.disabled = false;
+      }
+    });
+    refreshWoodcut();
+  }
+
   if (ratioBtn) {
     form.querySelectorAll('input[type="file"]').forEach((i) =>
-      i.addEventListener("change", () => measure(i)));
+      i.addEventListener("change", () => { measure(i); refreshWoodcut(); }));
 
     ratioBtn.addEventListener("click", () => {
       const entries = [...shapes.entries()];

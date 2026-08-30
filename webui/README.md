@@ -23,7 +23,9 @@ that file** — sections, fields, types and defaults all come from the config, s
 a config carrying different keys brings its own fields with it.
 
 - **Trays and Images** — the water tray, then one entry per colour in
-  `color_order`, each with tray X/Y and a thresholded image upload.
+  `color_order`, each with tray X/Y and an image upload. Each tray's image is
+  either **already thresholded** or a **photo**, in which case it is converted to
+  a woodcut first (see below).
 - **Brushograph Options** — every key under `brushograph`, including the nested
   `moves` speed groups, with explanatory tooltips.
 - **Slicer Options** / **Controller Options** — rendered when the config has them.
@@ -64,6 +66,36 @@ Notes on things that needed care:
   layer height, exit 0, and write nothing.
 - **One layer only.** The extrusion is the painting, so the SCAD extrude height
   is matched to the layer height to avoid slicing the same artwork twice.
+
+### Photo to woodcut
+
+Set a tray's *Image Type* to **Photo** and the upload is converted to rough
+woodcut / linocut black and white before anything else sees it. The rest of the
+pipeline is unchanged: it still receives a bold two-tone image to trace.
+
+The output has to be paintable, not photographic — the tracer fills black
+regions with a brush — so the conversion targets solid shapes with no grey, no
+dither, and no feature finer than the brush can lay down:
+
+1. CLAHE for local contrast, so shapes survive flat lighting.
+2. Repeated bilateral filtering, which collapses texture into flat regions while
+   keeping the boundaries a carver would follow.
+3. Smooth low-frequency noise added to the tone before the cut, so the boundary
+   wobbles. This is what separates a woodcut from a plain threshold.
+4. Otsu's threshold, shifted by the Black/White control.
+5. Optional Canny contours, dilated, as linocut-style knife lines.
+6. Morphological close then open, and removal of islands and pinholes below a
+   minimum area, so nothing survives that the brush cannot render.
+
+Four controls — Simplify, Black/White, Edge Roughness, Contour Lines — with a
+**Preview woodcut** button that renders the result before committing to a run.
+Judge it there: the Black/White control moves the painted area a long way
+(roughly 47% ink at 0, 24% at +20 on the test photo), and painted area is what
+drives run time.
+
+The noise seed is fixed, so the same photo and settings always give the same
+print. Conversion settings apply to every tray marked as a photo, and are run
+parameters — they are not written into the machine config.
 
 ### Long brush strokes
 

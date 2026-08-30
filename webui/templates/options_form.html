@@ -58,8 +58,15 @@
           <div class="tray-grid">
             {% if t.image %}
             <label class="field">
-              <span>Thresholded Image</span>
+              <span>Image</span>
               <input type="file" name="trays-{{ t.tray }}-image" accept="image/*">
+            </label>
+            <label class="field">
+              <span>Image Type</span>
+              <select name="trays-{{ t.tray }}-image_kind" class="image-kind">
+                <option value="threshold" selected>Already thresholded</option>
+                <option value="photo">Photo &mdash; make woodcut</option>
+              </select>
             </label>
             {% endif %}
             <label class="field"><span>Tray X</span>
@@ -69,6 +76,32 @@
           </div>
         </div>
         {% endfor %}
+
+        <div class="subgroup" id="woodcut-panel" hidden>
+          <h3>Woodcut Conversion
+            <button type="button" class="info-btn"
+                    title="Turns a photograph into bold black and white before tracing. The pipeline paints black areas with a brush, so the result carries no grey and no detail finer than the brush can lay down."
+                    aria-label="Woodcut conversion help">&#9432;</button>
+          </h3>
+          <div class="grid">
+            <label class="field"><span>Simplify <output id="wc-simplify-out">60</output></span>
+              <input type="range" name="woodcut_simplify" id="wc-simplify" min="0" max="100" value="60"></label>
+            <label class="field"><span>Black / White <output id="wc-threshold-out">12</output></span>
+              <input type="range" name="woodcut_threshold" id="wc-threshold" min="-50" max="50" value="12"></label>
+            <label class="field"><span>Edge Roughness <output id="wc-roughness-out">45</output></span>
+              <input type="range" name="woodcut_roughness" id="wc-roughness" min="0" max="100" value="45"></label>
+            <label class="field is-check">
+              <span>Contour Lines</span>
+              <input type="hidden" name="woodcut_outlines" value="false">
+              <input type="checkbox" name="woodcut_outlines" id="wc-outlines" value="true" checked>
+            </label>
+          </div>
+          <div class="wc-preview">
+            <button type="button" class="ratio-btn" id="wc-preview-btn" disabled>Preview woodcut</button>
+            <span class="ratio-note" id="wc-note" hidden></span>
+          </div>
+          <img id="wc-image" alt="Woodcut preview" hidden>
+        </div>
 
       {% else %}
         <div class="grid">

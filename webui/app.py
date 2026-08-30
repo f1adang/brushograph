@@ -2,6 +2,7 @@
 """Brushograph WebUI — machine config in, brush G-code out."""
 from __future__ import annotations
 
+import io
 import json
 import re
 import secrets
@@ -13,8 +14,10 @@ from pathlib import Path
 
 from flask import (Flask, abort, jsonify, render_template, request, send_file,
                    session)
+from PIL import Image
 
 import gcode_pipeline
+import woodcut
 from configspec import apply_form, build_schema, tray_entries
 from sketch import render as render_sketch
 
@@ -76,6 +79,37 @@ def index():
         "index.html", session_id=session_id(),
         presets=[p.name for p in preset_paths()],
     )
+
+
+def _woodcut_params(form) -> dict:
+    def num(name, default):
+        try:
+            return float(form.get(name, default))
+        except (TypeError, ValueError):
+            return default
+    return {
+        "simplify": num("woodcut_simplify", 60.0),
+        "threshold": num("woodcut_threshold", 12.0),
+        "roughness": num("woodcut_roughness", 45.0),
+        "outlines": (form.get("woodcut_outlines") or "true").lower() in {"1", "true", "on", "yes"},
+    }
+
+
+@app.post("/woodcut_preview")
+def woodcut_preview():
+    """Render the woodcut for one uploaded photo, so it can be judged before a run."""
+    upload = request.files.get("image")
+    if not upload or not upload.filename:
+        return jsonify(error="No image supplied"), 400
+    try:
+        with Image.open(upload.stream) as im:
+            im.load()
+            converted = woodcut.convert(im, **_woodcut_params(request.form))
+    except Exception as exc:  # noqa: BLE001 - shown to the user as-is
+        return jsonify(error=f"Could not convert that image: {exc}"), 400
+    buf = io.BytesIO()
+    converted.convert("L").save(buf, "PNG")
+    return app.response_class(buf.getvalue(), mimetype="image/png")
 
 
 @app.get("/about")
@@ -176,10 +210,21 @@ def options_form_post():
     with GENERATE_LOCK:
         work = Path(tempfile.mkdtemp(prefix="brushograph_", dir=session_dir(sid)))
         try:
+            wc = _woodcut_params(request.form)
             saved = {}
             for tray, storage in images.items():
                 p = work / f"upload_{tray}{Path(storage.filename).suffix or '.png'}"
                 storage.save(p)
+                # A photo has to become bold black and white before the tracer
+                # sees it; an already-thresholded image is passed through.
+                if request.form.get(f"trays-{tray}-image_kind") == "photo":
+                    with Image.open(p) as im:
+                        im.load()
+                        converted = woodcut.convert(im, **wc)
+                    p = work / f"woodcut_{tray}.png"
+                    converted.convert("L").save(p)
+                    log_pre = f"[{tray}] woodcut: {woodcut.ink_fraction(converted) * 100:.1f}% ink"
+                    app.logger.info(log_pre)
                 saved[tray] = p
             log_lines: list[str] = []
             out = work / f"{stem}.gcode"

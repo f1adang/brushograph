@@ -191,3 +191,12 @@ dialog#info-dialog::backdrop { background: rgba(0,0,0,.45); }
 .ratio-btn:disabled { opacity: .45; cursor: not-allowed; }
 .ratio-note { font: 11.5px var(--mono); color: var(--ink-faint); }
 .ratio-note.warn { color: var(--warn); }
+
+/* ---------------------------------------------------------------- woodcut */
+.wc-preview { display: flex; align-items: center; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+#wc-image {
+  display: block; margin-top: 12px; max-width: 100%; border: 1px solid var(--line);
+  border-radius: 7px; background: #fff;
+}
+#woodcut-panel input[type=range] { accent-color: var(--accent); }
+#woodcut-panel output { float: right; font: 12px var(--mono); color: var(--accent); }
