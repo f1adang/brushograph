@@ -65,6 +65,47 @@ Notes on things that needed care:
 - **One layer only.** The extrusion is the painting, so the SCAD extrude height
   is matched to the layer height to avoid slicing the same artwork twice.
 
+### Long brush strokes
+
+A watercolour brush wants few long strokes, not raster fill: every extra stroke
+costs a lift, a travel and often a trip to the paint tray. Three things shape
+that, and the biggest is not in this code.
+
+**`infill_line_distance` is the dominant lever.** It is the gap between fill
+lines, so it should be roughly the width the brush actually lays down. Set to a
+pen-plotter 0.5 mm it paints the same area ten times over. On the SGMK logo at
+151 mm wide:
+
+| spacing | strokes | median stroke | brush lifts | tray dips | painted |
+|---|---|---|---|---|---|
+| 0.5 mm | 286 | 25 mm | 598 | 318 | 23.8 m |
+| 5 mm | 35 | 79 mm | 103 | 74 | 4.5 m |
+
+**Strokes are chained.** A slicer emits a fill as many separate extrusion runs
+even where they are physically continuous. The adapter rejoins them in two
+passes: exact shared endpoints first, then ends within `BRIDGE_MULTIPLE` (1.5)
+line widths. Adjacent fill lines sit one line width apart, so 1.5x reaches the
+neighbour but not the one beyond it, and the bridge stays inside the filled
+region instead of crossing bare paper. That costs about 7% more painted
+distance and cuts stroke count by a third to a half.
+
+There is no point reaching further: copicograf re-inks every `paint_per_run`
+(120-140 mm), so a longer stroke is split for a dip regardless.
+
+**Paths are simplified** with Douglas-Peucker at a tenth of a line width,
+cutting point count by roughly two thirds so the machine moves smoothly rather
+than in tiny segments.
+
+### Infill pattern names
+
+The configs use Cura's vocabulary, which PrusaSlicer does not share; and at 100%
+density PrusaSlicer rejects its own sparse-only patterns (gyroid, honeycomb,
+grid, ...) outright. Of the six names the configs offered, only `concentric`
+ever sliced — the rest failed the run. Names are now mapped
+(`lines` to `rectilinear`, `zigzag` to `alignedrectilinear`, ...) with a logged
+fallback, and the dropdown offers only patterns that work, ordered with the ones
+best suited to a brush first.
+
 ### Controller dialect
 
 `copicograf` takes its acceleration and feedrate lines straight from the config's

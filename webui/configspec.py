@@ -21,7 +21,11 @@ SECTIONS = [
 ]
 
 ENUMS = {
-    "slicer-infill_pattern": ["lines", "concentric", "zigzag", "cross", "cross_3d", "gyroid"],
+    # Only patterns the slicer accepts at 100% density. Ordered by how well
+    # they suit a brush: long flowing strokes first, raster last.
+    "slicer-infill_pattern": [
+        "concentric", "archimedeanchords", "alignedrectilinear", "rectilinear", "hilbertcurve",
+    ],
     "controller-controller_type": ["GRBL", "Marlin", "FluidNC"],
 }
 

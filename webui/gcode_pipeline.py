@@ -35,6 +35,28 @@ OPENSCAD_CANDIDATES = [
     "/Applications/OpenSCAD-2021.01.app/Contents/MacOS/OpenSCAD",
 ]
 
+# The config's pattern names come from Cura's vocabulary; PrusaSlicer uses its
+# own, and at 100% density only a handful of its patterns are legal at all
+# (sparse-only ones such as gyroid and honeycomb are rejected outright).
+PATTERN_MAP = {
+    "lines": "rectilinear",
+    "zigzag": "alignedrectilinear",
+    "cross": "rectilinear",
+    "cross_3d": "rectilinear",
+    "gyroid": "concentric",
+    "concentric": "concentric",
+    "rectilinear": "rectilinear",
+    "alignedrectilinear": "alignedrectilinear",
+    "archimedeanchords": "archimedeanchords",
+    "hilbertcurve": "hilbertcurve",
+}
+FALLBACK_PATTERN = "concentric"
+
+# How far apart two stroke ends may be and still be joined into one stroke,
+# as a multiple of the fill line spacing. Raise it for longer strokes at the
+# cost of painting over slightly more bare paper.
+BRIDGE_MULTIPLE = 1.5
+
 # The Z values copicograf.prepare_path() watches for to raise and lower the brush.
 PEN_UP = "G1 F600 Z6"
 PEN_DOWN = "G1 F600 Z1"
@@ -194,7 +216,93 @@ def _polylines(gcode: Path) -> list[list[tuple[float, float]]]:
     return out
 
 
-def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log) -> int:
+def chain_polylines(polys: list[list[tuple[float, float]]], tol: float
+                    ) -> list[list[tuple[float, float]]]:
+    """Rejoin runs whose ends meet, so one brush stroke stays one brush stroke.
+
+    A slicer emits a fill as many separate extrusion runs even where they are
+    physically continuous — perimeter into infill, or one infill line into the
+    next. Honouring those splits would lift the brush and re-ink mid-stroke,
+    which is exactly what a watercolour brush must not do. Endpoints are matched
+    on a grid, and a run is reversed when that is the end which meets.
+    """
+    cell = max(tol, 1e-9)
+    buckets: dict[tuple[int, int], list[tuple[int, int]]] = {}
+
+    def key(pt):
+        return (int(pt[0] // cell), int(pt[1] // cell))
+
+    for i, poly in enumerate(polys):
+        buckets.setdefault(key(poly[0]), []).append((i, 0))
+        buckets.setdefault(key(poly[-1]), []).append((i, 1))
+
+    used = [False] * len(polys)
+    out = []
+    for i in range(len(polys)):
+        if used[i]:
+            continue
+        used[i] = True
+        chain = list(polys[i])
+        while True:
+            tail = chain[-1]
+            cx, cy = key(tail)
+            best = None
+            for dx in (-1, 0, 1):
+                for dy in (-1, 0, 1):
+                    for j, end in buckets.get((cx + dx, cy + dy), ()):
+                        if used[j]:
+                            continue
+                        pt = polys[j][0] if end == 0 else polys[j][-1]
+                        d = (pt[0] - tail[0]) ** 2 + (pt[1] - tail[1]) ** 2
+                        if d <= tol * tol and (best is None or d < best[0]):
+                            best = (d, j, end)
+            if best is None:
+                break
+            _, j, end = best
+            used[j] = True
+            nxt = polys[j] if end == 0 else polys[j][::-1]
+            chain.extend(nxt[1:])   # drop the duplicated joint point
+        out.append(chain)
+    return out
+
+
+def simplify(poly: list[tuple[float, float]], tol: float) -> list[tuple[float, float]]:
+    """Douglas-Peucker, iteratively — these paths run to thousands of points."""
+    if len(poly) < 3 or tol <= 0:
+        return poly
+    keep = [False] * len(poly)
+    keep[0] = keep[-1] = True
+    stack = [(0, len(poly) - 1)]
+    while stack:
+        a, b = stack.pop()
+        if b <= a + 1:
+            continue
+        ax, ay = poly[a]
+        bx, by = poly[b]
+        dx, dy = bx - ax, by - ay
+        norm = (dx * dx + dy * dy) ** 0.5
+        worst, worst_i = -1.0, -1
+        for i in range(a + 1, b):
+            px, py = poly[i]
+            if norm < 1e-12:
+                d = ((px - ax) ** 2 + (py - ay) ** 2) ** 0.5
+            else:
+                d = abs(dy * px - dx * py + bx * ay - by * ax) / norm
+            if d > worst:
+                worst, worst_i = d, i
+        if worst > tol:
+            keep[worst_i] = True
+            stack.append((a, worst_i))
+            stack.append((worst_i, b))
+    return [pt for pt, k in zip(poly, keep) if k]
+
+
+def _length(poly) -> float:
+    return sum(((poly[i + 1][0] - poly[i][0]) ** 2 + (poly[i + 1][1] - poly[i][1]) ** 2) ** 0.5
+               for i in range(len(poly) - 1))
+
+
+def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0) -> int:
     """Rewrite slicer output into the pen-up/pen-down form copicograf reads.
 
     copicograf.prepare_path() decides the brush is on the canvas by matching two
@@ -205,6 +313,35 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log) -> int:
     polys = _polylines(slicer_gcode)
     if not polys:
         raise PipelineError("slicer produced no extrusion moves — nothing to paint")
+
+    raw_n = len(polys)
+    raw_pts = sum(len(p) for p in polys)
+    raw_len = sum(_length(p) for p in polys)
+    # Two passes. The first rejoins runs the slicer split at a shared point.
+    # The second bridges ends up to 1.5 line widths apart, turning adjacent fill
+    # lines into one serpentine. Adjacent lines sit exactly one line width
+    # apart, so 1.5x reaches the neighbour but not the one beyond it, and the
+    # bridge stays inside the filled region rather than crossing bare paper.
+    #
+    # There is no gain in reaching further: copicograf re-inks every
+    # paint_per_run (120-140 mm), so a longer stroke than that is split for a
+    # dip regardless of how it was chained.
+    polys = chain_polylines(polys, tol=max(line_w * 0.05, 0.02))
+    polys = chain_polylines(polys, tol=line_w * BRIDGE_MULTIPLE)
+    polys = [simplify(p, tol=min(line_w * 0.1, 0.15)) for p in polys]
+    # A dab far shorter than the brush is wide is not a stroke; it is a blot,
+    # and it costs a lift and a re-ink to place.
+    polys = [p for p in polys if len(p) > 1 and _length(p) >= line_w * 0.5]
+    if not polys:
+        raise PipelineError("nothing left to paint after removing sub-brush-width fragments")
+
+    lengths = sorted(_length(p) for p in polys)
+    median = lengths[len(lengths) // 2]
+    grew = (sum(lengths) - raw_len) / raw_len * 100 if raw_len else 0.0
+    log(f"  strokes {raw_n} -> {len(polys)}, median {median:.1f} mm, "
+        f"longest {lengths[-1]:.0f} mm, points {raw_pts} -> {sum(len(p) for p in polys)}, "
+        f"paint {grew:+.1f}%")
+
     lines = ["; adapted for copicograf by the Brushograph WebUI"]
     for poly in polys:
         sx, sy = poly[0]
@@ -215,7 +352,6 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log) -> int:
             lines.append(f"G1 X{px:.3f} Y{py:.3f}")
     lines.append(PEN_UP)
     dst.write_text("\n".join(lines) + "\n")
-    log(f"  {len(polys)} stroke paths, {sum(len(p) for p in polys)} points")
     return len(polys)
 
 
@@ -374,6 +510,13 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # One layer only: the extrusion is the painting, height carries no meaning.
     layer_h = min(line_w * 0.8, 0.8)
 
+    want = str(slicer_conf.get("infill_pattern", FALLBACK_PATTERN)).strip().lower()
+    pattern = PATTERN_MAP.get(want, FALLBACK_PATTERN)
+    if want not in PATTERN_MAP:
+        log(f"infill pattern {want!r} is not one the slicer accepts — using {pattern}")
+    elif pattern != want:
+        log(f"infill pattern {want!r} -> {pattern!r} (slicer vocabulary)")
+
     entries = [e for e in tray_entries(conf) if e["image"]]
     todo = [e for e in entries if e["tray"] in images]
     if not todo:
@@ -414,7 +557,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 "--layer-height", f"{layer_h}", "--first-layer-height", f"{layer_h}",
                 "--perimeters", str(int(float(slicer_conf.get("wall_line_count", 1) or 1))),
                 "--top-solid-layers", "0", "--bottom-solid-layers", "0",
-                "--fill-pattern", str(slicer_conf.get("infill_pattern", "concentric")),
+                "--fill-pattern", pattern,
                 "--fill-density", "100%",
                 "--skirts", "0", "--brim-width", "0",
                 "--nozzle-diameter", f"{line_w}",
@@ -433,7 +576,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 f"the slicer produced no G-code for {tray}. Check Slicer Options — "
                 f"infill line distance {line_w:g} mm."
             )
-        n = adapt_for_copicograf(sliced, adapted, log)
+        n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w)
         log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
         copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]))
         stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})
