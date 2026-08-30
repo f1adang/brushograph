@@ -71,8 +71,13 @@ def convert(
 
     # Smoothing is now light: it exists to stop sensor noise becoming marks, not
     # to flatten the picture. More detail means less of it.
-    d = _odd(short_side * (0.014 - 0.0132 * detail / 100), 3)
-    tone = cv2.bilateralFilter(gray, d=min(d, 15), sigmaColor=95 - 0.65 * detail, sigmaSpace=d)
+    # Smoothing is set by sigma rather than by a pixel window. A window has to
+    # be a whole odd number, so sliding Detail made it jump — 5 to 3 between 80
+    # and 81 — and every stage downstream reads the tone this produces. Letting
+    # OpenCV derive the window from a continuous sigma removes the step.
+    sigma_space = float(np.clip(short_side * (0.014 - 0.0132 * detail / 100), 1.2, 12.0))
+    tone = cv2.bilateralFilter(gray, d=0, sigmaColor=95 - 0.65 * detail,
+                               sigmaSpace=sigma_space)
 
     if roughness > 0:
         tone = _roughen(tone, roughness, short_side)
@@ -113,21 +118,35 @@ def convert(
 def _contours(tone: np.ndarray, gray: np.ndarray, detail: float, min_feature: float) -> np.ndarray:
     """Knife lines along real boundaries, not along texture.
 
-    Canny fires on grass and cloud as readily as on a jawline. Short fragments
-    are therefore discarded before the lines are thickened: what is left is the
-    contours a carver would actually cut, and the speckle that would otherwise
-    become hundreds of unpaintable dabs is gone.
-    """
-    lo = int(64 - 46 * detail / 100)
-    edges = cv2.Canny(cv2.GaussianBlur(tone, (0, 0), 1.1), lo, int(lo * 2.6)) > 0
-    if detail > 55:
-        edges |= cv2.Canny(cv2.GaussianBlur(gray, (0, 0), 0.7), lo + 24, int((lo + 24) * 2.8)) > 0
-    if detail > 85:
-        # A third, sharper pass: the fine interior lines — eyelids, folds,
-        # strands — that only appear once the picture stops being smoothed.
-        edges |= cv2.Canny(gray, lo + 46, int((lo + 46) * 3.0)) > 0
+    Two layers. The broad contours come from Canny, whose threshold slides with
+    Detail. The finer interior lines — eyelids, folds, strands — come from
+    gradient strength above a moving percentile, rather than from extra Canny
+    passes switched on at fixed points on the slider. A pass that appears all at
+    once takes a face from line drawing to near-solid black in one step of the
+    control; a percentile lets the same lines arrive a few at a time.
 
-    min_run = max(3.0, min_feature * (4.6 - 3.4 * detail / 100))
+    Canny fires on grass and cloud as readily as on a jawline, so short
+    fragments are discarded before the lines are thickened.
+    """
+    ease = float(np.clip(detail, 0, 100)) / 100.0
+
+    # Float thresholds, not rounded ones: Canny's hysteresis is sensitive
+    # enough that a single integer step in the level moved the ink by 2.5%.
+    lo = 70.0 - 34.0 * ease
+    edges = cv2.Canny(cv2.GaussianBlur(tone, (0, 0), 1.1), lo, lo * 2.6) > 0
+
+    # Interior detail, faded in by how much of the gradient range is admitted.
+    # 99.7% of pixels rejected at the bottom of the slider, 88% at the top.
+    fine = cv2.GaussianBlur(gray, (0, 0), 0.8)
+    gx = cv2.Sobel(fine, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(fine, cv2.CV_32F, 0, 1, ksize=3)
+    strength = cv2.magnitude(gx, gy)
+    keep_pct = 99.7 - 11.7 * ease
+    level = float(np.percentile(strength, keep_pct))
+    if level > 0:
+        edges |= strength > level
+
+    min_run = max(3.0, min_feature * (4.6 - 3.4 * ease))
     n, labels, stats, _ = cv2.connectedComponentsWithStats(edges.astype(np.uint8), connectivity=8)
     keep = np.zeros(n, bool)
     for i in range(1, n):

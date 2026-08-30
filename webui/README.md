@@ -180,10 +180,28 @@ worth watching: Black/White moves it a long way.
 **Detail** drives every stage that discards fine structure, not just the
 smoothing: the working resolution, how hard the morphological cleanup presses,
 the smallest speck kept, how short a contour may be and still count, and how
-many scales of contour are traced (a third, sharper pass appears above 85). At
-0 the picture is deliberately coarsened to a poster; at 100 nothing limits what
-survives except the brush itself. Across that range the boundary detail in the
-finished cut roughly doubles.
+much of the gradient range counts as an interior line. At 0 the picture is
+deliberately coarsened to a poster; at 100 nothing limits what survives except
+the brush itself.
+
+The control has to *feel* gradual, which means no stage may switch on at a
+point. Three things had to go for that:
+
+- Extra Canny passes gated on `detail > 55` and `detail > 85`. A whole layer of
+  edges appearing at once took a face from line drawing to near-solid in one
+  step of the slider — 16% more ink between 55 and 60. Interior lines now come
+  from gradient strength above a percentile that slides the whole way, so they
+  arrive a few at a time.
+- The bilateral filter's pixel window, which has to be a whole odd number and
+  jumped from 5 to 3 between 80 and 81. Smoothing is set by a continuous sigma
+  instead, and OpenCV derives its own window.
+- Rounded Canny thresholds. Its hysteresis is sensitive enough that one integer
+  step in the level moved the ink by 2.5%, so they are passed as floats.
+
+Measured on the photograph that showed the problem: stepping the slider one
+percent at a time, the largest change in painted area is now 2.4%, against 16%
+before, and the curve rises steadily from 28% to 47% rather than sitting flat to
+55 and then leaping.
 
 Brush width is handed to the conversion in millimetres rather than pixels,
 because the working resolution follows Detail — a pixel size computed outside
