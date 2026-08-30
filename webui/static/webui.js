@@ -3,6 +3,12 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
+const el = (tag, cls, text) => {
+  const node = document.createElement(tag);
+  if (cls) node.className = cls;
+  if (text != null) node.textContent = text;
+  return node;
+};
 const configSelect = $("machine-config");
 const configFile = $("machine-config-file");
 const container = $("options-form-container");
@@ -360,7 +366,6 @@ function wireForm() {
         throw new Error(msg);
       }
       const blob = await res.blob();
-      if (wantsGcode) showGcode(await blob.text());
       const disposition = res.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename="?([^";]+)"?/);
       const url = URL.createObjectURL(blob);
@@ -373,6 +378,15 @@ function wireForm() {
       URL.revokeObjectURL(url);
       statusBox.textContent = `Downloaded ${a.download} (${(blob.size / 1024).toFixed(0)} KB).`;
       statusBox.hidden = false;
+      // After the download, never before: drawing the preview is a nicety and
+      // must not be able to cost someone the file they asked for.
+      if (wantsGcode) {
+        try {
+          showGcode(await blob.text());
+        } catch (err) {
+          console.error("preview failed", err);
+        }
+      }
     } catch (err) {
       statusBox.hidden = true;
       errBox.textContent = String(err.message || err);
