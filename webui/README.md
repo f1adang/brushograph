@@ -166,6 +166,14 @@ Two details decide whether the cut-out is usable:
   enough to keep the board also keeps the clutter behind it. Confident regions
   are grown outward into their doubtful parts instead, which keeps whatever is
   attached to the subject and nothing that merely scores similarly elsewhere.
+- **The boundary is snapped to the picture's own edges.** The network answers
+  "what is the subject" well and "exactly where does it end" only roughly; on a
+  busy background its outline can sweep out into scaffolding and foliage beside
+  a head. GrabCut is then given the inside of the mask as certain subject, the
+  outside as certain background, and only a band either side of the boundary to
+  decide — so it cannot re-open the question of *what* the subject is, only
+  where its edge runs. A pass that would eat half the subject is discarded as
+  having gone wrong rather than right.
 - **Only pinholes are filled.** An enclosed background region is usually a hole
   in the mask — but that description also fits the gap between an arm and a
   torso, which is real background. Filling those indiscriminately put a patch of

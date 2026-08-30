@@ -231,6 +231,45 @@ def _mask_from_prob(prob: np.ndarray, strong: float = 0.60, weak: float = 0.22) 
     return np.isin(labels, keep).astype(np.uint8) if keep else mask
 
 
+def snap_to_edges(image: Image.Image, mask: np.ndarray, band: float = 0.04,
+                  iterations: int = 5, work: int = 900) -> np.ndarray:
+    """Pull the mask boundary onto the picture's own edges.
+
+    The network answers "what is the subject" well and "exactly where does it
+    end" only roughly, and on a busy background the boundary can sweep out into
+    scaffolding and foliage beside a head. GrabCut is given the inside of the
+    mask as certain subject, the outside as certain background, and only a band
+    either side of the boundary to decide — so it cannot re-open the question of
+    what the subject is, only where its edge runs.
+    """
+    rgb = np.asarray(image.convert("RGB"))
+    h, w = mask.shape
+    scale = min(1.0, work / max(h, w))
+    small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) \
+        if scale < 1.0 else rgb
+    mm = cv2.resize(mask, (small.shape[1], small.shape[0]), interpolation=cv2.INTER_NEAREST)
+    r = max(3, int(min(mm.shape) * band)) | 1
+    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (r, r))
+
+    guide = np.where(mm > 0, cv2.GC_PR_FGD, cv2.GC_PR_BGD).astype(np.uint8)
+    guide[cv2.erode(mm, ker) > 0] = cv2.GC_FGD
+    guide[cv2.dilate(mm, ker) == 0] = cv2.GC_BGD
+    if not (guide == cv2.GC_FGD).any() or not (guide == cv2.GC_BGD).any():
+        return mask
+
+    bgd, fgd = np.zeros((1, 65), np.float64), np.zeros((1, 65), np.float64)
+    try:
+        cv2.grabCut(cv2.cvtColor(small, cv2.COLOR_RGB2BGR), guide, None,
+                    bgd, fgd, iterations, cv2.GC_INIT_WITH_MASK)
+    except cv2.error:
+        return mask
+    out = np.where((guide == cv2.GC_FGD) | (guide == cv2.GC_PR_FGD), 1, 0).astype(np.uint8)
+    # A refinement that eats half the subject has gone wrong, not right.
+    if out.sum() < 0.45 * max(int(mm.sum()), 1):
+        return mask
+    return cv2.resize(out, (w, h), interpolation=cv2.INTER_NEAREST)
+
+
 def _faces(image: Image.Image) -> list:
     """Face boxes in source coordinates; used only to name what was found."""
     rgb = np.asarray(image.convert("RGB"))
@@ -447,7 +486,7 @@ def isolate(image: Image.Image, box, faces=None, iterations: int = 6, log=None) 
     """
     prob = segment(image, log)
     if prob is not None:
-        return _fill_holes(_mask_from_prob(prob))
+        return _fill_holes(snap_to_edges(image, _mask_from_prob(prob)))
 
     rgb = np.asarray(image.convert("RGB"))
     h, w = rgb.shape[:2]
