@@ -7,13 +7,144 @@ offline and adds no dependency.
 """
 from __future__ import annotations
 
+import hashlib
+import threading
+import urllib.error
+import urllib.request
+from pathlib import Path
+
 import cv2
 import numpy as np
 from PIL import Image
 
+# A small salient-object segmentation network, run through OpenCV's own ONNX
+# support so it costs no new Python dependency. Colour-based segmentation cannot
+# separate dark hair from dark foliage however it is seeded; this can.
+MODEL_DIR = Path(__file__).resolve().parent / "models"
+MODEL_PATH = MODEL_DIR / "u2netp.onnx"
+MODEL_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
+MODEL_BYTES = 4_574_861
+MODEL_SIDE = 320
+
+_NET = None
+_NET_TRIED = False
+_LOCK = threading.Lock()
+_CACHE: dict[str, np.ndarray] = {}
+_MEAN = np.array([0.485, 0.456, 0.406], np.float32)
+_STD = np.array([0.229, 0.224, 0.225], np.float32)
+
 WORK = 640          # detection resolution; boxes are returned in source pixels
 MIN_COVER = 0.015   # below this a "subject" is a speck, not the subject
 MAX_COVER = 0.92    # above this it is the whole frame, so isolating gains nothing
+
+
+def _fetch_model(log=None) -> bool:
+    """Download the segmentation network once, into webui/models/."""
+    if MODEL_PATH.exists() and MODEL_PATH.stat().st_size > 1_000_000:
+        return True
+    MODEL_DIR.mkdir(parents=True, exist_ok=True)
+    tmp = MODEL_PATH.with_suffix(".part")
+    try:
+        if log:
+            log(f"fetching segmentation model ({MODEL_BYTES // 1024 // 1024} MB) from {MODEL_URL}")
+        with urllib.request.urlopen(MODEL_URL, timeout=60) as r, tmp.open("wb") as f:
+            f.write(r.read())
+        if tmp.stat().st_size < 1_000_000:
+            raise OSError(f"download was only {tmp.stat().st_size} bytes")
+        tmp.replace(MODEL_PATH)
+        return True
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        if log:
+            log(f"segmentation model unavailable ({exc}); falling back to GrabCut")
+        tmp.unlink(missing_ok=True)
+        return False
+
+
+def _net(log=None):
+    """The loaded network, or None if it could not be had."""
+    global _NET, _NET_TRIED
+    with _LOCK:
+        if _NET is not None or _NET_TRIED:
+            return _NET
+        _NET_TRIED = True
+        if not _fetch_model(log):
+            return None
+        try:
+            _NET = cv2.dnn.readNetFromONNX(str(MODEL_PATH))
+        except cv2.error as exc:
+            if log:
+                log(f"segmentation model would not load ({exc}); falling back to GrabCut")
+            _NET = None
+        return _NET
+
+
+def warm(log=None) -> bool:
+    """Load the network up front so the first upload is not the one that waits."""
+    return _net(log) is not None
+
+
+def segment(image: Image.Image, log=None) -> np.ndarray | None:
+    """Probability that each pixel belongs to the subject, or None without a model.
+
+    Results are cached by image content: detection and isolation both want this
+    and there is no sense running the network twice for one upload.
+    """
+    rgb = np.asarray(image.convert("RGB"))
+    key = hashlib.blake2b(rgb.tobytes(), digest_size=16).hexdigest()
+    if key in _CACHE:
+        return _CACHE[key]
+    net = _net(log)
+    if net is None:
+        return None
+    small = cv2.resize(rgb, (MODEL_SIDE, MODEL_SIDE), interpolation=cv2.INTER_AREA)
+    blob = ((small.astype(np.float32) / 255.0 - _MEAN) / _STD).transpose(2, 0, 1)[None]
+    with _LOCK:
+        net.setInput(blob)
+        out = net.forward(net.getUnconnectedOutLayersNames())[0][0, 0]
+    span = float(out.max() - out.min())
+    out = (out - out.min()) / (span if span > 1e-8 else 1.0)
+    prob = cv2.resize(out, (rgb.shape[1], rgb.shape[0]), interpolation=cv2.INTER_LINEAR)
+    if len(_CACHE) > 4:
+        _CACHE.clear()
+    _CACHE[key] = prob
+    return prob
+
+
+def _mask_from_prob(prob: np.ndarray, threshold: float = 0.5) -> np.ndarray:
+    mask = (prob > threshold).astype(np.uint8)
+    k = max(3, _odd(int(min(mask.shape) * 0.006)))
+    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, ker)
+    mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ker)
+    # Keep every piece worth painting, so a second person is not discarded, but
+    # drop the scraps the threshold leaves behind.
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    if n < 2:
+        return mask
+    biggest = int(stats[1:, cv2.CC_STAT_AREA].max())
+    keep = [i for i in range(1, n) if stats[i, cv2.CC_STAT_AREA] >= max(biggest * 0.06, 64)]
+    return np.isin(labels, keep).astype(np.uint8) if keep else mask
+
+
+def _faces(image: Image.Image) -> list:
+    """Face boxes in source coordinates; used only to name what was found."""
+    rgb = np.asarray(image.convert("RGB"))
+    h, w = rgb.shape[:2]
+    scale = min(1.0, WORK / max(h, w))
+    small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) \
+        if scale < 1.0 else rgb
+    gray = cv2.equalizeHist(cv2.cvtColor(small, cv2.COLOR_RGB2GRAY))
+    sh, sw = gray.shape
+    found = []
+    for name in ("haarcascade_frontalface_default.xml", "haarcascade_profileface.xml"):
+        c = _cascade(name)
+        if c is None:
+            continue
+        for f in c.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=6,
+                                    minSize=(max(18, sw // 22), max(18, sh // 22))):
+            found.append(tuple(int(v) for v in f))
+    back = 1.0 / scale if scale < 1.0 else 1.0
+    return [[int(v * back) for v in f] for f in _dedupe(found)]
 
 
 def _odd(n: int) -> int:
@@ -58,8 +189,30 @@ def _body_from_face(face, w, h):
     return _clip((bx, by, bw, bh), w, h)
 
 
-def detect(image: Image.Image) -> dict:
+def detect(image: Image.Image, log=None) -> dict:
     """Report what is worth isolating, in source-image coordinates."""
+    prob = segment(image, log)
+    if prob is not None:
+        mask = _mask_from_prob(prob)
+        cover = float(mask.mean())
+        if not (MIN_COVER < cover < MAX_COVER):
+            return {"found": False,
+                    "reason": f"the subject found covers {cover * 100:.0f}% of the frame"}
+        ys, xs = np.nonzero(mask)
+        box = [int(xs.min()), int(ys.min()),
+               int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)]
+        faces = _faces(image)
+        return {
+            "found": True,
+            "kind": "person" if faces else "object",
+            "how": "segmentation" + (f" and {len(faces)} face(s)" if faces else ""),
+            "count": len(faces) or 1,
+            "coverage": round(cover, 3),
+            "box": box,
+            "parts": [box],
+            "faces": faces,
+        }
+
     rgb = np.asarray(image.convert("RGB"))
     h, w = rgb.shape[:2]
     scale = min(1.0, WORK / max(h, w))
@@ -167,15 +320,21 @@ def _result(kind, box, parts, sw, sh, back, count, how, seeds=None) -> dict:
     }
 
 
-def isolate(image: Image.Image, box, faces=None, iterations: int = 6) -> np.ndarray:
+def isolate(image: Image.Image, box, faces=None, iterations: int = 6, log=None) -> np.ndarray:
     """Cut the subject from its background; returns a full-size 0/1 mask.
 
-    GrabCut is seeded with a trimap rather than a bare rectangle. Handed only a
+    The segmentation network does this when it is available. What follows is the
+    fallback for when it is not: GrabCut seeded with a trimap rather than a bare
+    rectangle. Handed only a
     rectangle it has to guess which parts of the box are subject, and it
     reliably loses dark hair against dark foliage. Marking the head and a core
     down the body as definite foreground, and a frame of definite background,
     tells it the two things it cannot work out on its own.
     """
+    prob = segment(image, log)
+    if prob is not None:
+        return _fill_holes(_mask_from_prob(prob))
+
     rgb = np.asarray(image.convert("RGB"))
     h, w = rgb.shape[:2]
     scale = min(1.0, WORK / max(h, w))

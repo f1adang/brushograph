@@ -119,12 +119,12 @@ def _subject_mask(form, image: Image.Image, log=None):
     """The isolation mask, or None when isolation was not asked for or found."""
     if not _flag(form, "woodcut_isolate", "false"):
         return None
-    found = subject.detect(image)
+    found = subject.detect(image, log)
     if not found.get("found"):
         if log:
             log(f"isolation skipped: {found.get('reason', 'nothing detected')}")
         return None
-    return subject.isolate(image, found["box"], faces=found.get("faces"))
+    return subject.isolate(image, found["box"], faces=found.get("faces"), log=log)
 
 
 @app.post("/detect_subject")
@@ -136,7 +136,7 @@ def detect_subject():
     try:
         with Image.open(upload.stream) as im:
             im.load()
-            return jsonify(subject.detect(im))
+            return jsonify(subject.detect(im, app.logger.info))
     except Exception as exc:  # noqa: BLE001
         return jsonify(error=f"Could not inspect that image: {exc}"), 400
 
@@ -313,6 +313,10 @@ def main():
     print(f"Brushograph WebUI on http://{args.host}:{args.port}")
     for tool, path in pre["tools"].items():
         print(f"  {tool:9} {path or 'NOT FOUND'}")
+    # Warm the segmentation model here rather than inside the first upload, so
+    # the download happens once, visibly, and not in the middle of a request.
+    print(f"  {'subject':9} "
+          + ("segmentation model ready" if subject.warm(print) else "GrabCut fallback"))
     app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
 
 
