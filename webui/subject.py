@@ -35,8 +35,21 @@ MODELS = [
      "std": (0.229, 0.224, 0.225), "mb": 4, "url": _RELEASE + "u2netp.onnx"},
 ]
 
+# A small ImageNet classifier, used only to tell an animal from a thing. The
+# first 398 ImageNet classes are organisms and the rest are artifacts, so the
+# probability mass below that boundary answers the question directly. There is
+# no "person" class in ImageNet, which is why people are still recognised by
+# their faces.
+CLASSIFIER = {"file": "squeezenet1.1-7.onnx", "mb": 5, "side": 224,
+              "url": "https://github.com/onnx/models/raw/main/validated/vision/"
+                     "classification/squeezenet/model/squeezenet1.1-7.onnx"}
+ANIMAL_CLASSES = 398
+ANIMAL_AT = 0.5
+
 _NET = None
 _SPEC = None
+_CLS = None
+_CLS_TRIED = False
 _NET_TRIED = False
 _LOCK = threading.Lock()
 _CACHE: dict[str, np.ndarray] = {}
@@ -100,6 +113,52 @@ def warm(log=None) -> bool:
     return _net(log) is not None
 
 
+def _classifier(log=None):
+    global _CLS, _CLS_TRIED
+    with _LOCK:
+        if _CLS is not None or _CLS_TRIED:
+            return _CLS
+        _CLS_TRIED = True
+        path = _fetch(CLASSIFIER, log)
+        if path is None:
+            return None
+        try:
+            _CLS = cv2.dnn.readNetFromONNX(str(path))
+        except cv2.error as exc:
+            if log:
+                log(f"classifier would not load ({exc}); animals will read as objects")
+            _CLS = None
+        return _CLS
+
+
+def animal_score(image: Image.Image, mask: np.ndarray | None = None,
+                 box=None, log=None) -> float:
+    """How much of the classifier's confidence falls on animal classes.
+
+    The subject is cut out and cropped before classifying: a cat fills little of
+    a photograph, and asking about the whole frame asks the wrong question.
+    """
+    net = _classifier(log)
+    if net is None:
+        return 0.0
+    rgb = np.asarray(image.convert("RGB"))
+    if mask is not None and box is not None and mask.any():
+        x, y, w, h = box
+        rgb = np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8)[y:y + h, x:x + w]
+    if rgb.size == 0:
+        return 0.0
+    side = CLASSIFIER["side"]
+    small = cv2.resize(rgb, (side, side), interpolation=cv2.INTER_AREA).astype(np.float32) / 255.0
+    mean = np.array([0.485, 0.456, 0.406], np.float32)
+    std = np.array([0.229, 0.224, 0.225], np.float32)
+    with _LOCK:
+        net.setInput(((small - mean) / std).transpose(2, 0, 1)[None])
+        out = net.forward().reshape(-1)
+    exp = np.exp(out - out.max())
+    prob = exp / exp.sum()
+    return float(prob[:ANIMAL_CLASSES].sum())
+
+
 def segment(image: Image.Image, log=None) -> np.ndarray | None:
     """Probability that each pixel belongs to the subject, or None without a model.
 
@@ -130,14 +189,40 @@ def segment(image: Image.Image, log=None) -> np.ndarray | None:
     return prob
 
 
-def _mask_from_prob(prob: np.ndarray, threshold: float = 0.5) -> np.ndarray:
-    mask = (prob > threshold).astype(np.uint8)
+def _mask_from_prob(prob: np.ndarray, strong: float = 0.60, weak: float = 0.22) -> np.ndarray:
+    """Threshold with hysteresis: confident regions, grown into their doubtful parts.
+
+    A single cut-off cannot win here. The network scores a dark circuit board
+    bolted to a machine well below its confident regions, so a level high enough
+    to exclude the table also excludes the board; a level low enough to keep the
+    board also keeps the clutter behind it. Growing outward from the confident
+    core keeps whatever is attached to the subject and nothing that merely
+    happens to score similarly somewhere else in the frame.
+    """
+    strong_mask = (prob > strong).astype(np.uint8)
+    weak_mask = (prob > weak).astype(np.uint8)
+    if not strong_mask.any():
+        strong_mask = (prob > float(prob.max()) * 0.7).astype(np.uint8)
+
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(weak_mask, connectivity=8)
+    if n > 1:
+        touched = {int(v) for v in np.unique(labels[strong_mask > 0]) if v}
+        # Ignore weak blobs that only brush the strong core: a genuine part is
+        # joined to it, not merely adjacent to a few of its pixels.
+        keep = []
+        for i in touched:
+            overlap = int(((labels == i) & (strong_mask > 0)).sum())
+            if overlap >= max(64, stats[i, cv2.CC_STAT_AREA] * 0.02):
+                keep.append(i)
+        mask = np.isin(labels, keep).astype(np.uint8) if keep else strong_mask
+    else:
+        mask = strong_mask
+
     k = max(3, _odd(int(min(mask.shape) * 0.006)))
     ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k))
     mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, ker)
     mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, ker)
-    # Keep every piece worth painting, so a second person is not discarded, but
-    # drop the scraps the threshold leaves behind.
+
     n, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
     if n < 2:
         return mask
@@ -226,10 +311,18 @@ def detect(image: Image.Image, log=None) -> dict:
         box = [int(xs.min()), int(ys.min()),
                int(xs.max() - xs.min() + 1), int(ys.max() - ys.min() + 1)]
         faces = _faces(image)
+        if faces:
+            kind, how = "person", f"segmentation and {len(faces)} face(s)"
+        else:
+            score = animal_score(image, mask, box, log)
+            if score >= ANIMAL_AT:
+                kind, how = "animal", f"segmentation, {score * 100:.0f}% animal"
+            else:
+                kind, how = "object", "segmentation"
         return {
             "found": True,
-            "kind": "person" if faces else "object",
-            "how": "segmentation" + (f" and {len(faces)} face(s)" if faces else ""),
+            "kind": kind,
+            "how": how,
             "count": len(faces) or 1,
             "coverage": round(cover, 3),
             "box": box,
@@ -455,20 +548,23 @@ def _keep_subject(mask: np.ndarray, seeds, box) -> np.ndarray:
     return np.isin(labels, list(wanted)).astype(np.uint8)
 
 
-def _fill_holes(mask: np.ndarray) -> np.ndarray:
-    """Close gaps enclosed by the subject.
+def _fill_holes(mask: np.ndarray, max_share: float = 0.01) -> np.ndarray:
+    """Close pinholes enclosed by the subject — and only pinholes.
 
-    A hole is a background region that touches no edge of the picture. Flooding
-    from one corner would not do: once the subject reaches an edge it splits the
-    background in two, and half of it would be filled in as subject.
+    A hole is background that touches no edge of the picture, but that
+    description also fits the gap between an arm and a torso, which is real
+    background and must stay out. Only holes small against the subject are
+    filled; anything larger is a gap the subject genuinely has.
     """
     h, w = mask.shape
+    subject_area = float(mask.sum()) or 1.0
     n, labels, stats, _ = cv2.connectedComponentsWithStats((1 - mask).astype(np.uint8), 8)
     out = mask.copy()
     for i in range(1, n):
         left, top = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP]
         right = left + stats[i, cv2.CC_STAT_WIDTH]
         bottom = top + stats[i, cv2.CC_STAT_HEIGHT]
-        if left > 0 and top > 0 and right < w and bottom < h:
+        enclosed = left > 0 and top > 0 and right < w and bottom < h
+        if enclosed and stats[i, cv2.CC_STAT_AREA] <= subject_area * max_share:
             out[labels == i] = 1
     return out

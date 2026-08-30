@@ -138,12 +138,39 @@ startup banner names the one in use. The larger is worth its size on anything
 that is not a person: on a photograph of the machine on a workbench it follows
 the gantry rail, the toothed rack and the wiring that the small one blobs over.
 
-Haar cascades still run, but only to *name* what was found: faces present means
-"person", otherwise "object". They are held to a strict vote, because at the
-usual setting the profile cascade found a face on a stepper motor and the
-upper-body cascade agreed — enough to have a photograph of a machine announced
-as a person. Across the test images the frontal cascade at its normal setting is
-right every time, and the other two only ever contributed that false positive.
+**Naming what was found** is a separate question from cutting it out, and takes
+two cheap steps:
+
+- Haar cascades find faces. Present means *person*. They are held to a strict
+  vote, because at the usual setting the profile cascade found a face on a
+  stepper motor and the upper-body cascade agreed — enough to have a photograph
+  of a machine announced as a person. Across the test images the frontal cascade
+  at its normal setting is right every time and the other two only ever
+  contributed that false positive.
+- Otherwise a small ImageNet classifier (SqueezeNet, 4.7 MB) is run on the
+  cut-out subject. The first 398 ImageNet classes are organisms and the rest are
+  artifacts, so the confidence below that boundary separates *animal* from
+  *object* directly. The subject is cropped before classifying: a cat fills
+  little of a photograph, and asking about the whole frame asks the wrong
+  question. Measured across the test set the split is clean — 0.58, 0.60 and
+  1.00 for two cats and a dog, 0.00 for the machine, the logo and both photos of
+  people. ImageNet has no "person" class, which is why faces are asked first.
+
+### Turning the map into a mask
+
+Two details decide whether the cut-out is usable:
+
+- **Hysteresis, not a single threshold.** The network scores a dark circuit
+  board bolted to a machine well below its confident regions, so a level high
+  enough to exclude the workbench also excludes the board, while a level low
+  enough to keep the board also keeps the clutter behind it. Confident regions
+  are grown outward into their doubtful parts instead, which keeps whatever is
+  attached to the subject and nothing that merely scores similarly elsewhere.
+- **Only pinholes are filled.** An enclosed background region is usually a hole
+  in the mask — but that description also fits the gap between an arm and a
+  torso, which is real background. Filling those indiscriminately put a patch of
+  grass between someone's arm and her hip. Only holes small against the subject
+  are closed now.
 
 This replaced a GrabCut-based attempt. GrabCut segments on colour, and no amount
 of seeding got it past two failures: dark hair against dark foliage was read as

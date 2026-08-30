@@ -282,7 +282,7 @@ function wireForm() {
       }
       const what = data.kind === "person"
         ? (data.count > 1 ? `${data.count} people` : "a person")
-        : "a prominent object";
+        : data.kind === "animal" ? "an animal" : "a prominent object";
       $("wc-subject-label").textContent = `Isolate ${what}`;
       $("wc-subject-note").textContent =
         `found by ${data.how}, covering ${Math.round(data.coverage * 100)}% of the frame` +
