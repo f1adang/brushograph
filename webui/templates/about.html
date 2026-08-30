@@ -44,6 +44,15 @@
     handed over, so any installed slicer works.</li>
     <li>Configs naming a generator other than <code>copicograf</code> render their options here,
     but cannot be built — that generator is not part of this repository.</li>
+    <li><code>M204</code>, <code>M203</code> and <code>M400</code> come from the config's
+    <code>moves</code> blocks and are Marlin-only. They are kept for
+    <b>Controller Type: Marlin</b> and stripped for GRBL and FluidNC, which halt on an
+    unknown M-code. A config with no controller section is treated as GRBL.</li>
+    <li>Every file opens with <code>G90</code>/<code>G21</code>, the normal feedrate and a lift
+    to the config's safe Z, before anything moves.</li>
+    <li>Note that <code>copicograf</code> emits <code>G28 X Y</code> once near the top. That homes
+    X and Y on Marlin, but on GRBL and FluidNC it moves to the stored G28 position instead —
+    check it suits your machine before streaming.</li>
   </ul>
   <p><a href="/">← Back to the WebUI</a></p>
 </main>

@@ -60,6 +60,28 @@ Notes on things that needed care:
 - **One layer only.** The extrusion is the painting, so the SCAD extrude height
   is matched to the layer height to avoid slicing the same artwork twice.
 
+### Controller dialect
+
+`copicograf` takes its acceleration and feedrate lines straight from the config's
+`moves` blocks, which are written for Marlin: `M204` (acceleration), `M203` (max
+feedrate) and `M400` (wait for moves). GRBL and FluidNC answer an unknown M-code
+with an error and stop executing, and copicograf emits `M204` as the very first
+line of a run — so nothing after it ever runs.
+
+`controller.controller_type` now decides. Marlin keeps them; anything else has
+them stripped (about 1,400 lines in a one-tray run, since every speed change
+re-emits the pair). The `G0 F…` feedrate in each block is understood everywhere
+and survives either way, so motion speed is unaffected.
+
+A config with no `controller` section is treated as GRBL. That way round is
+safe: emitting Marlin-only codes to a GRBL board halts it, while dropping them
+costs a Marlin board only its acceleration tuning.
+
+Output also opens with an explicit start sequence — `G90`/`G21`, the normal
+feedrate, then a lift to the config's own safe Z — because copicograf's own
+`G90`/`G21` come *after* that first `M204` and are never reached on a strict
+controller.
+
 ### The slicer adapter
 
 `copicograf.prepare_path()` decides the brush is on the canvas by matching two
@@ -84,3 +106,7 @@ onto the previous one.
   of this repository.
 - The form never invents config keys: a posted field that does not already exist
   in the config is ignored.
+- `copicograf` emits `G28 X Y` once, near the top. On Marlin that homes X and Y;
+  on GRBL and FluidNC `G28` instead means "move to the stored G28 position", and
+  homing is `$H`. That line is left exactly as copicograf writes it — changing
+  what a machine does at the start of a run is not something to guess at.

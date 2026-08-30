@@ -219,6 +219,62 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log) -> int:
     return len(polys)
 
 
+# ------------------------------------------------------------------ controller
+
+# M204 (set acceleration), M203 (set max feedrate) and M400 (wait for moves to
+# finish) are Marlin commands. GRBL and FluidNC answer an unknown M-code with an
+# error and stop executing, so leaving them in bricks the run on its first line.
+MARLIN_ONLY = re.compile(r"^\s*M(204|203|400)\b", re.I)
+
+
+def sanitize_for_controller(lines: list[str], controller: str) -> tuple[list[str], int]:
+    """Drop commands the target controller cannot parse.
+
+    copicograf takes the acceleration and feedrate lines straight from the
+    config's `moves` blocks, which are written for Marlin. Only Marlin gets to
+    keep them; the G0 F… feedrate in each block is understood everywhere and
+    survives either way.
+    """
+    if controller.strip().lower() == "marlin":
+        return lines, 0
+    kept = [ln for ln in lines if not MARLIN_ONLY.match(ln)]
+    return kept, len(lines) - len(kept)
+
+
+def start_sequence(conf: dict) -> list[str]:
+    """Put the machine in a known state before anything moves.
+
+    copicograf emits its G90/G21 only after the first acceleration line, so a
+    controller that rejects that line never reaches them. Stating the units and
+    positioning mode first, then lifting Z, means the first real move is safe.
+    """
+    bg = conf.get("brushograph", {})
+
+    def num(key, default=0.0):
+        try:
+            return float(bg.get(key, default))
+        except (TypeError, ValueError):
+            return default
+
+    # The height the machine already treats as safe for crossing the bed.
+    safe_z = max(num("go_in_tray_lift", 10),
+                 num("move_to_other_shape_lift") + num("canvas_height"))
+    feed = "G0 F1000"
+    moves = bg.get("moves", {})
+    if isinstance(moves, dict):
+        normal = moves.get("normal", {})
+        if isinstance(normal, dict) and str(normal.get("feedrate_1", "")).strip():
+            feed = str(normal["feedrate_1"]).strip()
+    return [
+        "G90 ; Absolute positioning",
+        "G21 ; Millimeters",
+        "G90",
+        "G21",
+        feed,
+        f"G00 Z{safe_z:g}",
+    ]
+
+
 # --------------------------------------------------------------------- backlash
 
 def apply_backlash(lines: list[str], bx: float, by: float) -> list[str]:
@@ -366,6 +422,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     copicograf.save_gcode(str(out_path))
 
     lines = out_path.read_text().splitlines()
+
+    # Absent controller_type, assume the stricter dialect: emitting Marlin-only
+    # codes to a GRBL board halts it, while dropping them costs a Marlin board
+    # only its acceleration tuning.
+    controller = str(conf.get("controller", {}).get("controller_type") or "GRBL")
+    lines, dropped = sanitize_for_controller(lines, controller)
+    if dropped:
+        log(f"{controller}: dropped {dropped} Marlin-only lines (M204/M203/M400)")
+    stats["dropped_marlin_lines"] = dropped
+    stats["controller"] = controller
+
     if bg.get("backlash_compensation"):
         before = len(lines)
         lines = apply_backlash(lines, float(bg.get("backlash_x", 0)), float(bg.get("backlash_y", 0)))
@@ -373,11 +440,11 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
 
     header = [
         "; Brushograph WebUI",
-        f"; controller: {conf.get('controller', {}).get('controller_type', 'unspecified')}",
+        f"; controller: {controller}",
         f"; trays: {', '.join(t['tray'] for t in stats['trays'])}",
         f"; image area: {width_mm:g} x {height_mm:g} mm",
     ]
-    out_path.write_text("\n".join(header + lines) + "\n")
+    out_path.write_text("\n".join(header + start_sequence(conf) + lines) + "\n")
     stats["lines"] = len(lines) + len(header)
     stats["bytes"] = out_path.stat().st_size
     log(f"wrote {out_path.name}: {stats['lines']} lines, {stats['bytes'] / 1024:.0f} KB")
