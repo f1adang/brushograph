@@ -267,7 +267,12 @@ def snap_to_edges(image: Image.Image, mask: np.ndarray, band: float = 0.04,
     # A refinement that eats half the subject has gone wrong, not right.
     if out.sum() < 0.45 * max(int(mm.sum()), 1):
         return mask
-    return cv2.resize(out, (w, h), interpolation=cv2.INTER_NEAREST)
+    full = cv2.resize(out, (w, h), interpolation=cv2.INTER_NEAREST)
+    # Retract only. This step exists to pull the boundary in off the background;
+    # letting it push out as well let it claim sunlit boardwalk beside an arm,
+    # because that matches skin closely enough for a colour model to be fooled.
+    # What the subject reaches is the network's call, not GrabCut's.
+    return np.minimum(full, mask)
 
 
 def _faces(image: Image.Image) -> list:

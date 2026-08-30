@@ -172,8 +172,11 @@ Two details decide whether the cut-out is usable:
   a head. GrabCut is then given the inside of the mask as certain subject, the
   outside as certain background, and only a band either side of the boundary to
   decide — so it cannot re-open the question of *what* the subject is, only
-  where its edge runs. A pass that would eat half the subject is discarded as
-  having gone wrong rather than right.
+  where its edge runs. The refinement may only *retract* the boundary, never
+  extend it: allowed to push out as well, it claimed sunlit boardwalk beside an
+  arm, which matches skin closely enough to fool a colour model. What the subject
+  reaches is the network's call. A pass that would eat half the subject is
+  discarded as having gone wrong rather than right.
 - **Only pinholes are filled.** An enclosed background region is usually a hole
   in the mask — but that description also fits the gap between an arm and a
   torso, which is real background. Filling those indiscriminately put a patch of
