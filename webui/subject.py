@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import threading
+import shutil
 import urllib.error
 import urllib.request
 from pathlib import Path
@@ -21,61 +22,77 @@ from PIL import Image
 # support so it costs no new Python dependency. Colour-based segmentation cannot
 # separate dark hair from dark foliage however it is seeded; this can.
 MODEL_DIR = Path(__file__).resolve().parent / "models"
-MODEL_PATH = MODEL_DIR / "u2netp.onnx"
-MODEL_URL = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/u2netp.onnx"
-MODEL_BYTES = 4_574_861
-MODEL_SIDE = 320
+_RELEASE = "https://github.com/danielgatis/rembg/releases/download/v0.0.0/"
+
+# Tried in order, best first. The large one is markedly better on cluttered
+# scenes and machinery — it follows a gantry rail and wiring that the small one
+# blobs over — and no worse on people. The small one is kept as a light second
+# choice for when the big download will not happen.
+MODELS = [
+    {"file": "isnet-general-use.onnx", "side": 1024, "mean": 0.5, "std": 1.0,
+     "mb": 170, "url": _RELEASE + "isnet-general-use.onnx"},
+    {"file": "u2netp.onnx", "side": 320, "mean": (0.485, 0.456, 0.406),
+     "std": (0.229, 0.224, 0.225), "mb": 4, "url": _RELEASE + "u2netp.onnx"},
+]
 
 _NET = None
+_SPEC = None
 _NET_TRIED = False
 _LOCK = threading.Lock()
 _CACHE: dict[str, np.ndarray] = {}
-_MEAN = np.array([0.485, 0.456, 0.406], np.float32)
-_STD = np.array([0.229, 0.224, 0.225], np.float32)
+
 
 WORK = 640          # detection resolution; boxes are returned in source pixels
 MIN_COVER = 0.015   # below this a "subject" is a speck, not the subject
 MAX_COVER = 0.92    # above this it is the whole frame, so isolating gains nothing
 
 
-def _fetch_model(log=None) -> bool:
-    """Download the segmentation network once, into webui/models/."""
-    if MODEL_PATH.exists() and MODEL_PATH.stat().st_size > 1_000_000:
-        return True
+def _fetch(spec, log=None) -> Path | None:
+    """Ensure one model is on disk, downloading it once into webui/models/."""
+    path = MODEL_DIR / spec["file"]
+    if path.exists() and path.stat().st_size > 1_000_000:
+        return path
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
-    tmp = MODEL_PATH.with_suffix(".part")
+    tmp = path.with_suffix(".part")
     try:
         if log:
-            log(f"fetching segmentation model ({MODEL_BYTES // 1024 // 1024} MB) from {MODEL_URL}")
-        with urllib.request.urlopen(MODEL_URL, timeout=60) as r, tmp.open("wb") as f:
-            f.write(r.read())
+            log(f"fetching segmentation model {spec['file']} ({spec['mb']} MB)")
+        with urllib.request.urlopen(spec["url"], timeout=300) as r, tmp.open("wb") as f:
+            shutil.copyfileobj(r, f)
         if tmp.stat().st_size < 1_000_000:
             raise OSError(f"download was only {tmp.stat().st_size} bytes")
-        tmp.replace(MODEL_PATH)
-        return True
+        tmp.replace(path)
+        return path
     except (urllib.error.URLError, OSError, ValueError) as exc:
         if log:
-            log(f"segmentation model unavailable ({exc}); falling back to GrabCut")
+            log(f"{spec['file']} unavailable ({exc})")
         tmp.unlink(missing_ok=True)
-        return False
+        return None
 
 
 def _net(log=None):
-    """The loaded network, or None if it could not be had."""
-    global _NET, _NET_TRIED
+    """The best network that could be had, or None."""
+    global _NET, _NET_TRIED, _SPEC
     with _LOCK:
         if _NET is not None or _NET_TRIED:
             return _NET
         _NET_TRIED = True
-        if not _fetch_model(log):
-            return None
-        try:
-            _NET = cv2.dnn.readNetFromONNX(str(MODEL_PATH))
-        except cv2.error as exc:
-            if log:
-                log(f"segmentation model would not load ({exc}); falling back to GrabCut")
-            _NET = None
-        return _NET
+        for spec in MODELS:
+            path = _fetch(spec, log)
+            if path is None:
+                continue
+            try:
+                _NET = cv2.dnn.readNetFromONNX(str(path))
+                _SPEC = spec
+                if log:
+                    log(f"segmentation using {spec['file']}")
+                return _NET
+            except cv2.error as exc:
+                if log:
+                    log(f"{spec['file']} would not load ({exc})")
+        if log:
+            log("no segmentation model available; falling back to GrabCut")
+        return None
 
 
 def warm(log=None) -> bool:
@@ -96,8 +113,11 @@ def segment(image: Image.Image, log=None) -> np.ndarray | None:
     net = _net(log)
     if net is None:
         return None
-    small = cv2.resize(rgb, (MODEL_SIDE, MODEL_SIDE), interpolation=cv2.INTER_AREA)
-    blob = ((small.astype(np.float32) / 255.0 - _MEAN) / _STD).transpose(2, 0, 1)[None]
+    side = _SPEC["side"]
+    mean = np.array(_SPEC["mean"], np.float32)
+    std = np.array(_SPEC["std"], np.float32)
+    small = cv2.resize(rgb, (side, side), interpolation=cv2.INTER_AREA)
+    blob = ((small.astype(np.float32) / 255.0 - mean) / std).transpose(2, 0, 1)[None]
     with _LOCK:
         net.setInput(blob)
         out = net.forward(net.getUnconnectedOutLayersNames())[0][0, 0]
@@ -136,11 +156,15 @@ def _faces(image: Image.Image) -> list:
     gray = cv2.equalizeHist(cv2.cvtColor(small, cv2.COLOR_RGB2GRAY))
     sh, sw = gray.shape
     found = []
-    for name in ("haarcascade_frontalface_default.xml", "haarcascade_profileface.xml"):
+    # The profile cascade is held to a stricter vote. At the same threshold as
+    # the frontal one it invented a face on a stepper motor, which is enough to
+    # have a photograph of a machine announced as a person.
+    for name, neighbours in (("haarcascade_frontalface_default.xml", 6),
+                             ("haarcascade_profileface.xml", 9)):
         c = _cascade(name)
         if c is None:
             continue
-        for f in c.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=6,
+        for f in c.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=neighbours,
                                     minSize=(max(18, sw // 22), max(18, sh // 22))):
             found.append(tuple(int(v) for v in f))
     back = 1.0 / scale if scale < 1.0 else 1.0
@@ -223,14 +247,9 @@ def detect(image: Image.Image, log=None) -> dict:
     sh, sw = gray.shape
     back = 1.0 / scale if scale < 1.0 else 1.0
 
-    faces = []
-    for name in ("haarcascade_frontalface_default.xml", "haarcascade_profileface.xml"):
-        c = _cascade(name)
-        if c is None:
-            continue
-        found = c.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=6,
-                                   minSize=(max(18, sw // 22), max(18, sh // 22)))
-        faces.extend([tuple(int(v) for v in f) for f in found])
+    # Same detector as the model path uses, so a machine is not announced as a
+    # person just because the segmentation network was unavailable.
+    faces = [tuple(int(v * scale) for v in f) for f in _faces(image)]
     faces = _dedupe(faces)
 
     if faces:
@@ -244,7 +263,9 @@ def detect(image: Image.Image, log=None) -> dict:
         c = _cascade(name)
         if c is None:
             continue
-        found = c.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=4,
+        # Also held to a stricter vote: at the looser setting these fired on a
+        # stepper motor and nothing else across the test images.
+        found = c.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=8,
                                    minSize=(max(28, sw // 12), max(28, sh // 12)))
         if len(found):
             boxes = [tuple(int(v) for v in b) for b in found]

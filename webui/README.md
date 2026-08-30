@@ -124,11 +124,26 @@ When a photo is chosen it is inspected for a subject. If one is found, an
 prominent object") and how much of the frame it covers. Ticking it leaves
 everything outside the subject as bare paper.
 
-The segmentation is done by a small salient-object network (U²-Net "p", 4.4 MB)
-run through **OpenCV's own ONNX support**, so it costs no new Python dependency.
-It is downloaded once, on first start, into `webui/models/` — which is
-gitignored — and the startup banner says whether it is ready. Haar cascades are
-still run, but only to *name* what was found: faces present means "person".
+Segmentation is done by a salient-object network run through **OpenCV's own ONNX
+support**, so it costs no new Python dependency. Two are tried in order and the
+first that can be had is used:
+
+| model | size | notes |
+|---|---|---|
+| `isnet-general-use` | 170 MB | markedly better on cluttered scenes and machinery |
+| `u2netp` | 4.4 MB | light second choice, fine on people |
+
+Both are downloaded once into `webui/models/`, which is gitignored, and the
+startup banner names the one in use. The larger is worth its size on anything
+that is not a person: on a photograph of the machine on a workbench it follows
+the gantry rail, the toothed rack and the wiring that the small one blobs over.
+
+Haar cascades still run, but only to *name* what was found: faces present means
+"person", otherwise "object". They are held to a strict vote, because at the
+usual setting the profile cascade found a face on a stepper motor and the
+upper-body cascade agreed — enough to have a photograph of a machine announced
+as a person. Across the test images the frontal cascade at its normal setting is
+right every time, and the other two only ever contributed that false positive.
 
 This replaced a GrabCut-based attempt. GrabCut segments on colour, and no amount
 of seeding got it past two failures: dark hair against dark foliage was read as
