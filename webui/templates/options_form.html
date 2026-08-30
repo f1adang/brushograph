@@ -135,6 +135,24 @@
   </fieldset>
   {% endfor %}
 
+  <fieldset class="card open" id="preview-card" hidden>
+    <legend class="toggle">G-code Preview<span class="caret">▾</span></legend>
+    <div class="card-body">
+      <p class="sub">The path the brush will take. Painting strokes are coloured per tray,
+      travel is faint, and trips into the cups are marked.</p>
+      <canvas id="gcode-canvas" width="900" height="700"></canvas>
+      <div class="sim-controls">
+        <button type="button" class="ratio-btn" id="sim-play">▶ Play</button>
+        <input type="range" id="sim-scrub" min="0" max="1000" value="1000">
+        <span class="ratio-note" id="sim-at"></span>
+      </div>
+      <div class="sim-stats" id="sim-stats"></div>
+      <p class="sub">Or inspect a file you already have:
+        <label class="inline-file">choose a .gcode<input type="file" id="sim-open" accept=".gcode,.nc,.txt" hidden></label>
+      </p>
+    </div>
+  </fieldset>
+
   <div class="actions">
     <button type="submit" class="secondary" id="options-form-machine-config">Download Config</button>
     <button type="submit" class="primary" id="options-form-gcode">Generate Gcode</button>

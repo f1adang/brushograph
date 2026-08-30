@@ -15,6 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
+import cv2
 import numpy as np
 from PIL import Image
 
@@ -135,23 +136,40 @@ def _run(cmd: list[str], log, cwd: Path | None = None):
 
 # ------------------------------------------------------------------ raster prep
 
-def to_pbm(src: Path, dst: Path, log):
-    """Anything that is not close to white counts as ink.
+def to_pbm(src: Path, dst: Path, log) -> tuple[int, int, np.ndarray]:
+    """Split the picture into ink and paper, and write it as a bitmap.
 
-    The previews this pipeline is fed carry coloured ink on white, and a plain
-    black-on-white threshold works out the same way. Keying on 'dark' instead
-    would drop light inks like yellow entirely.
+    The dividing tone is found per image with Otsu's method rather than fixed
+    near white. A stylised or scanned print is very often on cream paper — one
+    such file measured (237, 229, 216) — and treating anything not almost-white
+    as ink turned 99.9% of it into a single solid shape that painted the whole
+    canvas.
+
+    The darkest channel is what gets thresholded, not the brightness. A
+    saturated ink reads as dark in at least one channel however bright it looks,
+    so pure yellow on tinted paper still separates correctly.
     """
     with Image.open(src) as im:
         rgb = im.convert("RGB")
         w, h = rgb.size
         a = np.asarray(rgb)
-    ink = (a < 250).any(axis=2)
+
+    darkest = a.min(axis=2).astype(np.uint8)
+    # OpenCV returns 0 for a perfectly bimodal image, where every threshold
+    # separates the two tones equally well; `<=` keeps that case working and
+    # also keeps ink whose tone lands exactly on the level.
+    level, _ = cv2.threshold(darkest, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    ink = darkest <= level
+
     if not ink.any():
         raise PipelineError(f"{src.name} has no ink in it — nothing to paint")
+    share = float(ink.mean())
+    if share > 0.97:
+        log(f"  warning: {share * 100:.1f}% of {src.name} reads as ink — "
+            "the whole canvas will be painted")
     out = np.where(ink, 0, 255).astype(np.uint8)
     Image.fromarray(out, "L").convert("1").save(dst)
-    log(f"  {src.name}: {w}×{h} px, {ink.mean() * 100:.1f}% ink")
+    log(f"  {src.name}: {w}×{h} px, ink/paper split at {level:.0f}, {share * 100:.1f}% ink")
     return w, h, ink
 
 
@@ -707,6 +725,9 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w,
                                  mask=InkMask(ink, width_mm, height_mm))
         log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
+        # A marker before each tray's block, so a reader — the preview, or a
+        # person — can tell which colour is being laid down where.
+        copicograf.gcodes.append(f"; tray {tray}")
         copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]))
         stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})
         stats["strokes"] += n

@@ -38,6 +38,21 @@ a config carrying different keys brings its own fields with it.
   when the uploaded images disagree on ratio, or when the result exceeds
   `max_height`.
 
+### G-code preview
+
+Below the options is a preview of the path the brush will take, drawn as soon as
+a file is generated. Painting strokes are coloured per tray, travel is faint
+grey, and trips into the cups show up as orange bursts. Play or scrub through
+the job to see the order of work, with a marker on the brush's position.
+
+Alongside it: metres painted, metres travelled, brush-downs, cup dips, move
+count and a rough time estimate from the config's own feed rates. A `.gcode`
+file from anywhere can be dropped in to inspect it, whether or not this made it.
+
+Each tray's block is marked in the output with a `; tray <name>` comment, which
+is what lets the preview — or a person reading the file — tell which colour goes
+where.
+
 Two actions:
 
 - **Download Config** returns the edited config as a `.conf`. Types are
@@ -51,8 +66,14 @@ Per tray: threshold → `potrace` → SVG → OpenSCAD → STL → slicer → ad
 
 Notes on things that needed care:
 
-- **Ink is anything not white.** Keying on "dark" would drop light inks such as
-  yellow entirely.
+- **The ink/paper split is found per image**, with Otsu's method, on the darkest
+  colour channel. Not a fixed "anything not almost-white": a stylised or scanned
+  print is often on cream paper — one measured (237, 229, 216) — and the fixed
+  rule turned 99.9% of such a file into one solid shape that painted the whole
+  canvas. Thresholding the darkest channel rather than the brightness keeps a
+  saturated ink like yellow on the ink side, since it is dark in at least one
+  channel however bright it looks. A file that comes out more than 97% ink is
+  flagged in the log.
 - **Scale comes from the traced SVG, not the source image.** potrace writes one
   point per pixel and OpenSCAD honours the declared unit, so the PNG's DPI
   metadata is irrelevant. Reading the SVG's own width/height is what keeps the

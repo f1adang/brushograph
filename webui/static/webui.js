@@ -260,6 +260,8 @@ function wireForm() {
     detectSubject();
   }
 
+  wireSimulator();
+
   /* ---- is there a person or prominent object worth isolating? ---- */
   let lastDetected = null;
   async function detectSubject() {
@@ -358,6 +360,7 @@ function wireForm() {
         throw new Error(msg);
       }
       const blob = await res.blob();
+      if (wantsGcode) showGcode(await blob.text());
       const disposition = res.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename="?([^";]+)"?/);
       const url = URL.createObjectURL(blob);
@@ -379,6 +382,216 @@ function wireForm() {
       gcodeBtn.disabled = configBtn.disabled = false;
     }
   });
+}
+
+
+/* ------------------------------------------------------- G-code preview ---- */
+/* Draws the path the brush will take: painting strokes coloured per tray,
+   travel faint, and dips into the cups marked. Parsing is deliberately literal
+   — absolute coordinates, last-seen axis words — because that is what the
+   machine itself does with the file. */
+
+const TRAY_COLOURS = {
+  cyan: "#00a6d6", magenta: "#d6008a", yellow: "#c8a800", kroma: "#1b1f26",
+  water: "#7fb2d9", black: "#1b1f26",
+};
+const FALLBACK_COLOURS = ["#2f7fd0", "#c85a2b", "#3f9c6d", "#8a5bd6", "#c0392b"];
+
+function parseGcode(text) {
+  const moves = [];
+  let x = 0, y = 0, z = 10, tray = null, trayIndex = -1;
+  const trays = [];
+  let paintMM = 0, travelMM = 0, dips = 0, strokes = 0, wasDown = false;
+
+  for (const rawLine of text.split("\n")) {
+    const marker = rawLine.match(/^\s*;\s*tray\s+(\S+)/i);
+    if (marker) {
+      tray = marker[1];
+      if (!trays.includes(tray)) { trays.push(tray); }
+      trayIndex = trays.indexOf(tray);
+      continue;
+    }
+    const line = rawLine.split(";")[0].trim();
+    if (!/^G0*[01](?![0-9])/.test(line)) continue;
+    let nx = x, ny = y, nz = z;
+    const words = line.matchAll(/([XYZ])\s*(-?\d*\.?\d+)/g);
+    for (const [, axis, value] of words) {
+      const v = parseFloat(value);
+      if (axis === "X") nx = v; else if (axis === "Y") ny = v; else nz = v;
+    }
+    // Z at or below the canvas is painting; well below it is a trip into a cup.
+    const down = nz <= 0.001;
+    const inCup = nz <= -1;
+    const d = Math.hypot(nx - x, ny - y);
+    if (down && wasDown && !inCup) paintMM += d; else travelMM += d;
+    if (down && !wasDown) strokes++;
+    if (inCup && z > -1) dips++;
+    moves.push({ x1: x, y1: y, x2: nx, y2: ny, down: down && wasDown, cup: inCup, tray: trayIndex });
+    wasDown = down; x = nx; y = ny; z = nz;
+  }
+  return { moves, trays, paintMM, travelMM, dips, strokes };
+}
+
+function trayColour(name, index) {
+  if (name && TRAY_COLOURS[name.toLowerCase()]) return TRAY_COLOURS[name.toLowerCase()];
+  if (name && /^#[0-9a-f]{6}$/i.test(name)) return name;
+  return FALLBACK_COLOURS[(index < 0 ? 0 : index) % FALLBACK_COLOURS.length];
+}
+
+const sim = { data: null, upto: 1 };
+
+function drawGcode() {
+  const canvas = $("gcode-canvas");
+  if (!canvas || !sim.data) return;
+  const { moves, trays } = sim.data;
+  const ctx = canvas.getContext("2d");
+
+  const xs = [], ys = [];
+  for (const m of moves) { xs.push(m.x1, m.x2); ys.push(m.y1, m.y2); }
+  if (!xs.length) return;
+  const minX = Math.min(...xs), maxX = Math.max(...xs);
+  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  const pad = 16;
+  const scale = Math.min((canvas.width - 2 * pad) / Math.max(maxX - minX, 1),
+                         (canvas.height - 2 * pad) / Math.max(maxY - minY, 1));
+  // Machine Y grows away from the origin; the canvas grows downward.
+  const px = (x) => pad + (x - minX) * scale;
+  const py = (y) => canvas.height - pad - (y - minY) * scale;
+
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+
+  const cut = Math.floor(moves.length * sim.upto);
+  // Travel first, so painting is never hidden under it.
+  ctx.strokeStyle = "#e6e9ee";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let i = 0; i < cut; i++) {
+    const m = moves[i];
+    if (m.down || m.cup) continue;
+    ctx.moveTo(px(m.x1), py(m.y1));
+    ctx.lineTo(px(m.x2), py(m.y2));
+  }
+  ctx.stroke();
+
+  let current = null;
+  ctx.lineWidth = 1.8;
+  for (let i = 0; i < cut; i++) {
+    const m = moves[i];
+    if (!m.down) continue;
+    const colour = m.cup ? "#e0a03c" : trayColour(trays[m.tray], m.tray);
+    if (colour !== current) {
+      if (current !== null) ctx.stroke();
+      ctx.strokeStyle = colour;
+      ctx.beginPath();
+      current = colour;
+    }
+    ctx.moveTo(px(m.x1), py(m.y1));
+    ctx.lineTo(px(m.x2), py(m.y2));
+  }
+  if (current !== null) ctx.stroke();
+
+  // Where the brush is right now.
+  if (cut > 0 && cut < moves.length) {
+    const m = moves[cut - 1];
+    ctx.fillStyle = "#c0392b";
+    ctx.beginPath();
+    ctx.arc(px(m.x2), py(m.y2), 4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+
+function renderSimStats() {
+  const box = $("sim-stats");
+  if (!box || !sim.data) return;
+  const { paintMM, travelMM, dips, strokes, trays, moves } = sim.data;
+  // copicograf's feed rates: painting is the slow one, travel the fast one.
+  const minutes = paintMM / 1000 + travelMM / 1500 + dips * 0.06;
+  const stats = [
+    [`${(paintMM / 1000).toFixed(1)} m`, "painted"],
+    [`${(travelMM / 1000).toFixed(1)} m`, "travel"],
+    [strokes.toLocaleString(), "brush downs"],
+    [dips.toLocaleString(), "cup dips"],
+    [moves.length.toLocaleString(), "moves"],
+    [`~${minutes < 60 ? minutes.toFixed(0) + " min" : (minutes / 60).toFixed(1) + " h"}`, "rough time"],
+  ];
+  box.innerHTML = "";
+  for (const [value, label] of stats) {
+    const d = el("div", "sim-stat");
+    d.appendChild(el("b", null, value));
+    d.appendChild(el("span", null, label));
+    box.appendChild(d);
+  }
+  const legend = el("div", "sim-legend");
+  const entries = trays.length
+    ? trays.map((t, i) => [trayColour(t, i), t])
+    : [["#2f7fd0", "painting"]];
+  entries.push(["#e0a03c", "in the cups"], ["#e6e9ee", "travel"]);
+  for (const [colour, label] of entries) {
+    const item = el("span");
+    const swatch = el("i");
+    swatch.style.background = colour;
+    item.appendChild(swatch);
+    item.appendChild(document.createTextNode(label));
+    legend.appendChild(item);
+  }
+  box.appendChild(legend);
+}
+
+function showGcode(text) {
+  const card = $("preview-card");
+  if (!card) return;
+  sim.data = parseGcode(text);
+  sim.upto = 1;
+  card.hidden = false;
+  const scrub = $("sim-scrub");
+  if (scrub) scrub.value = 1000;
+  drawGcode();
+  renderSimStats();
+  updateSimAt();
+}
+
+function updateSimAt() {
+  const at = $("sim-at");
+  if (at && sim.data) {
+    at.textContent = `${Math.round(sim.upto * 100)}% of ${sim.data.moves.length.toLocaleString()} moves`;
+    at.hidden = false;
+  }
+}
+
+let simTimer = null;
+function wireSimulator() {
+  const scrub = $("sim-scrub"), play = $("sim-play"), open = $("sim-open");
+  if (!scrub) return;
+  scrub.addEventListener("input", () => {
+    sim.upto = Number(scrub.value) / 1000;
+    drawGcode();
+    updateSimAt();
+  });
+  play.addEventListener("click", () => {
+    if (simTimer) {
+      clearInterval(simTimer); simTimer = null; play.textContent = "▶ Play"; return;
+    }
+    if (sim.upto >= 1) sim.upto = 0;
+    play.textContent = "❚❚ Pause";
+    simTimer = setInterval(() => {
+      sim.upto = Math.min(1, sim.upto + 0.01);
+      scrub.value = Math.round(sim.upto * 1000);
+      drawGcode();
+      updateSimAt();
+      if (sim.upto >= 1) { clearInterval(simTimer); simTimer = null; play.textContent = "▶ Play"; }
+    }, 40);
+  });
+  if (open) {
+    open.addEventListener("change", async () => {
+      const file = open.files[0];
+      if (!file) return;
+      showGcode(await file.text());
+      open.value = "";
+    });
+  }
 }
 
 /* ------------------------------------------- tooltips as a dialog on mobile */

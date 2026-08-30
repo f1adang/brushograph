@@ -46,7 +46,9 @@
     It cuts the subject out with a small segmentation network (U&sup2;-Net, 4.4&nbsp;MB, downloaded
     once on first start and run through OpenCV), leaving the background as bare paper. Without the
     model it falls back to GrabCut, which is worse but keeps the feature working.</li>
-    <li>Ink is anything that is not white, so light inks such as yellow survive the threshold.</li>
+    <li>The ink/paper split is found per image rather than fixed, so a print on cream paper is
+    not read as one solid block of ink. It is taken on the darkest colour channel, so a light
+    ink such as yellow still counts as ink.</li>
     <li><b>Set <code>infill_line_distance</code> to roughly the width your brush lays down.</b>
     It is the gap between fill lines; a pen-plotter value such as 0.5&nbsp;mm paints the same
     area ten times over. On one test image, going from 0.5&nbsp;mm to 5&nbsp;mm cut brush lifts
