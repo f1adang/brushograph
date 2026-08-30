@@ -81,16 +81,41 @@ pen-plotter 0.5 mm it paints the same area ten times over. On the SGMK logo at
 | 0.5 mm | 286 | 25 mm | 598 | 318 | 23.8 m |
 | 5 mm | 35 | 79 mm | 103 | 74 | 4.5 m |
 
-**Strokes are chained.** A slicer emits a fill as many separate extrusion runs
-even where they are physically continuous. The adapter rejoins them in two
-passes: exact shared endpoints first, then ends within `BRIDGE_MULTIPLE` (1.5)
-line widths. Adjacent fill lines sit one line width apart, so 1.5x reaches the
-neighbour but not the one beyond it, and the bridge stays inside the filled
-region instead of crossing bare paper. That costs about 7% more painted
-distance and cuts stroke count by a third to a half.
+**Strokes are chained, and every bridge is checked against the shape.** A slicer
+emits a fill as many separate extrusion runs even where they are physically
+continuous. The adapter rejoins them: exact shared endpoints first, then ends
+within `BRIDGE_MULTIPLE` (1.5) line widths — but a bridge is only taken when the
+straight move between the two ends stays inside the ink, tested against the
+source mask. Bridging without that test drew across bare paper and cost 7% extra
+paint; with it the cost is 1.1% and the shape is preserved exactly.
 
-There is no point reaching further: copicograf re-inks every `paint_per_run`
-(120-140 mm), so a longer stroke is split for a dip regardless.
+**Bridging further does not pay**, which is worth knowing before reaching for it.
+A bridge replaces a lift and a travel with painted distance, and painted distance
+is what forces trips to the paint tray. Reaching 120 mm through solid ink saved 5
+lifts but added 0.35 m of painting and two tray trips — a clear loss, since a
+tray trip costs far more than a lift.
+
+**Strokes are ordered** nearest-first so the brush travels less between them.
+
+### Where the time actually goes
+
+Measured on the SGMK logo at 5 mm spacing: 4.0 m painted, 7.2 m travelled. The
+travel is almost entirely round trips to the paint tray, and the number of those
+is `painted distance / paint_per_run`. So the two levers that matter are both in
+the config:
+
+| `paint_per_run` | tray trips | travel | rough run time |
+|---|---|---|---|
+| 120-140 (default) | 35 | 7.2 m | 8.8 min |
+| 250-300 | 22 | 4.9 m | 7.2 min |
+| 500-600 | 16 | 3.4 m | 6.3 min |
+| very high (no re-inking) | 10 | 2.2 m | 5.5 min |
+
+Set it to how far the brush can actually paint before running dry. Combined with
+`infill_line_distance` matched to the brush, that is where the time goes.
+
+`wall_line_count` is already right at 1: dropping to 0 covers only 65% of the
+shape, and raising it to 2 costs 19% more paint for 1% more coverage.
 
 **Paths are simplified** with Douglas-Peucker at a tenth of a line width,
 cutting point count by roughly two thirds so the machine moves smoothly rather

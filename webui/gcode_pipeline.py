@@ -57,6 +57,11 @@ FALLBACK_PATTERN = "concentric"
 # cost of painting over slightly more bare paper.
 BRIDGE_MULTIPLE = 1.5
 
+# Bridging further than this does not pay. A bridge replaces a lift and a travel
+# with painted distance, and painted distance is what forces trips to the paint
+# tray: copicograf re-inks every paint_per_run. Past a few line widths the trips
+# cost more than the lifts saved.
+
 # The Z values copicograf.prepare_path() watches for to raise and lower the brush.
 PEN_UP = "G1 F600 Z6"
 PEN_DOWN = "G1 F600 Z1"
@@ -104,7 +109,7 @@ def _run(cmd: list[str], log, cwd: Path | None = None):
 
 # ------------------------------------------------------------------ raster prep
 
-def to_pbm(src: Path, dst: Path, log) -> tuple[int, int]:
+def to_pbm(src: Path, dst: Path, log):
     """Anything that is not close to white counts as ink.
 
     The previews this pipeline is fed carry coloured ink on white, and a plain
@@ -121,7 +126,7 @@ def to_pbm(src: Path, dst: Path, log) -> tuple[int, int]:
     out = np.where(ink, 0, 255).astype(np.uint8)
     Image.fromarray(out, "L").convert("1").save(dst)
     log(f"  {src.name}: {w}×{h} px, {ink.mean() * 100:.1f}% ink")
-    return w, h
+    return w, h, ink
 
 
 _SVG_LEN = re.compile(r'^\s*([-\d.]+)\s*([a-z%]*)\s*$')
@@ -216,8 +221,90 @@ def _polylines(gcode: Path) -> list[list[tuple[float, float]]]:
     return out
 
 
-def chain_polylines(polys: list[list[tuple[float, float]]], tol: float
-                    ) -> list[list[tuple[float, float]]]:
+class InkMask:
+    """Answers whether a straight move stays inside the painted shape.
+
+    The artwork is scaled so the source image spans exactly
+    (0,0)-(width_mm, height_mm) in slicer coordinates, and image row 0 is the
+    top while machine Y grows upward — hence the flip.
+    """
+
+    def __init__(self, ink, width_mm: float, height_mm: float):
+        self.ink = ink
+        self.h, self.w = ink.shape
+        self.width_mm = width_mm
+        self.height_mm = height_mm
+
+    def at(self, x_mm: float, y_mm: float) -> bool:
+        col = int(x_mm / self.width_mm * self.w)
+        row = int((1.0 - y_mm / self.height_mm) * self.h)
+        if 0 <= row < self.h and 0 <= col < self.w:
+            return bool(self.ink[row, col])
+        return False
+
+    def segment_inside(self, a, b, step: float = 0.5) -> bool:
+        dx, dy = b[0] - a[0], b[1] - a[1]
+        dist = (dx * dx + dy * dy) ** 0.5
+        n = max(2, int(dist / step) + 1)
+        for i in range(n + 1):
+            t = i / n
+            if not self.at(a[0] + dx * t, a[1] + dy * t):
+                return False
+        return True
+
+
+def order_polylines(polys, tol_grid: float = 8.0):
+    """Emit strokes nearest-first so the brush spends less time travelling."""
+    if len(polys) < 3:
+        return polys
+    cell = max(tol_grid, 1e-6)
+    buckets: dict[tuple[int, int], list[tuple[int, int]]] = {}
+
+    def key(pt):
+        return (int(pt[0] // cell), int(pt[1] // cell))
+
+    for i, poly in enumerate(polys):
+        buckets.setdefault(key(poly[0]), []).append((i, 0))
+        buckets.setdefault(key(poly[-1]), []).append((i, 1))
+
+    used = [False] * len(polys)
+    out = [polys[0]]
+    used[0] = True
+    cur = polys[0][-1]
+    for _ in range(len(polys) - 1):
+        best = None
+        ring = 1
+        while best is None and ring < 64:
+            cx, cy = key(cur)
+            for dx in range(-ring, ring + 1):
+                for dy in range(-ring, ring + 1):
+                    if max(abs(dx), abs(dy)) != ring - 1 and ring > 1:
+                        continue
+                    for j, end in buckets.get((cx + dx, cy + dy), ()):
+                        if used[j]:
+                            continue
+                        pt = polys[j][0] if end == 0 else polys[j][-1]
+                        d = (pt[0] - cur[0]) ** 2 + (pt[1] - cur[1]) ** 2
+                        if best is None or d < best[0]:
+                            best = (d, j, end)
+            ring += 1
+        if best is None:
+            for j in range(len(polys)):
+                if not used[j]:
+                    best = (0.0, j, 0)
+                    break
+        if best is None:
+            break
+        _, j, end = best
+        used[j] = True
+        nxt = polys[j] if end == 0 else polys[j][::-1]
+        out.append(nxt)
+        cur = nxt[-1]
+    return out
+
+
+def chain_polylines(polys: list[list[tuple[float, float]]], tol: float,
+                    permit=None) -> list[list[tuple[float, float]]]:
     """Rejoin runs whose ends meet, so one brush stroke stays one brush stroke.
 
     A slicer emits a fill as many separate extrusion runs even where they are
@@ -255,6 +342,8 @@ def chain_polylines(polys: list[list[tuple[float, float]]], tol: float
                         pt = polys[j][0] if end == 0 else polys[j][-1]
                         d = (pt[0] - tail[0]) ** 2 + (pt[1] - tail[1]) ** 2
                         if d <= tol * tol and (best is None or d < best[0]):
+                            if permit is not None and d > 1e-6 and not permit(tail, pt):
+                                continue
                             best = (d, j, end)
             if best is None:
                 break
@@ -302,7 +391,8 @@ def _length(poly) -> float:
                for i in range(len(poly) - 1))
 
 
-def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0) -> int:
+def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0,
+                         mask: "InkMask | None" = None) -> int:
     """Rewrite slicer output into the pen-up/pen-down form copicograf reads.
 
     copicograf.prepare_path() decides the brush is on the canvas by matching two
@@ -327,7 +417,11 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0
     # paint_per_run (120-140 mm), so a longer stroke than that is split for a
     # dip regardless of how it was chained.
     polys = chain_polylines(polys, tol=max(line_w * 0.05, 0.02))
-    polys = chain_polylines(polys, tol=line_w * BRIDGE_MULTIPLE)
+    # The bridge is only taken where the move between the two ends stays inside
+    # the ink, so joining never draws across bare paper and the shape is
+    # preserved exactly.
+    polys = chain_polylines(polys, tol=line_w * BRIDGE_MULTIPLE,
+                            permit=mask.segment_inside if mask else None)
     polys = [simplify(p, tol=min(line_w * 0.1, 0.15)) for p in polys]
     # A dab far shorter than the brush is wide is not a stroke; it is a blot,
     # and it costs a lift and a re-ink to place.
@@ -335,6 +429,7 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0
     if not polys:
         raise PipelineError("nothing left to paint after removing sub-brush-width fragments")
 
+    polys = order_polylines(polys)
     lengths = sorted(_length(p) for p in polys)
     median = lengths[len(lengths) // 2]
     grew = (sum(lengths) - raw_len) / raw_len * 100 if raw_len else 0.0
@@ -538,7 +633,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         sliced = workdir / f"threshold_{tray}_slicer.gcode"
         adapted = workdir / f"threshold_{tray}_adapted.gcode"
 
-        to_pbm(src, pbm, log)
+        _w_px, _h_px, ink = to_pbm(src, pbm, log)
         _run([pre["tools"]["potrace"], pbm.name, "-s", "-o", svg.name], log, cwd=workdir)
         _scad(scad, svg, width_mm, height_mm, layer_h, log)
         _run([pre["tools"]["openscad"], "-o", stl.name, scad.name], log, cwd=workdir)
@@ -576,7 +671,8 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 f"the slicer produced no G-code for {tray}. Check Slicer Options — "
                 f"infill line distance {line_w:g} mm."
             )
-        n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w)
+        n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w,
+                                 mask=InkMask(ink, width_mm, height_mm))
         log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
         copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]))
         stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})

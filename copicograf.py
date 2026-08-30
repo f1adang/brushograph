@@ -179,9 +179,19 @@ class Copicograf:
                 if first_coords[1] > 1000 or second_coords[1] > 1000:
                     print("napaka")
 
-                self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
+                ###############################################################
+                # Go down and come back up over the middle of the cup.        #
+                # The cups are round, so the centre is the point furthest     #
+                # from the wall in every direction; descending or lifting out  #
+                # at tray_enter_radius puts the brush against the rim.        #
+                # The loading sweep still runs the full chord, but it happens  #
+                # down in the paint where the brush is already inside.        #
+                ###############################################################
+                self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
                 self.gcodes.append(GCodeRapidMove(Z=-4))
+                self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
                 self.gcodes.append(GCodeRapidMove(X=second_coords[0], Y=second_coords[1]))
+                self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
                 self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
 
             if remove_drop == True:
