@@ -95,10 +95,10 @@ def _flag(form, name, default="true"):
 
 def _woodcut_params(form) -> dict:
     return {
-        "detail": _num(form, "woodcut_detail", 65.0),
+        "detail": _num(form, "woodcut_detail", 78.0),
         "threshold": _num(form, "woodcut_threshold", 8.0),
         "roughness": _num(form, "woodcut_roughness", 40.0),
-        "hatching": _num(form, "woodcut_hatching", 65.0),
+        "hatching": _num(form, "woodcut_hatching", 70.0),
         "outlines": _flag(form, "woodcut_outlines"),
     }
 
@@ -124,7 +124,7 @@ def _subject_mask(form, image: Image.Image, log=None):
         if log:
             log(f"isolation skipped: {found.get('reason', 'nothing detected')}")
         return None
-    return subject.isolate(image, found["box"])
+    return subject.isolate(image, found["box"], faces=found.get("faces"))
 
 
 @app.post("/detect_subject")

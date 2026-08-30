@@ -113,10 +113,32 @@ downloaded and no model ships with the repo.
 
 If something is found, an **Isolate** option appears naming what it is ("Isolate
 3 people", "Isolate a prominent object") and how much of the frame it covers.
-Ticking it runs GrabCut, seeded from the detected region, and everything outside
-the resulting outline becomes bare paper. GrabCut rather than the bare rectangle,
-because a rectangle of background would otherwise be hatched along with the
-subject.
+Ticking it runs GrabCut and everything outside the resulting outline becomes bare
+paper.
+
+GrabCut is seeded carefully, because the obvious seeds are both wrong:
+
+- Handed only a rectangle it loses dark hair against dark foliage — the head
+  goes missing. A small patch at the **centre of the face** is marked as certain
+  subject instead, which is unambiguously skin and teaches it the colour it
+  needs to keep the head.
+- That patch is deliberately small. A seed wide enough to overlap the leaves
+  beside someone's head marks *those* as certain subject, and nothing
+  downstream can get them back out.
+- Everything outside the detected box stays *certain* background. Left merely
+  probable, GrabCut annexes whatever shares the subject's colours — a wall, a
+  diving board, the sky between two people.
+- A core down the trunk is seeded only for a lone subject. With a group, a strip
+  under each face drags the gaps between them in as well.
+
+Afterwards, thin bridges are opened so a few pixels of foliage touching the hair
+cannot smuggle in a tree, only the piece under a detected face is kept, and
+enclosed gaps are filled — by connected component, not by flooding from a
+corner, which fails the moment the subject reaches the edge of the frame.
+
+A body box that reaches close to the bottom of the frame is taken all the way
+down: people are photographed standing far more often than floating, so the
+alternative is cutting their feet off.
 
 On the test photo this takes the painting from 56% ink to 39%, and the tonal
 bands are measured from the subject alone, so isolating does not wash out the

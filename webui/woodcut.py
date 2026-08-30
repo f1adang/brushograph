@@ -23,11 +23,11 @@ def _odd(n, lo: int = 1) -> int:
 
 def convert(
     image: Image.Image,
-    detail: float = 65.0,       # 0-100: how much fine structure survives
+    detail: float = 78.0,       # 0-100: how much fine structure survives
     threshold: float = 8.0,     # -50..50: bias toward more white / more black
     roughness: float = 40.0,    # 0-100: how irregular the carved edges look
     outlines: bool = True,      # keep dark contours as knife lines
-    hatching: float = 65.0,     # 0-100: how much midtone is carried by hatching
+    hatching: float = 70.0,     # 0-100: how much midtone is carried by hatching
     min_feature_px: float = 3.0,  # thinnest mark the brush can actually paint
     mask: np.ndarray | None = None,  # optional subject mask; outside becomes paper
 ) -> Image.Image:
@@ -52,8 +52,8 @@ def convert(
 
     # Smoothing is now light: it exists to stop sensor noise becoming marks, not
     # to flatten the picture. More detail means less of it.
-    d = _odd(short_side * (0.014 - 0.011 * detail / 100), 3)
-    tone = cv2.bilateralFilter(gray, d=min(d, 15), sigmaColor=90 - 0.5 * detail, sigmaSpace=d)
+    d = _odd(short_side * (0.014 - 0.0125 * detail / 100), 3)
+    tone = cv2.bilateralFilter(gray, d=min(d, 15), sigmaColor=95 - 0.65 * detail, sigmaSpace=d)
 
     if roughness > 0:
         tone = _roughen(tone, roughness, short_side)
@@ -104,7 +104,7 @@ def _contours(tone: np.ndarray, gray: np.ndarray, detail: float, min_feature: fl
     if detail > 55:
         edges |= cv2.Canny(cv2.GaussianBlur(gray, (0, 0), 0.7), lo + 30, int((lo + 30) * 2.8)) > 0
 
-    min_run = max(6.0, min_feature * 4.0)
+    min_run = max(4.0, min_feature * (4.6 - 2.6 * detail / 100))
     n, labels, stats, _ = cv2.connectedComponentsWithStats(edges.astype(np.uint8), connectivity=8)
     keep = np.zeros(n, bool)
     for i in range(1, n):
@@ -143,7 +143,7 @@ def _hatch(tone: np.ndarray, solid_at: float, paper_at: float,
     # Spacing is set so the thinnest line is a fixed fraction of the gap. That
     # keeps the lightest hatch light even for a wide brush, where a fixed
     # spacing would force every line to be thick and flood the midtones.
-    spacing = min_feature * (6.0 - 2.2 * hatching / 100)
+    spacing = min_feature * (5.6 - 2.5 * hatching / 100)
     yy, xx = np.mgrid[0:h, 0:w].astype(np.float32)
 
     t = tone.astype(np.float32)

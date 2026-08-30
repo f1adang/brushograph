@@ -16,6 +16,11 @@ MIN_COVER = 0.015   # below this a "subject" is a speck, not the subject
 MAX_COVER = 0.92    # above this it is the whole frame, so isolating gains nothing
 
 
+def _odd(n: int) -> int:
+    n = max(1, int(n))
+    return n if n % 2 else n + 1
+
+
 def _cascade(name: str):
     path = cv2.data.haarcascades + name
     c = cv2.CascadeClassifier(path)
@@ -38,9 +43,19 @@ def _clip(box, w, h):
 
 
 def _body_from_face(face, w, h):
-    """A face tells you where a person is; the body hangs below and around it."""
+    """A face tells you where a person is; the body hangs below and around it.
+
+    If the estimate runs close to the bottom of the frame the subject is almost
+    certainly cropped by it — people are photographed standing far more often
+    than they are photographed floating — so the box is taken all the way down
+    rather than slicing their feet off.
+    """
     x, y, fw, fh = face
-    return _clip((x - fw * 1.0, y - fh * 0.7, fw * 3.0, fh * 7.5), w, h)
+    box = _clip((x - fw * 1.2, y - fh * 0.9, fw * 3.4, fh * 8.0), w, h)
+    bx, by, bw, bh = box
+    if by + bh > h * 0.82:
+        bh = h - by
+    return _clip((bx, by, bw, bh), w, h)
 
 
 def detect(image: Image.Image) -> dict:
@@ -69,7 +84,7 @@ def detect(image: Image.Image) -> dict:
         bodies = [_body_from_face(f, sw, sh) for f in faces]
         box = _clip(_union(bodies), sw, sh)
         return _result("person", box, faces, sw, sh, back,
-                       count=len(faces), how=f"{len(faces)} face(s)")
+                       count=len(faces), how=f"{len(faces)} face(s)", seeds=faces)
 
     for name, kind in (("haarcascade_upperbody.xml", "person"),
                        ("haarcascade_fullbody.xml", "person")):
@@ -136,7 +151,7 @@ def _salient_box(small_rgb):
             int(stats[i, cv2.CC_STAT_WIDTH]), int(stats[i, cv2.CC_STAT_HEIGHT]))
 
 
-def _result(kind, box, parts, sw, sh, back, count, how) -> dict:
+def _result(kind, box, parts, sw, sh, back, count, how, seeds=None) -> dict:
     cover = (box[2] * box[3]) / float(sw * sh)
     if not (MIN_COVER < cover < MAX_COVER):
         return {"found": False, "reason": f"the {kind} found covers {cover * 100:.0f}% of the frame"}
@@ -148,15 +163,18 @@ def _result(kind, box, parts, sw, sh, back, count, how) -> dict:
         "coverage": round(cover, 3),
         "box": [int(v * back) for v in box],
         "parts": [[int(v * back) for v in p] for p in parts],
+        "faces": [[int(v * back) for v in f] for f in (seeds or [])],
     }
 
 
-def isolate(image: Image.Image, box, iterations: int = 4) -> np.ndarray:
-    """GrabCut the subject out of its background; returns a full-size 0/1 mask.
+def isolate(image: Image.Image, box, faces=None, iterations: int = 6) -> np.ndarray:
+    """Cut the subject from its background; returns a full-size 0/1 mask.
 
-    The detected box seeds it as probable foreground. GrabCut then decides the
-    actual outline from colour statistics, which matters here because a
-    rectangle of background would otherwise be hatched along with the subject.
+    GrabCut is seeded with a trimap rather than a bare rectangle. Handed only a
+    rectangle it has to guess which parts of the box are subject, and it
+    reliably loses dark hair against dark foliage. Marking the head and a core
+    down the body as definite foreground, and a frame of definite background,
+    tells it the two things it cannot work out on its own.
     """
     rgb = np.asarray(image.convert("RGB"))
     h, w = rgb.shape[:2]
@@ -165,16 +183,41 @@ def isolate(image: Image.Image, box, iterations: int = 4) -> np.ndarray:
         if scale < 1.0 else rgb
     sh, sw = small.shape[:2]
     x, y, bw, bh = _clip([int(v * scale) for v in box], sw, sh)
-    # GrabCut needs room around the seed to learn what the background looks like.
-    if bw >= sw - 2 or bh >= sh - 2:
-        pad = max(2, int(min(sw, sh) * 0.02))
-        x, y, bw, bh = _clip((x + pad, y + pad, bw - 2 * pad, bh - 2 * pad), sw, sh)
 
-    mask = np.zeros((sh, sw), np.uint8)
+    # Outside the detected box is *certain* background, exactly as seeding with
+    # a plain rectangle would have it. Leaving it merely probable lets GrabCut
+    # annex whatever outside the box happens to share the subject's colours —
+    # a wall, a diving board, the sky.
+    mask = np.full((sh, sw), cv2.GC_BGD, np.uint8)
+    mask[y:y + bh, x:x + bw] = cv2.GC_PR_FGD
+
+    seeds = [[int(v * scale) for v in f] for f in (faces or [])]
+    single = len(seeds) == 1
+    for fx, fy, fw_, fh_ in seeds:
+        # The face plus the hair just above it: the part that kept being lost to
+        # a dark background. Kept narrow — a seed wide enough to overlap the
+        # foliage beside someone's head marks that foliage as certain subject,
+        # and no amount of later cleaning gets it back out.
+        hx, hy, hw, hh = _clip((fx + fw_ * 0.22, fy + fh_ * 0.2,
+                                fw_ * 0.56, fh_ * 0.6), sw, sh)
+        mask[hy:hy + hh, hx:hx + hw] = cv2.GC_FGD
+        # A narrow core down the trunk. Deliberately small: it only has to be
+        # certainly-subject. Seeded generously it drags the sky between two
+        # people into the foreground.
+        # Only for a lone subject. With a group the box spans the whole huddle
+        # and a strip under each face drags the gaps between them in too.
+        if not single:
+            continue
+        cx = fx + fw_ // 2
+        run = ((y + bh) - (fy + fh_ * 1.2)) * 0.55
+        tx, ty, tw, th = _clip((cx - fw_ * 0.22, fy + fh_ * 1.2, fw_ * 0.44, run), sw, sh)
+        if th > 0:
+            mask[ty:ty + th, tx:tx + tw] = cv2.GC_FGD
+
     bgd, fgd = np.zeros((1, 65), np.float64), np.zeros((1, 65), np.float64)
     try:
-        cv2.grabCut(cv2.cvtColor(small, cv2.COLOR_RGB2BGR), mask, (x, y, bw, bh),
-                    bgd, fgd, iterations, cv2.GC_INIT_WITH_RECT)
+        cv2.grabCut(cv2.cvtColor(small, cv2.COLOR_RGB2BGR), mask, None,
+                    bgd, fgd, iterations, cv2.GC_INIT_WITH_MASK)
     except cv2.error:
         mask = np.zeros((sh, sw), np.uint8)
         mask[y:y + bh, x:x + bw] = cv2.GC_FGD
@@ -183,6 +226,69 @@ def isolate(image: Image.Image, box, iterations: int = 4) -> np.ndarray:
     if out.sum() < 0.01 * sh * sw:      # GrabCut gave up: fall back to the box
         out[:] = 0
         out[y:y + bh, x:x + bw] = 1
+
     out = cv2.morphologyEx(out, cv2.MORPH_CLOSE,
-                           cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (11, 11)))
+                           cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (9, 9)))
+    # Open before choosing the piece to keep, so a few pixels of foliage
+    # touching the hair cannot smuggle a tree in as part of the subject, then
+    # dilate back so the subject does not end up whittled down.
+    bridge = _odd(max(3, int(min(sw, sh) * 0.012)))
+    ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (bridge, bridge))
+    opened = cv2.morphologyEx(out, cv2.MORPH_OPEN, ker)
+    if opened.sum() > 0.2 * out.sum():
+        out = cv2.dilate(_keep_subject(opened, seeds, (x, y, bw, bh)), ker)
+        out = np.minimum(out, cv2.dilate(opened, ker))
+    else:
+        out = _keep_subject(out, seeds, (x, y, bw, bh))
+    out = _fill_holes(out)
     return cv2.resize(out, (w, h), interpolation=cv2.INTER_NEAREST)
+
+
+def _keep_subject(mask: np.ndarray, seeds, box) -> np.ndarray:
+    """Discard blobs that are not the subject.
+
+    GrabCut happily returns islands of background that resemble the subject's
+    colours. The piece to keep is the one under a detected face, or failing
+    that the largest one overlapping the detected box.
+    """
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(mask, connectivity=8)
+    if n < 2:
+        return mask
+    wanted = set()
+    for fx, fy, fw_, fh_ in seeds:
+        cy, cx = min(mask.shape[0] - 1, fy + fh_ // 2), min(mask.shape[1] - 1, fx + fw_ // 2)
+        lab = int(labels[cy, cx])
+        if lab:
+            wanted.add(lab)
+    if not wanted:
+        x, y, bw, bh = box
+        best, best_area = 0, 0
+        for i in range(1, n):
+            sub = labels[y:y + bh, x:x + bw] == i
+            area = int(sub.sum())
+            if area > best_area:
+                best, best_area = i, area
+        if best:
+            wanted.add(best)
+    if not wanted:
+        return mask
+    return np.isin(labels, list(wanted)).astype(np.uint8)
+
+
+def _fill_holes(mask: np.ndarray) -> np.ndarray:
+    """Close gaps enclosed by the subject.
+
+    A hole is a background region that touches no edge of the picture. Flooding
+    from one corner would not do: once the subject reaches an edge it splits the
+    background in two, and half of it would be filled in as subject.
+    """
+    h, w = mask.shape
+    n, labels, stats, _ = cv2.connectedComponentsWithStats((1 - mask).astype(np.uint8), 8)
+    out = mask.copy()
+    for i in range(1, n):
+        left, top = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP]
+        right = left + stats[i, cv2.CC_STAT_WIDTH]
+        bottom = top + stats[i, cv2.CC_STAT_HEIGHT]
+        if left > 0 and top > 0 and right < w and bottom < h:
+            out[labels == i] = 1
+    return out
