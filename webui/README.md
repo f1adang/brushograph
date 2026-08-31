@@ -50,12 +50,11 @@ deeper than the old fixed one and a modest 0.5 mm of backlash either way to tune
 from. Downloading the config writes them out, so a setting made in the form is
 not silently dropped on the way back.
 
-**Backlash compensation is an exception: the box always opens ticked**, whatever
-a config stores. The published configs for these machines carry a stale `false`,
-and a setting that is wanted on should not be quietly off because of a value in
-a file someone downloaded a year ago. It is still a box — unticking it is
-honoured for the run and written out by Download Config. Only the state it opens
-in is fixed.
+These are filled in, never overridden. A config that states a value keeps it,
+including a `false`: backlash compensation opens ticked when the config says so
+or says nothing, and unticked when the config says not to. The defaults exist so
+a setting the config never mentions still has a control, not to overrule one it
+does.
 
 ### Dip depth
 

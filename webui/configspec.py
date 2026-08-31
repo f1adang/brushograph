@@ -29,16 +29,6 @@ ALWAYS_OFFERED = {
 }
 
 
-# Settings whose *opening* state in the form is fixed, whatever a config stores.
-# Backlash compensation is wanted on: a config carrying a stale `false` — the
-# ones published for these machines do — should not quietly start it off. The
-# box is still a box, and unticking it is honoured for the run and written out
-# by Download Config; only the state it opens in is decided here.
-FORM_DEFAULTS = {
-    ("brushograph", "backlash_compensation"): True,
-}
-
-
 def _dig(conf: dict, path: tuple) -> dict:
     node = conf
     for key in path[:-1]:
@@ -48,19 +38,16 @@ def _dig(conf: dict, path: tuple) -> dict:
     return node
 
 
-def with_defaults(conf: dict, for_form: bool = False) -> dict:
+def with_defaults(conf: dict) -> dict:
     """A copy of the config with the always-offered settings filled in.
 
-    `for_form` additionally forces the settings whose opening state is fixed.
-    Folding a posted form back does not use it, so what the operator chose on
-    screen is what takes effect.
+    Filled in, not overridden: a config that states a value keeps it, including
+    a `false`. These defaults exist so a setting the config never mentions still
+    has a control, not to overrule one it does.
     """
     out = json.loads(json.dumps(conf))
     for path, value in ALWAYS_OFFERED.items():
         _dig(out, path).setdefault(path[-1], value)
-    if for_form:
-        for path, value in FORM_DEFAULTS.items():
-            _dig(out, path)[path[-1]] = value
     return out
 
 
@@ -211,7 +198,7 @@ def tray_entries(conf: dict) -> list[dict]:
 
 def build_schema(conf: dict) -> list[dict]:
     """Sections in the order the UI renders them, skipping ones the config lacks."""
-    conf = with_defaults(conf, for_form=True)
+    conf = with_defaults(conf)
     schema = []
     for key, title in SECTIONS:
         if key not in conf:
