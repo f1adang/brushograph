@@ -456,6 +456,10 @@ function parseGcode(text) {
       trayIndex = trays.indexOf(tray);
       continue;
     }
+    // Backlash compensation injects a corrective move before each reversal.
+    // Those are for the machine's slack, not part of the path that was asked
+    // for, and drawing them buries the artwork in hatching that is not in it.
+    if (/;\s*backlash take-up/i.test(rawLine)) continue;
     const line = rawLine.split(";")[0].trim();
     if (!/^G0*[01](?![0-9])/.test(line)) continue;
     let nx = x, ny = y, nz = z;

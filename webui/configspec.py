@@ -13,6 +13,35 @@ from collections import OrderedDict
 
 CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 
+# Settings the form always offers, whatever the config happens to carry. The
+# form is otherwise built from the config's own keys, so a machine file written
+# before one of these existed — or by hand, or by an older version — simply has
+# no control for it and no way to gain one.
+#
+# Defaults are chosen to be safe on a machine that never named them: a dip no
+# deeper than the old fixed one, and a backlash figure small enough to be worth
+# tuning rather than large enough to matter if ignored.
+ALWAYS_OFFERED = {
+    ("brushograph", "dip_depth"): -4.0,
+    ("brushograph", "backlash_compensation"): True,
+    ("brushograph", "backlash_x"): 0.5,
+    ("brushograph", "backlash_y"): 0.5,
+}
+
+
+def with_defaults(conf: dict) -> dict:
+    """A copy of the config with the always-offered settings filled in."""
+    out = json.loads(json.dumps(conf))
+    for path, value in ALWAYS_OFFERED.items():
+        node = out
+        for key in path[:-1]:
+            if not isinstance(node.get(key), dict):
+                node[key] = {}
+            node = node[key]
+        node.setdefault(path[-1], value)
+    return out
+
+
 SECTIONS = [
     ("trays", "Trays and Images"),
     ("brushograph", "Brushograph Options"),
@@ -160,6 +189,7 @@ def tray_entries(conf: dict) -> list[dict]:
 
 def build_schema(conf: dict) -> list[dict]:
     """Sections in the order the UI renders them, skipping ones the config lacks."""
+    conf = with_defaults(conf)
     schema = []
     for key, title in SECTIONS:
         if key not in conf:
@@ -193,7 +223,7 @@ def _coerce(original, raw: str):
 
 def apply_form(conf: dict, form) -> tuple[dict, list[str]]:
     """Fold posted `a-b-c` fields back into a copy of the config."""
-    out = json.loads(json.dumps(conf))
+    out = with_defaults(conf)
     problems = []
     for name in form.keys():
         if name in {"session_id", "machine_config_name", "machine_config_mode",

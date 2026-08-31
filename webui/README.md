@@ -38,6 +38,18 @@ a config carrying different keys brings its own fields with it.
   when the uploaded images disagree on ratio, or when the result exceeds
   `max_height`.
 
+### Settings the form always offers
+
+The options form is built from the config's own keys, which means a machine file
+written before a setting existed — or by hand, or by an older version — simply
+has no control for it, and no way to gain one. A short list is therefore always
+offered whatever the config carries: dip depth, and the three backlash settings.
+
+A config that names them keeps its own values; one that does not gets a dip no
+deeper than the old fixed one, backlash compensation **on**, and a modest 0.5 mm
+either way to tune from. Downloading the config writes them out, so a setting
+made in the form is not silently dropped on the way back.
+
 ### Dip depth
 
 How far the brush descends into a cup was fixed at Z −4 in `copicograf`, which
@@ -48,6 +60,15 @@ any other setting. A config that does not mention it still gets −4.
 The preview reads a dip as *any* Z below the canvas rather than a fixed depth.
 Keyed to −4, a shallower dip would have been drawn as painting and left out of
 the dip count.
+
+### What the preview leaves out
+
+Backlash compensation injects a corrective move at every reversal — 130 of them
+in a small test job. Those are for the machine's slack, not part of the path that
+was asked for, and drawing them buries the artwork in strokes that are not in
+it. The preview skips them, and shows the path as it would be without
+compensation. Checked against the same file with those lines physically removed:
+the parsed moves are identical.
 
 ### Calibration is a macro, not a preamble
 
