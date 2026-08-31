@@ -46,9 +46,16 @@ has no control for it, and no way to gain one. A short list is therefore always
 offered whatever the config carries: dip depth, and the three backlash settings.
 
 A config that names them keeps its own values; one that does not gets a dip no
-deeper than the old fixed one, backlash compensation **on**, and a modest 0.5 mm
-either way to tune from. Downloading the config writes them out, so a setting
-made in the form is not silently dropped on the way back.
+deeper than the old fixed one and a modest 0.5 mm of backlash either way to tune
+from. Downloading the config writes them out, so a setting made in the form is
+not silently dropped on the way back.
+
+**Backlash compensation is an exception: the box always opens ticked**, whatever
+a config stores. The published configs for these machines carry a stale `false`,
+and a setting that is wanted on should not be quietly off because of a value in
+a file someone downloaded a year ago. It is still a box — unticking it is
+honoured for the run and written out by Download Config. Only the state it opens
+in is fixed.
 
 ### Dip depth
 
