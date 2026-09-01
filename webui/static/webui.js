@@ -411,6 +411,10 @@ const TRAY_COLOURS = {
   water: "#7fb2d9", black: "#1b1f26",
 };
 const FALLBACK_COLOURS = ["#2f7fd0", "#c85a2b", "#3f9c6d", "#8a5bd6", "#c0392b"];
+// The trips down into the paint and water cups, drawn in the colour of paint
+// rather than of a warning. Named because it is wanted in two places — the
+// strokes and the legend — and they must not drift apart.
+const CUP_COLOUR = "#8b3e2f";
 
 function parseGcode(text) {
   const moves = [];
@@ -527,7 +531,7 @@ function drawGcode() {
   for (let i = 0; i < cut; i++) {
     const m = moves[i];
     if (!m.down) continue;
-    const colour = m.cup ? "#e0a03c" : trayColour(trays[m.tray], m.tray);
+    const colour = m.cup ? CUP_COLOUR : trayColour(trays[m.tray], m.tray);
     if (colour !== current) {
       if (current !== null) ctx.stroke();
       ctx.strokeStyle = colour;
@@ -574,7 +578,7 @@ function renderSimStats() {
   const entries = trays.length
     ? trays.map((t, i) => [trayColour(t, i), t])
     : [["#2f7fd0", "painting"]];
-  entries.push(["#e0a03c", "in the cups"], ["#e6e9ee", "travel"]);
+  entries.push([CUP_COLOUR, "in the cups"], ["#e6e9ee", "travel"]);
   for (const [colour, label] of entries) {
     const item = el("span");
     const swatch = el("i");
