@@ -244,6 +244,14 @@ the source: enlarging it would add pixels but no detail.
 
 The noise seed is fixed, so the same photo and settings always print the same.
 
+### Checkboxes post two values
+
+Every checkbox in the form is paired with a hidden field carrying `false`, since
+an unticked box posts nothing at all. A ticked one therefore arrives as
+`["false", "true"]`, and anything reading it with `form.get()` — which returns
+the *first* value — sees every box as off, however it was set. Read them with
+`getlist()[-1]`. `apply_form` and `_flag` both do.
+
 ### Isolating a person or object
 
 When a photo is chosen it is inspected for a subject. If one is found, an

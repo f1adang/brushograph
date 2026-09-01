@@ -114,7 +114,17 @@ def _num(form, name, default):
 
 
 def _flag(form, name, default="true"):
-    return (form.get(name) or default).lower() in {"1", "true", "on", "yes"}
+    """Read a checkbox, taking the last value posted under the name.
+
+    A checkbox that is not ticked posts nothing, so each one is paired with a
+    hidden field carrying "false" and the box itself carries "true". Both arrive
+    when it is ticked, in that order — so the *first* value is always "false"
+    and `form.get()`, which returns the first, reports every box as off however
+    it was set. `apply_form` already reads these correctly; this did not.
+    """
+    values = form.getlist(name) if hasattr(form, "getlist") else []
+    raw = values[-1] if values else default
+    return str(raw).lower() in {"1", "true", "on", "yes"}
 
 
 def _woodcut_params(form) -> dict:
