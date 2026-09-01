@@ -23,6 +23,7 @@ CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 # tuning rather than large enough to matter if ignored.
 ALWAYS_OFFERED = {
     ("brushograph", "dip_depth"): -4.0,
+    ("slicer", "engine"): "external",
     ("brushograph", "backlash_compensation"): True,
     ("brushograph", "backlash_x"): 0.5,
     ("brushograph", "backlash_y"): 0.5,
@@ -61,6 +62,7 @@ SECTIONS = [
 ENUMS = {
     # Only patterns the slicer accepts at 100% density. Ordered by how well
     # they suit a brush: long flowing strokes first, raster last.
+    "slicer-engine": ["external", "planar"],
     "slicer-infill_pattern": [
         "concentric", "archimedeanchords", "alignedrectilinear", "rectilinear", "hilbertcurve",
     ],
@@ -82,6 +84,7 @@ HELP = {
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
+    "slicer-engine": "How outlines and fill are worked out. 'external' traces to vectors, extrudes to a solid and slices it back — slow, needs potrace, OpenSCAD and PrusaSlicer, and is what the output has been tuned against. 'planar' does the same work directly on the picture, two to four times faster and with nothing to install, but it cannot yet outline shapes narrower than the brush, so it is weaker on line art.",
     "brushograph-dip_depth": "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.",
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",
     "brushograph-move_to_other_shape_lift": "Lift on Z-axis when painting/drawing",

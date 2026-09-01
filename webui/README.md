@@ -449,6 +449,42 @@ The start point is now repeated after the marker. On the line drawing this took
 painted distance from 2.66 m to 3.67 m, and it is why the centrelines above
 appeared to do nothing until it was fixed.
 
+### Two geometry engines
+
+`slicer.engine` chooses how outlines and fill are worked out.
+
+**`external`** (default) is the original chain: trace to vectors with potrace,
+extrude to a solid with OpenSCAD, slice it back with PrusaSlicer. Three external
+programs to do a job that is entirely two-dimensional, and slow with it — 1.8 s
+in OpenSCAD and 1.2 s in the slicer on one small line drawing. It is the default
+because the output has been tuned against it.
+
+**`planar`** does the same work directly: contours from the bitmap with OpenCV,
+then polygon offsetting with Shapely. Nothing to install, and two to four times
+quicker end to end.
+
+| image | external | planar |
+|---|---|---|
+| line art | 3.00 s | 0.41 s |
+| solid regions | 0.25 s | 0.11 s |
+| woodcut-style photo | 20.0 s | 4.8 s |
+
+**It is not yet a replacement.** On solid regions the two are hard to tell apart.
+On line art `planar` is visibly worse: a stroke narrower than the brush has no
+inside to inset an outline into, so it produces nothing and falls to the
+centreline pass, which draws it as short fragments. The longest stroke on that
+drawing is 422 mm from the slicer against 113 mm from `planar`, and the picture
+shows it.
+
+What would close the gap is a proper medial axis for thin shapes — what
+PrusaSlicer's Arachne generator does — producing one continuous line down a rib
+rather than a skeleton chopped at every junction. Rasterising and thinning each
+shape separately was tried and is not the answer: five times the runtime for no
+better line.
+
+So: worth using for the woodcut path, where the input is solid regions and the
+saving is largest. Not yet for line art.
+
 ### The slicer adapter
 
 `copicograf.prepare_path()` decides the brush is on the canvas by matching two

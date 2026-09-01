@@ -19,6 +19,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+import planar
+
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -456,16 +458,35 @@ def _trace_skeleton(skeleton: np.ndarray) -> list[list[tuple[int, int]]]:
     used: set = set()
 
     def walk(start):
+        """Follow the skeleton, carrying straight on through a junction.
+
+        Taking whichever neighbour came first would stop at every fork and turn
+        one rib into a handful of stubs. Choosing the neighbour that best
+        continues the current direction keeps a stroke whole, which is what the
+        brush wants and what the outline it stands in for would have been.
+        """
         run = [start]
         used.add(start)
         current = start
+        heading = None
         while True:
             nxt = [q for q in neighbours(current) if q not in used]
             if not nxt:
                 break
-            current = nxt[0]
-            used.add(current)
-            run.append(current)
+            if heading is None:
+                pick = nxt[0]
+            else:
+                def straightness(q):
+                    dr, dc = q[0] - current[0], q[1] - current[1]
+                    norm = (dr * dr + dc * dc) ** 0.5 or 1.0
+                    return -(dr * heading[0] + dc * heading[1]) / norm
+                pick = min(nxt, key=straightness)
+            dr, dc = pick[0] - current[0], pick[1] - current[1]
+            norm = (dr * dr + dc * dc) ** 0.5 or 1.0
+            heading = (dr / norm, dc / norm)
+            used.add(pick)
+            run.append(pick)
+            current = pick
         return run
 
     runs = []
@@ -530,10 +551,23 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0
     copicograf.py untouched and works with whichever slicer is installed.
     """
     polys = _polylines(slicer_gcode)
+    if not polys:
+        raise PipelineError("slicer produced no extrusion moves — nothing to paint")
+    return write_brush_paths(polys, dst, log, line_w=line_w, mask=mask)
+
+
+def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
+                      mask: "InkMask | None" = None) -> int:
+    """Chain, tidy and write paths in the pen-up/pen-down form copicograf reads.
+
+    Takes paths from either source — the external slicer or the planar
+    backend — so both get the same chaining, the same centreline rescue for
+    shapes too thin to outline, and the same output format.
+    """
     if mask is not None:
         polys = polys + centrelines_for_missed(mask, polys, line_w, log)
     if not polys:
-        raise PipelineError("slicer produced no extrusion moves — nothing to paint")
+        raise PipelineError("nothing to paint")
 
     raw_n = len(polys)
     raw_pts = sum(len(p) for p in polys)
@@ -711,8 +745,13 @@ def apply_backlash(lines: list[str], bx: float, by: float) -> list[str]:
 
 def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path, log) -> dict:
     """Run every tray that has an image, then stitch one G-code file."""
+    engine = str(conf.get("slicer", {}).get("engine", "external")).strip().lower()
+    if engine not in {"planar", "external"}:
+        engine = "external"
+
     pre = preflight()
-    if not pre["ok"]:
+    # The planar backend needs none of them.
+    if engine == "external" and not pre["ok"]:
         raise PipelineError(
             "missing external tools: " + ", ".join(pre["missing"])
             + ". Install them (brew install potrace openscad, plus PrusaSlicer) and retry."
@@ -781,6 +820,23 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         adapted = workdir / f"threshold_{tray}_adapted.gcode"
 
         _w_px, _h_px, ink = to_pbm(src, pbm, log)
+        canvas = InkMask(ink, width_mm, height_mm)
+
+        if engine == "planar":
+            paths = planar.build(ink, width_mm, height_mm, line_w,
+                                 pattern=slicer_conf.get("infill_pattern", "concentric"),
+                                 infill=infill,
+                                 perimeters=int(float(slicer_conf.get("wall_line_count", 1) or 1)),
+                                 log=log)
+            n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)
+            log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
+            copicograf.gcodes.append(f"; tray {tray}")
+            copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]),
+                                    calibrate=False)
+            stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})
+            stats["strokes"] += n
+            continue
+
         _run([pre["tools"]["potrace"], pbm.name, "-s", "-o", svg.name], log, cwd=workdir)
         _scad(scad, svg, width_mm, height_mm, layer_h, log)
         _run([pre["tools"]["openscad"], "-o", stl.name, scad.name], log, cwd=workdir)
@@ -825,8 +881,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 f"the slicer produced no G-code for {tray}"
                 + (f": {detail}" if detail else " and gave no reason")
             )
-        n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w,
-                                 mask=InkMask(ink, width_mm, height_mm))
+        n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w, mask=canvas)
         log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
         # A marker before each tray's block, so a reader — the preview, or a
         # person — can tell which colour is being laid down where.
