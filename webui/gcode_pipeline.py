@@ -13,6 +13,7 @@ import re
 import shutil
 import subprocess
 import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 import cv2
@@ -808,7 +809,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     copicograf = Copicograf(conf=conf, gcodes=[])
     stats = {"trays": [], "strokes": 0}
 
-    for entry in todo:
+    def prepare(entry):
+        """Everything for one tray up to, but not including, the choreography.
+
+        Trays are independent here: each writes its own files, and the heavy
+        steps are external programs or OpenCV, all of which release the GIL. Log
+        lines are collected rather than emitted, so a parallel run still reads
+        in tray order once the results are stitched back together.
+        """
+        lines: list[str] = []
+        log = lines.append
+
         tray = entry["tray"]
         log(f"[{tray}] tracing")
         src = images[tray]
@@ -829,13 +840,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                                  perimeters=int(float(slicer_conf.get("wall_line_count", 1) or 1)),
                                  log=log)
             n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)
-            log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
-            copicograf.gcodes.append(f"; tray {tray}")
-            copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]),
-                                    calibrate=False)
-            stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})
-            stats["strokes"] += n
-            continue
+            return adapted, n, lines
 
         _run([pre["tools"]["potrace"], pbm.name, "-s", "-o", svg.name], log, cwd=workdir)
         _scad(scad, svg, width_mm, height_mm, layer_h, log)
@@ -882,6 +887,21 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 + (f": {detail}" if detail else " and gave no reason")
             )
         n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w, mask=canvas)
+        return adapted, n, lines
+
+    # Preparation runs in parallel; the choreography does not. copicograf
+    # appends into one list, and the order it is appended in is the order the
+    # machine paints, so that stays sequential and in color_order.
+    if len(todo) > 1:
+        with ThreadPoolExecutor(max_workers=min(len(todo), os.cpu_count() or 1)) as pool:
+            prepared = list(pool.map(prepare, todo))
+    else:
+        prepared = [prepare(todo[0])]
+
+    for entry, (adapted, n, lines) in zip(todo, prepared):
+        for line in lines:
+            log(line)
+        tray = entry["tray"]
         log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
         # A marker before each tray's block, so a reader — the preview, or a
         # person — can tell which colour is being laid down where.
