@@ -55,6 +55,8 @@
     config that does not mention it, as are the backlash settings, which are ticked unless the config says otherwise.</li>
     <li>The preview shows the path without backlash compensation. Those corrective moves are for
     the machine's slack, and drawing them would bury the artwork in strokes that are not in it.</li>
+    <li>A shape too thin for the slicer to outline gets its centreline painted instead, so
+    every ribbon, hairline and rib is drawn rather than dropped.</li>
     <li>An <b>infill line distance of 0</b> paints outlines only. A nominal 1&nbsp;mm stroke
     width stands in for the brush, since the config then states none.</li>
     <li>Files are named after the picture and the colours used &mdash;

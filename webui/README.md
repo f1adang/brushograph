@@ -413,6 +413,34 @@ feedrate, then a lift to the config's own safe Z — because copicograf's own
 `G90`/`G21` come *after* that first `M204` and are never reached on a strict
 controller.
 
+### Every shape gets a stroke
+
+A shape narrower than the brush gets no perimeter — there is nowhere to put one
+— so the slicer drops it, and a rib, a hairline or a stroke of lettering simply
+disappears. On one line drawing, 38 ink shapes came out unpainted.
+
+Any shape the slicer's paths do not cover is therefore skeletonised, and its
+centreline is added as a stroke. The centreline is the one line a brush can lay
+in a shape thinner than itself, and laying it is closer to the drawing than
+leaving the shape blank. Specks below about half a brush width are left alone: a
+stroke there is a blot.
+
+This matters most with infill off, where perimeters are the only paths, but it
+runs either way — a thin shape is no more paintable when the fill is on.
+
+### The stroke's first segment
+
+`copicograf` treats the first coordinate after a pen-down marker as "go there,
+then lower". The adapter was emitting the start point before the marker and the
+rest after, so the brush came down at the *second* point and the opening segment
+of every stroke was travelled dry. On a stroke of many points that is a small
+loss at one end; on a two-point stroke — which is what a thin shape's centreline
+simplifies to — it is the whole stroke.
+
+The start point is now repeated after the marker. On the line drawing this took
+painted distance from 2.66 m to 3.67 m, and it is why the centrelines above
+appeared to do nothing until it was fixed.
+
 ### The slicer adapter
 
 `copicograf.prepare_path()` decides the brush is on the canvas by matching two

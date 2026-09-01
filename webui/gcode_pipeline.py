@@ -439,6 +439,87 @@ def _length(poly) -> float:
                for i in range(len(poly) - 1))
 
 
+def _trace_skeleton(skeleton: np.ndarray) -> list[list[tuple[int, int]]]:
+    """Walk a one-pixel-wide skeleton into runs of pixels.
+
+    Greedy: start from the loose ends, follow unvisited neighbours, and take
+    whatever is left over as loops. A fork becomes two runs, which is what a
+    brush has to do with one anyway.
+    """
+    points = set(zip(*np.nonzero(skeleton)))
+    offsets = [(-1, -1), (-1, 0), (-1, 1), (0, -1), (0, 1), (1, -1), (1, 0), (1, 1)]
+
+    def neighbours(p):
+        r, c = p
+        return [(r + dr, c + dc) for dr, dc in offsets if (r + dr, c + dc) in points]
+
+    used: set = set()
+
+    def walk(start):
+        run = [start]
+        used.add(start)
+        current = start
+        while True:
+            nxt = [q for q in neighbours(current) if q not in used]
+            if not nxt:
+                break
+            current = nxt[0]
+            used.add(current)
+            run.append(current)
+        return run
+
+    runs = []
+    for start in [p for p in points if len(neighbours(p)) == 1]:
+        if start not in used:
+            runs.append(walk(start))
+    for p in points:                      # closed loops have no loose end
+        if p not in used:
+            runs.append(walk(p))
+    return [r for r in runs if len(r) >= 2]
+
+
+def centrelines_for_missed(mask, polys, line_w: float, log=None) -> list:
+    """A stroke down the middle of every painted shape the slicer skipped.
+
+    A shape narrower than the brush gets no perimeter — there is nowhere to put
+    one — so the slicer drops it and a rib, a hairline or a stroke of lettering
+    simply disappears. Its centreline is the one line a brush can lay there, and
+    laying it is closer to the drawing than leaving the shape blank.
+    """
+    ink = mask.ink
+    h, w = ink.shape
+    px_per_mm = w / mask.width_mm
+
+    covered = np.zeros((h, w), np.uint8)
+    brush_px = max(1, int(round(line_w * px_per_mm)))
+    for run in polys:
+        pts = np.array([[int(x / mask.width_mm * w), int((1 - y / mask.height_mm) * h)]
+                        for x, y in run], np.int32)
+        if len(pts) > 1:
+            cv2.polylines(covered, [pts], False, 1, thickness=brush_px)
+
+    n, labels, stats, _ = cv2.connectedComponentsWithStats(ink.astype(np.uint8), 8)
+    # Below this a shape is a speck, and a stroke for it would be a blot.
+    min_area = max(12.0, (line_w * px_per_mm * 0.6) ** 2)
+    rescued = []
+    for i in range(1, n):
+        if stats[i, cv2.CC_STAT_AREA] < min_area:
+            continue
+        piece = labels == i
+        if float((covered[piece] > 0).mean()) >= 0.2:
+            continue
+        skeleton = cv2.ximgproc.thinning(
+            (piece * 255).astype(np.uint8), thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+        for run in _trace_skeleton(skeleton > 0):
+            line = [(c / w * mask.width_mm, (1 - r / h) * mask.height_mm) for r, c in run]
+            line = simplify(line, tol=min(line_w * 0.25, 0.4))
+            if len(line) > 1 and _length(line) >= line_w:
+                rescued.append(line)
+    if rescued and log:
+        log(f"  {len(rescued)} centreline strokes for shapes too thin to outline")
+    return rescued
+
+
 def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0,
                          mask: "InkMask | None" = None) -> int:
     """Rewrite slicer output into the pen-up/pen-down form copicograf reads.
@@ -449,6 +530,8 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0
     copicograf.py untouched and works with whichever slicer is installed.
     """
     polys = _polylines(slicer_gcode)
+    if mask is not None:
+        polys = polys + centrelines_for_missed(mask, polys, line_w, log)
     if not polys:
         raise PipelineError("slicer produced no extrusion moves — nothing to paint")
 
@@ -491,6 +574,13 @@ def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0
         lines.append(PEN_UP)
         lines.append(f"G1 X{sx:.3f} Y{sy:.3f}")
         lines.append(PEN_DOWN)
+        # The start point again, on purpose. copicograf treats the first
+        # coordinate after a pen-down marker as "go there, then lower", so
+        # without repeating it the brush comes down at the *second* point and
+        # the opening segment of every stroke is travelled dry. A stroke short
+        # enough to be two points — which is what a thin shape's centreline
+        # simplifies to — is then lost entirely.
+        lines.append(f"G1 X{sx:.3f} Y{sy:.3f}")
         for px, py in poly[1:]:
             lines.append(f"G1 X{px:.3f} Y{py:.3f}")
     lines.append(PEN_UP)
