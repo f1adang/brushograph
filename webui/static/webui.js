@@ -327,36 +327,6 @@ function wireForm() {
     });
   }
 
-  /* ---- the calibration macro, built from the config on screen ---- */
-  const calBtn = $("options-form-calibration");
-  if (calBtn) {
-    calBtn.addEventListener("click", async () => {
-      const errBox = $("form-error");
-      errBox.hidden = true;
-      const fd = new FormData(form);
-      form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
-      fd.append("calibration_only", "true");
-      const label = calBtn.textContent;
-      calBtn.textContent = "Building…";
-      calBtn.disabled = true;
-      try {
-        const res = await fetch(form.action, { method: "POST", body: fd });
-        if (!res.ok) {
-          let msg = `Server returned ${res.status}`;
-          try { msg = (await res.json()).error || msg; } catch (_) { /* not json */ }
-          throw new Error(msg);
-        }
-        saveBlob(await res.blob(), "calibration.g");
-      } catch (err) {
-        errBox.textContent = String(err.message || err);
-        errBox.hidden = false;
-      } finally {
-        calBtn.textContent = label;
-        calBtn.disabled = false;
-      }
-    });
-  }
-
   /* ---- submit ---- */
   form.addEventListener("submit", async (e) => {
     e.preventDefault();

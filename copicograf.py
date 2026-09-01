@@ -70,7 +70,7 @@ class Copicograf:
         gcfh.write("\n".join(str(g) for g in self.gcodes))
         gcfh.close()
 
-    def prepare_path(self, gcode_path, color_tray_x, color_tray_y, calibrate=True, calibration_only=False):
+    def prepare_path(self, gcode_path, color_tray_x, color_tray_y, calibrate=True):
         def set_normal_speed():
             self.gcodes.append(self.initial_gcode_acc)
             self.gcodes.append(self.initial_gcode_feedrate_1)
@@ -327,9 +327,9 @@ class Copicograf:
 
         # The opening sequence: mix the colour, wash, and load the brush. Each
         # trip ends by touching the paper at the origin, so it leaves three
-        # dots. Optional because it is useful on its own, as a calibration
-        # macro run before a job, and only in the way when repeated inside one.
-        if calibrate or calibration_only:
+        # dots. Optional because repeating it once per tray inside a job puts
+        # those dots in the middle of the artwork.
+        if calibrate:
             # Mix the color
             prepare_paint(0, 0)
 
@@ -338,10 +338,6 @@ class Copicograf:
 
             # Go for paint before starting
             append_go_for_paint(0, 0)
-
-        if calibration_only:
-            self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
-            return
 
         self.last_draw_gcode = None
         self.last_draw_params = None

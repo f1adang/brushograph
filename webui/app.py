@@ -286,16 +286,6 @@ def options_form_post():
     if problems:
         return jsonify(error="; ".join(problems[:4])), 400
 
-    if request.form.get("calibration_only") == "true":
-        try:
-            macro = gcode_pipeline.calibration_macro(conf)
-        except gcode_pipeline.PipelineError as exc:
-            return jsonify(error=str(exc)), 400
-        return app.response_class(
-            macro, mimetype="text/plain",
-            headers={"Content-Disposition": 'attachment; filename="calibration.g"'},
-        )
-
     if request.form.get("sketch_only") == "true":
         return app.response_class(render_sketch(conf), mimetype="image/png")
 

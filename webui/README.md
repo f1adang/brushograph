@@ -76,19 +76,15 @@ it. The preview skips them, and shows the path as it would be without
 compensation. Checked against the same file with those lines physically removed:
 the parsed moves are identical.
 
-### Calibration is a macro, not a preamble
+### No calibration preamble
 
 `copicograf` opened every run by mixing the colour, washing the brush and
 loading it, each trip ending with a touch on the paper at the origin. In a job
 that repeated once per tray and left the dots inside the artwork's coordinate
-space.
+space, so generated jobs are produced without it.
 
-That sequence is now off in generated jobs and available on its own as
-**Download calibration.g**, built from the config on screen so the tray
-positions, lifts and feed rates match the machine. Run it before a job.
-
-**The job no longer primes the brush.** It starts painting with whatever is on
-it, so the macro — or a manual dip — has to come first.
+**A job therefore does not prime the brush.** It starts painting with whatever is
+on it, so a dip has to come first.
 
 The closing wash at the end of each tray is untouched, and still leaves one dot
 at the origin per tray.

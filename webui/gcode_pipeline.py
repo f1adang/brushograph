@@ -619,40 +619,6 @@ def apply_backlash(lines: list[str], bx: float, by: float) -> list[str]:
 
 # ------------------------------------------------------------------- the driver
 
-def calibration_macro(conf: dict) -> str:
-    """The opening sequence on its own, as a macro to run before a job.
-
-    Mix the colour, wash the brush, load it — each trip ending with a dot at the
-    origin. It used to be emitted at the head of every file, which repeated it
-    once per tray and put the dots in the middle of the artwork's coordinate
-    space. As a macro it can be run once, deliberately, and watched.
-    """
-    from copicograf import Copicograf
-
-    trays = conf.get("trays", {})
-    entries = [e for e in tray_entries(conf) if e["image"]]
-    if not entries:
-        raise PipelineError("this config has no colour tray to calibrate against")
-    first = entries[0]
-    tray = trays.get(first["tray"], {})
-
-    copicograf = Copicograf(conf=conf, gcodes=[])
-    copicograf.prepare_path(None, float(tray.get("x", 0)), float(tray.get("y", 0)),
-                            calibration_only=True)
-
-    controller = str(conf.get("controller", {}).get("controller_type") or "GRBL")
-    lines, _ = sanitize_for_controller([str(g) for g in copicograf.gcodes], controller)
-    header = [
-        "; Brushograph calibration macro",
-        f"; controller: {controller}",
-        f"; colour tray: {first['tray']} at ({tray.get('x')}, {tray.get('y')})",
-        "; mixes the colour, washes the brush and loads it, leaving a dot at the",
-        "; origin for each step. Run this before a job; the job itself no longer",
-        "; primes the brush.",
-    ]
-    return "\n".join(header + start_sequence(conf) + lines) + "\n"
-
-
 def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path, log) -> dict:
     """Run every tray that has an image, then stitch one G-code file."""
     pre = preflight()

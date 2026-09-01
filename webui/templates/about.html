@@ -48,9 +48,8 @@
     It cuts the subject out with a small segmentation network (U&sup2;-Net, 4.4&nbsp;MB, downloaded
     once on first start and run through OpenCV), leaving the background as bare paper. Without the
     model it falls back to GrabCut, which is worse but keeps the feature working.</li>
-    <li>The opening sequence &mdash; mix, wash, load the brush &mdash; is no longer part of a job.
-    Take it from <b>Download calibration.g</b> and run it first; a job starts painting with
-    whatever is already on the brush.</li>
+    <li>The opening sequence &mdash; mix, wash, load the brush &mdash; is not part of a job.
+    A job starts painting with whatever is already on the brush.</li>
     <li><b>Dip Depth</b> sets how far the brush goes into a cup. It was fixed at
     Z&nbsp;&minus;4, which is deeper than a shallow dish needs. It is always offered, even by a
     config that does not mention it, as are the backlash settings, which are ticked unless the config says otherwise.</li>
