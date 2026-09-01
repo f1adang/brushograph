@@ -4,3 +4,13 @@ env/
 .DS_Store
 webui_sessions/
 webui/models/
+
+# Terraform: state names live infrastructure and carries secrets, and the
+# provider cache is large and machine-specific. The lock file is deliberately
+# NOT ignored — it belongs in the repository.
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!example.tfvars
+crash.log
