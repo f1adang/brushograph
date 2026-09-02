@@ -40,6 +40,16 @@ MODELS = [
 # probability mass below that boundary answers the question directly. There is
 # no "person" class in ImageNet, which is why people are still recognised by
 # their faces.
+# A face detector that copes with a head turned or tilted. The Haar cascades
+# OpenCV bundles only find a face looking at the camera or squarely side-on: a
+# person glancing down was reported as an "object", and rotating the picture to
+# chase the tilt found a face on a machine instead. This one finds the downturned
+# head at 0.91 confidence and still finds nothing on the machine.
+FACE_MODEL = {"file": "face_detection_yunet_2023mar.onnx", "mb": 0.3, "min_bytes": 100_000,
+              "url": "https://github.com/opencv/opencv_zoo/raw/main/models/"
+                     "face_detection_yunet/face_detection_yunet_2023mar.onnx"}
+FACE_CONF = 0.6     # below this the detector is guessing
+
 CLASSIFIER = {"file": "squeezenet1.1-7.onnx", "mb": 5, "side": 224,
               "url": "https://github.com/onnx/models/raw/main/validated/vision/"
                      "classification/squeezenet/model/squeezenet1.1-7.onnx"}
@@ -50,6 +60,8 @@ _NET = None
 _SPEC = None
 _CLS = None
 _CLS_TRIED = False
+_FACE = None
+_FACE_TRIED = False
 _NET_TRIED = False
 _LOCK = threading.Lock()
 _CACHE: dict[str, np.ndarray] = {}
@@ -62,8 +74,9 @@ MAX_COVER = 0.92    # above this it is the whole frame, so isolating gains nothi
 
 def _fetch(spec, log=None) -> Path | None:
     """Ensure one model is on disk, downloading it once into webui/models/."""
+    floor = int(spec.get("min_bytes", 1_000_000))
     path = MODEL_DIR / spec["file"]
-    if path.exists() and path.stat().st_size > 1_000_000:
+    if path.exists() and path.stat().st_size > floor:
         return path
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(".part")
@@ -72,7 +85,7 @@ def _fetch(spec, log=None) -> Path | None:
             log(f"fetching segmentation model {spec['file']} ({spec['mb']} MB)")
         with urllib.request.urlopen(spec["url"], timeout=300) as r, tmp.open("wb") as f:
             shutil.copyfileobj(r, f)
-        if tmp.stat().st_size < 1_000_000:
+        if tmp.stat().st_size < floor:
             raise OSError(f"download was only {tmp.stat().st_size} bytes")
         tmp.replace(path)
         return path
@@ -109,8 +122,35 @@ def _net(log=None):
 
 
 def warm(log=None) -> bool:
-    """Load the network up front so the first upload is not the one that waits."""
-    return _net(log) is not None
+    """Load the networks up front so the first upload is not the one that waits."""
+    ok = _net(log) is not None
+    _face_net(log)
+    return ok
+
+
+def _face_net(log=None):
+    """The DNN face detector, or None if it could not be had."""
+    global _FACE, _FACE_TRIED
+    with _LOCK:
+        if _FACE is not None or _FACE_TRIED:
+            return _FACE
+        _FACE_TRIED = True
+        path = _fetch(FACE_MODEL, log)
+        if path is None:
+            if log:
+                log("face detector unavailable; falling back to Haar cascades")
+            return None
+        try:
+            _FACE = cv2.FaceDetectorYN.create(str(path), "", (320, 320),
+                                              score_threshold=FACE_CONF,
+                                              nms_threshold=0.3, top_k=20)
+            if log:
+                log(f"faces using {FACE_MODEL['file']}")
+        except (cv2.error, AttributeError) as exc:
+            if log:
+                log(f"face detector would not load ({exc}); falling back to Haar cascades")
+            _FACE = None
+        return _FACE
 
 
 def _classifier(log=None):
@@ -276,14 +316,36 @@ def snap_to_edges(image: Image.Image, mask: np.ndarray, band: float = 0.04,
 
 
 def _faces(image: Image.Image) -> list:
-    """Face boxes in source coordinates; used only to name what was found."""
+    """Face boxes in source coordinates.
+
+    The DNN detector is tried first and the bundled Haar cascades are the
+    fallback, so this still works with nothing downloaded — less well, but it
+    works.
+    """
     rgb = np.asarray(image.convert("RGB"))
     h, w = rgb.shape[:2]
     scale = min(1.0, WORK / max(h, w))
     small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) \
         if scale < 1.0 else rgb
+    sh, sw = small.shape[:2]
+    back = 1.0 / scale if scale < 1.0 else 1.0
+
+    net = _face_net()
+    if net is not None:
+        try:
+            # The detector is built once and re-pointed at each picture's size;
+            # it is not thread-safe, so the call is held under the same lock the
+            # models are loaded behind.
+            with _LOCK:
+                net.setInputSize((sw, sh))
+                _, faces = net.detect(cv2.cvtColor(small, cv2.COLOR_RGB2BGR))
+            if faces is not None and len(faces):
+                return [[int(v * back) for v in f[:4]] for f in faces]
+            return []
+        except cv2.error:
+            pass    # fall through to the cascades
+
     gray = cv2.equalizeHist(cv2.cvtColor(small, cv2.COLOR_RGB2GRAY))
-    sh, sw = gray.shape
     found = []
     # The profile cascade is held to a stricter vote. At the same threshold as
     # the frontal one it invented a face on a stepper motor, which is enough to
@@ -296,7 +358,6 @@ def _faces(image: Image.Image) -> list:
         for f in c.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=neighbours,
                                     minSize=(max(18, sw // 22), max(18, sh // 22))):
             found.append(tuple(int(v) for v in f))
-    back = 1.0 / scale if scale < 1.0 else 1.0
     return [[int(v * back) for v in f] for f in _dedupe(found)]
 
 

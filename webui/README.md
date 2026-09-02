@@ -262,25 +262,53 @@ photograph does with grey has to fall on one side of a threshold, and a face lit
 from one side lands mostly on the black side: half of it fills in as one solid
 shape and the likeness goes with it.
 
-`facefilter.enhance` evens the light and smooths the skin first:
+**Finding the face.** The Haar cascades OpenCV bundles only see a face looking
+at the camera or squarely side-on. A photograph of someone glancing down was
+reported as an "object" and the filter did nothing at all. Rotating the picture
+to chase the tilt is not the fix — the sweep found a face on a photograph of a
+machine, which is exactly the false positive the cascades are tuned to avoid.
+YuNet (`cv2.FaceDetectorYN`, a 230 KB download) finds the downturned head at
+0.91 confidence, gives tighter boxes on every test image, and still finds
+nothing on the machine. The cascades remain the fallback when the model cannot
+be fetched.
 
-- **The lighting is divided out, not subtracted.** A shadow across a face varies
-  over the width of the face, not the width of an eyelid, so blurring at that
-  scale estimates the lighting alone. Dividing keeps dark features dark *in
-  proportion* — an eye at a third of the brightness of the cheek is still a
-  third of it afterwards. On a face given a hard side light, the imbalance
-  across it fell from 20 grey levels to 6.
-- **Smoothing puts the features back.** A bilateral filter takes out pore-scale
-  texture; whatever it removed that was *strong* was a feature rather than skin,
-  so it is added back with a weight that rises with the size of the detail. An
-  eyelash returns in full, a pore not at all.
-- **Only skin is touched.** The face's own colour is measured from the ellipse
-  and used as a weight, so hair, glasses, a collar and the background behind the
-  head keep the tone they had. Without this the division hauled the dark
-  background up towards mid grey and left a bright halo round the head.
-- **The gain is clamped** to 0.75–1.45 as a backstop. On a greyscale photograph
-  there is no colour to tell skin from anything else, and the clamp is what
-  keeps the halo away then (measured drift: 0.1 levels).
+**Evening the light.** The lighting is estimated by blurring and divided back
+out. Dividing rather than subtracting keeps dark features dark *in proportion* —
+an eye at a third of the brightness of the cheek is still a third of it
+afterwards. Two details decide whether it works:
+
+- **It is estimated over skin only**, by blurring the skin and its weight
+  together and dividing (a normalised convolution). Blurring the picture flat
+  instead let the dark hair above and the collar below drag the estimate down,
+  and the face came out lifted past level — the shadowed side brighter than the
+  lit one.
+- **The scale matters more than anything else here.** `_SIGMA_FRAC` is the
+  width the lighting is estimated at, as a fraction of the face. Too wide and
+  the estimate flattens out the very gradient it is meant to find; too narrow
+  and it follows the eye sockets instead of the light. Measured as the
+  brightness difference across the skin of a portrait:
+
+  | scale | portrait | second portrait |
+  |---|---|---|
+  | 0.35 | −51.6 → −34.9 | 32.6 → 22.2 |
+  | 0.22 | −51.6 → −22.9 | 32.6 → 10.2 |
+  | **0.12** | **−51.6 → −8.9** | **32.6 → 6.3** |
+
+**Smoothing puts the features back.** A bilateral filter takes out pore-scale
+texture; whatever it removed that was *strong* was a feature rather than skin,
+so it is added back with a weight that rises with the size of the detail. An
+eyelash returns in full, a pore not at all.
+
+**Only skin is touched.** The face's own colour is measured from the ellipse and
+used as a weight, so hair, glasses, a collar and the background behind the head
+keep the tone they had — without this the division hauled the dark background up
+towards mid grey and left a bright halo round the head (drift with it: 0.5 grey
+levels). On a greyscale photograph there is no colour to tell skin from anything
+else, and a clamp on the gain is what keeps the halo away then (drift: 0.1).
+
+Applied repeatedly the correction settles rather than running away
+(−51.6 → −8.9 → 3.3 → 6.0), so a face that is already evenly lit may still be
+moved a few levels either way. One pass is what the checkbox does.
 
 ### Checkboxes post two values
 

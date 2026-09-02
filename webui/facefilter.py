@@ -21,12 +21,12 @@ import cv2
 import numpy as np
 from PIL import Image
 
-# The ellipse drawn over a face box, as multiples of that box. A Haar box is
-# tight on the eyes and nose; a face carries on past it to the jaw and the
-# forehead, and the neck below catches the same light.
-_FACE_WIDEN = 1.35
-_FACE_HEIGHTEN = 1.7
-_FACE_DROP = 0.12       # centre moved down the box, towards the jaw
+# The ellipse drawn over a face box, as multiples of that box. The detector's
+# box runs roughly forehead to chin, so this only has to reach out to the sides
+# of the jaw and a little down the neck, which catches the same light.
+_FACE_WIDEN = 1.45
+_FACE_HEIGHTEN = 1.35
+_FACE_DROP = 0.10       # centre moved down the box, towards the jaw
 
 # How far a tone may be pushed. Beyond this the face reads as a cut-out.
 _MAX_LIFT = 0.55
@@ -36,6 +36,14 @@ _MAX_LIFT = 0.55
 # the background behind the head — would be hauled up towards mid grey and
 # leave a bright halo round the face. Clamping the ratio stops that.
 _GAIN_LIMIT = (0.75, 1.45)
+
+# The scale the lighting is estimated at, as a fraction of the face. This is the
+# setting that decides how much shadow comes off. Too wide and the estimate
+# flattens out the very gradient it is meant to find — at 0.35 only a third of
+# the imbalance came off a strongly side-lit portrait; at 0.12, seven eighths of
+# it does. Too narrow and it starts following the eye sockets rather than the
+# light, and the face goes plastic.
+_SIGMA_FRAC = 0.12
 
 
 def _face_mask(shape: tuple[int, int], faces, feather: float) -> np.ndarray:
@@ -102,6 +110,14 @@ def enhance(image: Image.Image, faces=None, strength: float = 1.0, log=None) -> 
     if mask.max() <= 0:
         return image
 
+    # Only the skin, so hair, glasses, a collar and the background behind the
+    # head keep the tone they had — and, just as important, none of them get a
+    # vote on how the face is lit.
+    skin = _skin_weight(lab, mask) * mask
+    skin = cv2.GaussianBlur(skin, (0, 0), max(2.0, span * 0.03))
+    if skin.max() <= 1e-3:
+        return image
+
     # --- 1. even the light out -------------------------------------------
     # The shadow across a face is low-frequency: it varies over the width of
     # the face, not over the width of an eyelid. Blurring at that scale
@@ -109,9 +125,15 @@ def enhance(image: Image.Image, faces=None, strength: float = 1.0, log=None) -> 
     # tones lit flat. Working on a ratio rather than a difference keeps the
     # dark features dark: an eye that was a third of the brightness of the
     # cheek beside it is still a third of it afterwards.
-    sigma = max(4.0, span * 0.35)
-    illum = cv2.GaussianBlur(L, (0, 0), sigma)
-    level = float(np.average(illum, weights=mask)) if mask.sum() else float(illum.mean())
+    # Estimated over the skin alone, by blurring the skin and its weight
+    # together and dividing. Blurring the picture flat instead let the dark hair
+    # above and the collar below drag the estimate down, and the face was then
+    # lifted past level — the shadowed side came out brighter than the lit one.
+    sigma = max(4.0, span * _SIGMA_FRAC)
+    lit = cv2.GaussianBlur(L * skin, (0, 0), sigma)
+    cover = cv2.GaussianBlur(skin, (0, 0), sigma)
+    illum = lit / np.maximum(cover, 1e-4)
+    level = float(np.average(illum, weights=skin))
     gain = np.clip(level / np.maximum(illum, 1.0), *_GAIN_LIMIT)
     L_even = np.clip(L * gain, 0, 255)
 
@@ -137,16 +159,12 @@ def enhance(image: Image.Image, faces=None, strength: float = 1.0, log=None) -> 
     L_out = L_skin + (lifted - L_skin) * _MAX_LIFT
 
     # --- 4. blend back ----------------------------------------------------
-    # Only the skin, so hair, glasses, a collar and the background behind the
-    # head keep the tone they had even where the ellipse covers them.
-    skin = _skin_weight(lab, mask)
-    skin = cv2.GaussianBlur(skin, (0, 0), max(2.0, span * 0.03))
-    weight = mask * skin * strength
+    weight = skin * strength
     L_final = L * (1.0 - weight) + L_out * weight
     lab[:, :, 0] = np.clip(L_final, 0, 255).astype(np.uint8)
     out = cv2.cvtColor(lab, cv2.COLOR_LAB2RGB)
 
     if log:
-        moved = float(np.average(np.abs(L_final - L), weights=mask))
+        moved = float(np.average(np.abs(L_final - L), weights=skin))
         log(f"face filter: {len(faces)} face(s), tone moved {moved:.1f} levels on average")
     return Image.fromarray(out)

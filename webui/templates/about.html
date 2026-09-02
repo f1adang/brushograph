@@ -47,9 +47,11 @@
     <li><b>Insta Face Filter</b>, offered when a face is found, evens the light across the face
     and smooths the skin before the cut. A woodcut has two tones, so a face lit from one side
     lands mostly on the black side and fills in as a single solid shape. The lighting is
-    estimated by blurring at the width of the face and divided back out, which keeps dark
+    estimated over the skin alone — at about an eighth of the width of the face, which is the
+    setting that decides how much shadow comes off — and divided back out, which keeps dark
     features dark in proportion; eyes, brows, nostrils and lips are put back at full strength
-    afterwards. Only skin is touched — hair, glasses, a collar and the background keep the tone
+    afterwards. Faces are found with a small neural detector, so a head turned or tilted down
+    is still recognised, with OpenCV's bundled cascades as the fallback. Only skin is touched — hair, glasses, a collar and the background keep the tone
     they had.</li>
     <li>A shape too thin to hold an outline gets its centreline painted instead, so
     every ribbon, hairline and rib is drawn rather than dropped.</li>
