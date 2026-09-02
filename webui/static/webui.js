@@ -232,6 +232,8 @@ function wireForm() {
       }
       fd.append("woodcut_outlines", $("wc-outlines").checked ? "true" : "false");
       fd.append("woodcut_isolate", $("wc-isolate") && $("wc-isolate").checked ? "true" : "false");
+      fd.append("woodcut_face_filter",
+                $("wc-face-filter") && $("wc-face-filter").checked ? "true" : "false");
 
       const label = wcBtn.textContent;
       wcBtn.textContent = "Converting…";
@@ -272,9 +274,10 @@ function wireForm() {
   let lastDetected = null;
   async function detectSubject() {
     const row = $("wc-subject-row");
+    const faceRow = $("wc-face-row");
     if (!row) return;
     const target = photoTray();
-    if (!target) { row.hidden = true; return; }
+    if (!target) { row.hidden = true; if (faceRow) faceRow.hidden = true; return; }
     if (lastDetected === target.file) return;      // already asked about this file
     lastDetected = target.file;
 
@@ -286,8 +289,14 @@ function wireForm() {
       if (!res.ok || !data.found) {
         row.hidden = true;
         if ($("wc-isolate")) $("wc-isolate").checked = false;
+        if (faceRow) faceRow.hidden = true;
+        if ($("wc-face-filter")) $("wc-face-filter").checked = false;
         return;
       }
+      // Only offered when there is a face to work on; it does nothing without one.
+      const hasFace = Array.isArray(data.faces) && data.faces.length > 0;
+      if (faceRow) faceRow.hidden = !hasFace;
+      if (!hasFace && $("wc-face-filter")) $("wc-face-filter").checked = false;
       const what = data.kind === "person"
         ? (data.count > 1 ? `${data.count} people` : "a person")
         : data.kind === "animal" ? "an animal" : "a prominent object";
@@ -298,6 +307,7 @@ function wireForm() {
       row.hidden = false;
     } catch (err) {
       row.hidden = true;
+      if (faceRow) faceRow.hidden = true;
     }
   }
 

@@ -16,6 +16,15 @@ from PIL import Image
 # Working resolution, and how hard the cleanup stages press, both follow the
 # Detail control. At the top of the range only the brush itself is allowed to
 # limit what survives; at the bottom the picture is deliberately coarsened.
+# How much broader than the brush the cut's marks are drawn. Every mark and
+# every gap between marks is measured in `min_feature`, so this scales the whole
+# cut together: broader strokes, laid proportionally further apart, rather than
+# just fattening the lines over an unchanged layout. It does darken the picture
+# a little — 50% ink to 57% on a test portrait — because the marks grow at the
+# ends as well as across, and speckle that used to be separate dots merges.
+# Past about 1.5 the merging starts eating fine structure such as hair.
+STROKE_BOLDNESS = 1.35
+
 MIN_WORK_SIDE = 1400
 MAX_WORK_SIDE = 2400
 # Resolution the hatching streaks are grown at before being scaled up.
@@ -65,6 +74,7 @@ def convert(
         min_feature = max(1.2, float(brush_mm) * rgb.shape[1] / float(width_mm))
     else:
         min_feature = max(1.0, float(min_feature_px or 3.0))
+    min_feature *= STROKE_BOLDNESS
     ease = detail / 100.0
 
     gray = cv2.createCLAHE(clipLimit=2.6, tileGridSize=(8, 8)).apply(gray)

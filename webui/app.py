@@ -16,6 +16,7 @@ from flask import (Flask, abort, jsonify, render_template, request, send_file,
                    session, url_for)
 from PIL import Image
 
+import facefilter
 import gcode_pipeline
 import subject
 import woodcut
@@ -182,6 +183,13 @@ def _subject_mask(form, image: Image.Image, log=None):
     return subject.isolate(image, found["box"], faces=found.get("faces"), log=log)
 
 
+def _prettify_faces(form, image: Image.Image, log=None) -> Image.Image:
+    """The face filter, when it was asked for; otherwise the picture as it came."""
+    if not _flag(form, "woodcut_face_filter", "false"):
+        return image
+    return facefilter.enhance(image, log=log)
+
+
 @app.post("/detect_subject")
 def detect_subject():
     """Report whether a person or prominent object is worth isolating."""
@@ -205,9 +213,12 @@ def woodcut_preview():
     try:
         with Image.open(upload.stream) as im:
             im.load()
+            # The mask is read off the photograph as it came: isolation works
+            # on the real picture, not on a retouched one.
+            mask = _subject_mask(request.form, im)
             converted = woodcut.convert(
-                im,
-                mask=_subject_mask(request.form, im),
+                _prettify_faces(request.form, im),
+                mask=mask,
                 **_scale_params(request.form),
                 **_woodcut_params(request.form),
             )
@@ -333,9 +344,10 @@ def options_form_post():
                 if request.form.get(f"trays-{tray}-image_kind") == "photo":
                     with Image.open(p) as im:
                         im.load()
+                        mask = _subject_mask(request.form, im, app.logger.info)
                         converted = woodcut.convert(
-                            im,
-                            mask=_subject_mask(request.form, im, app.logger.info),
+                            _prettify_faces(request.form, im, app.logger.info),
+                            mask=mask,
                             **_scale_params(request.form),
                             **wc,
                         )

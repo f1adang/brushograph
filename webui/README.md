@@ -245,6 +245,43 @@ the source: enlarging it would add pixels but no detail.
 
 The noise seed is fixed, so the same photo and settings always print the same.
 
+#### Stroke width
+
+Every mark and every gap between marks is measured in `min_feature`, the brush's
+width in working pixels. `woodcut.STROKE_BOLDNESS` (1.35) scales that, so the
+whole cut scales together — broader strokes, laid proportionally further apart —
+rather than fattening lines over an unchanged layout. It darkens the picture a
+little (50% ink to 57% on a test portrait), because marks grow at the ends as
+well as across and speckle that was separate dots merges. Past about 1.5 the
+merging starts eating fine structure such as hair.
+
+#### Insta Face Filter
+
+Offered when a face is detected. A woodcut has two tones, so everything the
+photograph does with grey has to fall on one side of a threshold, and a face lit
+from one side lands mostly on the black side: half of it fills in as one solid
+shape and the likeness goes with it.
+
+`facefilter.enhance` evens the light and smooths the skin first:
+
+- **The lighting is divided out, not subtracted.** A shadow across a face varies
+  over the width of the face, not the width of an eyelid, so blurring at that
+  scale estimates the lighting alone. Dividing keeps dark features dark *in
+  proportion* — an eye at a third of the brightness of the cheek is still a
+  third of it afterwards. On a face given a hard side light, the imbalance
+  across it fell from 20 grey levels to 6.
+- **Smoothing puts the features back.** A bilateral filter takes out pore-scale
+  texture; whatever it removed that was *strong* was a feature rather than skin,
+  so it is added back with a weight that rises with the size of the detail. An
+  eyelash returns in full, a pore not at all.
+- **Only skin is touched.** The face's own colour is measured from the ellipse
+  and used as a weight, so hair, glasses, a collar and the background behind the
+  head keep the tone they had. Without this the division hauled the dark
+  background up towards mid grey and left a bright halo round the head.
+- **The gain is clamped** to 0.75–1.45 as a backstop. On a greyscale photograph
+  there is no colour to tell skin from anything else, and the clamp is what
+  keeps the halo away then (measured drift: 0.1 levels).
+
 ### Checkboxes post two values
 
 Every checkbox in the form is paired with a hidden field carrying `false`, since
