@@ -143,6 +143,15 @@ Notes on things that needed care:
   saturated ink like yellow on the ink side, since it is dark in at least one
   channel however bright it looks. A file that comes out more than 97% ink is
   flagged in the log.
+- **Small pictures are enlarged before the geometry is worked out.** The
+  distance transform, the contours and the rescue pass all resolve to whole
+  pixels, so when a picture is small and the painting is large the brush is
+  barely one pixel wide and there is nothing left to place an outline with. A
+  259 px picture painted 151 mm wide puts the brush at 0.86 px. Measured over a
+  corpus of ten photographs, working at six pixels to the brush brought the
+  worst cases from 12% and 16% of the ink left unpainted down to 3.3% and 2.4%,
+  and cut the paint landing on bare paper by half; pictures already above that
+  resolution are untouched. It costs about a third more time on the small ones.
 - **Scale comes from the pixel grid.** The image is mapped onto exactly
   `(0,0)-(width,height)` in millimetres, so the PNG's DPI metadata is irrelevant
   and the painting comes out at the size the config asks for.

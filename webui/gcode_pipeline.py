@@ -33,6 +33,19 @@ FALLBACK_PATTERN = "concentric"
 # cost of painting over slightly more bare paper.
 BRIDGE_MULTIPLE = 1.5
 
+# How many pixels wide the brush must be in the raster the geometry is worked
+# on. Everything downstream — the distance transform, the contours, the rescue
+# pass — resolves to whole pixels, so when a stroke is barely one pixel across
+# there is nothing left to place it with. Measured over a test corpus: at the
+# file's own resolution a 400 px picture painted 151 mm wide left 12% of its ink
+# unpainted and put 18% of it onto bare paper. Working at six pixels to the
+# brush brings both into line with what a large picture gets, for about a third
+# more time on the small pictures and none at all on the large ones.
+MIN_PX_PER_BRUSH = 6.0
+
+# Beyond this the enlargement costs more than it returns.
+MAX_WORK_PX = 4000
+
 # Stroke width assumed when the config asks for no infill and so states no
 # spacing to take one from.
 NOMINAL_BRUSH_MM = 1.0
@@ -95,6 +108,34 @@ def to_pbm(src: Path, dst: Path, log) -> tuple[int, int, np.ndarray]:
 _G1 = re.compile(r"^G0*1(?![0-9])")
 _G0 = re.compile(r"^G0*0(?![0-9])")
 _WORD = re.compile(r"([XYZEF])\s*(-?\d*\.?\d+)")
+
+
+def _enlarge_for_brush(ink: np.ndarray, width_mm: float, line_w: float, log) -> np.ndarray:
+    """Resample the ink so a stroke is a few pixels wide, if it is not already.
+
+    A small picture painted large leaves the brush thinner than one pixel of
+    the raster the geometry is worked on, and an outline cannot be placed
+    inside a shape that is one pixel across. Enlarging first costs a little
+    time and returns most of the ink: a 400 px picture went from a third of its
+    ink unpainted to a fortieth.
+
+    The resample is smooth rather than blocky on purpose. The pixel edges are
+    an artefact of the file's size, not of the drawing, and carrying them into
+    the strokes would have the brush trace a staircase that was never there.
+    """
+    h, w = ink.shape
+    per_brush = w / width_mm * line_w
+    if per_brush >= MIN_PX_PER_BRUSH:
+        return ink
+    factor = min(MIN_PX_PER_BRUSH / per_brush, MAX_WORK_PX / max(w, h))
+    if factor <= 1.01:
+        return ink
+    size = (int(round(w * factor)), int(round(h * factor)))
+    smooth = cv2.resize(ink.astype(np.uint8) * 255, size, interpolation=cv2.INTER_CUBIC)
+    grown = smooth >= 128
+    log(f"  brush is {per_brush:.1f} px here; working at {size[0]}×{size[1]} "
+        f"({factor:.1f}x) so it is {per_brush * factor:.1f}")
+    return grown
 
 
 class InkMask:
@@ -647,6 +688,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         adapted = workdir / f"threshold_{tray}_adapted.gcode"
 
         _w_px, _h_px, ink = to_pbm(src, pbm, log)
+        ink = _enlarge_for_brush(ink, width_mm, line_w, log)
         canvas = InkMask(ink, width_mm, height_mm)
 
         paths = planar.build(ink, width_mm, height_mm, line_w,
