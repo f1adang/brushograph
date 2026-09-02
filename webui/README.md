@@ -12,8 +12,8 @@ cd webui
 ../venv/bin/python app.py --port 8765 --host 0.0.0.0
 ```
 
-Flask is the only added Python dependency. The G-code step also needs
-`potrace`, `openscad` and a slicer on the system; `/about` shows what was found.
+Flask, Pillow, NumPy and OpenCV are the dependencies. Nothing else has to be
+installed on the machine — the G-code step is pure Python and OpenCV.
 
 ## How it works
 
@@ -125,8 +125,13 @@ against 11.9 m filled.
 
 ## The G-code pipeline
 
-Per tray: threshold → `potrace` → SVG → OpenSCAD → STL → slicer → adapter →
-`copicograf`, then all trays are concatenated and optionally backlash-compensated.
+Per tray: threshold → distance transform → rings → chaining → `copicograf`, then
+all trays are concatenated and optionally backlash-compensated. Trays are
+prepared in parallel and painted in `color_order`.
+
+This used to run threshold → `potrace` → SVG → OpenSCAD → STL → PrusaSlicer →
+adapter, which meant three external programs, a 2D → 3D → 2D round trip, and
+about 13 s a tray. It is gone; see **Why the 3D round trip went** below.
 
 Notes on things that needed care:
 
@@ -138,24 +143,20 @@ Notes on things that needed care:
   saturated ink like yellow on the ink side, since it is dark in at least one
   channel however bright it looks. A file that comes out more than 97% ink is
   flagged in the log.
-- **Scale comes from the traced SVG, not the source image.** potrace writes one
-  point per pixel and OpenSCAD honours the declared unit, so the PNG's DPI
-  metadata is irrelevant. Reading the SVG's own width/height is what keeps the
-  painting at the size the config asks for.
-- **The slicer is told to leave the artwork alone.** OpenSCAD emits it at
-  `(0,0)-(width,height)` already, so the slicer gets `--dont-arrange`. Not
-  `--center`: that places the *traced content* rather than the canvas, so any
-  image whose subject does not run to the edges gets shifted within the frame,
-  and on some geometry it refuses to slice at all.
-- **The bed is a fiction, so it gets margin.** An object flush with the bed edge
-  is rejected as outside the print volume — and PrusaSlicer says so on stdout
-  while still exiting 0, which is why an empty result has to be read back out of
-  its own output rather than guessed at.
-- **`infill_line_distance` is an extrusion width, not a nozzle bore.** Passing it
-  as a nozzle diameter makes PrusaSlicer silently reject any value below the
-  layer height, exit 0, and write nothing.
-- **One layer only.** The extrusion is the painting, so the SCAD extrude height
-  is matched to the layer height to avoid slicing the same artwork twice.
+- **Scale comes from the pixel grid.** The image is mapped onto exactly
+  `(0,0)-(width,height)` in millimetres, so the PNG's DPI metadata is irrelevant
+  and the painting comes out at the size the config asks for.
+- **The outline sits slightly further in than half a stroke** (`EDGE_BIAS`,
+  0.8). Exactly half would put the brush's edge on the shape's edge in theory;
+  in practice both the stroke and the traced edge are quantised, which leaves a
+  hairline of bare paper all the way round. Measured over a woodcut and a line
+  drawing, 0.8 gives the best coverage for the least paint over bare paper.
+- **Rings are simplified by 0.75 px at source** (`SIMPLIFY_PX`). A contour read
+  off a raster climbs every diagonal as a staircase and each step is a point in
+  the G-code. Straightening within a pixel cut the points by 42% and the file by
+  30%, and moved coverage by 0.1 points.
+- **`infill_line_distance` is the stroke width** — the gap between adjacent fill
+  strokes, which for a brush is the same thing.
 
 ### Photo to woodcut
 
@@ -349,9 +350,9 @@ pen-plotter 0.5 mm it paints the same area ten times over. On the SGMK logo at
 | 0.5 mm | 286 | 25 mm | 598 | 318 | 23.8 m |
 | 5 mm | 35 | 79 mm | 103 | 74 | 4.5 m |
 
-**Strokes are chained, and every bridge is checked against the shape.** A slicer
-emits a fill as many separate extrusion runs even where they are physically
-continuous. The adapter rejoins them: exact shared endpoints first, then ends
+**Strokes are chained, and every bridge is checked against the shape.** A fill
+comes out as many separate rings even where they are physically
+continuous. They are rejoined: exact shared endpoints first, then ends
 within `BRIDGE_MULTIPLE` (1.5) line widths — but a bridge is only taken when the
 straight move between the two ends stays inside the ink, tested against the
 source mask. Bridging without that test drew across bare paper and cost 7% extra
@@ -391,12 +392,11 @@ than in tiny segments.
 
 ### Infill pattern names
 
-The configs use Cura's vocabulary, which PrusaSlicer does not share; and at 100%
-density PrusaSlicer rejects its own sparse-only patterns (gyroid, honeycomb,
-grid, ...) outright. Of the six names the configs offered, only `concentric`
-ever sliced — the rest failed the run. Names are now mapped
-(`lines` to `rectilinear`, `zigzag` to `alignedrectilinear`, ...) with a logged
-fallback, and the dropdown offers only patterns that work, ordered with the ones
+The configs use Cura's vocabulary, which named more patterns than a brush can
+usefully draw. They collapse onto the two that mean something here —
+`concentric`, rings following the shape, and `lines`, straight parallel strokes
+— with a logged fallback, and the dropdown offers only patterns that work,
+ordered with the ones
 best suited to a brush first.
 
 ### Controller dialect
@@ -423,11 +423,10 @@ controller.
 
 ### Every shape gets a stroke
 
-A shape narrower than the brush gets no perimeter — there is nowhere to put one
-— so the slicer drops it, and a rib, a hairline or a stroke of lettering simply
-disappears. On one line drawing, 38 ink shapes came out unpainted.
+A shape narrower than the brush gets no outline — there is nowhere to put one —
+so a rib, a hairline or a stroke of lettering would simply disappear.
 
-Any shape the slicer's paths do not cover is therefore skeletonised, and its
+Whatever the strokes leave unpainted is therefore skeletonised, and its
 centreline is added as a stroke. The centreline is the one line a brush can lay
 in a shape thinner than itself, and laying it is closer to the drawing than
 leaving the shape blank. Specks below about half a brush width are left alone: a
@@ -449,51 +448,80 @@ The start point is now repeated after the marker. On the line drawing this took
 painted distance from 2.66 m to 3.67 m, and it is why the centrelines above
 appeared to do nothing until it was fixed.
 
-### Two geometry engines
+### Why the 3D round trip went
 
-`slicer.engine` chooses how outlines and fill are worked out.
+The pipeline used to trace the bitmap to vectors (potrace), extrude those to a
+solid (OpenSCAD), and slice the solid back to 2D paths (PrusaSlicer) — three
+external programs to do a job that is entirely two-dimensional. On one tray,
+85% of the time went to two of them:
 
-**`external`** (default) is the original chain: trace to vectors with potrace,
-extrude to a solid with OpenSCAD, slice it back with PrusaSlicer. Three external
-programs to do a job that is entirely two-dimensional, and slow with it — 1.8 s
-in OpenSCAD and 1.2 s in the slicer on one small line drawing. It is the default
-because the output has been tuned against it.
+```
+  5.20s  53.2%  openscad
+  3.10s  31.8%  PrusaSlicer
+  0.29s   3.0%  adapt_for_copicograf
+  0.06s   0.6%  to_pbm
+```
 
-**`planar`** does the same work directly: contours from the bitmap with OpenCV,
-then polygon offsetting with Shapely. Nothing to install, and two to four times
-quicker end to end.
+Both are single-threaded on one object with one layer, which is what made
+generation feel single-threaded on a many-core box.
 
-| image | external | planar |
+**Splitting the work does not help.** Three separate attempts all hit the same
+wall — in a real picture one connected shape is most of the drawing:
+
+| approach | speedup | why it stops there |
 |---|---|---|
-| line art | 3.00 s | 0.41 s |
-| solid regions | 0.25 s | 0.11 s |
-| woodcut-style photo | 20.0 s | 4.8 s |
+| slice connected components in parallel | 1.16× | largest component is 68–82% of the boundary |
+| Shapely offsetting across threads | 1.05× | scalar `buffer` holds the GIL |
+| Shapely offsetting across processes | 1.06× | one polygon is 92–96% of the work |
 
-**It is not yet a replacement.** On solid regions the two are hard to tell apart.
-On line art `planar` is visibly worse: a stroke narrower than the brush has no
-inside to inset an outline into, so it produces nothing and falls to the
-centreline pass, which draws it as short fragments. The longest stroke on that
-drawing is 422 mm from the slicer against 113 mm from `planar`, and the picture
-shows it.
+So the answer was a better algorithm rather than more cores.
 
-What would close the gap is a proper medial axis for thin shapes — what
-PrusaSlicer's Arachne generator does — producing one continuous line down a rib
-rather than a skeleton chopped at every junction. Rasterising and thinning each
-shape separately was tried and is not the answer: five times the runtime for no
-better line.
+**The distance transform.** Label every ink pixel with its distance to the
+nearest bare paper. An outline inset by *d* is then simply the contour of "at
+least *d* from the edge", and a concentric fill is the same thing at
+*w*/2, 3*w*/2, 5*w*/2 … So one distance transform plus a threshold per ring
+yields the whole fill — and the rings do not depend on each other, so they are
+traced in parallel, which OpenCV does with the GIL released.
 
-So: worth using for the woodcut path, where the input is solid regions and the
-saving is largest. Not yet for line art.
+That is 7–11× quicker than the polygon offsetting on its own, and 9–15× with
+threads. End to end against the chain it replaced:
 
-### The slicer adapter
+| | external chain | distance transform |
+|---|---|---|
+| woodcut, one tray | 13.1 s | **1.8 s** |
+| line drawing, one tray | 19.2 s | **2.3 s** |
+| woodcut, three trays | 29.3 s | **5.3 s** |
+
+It also paints better, which was not the point but is the more useful result.
+Two bugs turned up on the way: the concentric fill offset before emitting, so
+the ring just inside the perimeter was never drawn; and the thin-shape rescue
+judged whole shapes rather than what was actually left bare, so a line whose
+broad part got an outline kept its thin part blank. On a woodcut:
+
+| | external chain | distance transform |
+|---|---|---|
+| ink left unpainted | 9.5% | **1.6%** |
+| strokes (each one a lift and a re-ink) | 1672 | **1017** |
+| median stroke | 3.6 mm | **9.6 mm** |
+| longest stroke | 1753 mm | **3941 mm** |
+
+Longer strokes and fewer of them is exactly what a brush wants. On line art the
+coverage still improves (6.2% → 4.2% unpainted) but it takes more strokes than
+the slicer did (2371 against 1740), because a drawing made of hairlines is
+mostly centrelines however it is worked out.
+
+### Writing what copicograf expects
 
 `copicograf.prepare_path()` decides the brush is on the canvas by matching two
-exact lines, `G1 F600 Z1` and `G1 F600 Z6`, which only `cura-slicer` emits. With
-PrusaSlicer — the fallback this repo actually falls back to — those never appear,
-`brush_on_canvas` stays `False`, and the result is one continuous scribble with
-no dips. Rather than change that matching, `gcode_pipeline.adapt_for_copicograf`
-re-emits the slicer's extruding runs around those markers, so `copicograf.py` is
-untouched and any installed slicer works.
+exact lines, `G1 F600 Z1` and `G1 F600 Z6`, which only `cura-slicer` emits.
+Anything else leaves `brush_on_canvas` at `False`, and the result is one
+continuous scribble with no dips. Rather than change that matching,
+`gcode_pipeline.write_brush_paths` emits strokes around those markers, so
+`copicograf.py` is untouched.
+
+It also repeats the first point after the pen-down marker: `prepare_path`
+consumes the first coordinate it sees as "move there, then lower", so without
+the repeat the first segment of every stroke was being lost.
 
 `Copicograf.__init__` also takes `gcodes=[]` as a mutable default, shared across
 instances; the pipeline always passes an explicit list so one run cannot append

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 """Photo -> woodcut / linocut black and white.
 
-The pipeline downstream traces black regions with potrace and fills them with a
+The pipeline downstream outlines black regions and fills them with a
 brush, so the output must be pure two-tone with nothing finer than the brush can
 lay down. Detail therefore cannot come from grey: it comes the way it does in a
 real cut, from carved hatching whose density carries the tone. That also suits

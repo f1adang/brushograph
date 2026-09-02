@@ -20,6 +20,5 @@ zipp==3.8.1
 pygcode==0.2.1
 opencv-python==4.10.0.84
 opencv-contrib-python==4.10.0.84
-openscad-runner==1.1.1
 Wand==0.6.13
 Flask==3.1.3

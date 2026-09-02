@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-"""Thresholded image per tray -> potrace -> OpenSCAD -> slicer -> copicograf G-code.
+"""Thresholded image per tray -> brush paths -> copicograf G-code.
 
 This is the chain `image_to_gcode_adaptive.py` describes, driven from uploads
 instead of files named by a CMYK separation, and using the tools that are
@@ -10,8 +10,6 @@ from __future__ import annotations
 import math
 import os
 import re
-import shutil
-import subprocess
 import sys
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -28,43 +26,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from configspec import CMYK_TO_TRAY, tray_entries  # noqa: E402
 
-SLICER_CANDIDATES = [
-    "prusa-slicer",
-    "PrusaSlicer",
-    "/Applications/PrusaSlicer.app/Contents/MacOS/PrusaSlicer",
-]
-OPENSCAD_CANDIDATES = [
-    "openscad",
-    "/Applications/OpenSCAD.app/Contents/MacOS/OpenSCAD",
-    "/Applications/OpenSCAD-2021.01.app/Contents/MacOS/OpenSCAD",
-]
-
-# The config's pattern names come from Cura's vocabulary; PrusaSlicer uses its
-# own, and at 100% density only a handful of its patterns are legal at all
-# (sparse-only ones such as gyroid and honeycomb are rejected outright).
-PATTERN_MAP = {
-    "lines": "rectilinear",
-    "zigzag": "alignedrectilinear",
-    "cross": "rectilinear",
-    "cross_3d": "rectilinear",
-    "gyroid": "concentric",
-    "concentric": "concentric",
-    "rectilinear": "rectilinear",
-    "alignedrectilinear": "alignedrectilinear",
-    "archimedeanchords": "archimedeanchords",
-    "hilbertcurve": "hilbertcurve",
-}
 FALLBACK_PATTERN = "concentric"
 
 # How far apart two stroke ends may be and still be joined into one stroke,
 # as a multiple of the fill line spacing. Raise it for longer strokes at the
 # cost of painting over slightly more bare paper.
 BRIDGE_MULTIPLE = 1.5
-
-# Clearance added around the artwork when telling the slicer how big the bed is.
-# The bed only exists to stop it complaining; the artwork's own coordinates are
-# what reach the machine.
-BED_MARGIN = 50.0
 
 # Stroke width assumed when the config asks for no infill and so states no
 # spacing to take one from.
@@ -80,65 +47,8 @@ PEN_UP = "G1 F600 Z6"
 PEN_DOWN = "G1 F600 Z1"
 
 
-def _which(candidates: list[str]) -> str | None:
-    for c in candidates:
-        found = shutil.which(c) if not c.startswith("/") else (c if os.access(c, os.X_OK) else None)
-        if found:
-            return found
-    return None
-
-
-def preflight() -> dict:
-    potrace = _which(["potrace"])
-    openscad = _which(OPENSCAD_CANDIDATES)
-    slicer = _which(SLICER_CANDIDATES)
-    tools = {
-        "potrace": potrace,
-        "openscad": openscad,
-        "slicer": slicer,
-    }
-    return {
-        "tools": tools,
-        "ok": all(tools.values()),
-        "missing": [k for k, v in tools.items() if not v],
-    }
-
-
 class PipelineError(RuntimeError):
     pass
-
-
-_PROGRESS = re.compile(r"^\s*\d+\s*=>")
-
-
-def _complaint(proc) -> str:
-    """The most useful line a tool printed, ignoring progress chatter.
-
-    PrusaSlicer reports several fatal conditions on stdout and still exits 0,
-    so its own words are the only reliable explanation of an empty run.
-    """
-    for stream in (proc.stderr, proc.stdout):
-        for line in reversed((stream or "").splitlines()):
-            line = line.strip()
-            if not line or _PROGRESS.match(line) or line.startswith("Slicing result"):
-                continue
-            return line
-    return ""
-
-
-def _run(cmd: list[str], log, cwd: Path | None = None):
-    log(f"$ {' '.join(str(c) for c in cmd)}")
-    p = subprocess.run([str(c) for c in cmd], cwd=cwd, capture_output=True, text=True)
-    tail = (p.stdout or "")[-800:] + (p.stderr or "")[-800:]
-    for line in tail.splitlines()[-12:]:
-        if line.strip():
-            log("  " + line.rstrip())
-    if p.returncode != 0:
-        detail = _complaint(p)
-        raise PipelineError(
-            f"{Path(cmd[0]).name} exited {p.returncode}" + (f": {detail}" if detail else "")
-        )
-    return p
 
 
 # ------------------------------------------------------------------ raster prep
@@ -180,96 +90,11 @@ def to_pbm(src: Path, dst: Path, log) -> tuple[int, int, np.ndarray]:
     return w, h, ink
 
 
-_SVG_LEN = re.compile(r'^\s*([-\d.]+)\s*([a-z%]*)\s*$')
-_UNIT_MM = {"": 25.4 / 96, "px": 25.4 / 96, "pt": 25.4 / 72, "mm": 1.0, "cm": 10.0, "in": 25.4}
-
-
-def _svg_size_mm(svg_path: Path) -> tuple[float, float]:
-    """How large OpenSCAD will import this SVG, in mm.
-
-    potrace writes one point per source pixel, and OpenSCAD honours the declared
-    unit, so the source image's DPI metadata does not enter into it. Reading the
-    SVG's own width/height is what keeps the output at the requested size.
-    """
-    head = svg_path.read_text(errors="replace")[:2000]
-    dims = []
-    for axis in ("width", "height"):
-        m = re.search(rf'{axis}="([^"]+)"', head)
-        if not m:
-            raise PipelineError(f"{svg_path.name} does not declare a {axis}")
-        n = _SVG_LEN.match(m.group(1))
-        if not n or n.group(2) not in _UNIT_MM:
-            raise PipelineError(f"{svg_path.name} has an unusable {axis}: {m.group(1)!r}")
-        dims.append(float(n.group(1)) * _UNIT_MM[n.group(2)])
-    return dims[0], dims[1]
-
-
-def _scad(scad_path: Path, svg_path: Path, width_mm: float, height_mm: float,
-          extrude_mm: float, log):
-    raw_w, raw_h = _svg_size_mm(svg_path)
-    if raw_w <= 0 or raw_h <= 0:
-        raise PipelineError(f"{svg_path.name} traced to nothing")
-    log(f"  traced {raw_w:.1f}×{raw_h:.1f} mm, scaling to {width_mm:g}×{height_mm:g} mm")
-    # Each axis gets its own factor. image_to_gcode_adaptive transposes these
-    # two, which squashes any non-square image; kept correct here.
-    scad_path.write_text(
-        f"scale([{width_mm} / {raw_w}, {height_mm} / {raw_h}])\n"
-        f"linear_extrude({extrude_mm})\n"
-        f'  import("{svg_path.name}");\n'
-    )
-
-
-# --------------------------------------------------------------- slicer adapter
+# ------------------------------------------------------------------- G-code I/O
 
 _G1 = re.compile(r"^G0*1(?![0-9])")
 _G0 = re.compile(r"^G0*0(?![0-9])")
 _WORD = re.compile(r"([XYZEF])\s*(-?\d*\.?\d+)")
-
-
-def _polylines(gcode: Path) -> list[list[tuple[float, float]]]:
-    """Pull extruding runs out of slicer output as plain XY polylines."""
-    x = y = 0.0
-    e = 0.0
-    relative_e = False
-    current: list[tuple[float, float]] = []
-    out: list[list[tuple[float, float]]] = []
-    for raw in gcode.read_text(errors="replace").splitlines():
-        line = raw.split(";", 1)[0].strip()
-        if not line:
-            continue
-        if line.startswith("M83"):
-            relative_e = True
-            continue
-        if line.startswith("M82"):
-            relative_e = False
-            continue
-        if line.startswith("G92"):
-            m = dict(_WORD.findall(line))
-            if "E" in m:
-                e = float(m["E"])
-            continue
-        if not (_G1.match(line) or _G0.match(line)):
-            continue
-        words = dict(_WORD.findall(line))
-        nx = float(words.get("X", x))
-        ny = float(words.get("Y", y))
-        extruding = False
-        if "E" in words:
-            ev = float(words["E"])
-            extruding = ev > 1e-9 if relative_e else ev > e + 1e-9
-            e = e + ev if relative_e else ev
-        moved = abs(nx - x) > 1e-9 or abs(ny - y) > 1e-9
-        if extruding and moved:
-            if not current:
-                current = [(x, y)]
-            current.append((nx, ny))
-        elif current:
-            out.append(current)
-            current = []
-        x, y = nx, ny
-    if current:
-        out.append(current)
-    return out
 
 
 class InkMask:
@@ -501,12 +326,18 @@ def _trace_skeleton(skeleton: np.ndarray) -> list[list[tuple[int, int]]]:
 
 
 def centrelines_for_missed(mask, polys, line_w: float, log=None) -> list:
-    """A stroke down the middle of every painted shape the slicer skipped.
+    """A stroke down the middle of whatever the paths left unpainted.
 
     A shape narrower than the brush gets no perimeter — there is nowhere to put
-    one — so the slicer drops it and a rib, a hairline or a stroke of lettering
-    simply disappears. Its centreline is the one line a brush can lay there, and
-    laying it is closer to the drawing than leaving the shape blank.
+    one — so a rib, a hairline or a stroke of lettering simply disappears. Its
+    centreline is the one line a brush can lay there, and laying it is closer to
+    the drawing than leaving the shape blank.
+
+    What is rescued is the *residual*: the ink minus what the strokes already
+    cover. Judging whole connected shapes instead, as this once did, is
+    all-or-nothing — a line whose broad part got an outline counts as covered,
+    and its thin part stays blank however long it is. Working from the residual
+    also means one thinning pass over one image rather than one per shape.
     """
     ink = mask.ink
     h, w = ink.shape
@@ -519,42 +350,48 @@ def centrelines_for_missed(mask, polys, line_w: float, log=None) -> list:
                         for x, y in run], np.int32)
         if len(pts) > 1:
             cv2.polylines(covered, [pts], False, 1, thickness=brush_px)
+    # Rounding puts a stroke's edge a pixel either side of the shape's, which
+    # would leave a hairline of "missed" ink along every outline. Within a pixel
+    # of paint counts as painted.
+    covered = cv2.dilate(covered, np.ones((3, 3), np.uint8))
 
-    n, labels, stats, _ = cv2.connectedComponentsWithStats(ink.astype(np.uint8), 8)
-    # Below this a shape is a speck, and a stroke for it would be a blot.
+    # One pass does not finish the job. A shape two brushes wide loses its
+    # middle to a centreline and keeps a strip either side; those strips are
+    # ink too. So the residual is re-measured after each set of strokes and
+    # worked again, until what is left is not worth a stroke.
     min_area = max(12.0, (line_w * px_per_mm * 0.6) ** 2)
-    rescued = []
-    for i in range(1, n):
-        if stats[i, cv2.CC_STAT_AREA] < min_area:
-            continue
-        piece = labels == i
-        if float((covered[piece] > 0).mean()) >= 0.2:
-            continue
+    rescued: list = []
+    for _ in range(4):
+        residual = ink.astype(np.uint8) & (covered == 0).astype(np.uint8)
+        if not residual.any():
+            break
+        n, labels, stats, _ = cv2.connectedComponentsWithStats(residual, 8)
+        keep = np.zeros(n, bool)
+        for i in range(1, n):
+            keep[i] = stats[i, cv2.CC_STAT_AREA] >= min_area
+        if not keep.any():
+            break
         skeleton = cv2.ximgproc.thinning(
-            (piece * 255).astype(np.uint8), thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+            (keep[labels] * 255).astype(np.uint8),
+            thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+        fresh = []
         for run in _trace_skeleton(skeleton > 0):
             line = [(c / w * mask.width_mm, (1 - r / h) * mask.height_mm) for r, c in run]
             line = simplify(line, tol=min(line_w * 0.25, 0.4))
             if len(line) > 1 and _length(line) >= line_w:
-                rescued.append(line)
+                fresh.append(line)
+        if not fresh:
+            break
+        rescued.extend(fresh)
+        for run in fresh:
+            pts = np.array([[int(x / mask.width_mm * w), int((1 - y / mask.height_mm) * h)]
+                            for x, y in run], np.int32)
+            cv2.polylines(covered, [pts], False, 1, thickness=brush_px)
+        covered = cv2.dilate(covered, np.ones((3, 3), np.uint8))
+
     if rescued and log:
-        log(f"  {len(rescued)} centreline strokes for shapes too thin to outline")
+        log(f"  {len(rescued)} centreline strokes for ink the outlines missed")
     return rescued
-
-
-def adapt_for_copicograf(slicer_gcode: Path, dst: Path, log, line_w: float = 1.0,
-                         mask: "InkMask | None" = None) -> int:
-    """Rewrite slicer output into the pen-up/pen-down form copicograf reads.
-
-    copicograf.prepare_path() decides the brush is on the canvas by matching two
-    exact Z lines that only `cura-slicer` emits. Rather than patch that matching,
-    the extruding runs are re-emitted around those markers, which keeps
-    copicograf.py untouched and works with whichever slicer is installed.
-    """
-    polys = _polylines(slicer_gcode)
-    if not polys:
-        raise PipelineError("slicer produced no extrusion moves — nothing to paint")
-    return write_brush_paths(polys, dst, log, line_w=line_w, mask=mask)
 
 
 def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
@@ -746,18 +583,6 @@ def apply_backlash(lines: list[str], bx: float, by: float) -> list[str]:
 
 def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path, log) -> dict:
     """Run every tray that has an image, then stitch one G-code file."""
-    engine = str(conf.get("slicer", {}).get("engine", "external")).strip().lower()
-    if engine not in {"planar", "external"}:
-        engine = "external"
-
-    pre = preflight()
-    # The planar backend needs none of them.
-    if engine == "external" and not pre["ok"]:
-        raise PipelineError(
-            "missing external tools: " + ", ".join(pre["missing"])
-            + ". Install them (brew install potrace openscad, plus PrusaSlicer) and retry."
-        )
-
     generator = conf.get("brushograph", {}).get("generator")
     if generator and generator != "copicograf":
         raise PipelineError(
@@ -772,9 +597,8 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     height_mm = float(bg.get("height", 100))
     slicer_conf = conf.get("slicer", {})
 
-    # infill_line_distance is the gap between brush strokes. In slicer terms
-    # that is the extrusion width, not the nozzle bore; feeding it in as a
-    # nozzle diameter made PrusaSlicer reject any value below the layer height.
+    # infill_line_distance is the gap between brush strokes, which is to say
+    # the width of the stroke the brush lays down.
     try:
         requested = float(slicer_conf.get("infill_line_distance", 1))
     except (TypeError, ValueError):
@@ -785,19 +609,15 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # other figure to take it from.
     infill = requested > 0
     line_w = min(max(requested, 0.05), 20.0) if infill else NOMINAL_BRUSH_MM
-    # One layer only: the extrusion is the painting, height carries no meaning.
-    layer_h = min(line_w * 0.8, 0.8)
 
     if not infill:
         log(f"infill off (line distance 0): outlines only, "
             f"{NOMINAL_BRUSH_MM:g} mm nominal stroke width")
 
     want = str(slicer_conf.get("infill_pattern", FALLBACK_PATTERN)).strip().lower()
-    pattern = PATTERN_MAP.get(want, FALLBACK_PATTERN)
-    if want not in PATTERN_MAP:
-        log(f"infill pattern {want!r} is not one the slicer accepts — using {pattern}")
-    elif pattern != want:
-        log(f"infill pattern {want!r} -> {pattern!r} (slicer vocabulary)")
+    pattern = planar.PATTERNS.get(want, planar.FALLBACK_PATTERN)
+    if want not in planar.PATTERNS:
+        log(f"unknown infill pattern {want!r} — using {pattern}")
 
     entries = [e for e in tray_entries(conf) if e["image"]]
     todo = [e for e in entries if e["tray"] in images]
@@ -812,10 +632,10 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     def prepare(entry):
         """Everything for one tray up to, but not including, the choreography.
 
-        Trays are independent here: each writes its own files, and the heavy
-        steps are external programs or OpenCV, all of which release the GIL. Log
-        lines are collected rather than emitted, so a parallel run still reads
-        in tray order once the results are stitched back together.
+        Trays are independent here: each writes its own files, and the work is
+        OpenCV, which drops the GIL. Log lines are collected rather than
+        emitted, so a parallel run still reads in tray order once the results
+        are stitched back together.
         """
         lines: list[str] = []
         log = lines.append
@@ -824,69 +644,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         log(f"[{tray}] tracing")
         src = images[tray]
         pbm = workdir / f"threshold_{tray}.pbm"
-        svg = workdir / f"threshold_{tray}.svg"
-        scad = workdir / f"threshold_{tray}.scad"
-        stl = workdir / f"threshold_{tray}.stl"
-        sliced = workdir / f"threshold_{tray}_slicer.gcode"
         adapted = workdir / f"threshold_{tray}_adapted.gcode"
 
         _w_px, _h_px, ink = to_pbm(src, pbm, log)
         canvas = InkMask(ink, width_mm, height_mm)
 
-        if engine == "planar":
-            paths = planar.build(ink, width_mm, height_mm, line_w,
-                                 pattern=slicer_conf.get("infill_pattern", "concentric"),
-                                 infill=infill,
-                                 perimeters=int(float(slicer_conf.get("wall_line_count", 1) or 1)),
-                                 log=log)
-            n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)
-            return adapted, n, lines
-
-        _run([pre["tools"]["potrace"], pbm.name, "-s", "-o", svg.name], log, cwd=workdir)
-        _scad(scad, svg, width_mm, height_mm, layer_h, log)
-        _run([pre["tools"]["openscad"], "-o", stl.name, scad.name], log, cwd=workdir)
-
-        log(f"[{tray}] slicing")
-        # OpenSCAD already emits the artwork in canvas coordinates (0,0)-(w,h),
-        # so the only thing asked of the slicer is to leave it where it is.
-        # `--dont-arrange` does that; `--center` would place the *traced
-        # content* rather than the canvas, shifting any image whose subject does
-        # not run to the edges, and it refuses outright on some geometry.
-        # The bed is a fiction here, so it is drawn generously around the
-        # artwork and starts *below* the origin. Tracing routinely puts an edge
-        # a rounding error either side of zero, and with --dont-arrange any part
-        # outside the bed rectangle makes the whole object "outside of the print
-        # volume" — reported on stdout, with a zero exit code.
-        bed_w = max(float(bg.get("max_width", width_mm)), width_mm) + BED_MARGIN
-        bed_h = max(float(bg.get("max_height", height_mm)), height_mm) + BED_MARGIN
-        lo = -BED_MARGIN
-        slice_cmd = [
-                pre["tools"]["slicer"], "--export-gcode", "--output", sliced.name,
-                "--bed-shape", f"{lo}x{lo},{bed_w}x{lo},{bed_w}x{bed_h},{lo}x{bed_h}",
-                "--dont-arrange",
-                "--layer-height", f"{layer_h}", "--first-layer-height", f"{layer_h}",
-                "--perimeters", str(int(float(slicer_conf.get("wall_line_count", 1) or 1))),
-                "--top-solid-layers", "0", "--bottom-solid-layers", "0",
-                "--fill-pattern", pattern,
-                "--fill-density", "100%" if infill else "0%",
-                "--skirts", "0", "--brim-width", "0",
-                "--nozzle-diameter", f"{line_w}",
-                "--extrusion-width", f"{line_w}",
-                "--filament-diameter", "1",
-                "--temperature", "0", "--first-layer-temperature", "0",
-                stl.name,
-        ]
-        proc = _run(slice_cmd, log, cwd=workdir)
-
-        if not sliced.is_file():
-            # PrusaSlicer reports some rejected settings on stdout and still
-            # exits 0, so a missing file is the only reliable signal.
-            detail = _complaint(proc)
-            raise PipelineError(
-                f"the slicer produced no G-code for {tray}"
-                + (f": {detail}" if detail else " and gave no reason")
-            )
-        n = adapt_for_copicograf(sliced, adapted, log, line_w=line_w, mask=canvas)
+        paths = planar.build(ink, width_mm, height_mm, line_w,
+                             pattern=pattern,
+                             infill=infill,
+                             perimeters=int(float(slicer_conf.get("wall_line_count", 1) or 1)),
+                             log=log)
+        n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)
         return adapted, n, lines
 
     # Preparation runs in parallel; the choreography does not. copicograf

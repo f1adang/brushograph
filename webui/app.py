@@ -220,7 +220,7 @@ def woodcut_preview():
 
 @app.get("/about")
 def about():
-    return render_template("about.html", preflight=gcode_pipeline.preflight())
+    return render_template("about.html")
 
 
 # ------------------------------------------------------------- machine config
@@ -371,10 +371,7 @@ def main():
     ap.add_argument("--port", default=8080, type=int)
     ap.add_argument("--debug", action="store_true")
     args = ap.parse_args()
-    pre = gcode_pipeline.preflight()
     print(f"Brushograph WebUI on http://{args.host}:{args.port}")
-    for tool, path in pre["tools"].items():
-        print(f"  {tool:9} {path or 'NOT FOUND'}")
     # Warm the segmentation model here rather than inside the first upload, so
     # the download happens once, visibly, and not in the middle of a request.
     print(f"  {'subject':9} "
