@@ -71,7 +71,7 @@ class Copicograf:
         gcfh.close()
 
     def prepare_path(self, gcode_path, color_tray_x, color_tray_y, calibrate=True,
-                     pickup_at=None):
+                     pickup_at=None, park=True):
         def set_normal_speed():
             self.gcodes.append(self.initial_gcode_acc)
             self.gcodes.append(self.initial_gcode_feedrate_1)
@@ -169,7 +169,8 @@ class Copicograf:
             self.gcodes.append(GCodeLinearMove(X=x2, Y=y2))
             set_fast_speed()
 
-        def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True):
+        def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
+                              return_to_canvas=True):
             set_fast_speed()
             for i in range(num_of_entries):
                 first_coords, second_coords = get_coords_in_tray(tray_x, tray_y)
@@ -205,16 +206,18 @@ class Copicograf:
             ########################
             # Return where left of #
             ########################
-            # self.gcodes.append(GCodeRapidMove(
-            #     Z=self.canvas_height + self.move_to_other_shape_lift))
+            # Not when the trip was the end-of-tray wash: there is nothing to
+            # go back to, and returning meant crossing to the paper and
+            # touching it with a wet brush, which left a water mark in the
+            # corner of the artwork at every colour change.
+            if return_to_canvas:
+                if self.move_to_other_shape_lift + self.canvas_height > self.go_in_tray_lift:
+                    self.gcodes.append(GCodeRapidMove(Z=self.move_to_other_shape_lift + self.canvas_height))
+                else:
+                    self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
 
-            if self.move_to_other_shape_lift + self.canvas_height > self.go_in_tray_lift:
-                self.gcodes.append(GCodeRapidMove(Z=self.move_to_other_shape_lift + self.canvas_height))
-            else:
-                self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
-
-            self.gcodes.append(GCodeRapidMove(X=x + self.offset_x, Y=y + self.offset_y))
-            self.gcodes.append(GCodeRapidMove(Z=self.canvas_height))
+                self.gcodes.append(GCodeRapidMove(X=x + self.offset_x, Y=y + self.offset_y))
+                self.gcodes.append(GCodeRapidMove(Z=self.canvas_height))
             set_normal_speed()
 
         def append_go_for_paint(x, y):
@@ -224,8 +227,9 @@ class Copicograf:
 
             self.dist_painted = 0
 
-        def wash_the_brush(x, y):
-            append_go_in_tray(self.water_tray_x, self.water_tray_y, x, y, 3, False)
+        def wash_the_brush(x, y, return_to_canvas=True):
+            append_go_in_tray(self.water_tray_x, self.water_tray_y, x, y, 3, False,
+                              return_to_canvas)
 
         def prepare_paint(x, y):
             append_go_in_tray(color_tray_x, color_tray_y, x, y, self.prepare_paint_count, True)
@@ -469,26 +473,25 @@ class Copicograf:
                 # if counter>5:
                 #     break
 
+        # Wash the colour out at the end of the tray, and stop there. The brush
+        # used to travel to the canvas origin first, and the wash used to end by
+        # touching the paper before parking — two trips across the bed and a
+        # water mark on the artwork, for a brush that is about to be dipped in
+        # the next colour anyway.
         if self.move_to_other_shape_lift + self.canvas_height > self.go_in_tray_lift:
             self.gcodes.append(GCodeRapidMove(Z=self.move_to_other_shape_lift + self.canvas_height))
         else:
             self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
-        # self.gcodes.append(GCodeRapidMove(
-        #     z=self.move_to_other_shape_lift+self.canvas_height))
-        self.gcodes.append(GCodeRapidMove(X=0, Y=0))
 
-        wash_the_brush(0, 0)
+        wash_the_brush(0, 0, return_to_canvas=False)
 
-        ###########################
-        # Park the brush in water #
-        ###########################
-        set_fast_speed()
-        if self.move_to_other_shape_lift + self.canvas_height > self.go_in_tray_lift:
-            self.gcodes.append(GCodeRapidMove(Z=self.move_to_other_shape_lift + self.canvas_height))
-        else:
-            self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
-        # self.gcodes.append(GCodeRapidMove(
-        #     Z=self.move_to_other_shape_lift+self.canvas_height))
-        self.gcodes.append(GCodeRapidMove(X=self.water_tray_x, Y=self.water_tray_y))
-        self.gcodes.append(GCodeRapidMove(Z=0))
-        set_normal_speed()
+        ##############################################
+        # Park the brush in water, at the very end   #
+        ##############################################
+        # Only worth doing when nothing follows: between colours the brush is
+        # already over the water and the next thing it does is go for paint.
+        if park:
+            set_fast_speed()
+            self.gcodes.append(GCodeRapidMove(X=self.water_tray_x, Y=self.water_tray_y))
+            self.gcodes.append(GCodeRapidMove(Z=0))
+            set_normal_speed()

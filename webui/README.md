@@ -604,9 +604,19 @@ passes the point that colour's painting starts from, so the trip to the tray
 ends with the brush arriving there loaded rather than touching down somewhere
 else and leaving a mark.
 
-A colour change therefore reads: wash (three dips in the water), park in the
-water, lift, dip the next colour, knock the drips off, travel to the first
-stroke of that colour, and paint.
+A colour change therefore reads: wash (three dips in the water), lift clear,
+dip the next colour, knock the drips off, travel to the first stroke of that
+colour, and paint.
+
+Two things used to happen in the middle of that and no longer do. The wash
+ended by crossing back to the canvas origin and touching the paper, which left
+a water mark in the corner of the artwork at every colour change — it is now
+told not to return (`append_go_in_tray(..., return_to_canvas=False)`), and stops
+over the water where it already is. And the brush was then parked down in the
+water, which is worth doing only when nothing follows: between colours it is
+already over the water and the next thing it does is go for paint. `park` is
+now passed only for the last tray, so a job still ends with the brush standing
+in water rather than drying with paint in it.
 
 This is also what keeps the first cross-bed travel at the safe height. The trip
 to the tray lifts to `go_in_tray_lift` before it moves, where the first move of

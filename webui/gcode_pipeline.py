@@ -723,7 +723,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     else:
         prepared = [prepare(todo[0])]
 
-    for entry, (adapted, n, lines) in zip(todo, prepared):
+    for i, (entry, (adapted, n, lines)) in enumerate(zip(todo, prepared)):
         for line in lines:
             log(line)
         tray = entry["tray"]
@@ -740,8 +740,13 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         # A marker before each tray's block, so a reader — the preview, or a
         # person — can tell which colour is being laid down where.
         copicograf.gcodes.append(f"; tray {tray}")
+        # The brush is left standing in the water when the job is over, so it
+        # does not dry with paint in it. Between colours there is no point: it
+        # is already over the water from the wash, and the next thing it does is
+        # go for the next colour.
         copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]),
-                                calibrate=False, pickup_at=pickup_at)
+                                calibrate=False, pickup_at=pickup_at,
+                                park=(i == len(todo) - 1))
         stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})
         stats["strokes"] += n
 

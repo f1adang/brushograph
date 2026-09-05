@@ -86,6 +86,10 @@
     otherwise only happens after <code>paint_per_run</code> has been painted, so each colour
     used to start by painting with water. The trip ends at the point that colour's painting
     starts from, so it leaves no mark of its own.</li>
+    <li>A colour change is: wash the brush three times in the water, lift clear, dip the next
+    colour, knock the drips off, and go to the first stroke. The brush is left standing in the
+    water at the end of the job, so it does not dry with paint in it, but not between colours —
+    it is already over the water and the next thing it does is go for paint.</li>
     <li><code>copicograf</code> emits <code>G28 X Y</code> once near the top. Marlin homes on it;
     GRBL and FluidNC reject the bare axis words outright, so it is replaced with a comment.
     It is not rewritten to <code>$H</code>, which needs limit switches —
