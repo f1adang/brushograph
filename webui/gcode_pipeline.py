@@ -435,6 +435,21 @@ def centrelines_for_missed(mask, polys, line_w: float, log=None) -> list:
     return rescued
 
 
+def first_stroke_point(path: Path) -> tuple[float, float] | None:
+    """Where the first stroke of an adapted file begins, in canvas mm."""
+    down = False
+    for raw in path.read_text(errors="replace").splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if line == PEN_DOWN:
+            down = True
+            continue
+        if down and _G1.match(line):
+            words = dict(_WORD.findall(line))
+            if "X" in words and "Y" in words:
+                return float(words["X"]), float(words["Y"])
+    return None
+
+
 def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
                       mask: "InkMask | None" = None) -> int:
     """Chain, tidy and write paths in the pen-up/pen-down form copicograf reads.
@@ -708,16 +723,22 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     else:
         prepared = [prepare(todo[0])]
 
-    for entry, (adapted, n, lines) in zip(todo, prepared):
+    for i, (entry, (adapted, n, lines)) in enumerate(zip(todo, prepared)):
         for line in lines:
             log(line)
         tray = entry["tray"]
-        log(f"[{tray}] brush choreography at tray ({entry['x']}, {entry['y']})")
+        # The brush is loaded once, before the first stroke of the job. It
+        # arrives at the point the painting starts from, so the trip leaves no
+        # mark of its own. Later trays are already wet from painting.
+        pickup_at = first_stroke_point(adapted) if i == 0 else None
+        if pickup_at:
+            log(f"[{tray}] loading the brush before the first stroke at "
+                f"({pickup_at[0]:.1f}, {pickup_at[1]:.1f})")
         # A marker before each tray's block, so a reader — the preview, or a
         # person — can tell which colour is being laid down where.
         copicograf.gcodes.append(f"; tray {tray}")
         copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]),
-                                calibrate=False)
+                                calibrate=False, pickup_at=pickup_at)
         stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})
         stats["strokes"] += n
 

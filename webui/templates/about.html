@@ -79,7 +79,12 @@
     <b>Controller Type: Marlin</b> and stripped for GRBL and FluidNC, which halt on an
     unknown M-code. A config with no controller section is treated as GRBL.</li>
     <li>Every file opens with <code>G90</code>/<code>G21</code>, the normal feedrate and a lift
-    to the config's safe Z, before anything moves.</li>
+    to the config's safe Z, before anything moves sideways — where the last job left the brush
+    is not known.</li>
+    <li>The brush is then loaded once, before the first stroke. Re-inking otherwise only happens
+    after <code>paint_per_run</code> has been painted, so the opening strokes of a job were laid
+    with a brush that a previous job had washed. The trip ends at the point the painting starts
+    from, so it leaves no mark of its own.</li>
     <li><code>copicograf</code> emits <code>G28 X Y</code> once near the top. Marlin homes on it;
     GRBL and FluidNC reject the bare axis words outright, so it is replaced with a comment.
     It is not rewritten to <code>$H</code>, which needs limit switches —

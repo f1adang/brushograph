@@ -584,6 +584,30 @@ coverage still improves (6.2% → 4.2% unpainted) but it takes more strokes than
 the slicer did (2371 against 1740), because a drawing made of hairlines is
 mostly centrelines however it is worked out.
 
+### The opening of a job
+
+Two things happen before the first stroke.
+
+**The brush is lifted before anything moves sideways.** The file opens with
+`G90`/`G21`, the normal feedrate and `G00 Z<safe>` — the safe height is the
+larger of `go_in_tray_lift` and `move_to_other_shape_lift + canvas_height`.
+Where the brush was left by the last job is not known, so nothing may travel
+across the bed until it is up.
+
+**The brush is loaded once, before the first stroke.** copicograf re-inks only
+after `paint_per_run` (120-140 mm) has been laid down, so the opening strokes of
+a job used to be painted with whatever was left on the brush — nothing at all,
+since a job ends by washing it. `prepare_path` now takes `pickup_at`, and the
+pipeline passes the point the painting starts from, so the trip to the colour
+ends with the brush arriving there loaded rather than touching down somewhere
+else and leaving a mark. It happens once per job, on the first tray in
+`color_order`; later trays are already wet from painting.
+
+This is also what keeps the first cross-bed travel at the safe height. The trip
+to the tray lifts to `go_in_tray_lift` before it moves, where the first move of
+the painting itself only lifts by `move_to_other_shape_lift` — two millimetres,
+which is clearance over the paper, not over a tray rim.
+
 ### Writing what copicograf expects
 
 `copicograf.prepare_path()` decides the brush is on the canvas by matching two

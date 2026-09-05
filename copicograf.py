@@ -70,7 +70,8 @@ class Copicograf:
         gcfh.write("\n".join(str(g) for g in self.gcodes))
         gcfh.close()
 
-    def prepare_path(self, gcode_path, color_tray_x, color_tray_y, calibrate=True):
+    def prepare_path(self, gcode_path, color_tray_x, color_tray_y, calibrate=True,
+                     pickup_at=None):
         def set_normal_speed():
             self.gcodes.append(self.initial_gcode_acc)
             self.gcodes.append(self.initial_gcode_feedrate_1)
@@ -338,6 +339,15 @@ class Copicograf:
 
             # Go for paint before starting
             append_go_for_paint(0, 0)
+
+        # One trip to the colour before the first stroke. Re-inking only happens
+        # once paint_per_run has been laid down, so without this the opening
+        # strokes of a job are painted with whatever the brush was left with
+        # last time — which is nothing, if it was washed. Given the point the
+        # painting starts at, the trip ends with the brush arriving there
+        # loaded, so it leaves no mark of its own.
+        if pickup_at is not None:
+            append_go_for_paint(pickup_at[0], pickup_at[1])
 
         self.last_draw_gcode = None
         self.last_draw_params = None
