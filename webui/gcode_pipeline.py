@@ -723,14 +723,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     else:
         prepared = [prepare(todo[0])]
 
-    for i, (entry, (adapted, n, lines)) in enumerate(zip(todo, prepared)):
+    for entry, (adapted, n, lines) in zip(todo, prepared):
         for line in lines:
             log(line)
         tray = entry["tray"]
-        # The brush is loaded once, before the first stroke of the job. It
-        # arrives at the point the painting starts from, so the trip leaves no
-        # mark of its own. Later trays are already wet from painting.
-        pickup_at = first_stroke_point(adapted) if i == 0 else None
+        # Every tray starts by loading the brush. copicograf ends each tray by
+        # washing the brush and parking it in the water, so a colour change
+        # leaves it clean and wet — and it only re-inks once paint_per_run has
+        # been laid down, so without this the opening strokes of each colour
+        # would be painted with water. The trip ends at the point that colour's
+        # painting starts from, so it leaves no mark of its own.
+        pickup_at = first_stroke_point(adapted)
         if pickup_at:
             log(f"[{tray}] loading the brush before the first stroke at "
                 f"({pickup_at[0]:.1f}, {pickup_at[1]:.1f})")

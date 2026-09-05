@@ -594,14 +594,19 @@ larger of `go_in_tray_lift` and `move_to_other_shape_lift + canvas_height`.
 Where the brush was left by the last job is not known, so nothing may travel
 across the bed until it is up.
 
-**The brush is loaded once, before the first stroke.** copicograf re-inks only
-after `paint_per_run` (120-140 mm) has been laid down, so the opening strokes of
-a job used to be painted with whatever was left on the brush — nothing at all,
-since a job ends by washing it. `prepare_path` now takes `pickup_at`, and the
-pipeline passes the point the painting starts from, so the trip to the colour
+**The brush is loaded before the first stroke of every colour.** copicograf
+re-inks only after `paint_per_run` (120-140 mm) has been laid down, so the
+opening strokes used to be painted with whatever was on the brush — which is
+nothing, because each tray *ends* by washing it and parking it in the water.
+That is what a colour change wants, but it means the next colour starts by
+painting with water. `prepare_path` now takes `pickup_at`, and the pipeline
+passes the point that colour's painting starts from, so the trip to the tray
 ends with the brush arriving there loaded rather than touching down somewhere
-else and leaving a mark. It happens once per job, on the first tray in
-`color_order`; later trays are already wet from painting.
+else and leaving a mark.
+
+A colour change therefore reads: wash (three dips in the water), park in the
+water, lift, dip the next colour, knock the drips off, travel to the first
+stroke of that colour, and paint.
 
 This is also what keeps the first cross-bed travel at the safe height. The trip
 to the tray lifts to `go_in_tray_lift` before it moves, where the first move of
