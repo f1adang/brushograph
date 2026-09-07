@@ -21,6 +21,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from images import flatten
+
 # The ellipse drawn over a face box, as multiples of that box. The detector's
 # box runs roughly forehead to chin, so this only has to reach out to the sides
 # of the jaw and a little down the neck, which catches the same light.
@@ -100,7 +102,7 @@ def enhance(image: Image.Image, faces=None, strength: float = 1.0, log=None) -> 
             log("face filter: no face found, picture left alone")
         return image
 
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
     lab = cv2.cvtColor(rgb, cv2.COLOR_RGB2LAB)
     L = lab[:, :, 0].astype(np.float32)

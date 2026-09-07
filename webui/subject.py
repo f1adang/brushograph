@@ -18,6 +18,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from images import flatten
+
 # A small salient-object segmentation network, run through OpenCV's own ONNX
 # support so it costs no new Python dependency. Colour-based segmentation cannot
 # separate dark hair from dark foliage however it is seeded; this can.
@@ -181,7 +183,7 @@ def animal_score(image: Image.Image, mask: np.ndarray | None = None,
     net = _classifier(log)
     if net is None:
         return 0.0
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     if mask is not None and box is not None and mask.any():
         x, y, w, h = box
         rgb = np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8)[y:y + h, x:x + w]
@@ -205,7 +207,7 @@ def segment(image: Image.Image, log=None) -> np.ndarray | None:
     Results are cached by image content: detection and isolation both want this
     and there is no sense running the network twice for one upload.
     """
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     key = hashlib.blake2b(rgb.tobytes(), digest_size=16).hexdigest()
     if key in _CACHE:
         return _CACHE[key]
@@ -282,7 +284,7 @@ def snap_to_edges(image: Image.Image, mask: np.ndarray, band: float = 0.04,
     either side of the boundary to decide — so it cannot re-open the question of
     what the subject is, only where its edge runs.
     """
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     h, w = mask.shape
     scale = min(1.0, work / max(h, w))
     small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) \
@@ -322,7 +324,7 @@ def _faces(image: Image.Image) -> list:
     fallback, so this still works with nothing downloaded — less well, but it
     works.
     """
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
     scale = min(1.0, WORK / max(h, w))
     small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) \
@@ -435,7 +437,7 @@ def detect(image: Image.Image, log=None) -> dict:
             "faces": faces,
         }
 
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
     scale = min(1.0, WORK / max(h, w))
     small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) \
@@ -554,7 +556,7 @@ def isolate(image: Image.Image, box, faces=None, iterations: int = 6, log=None) 
     if prob is not None:
         return _fill_holes(snap_to_edges(image, _mask_from_prob(prob)))
 
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
     scale = min(1.0, WORK / max(h, w))
     small = cv2.resize(rgb, (int(w * scale), int(h * scale)), interpolation=cv2.INTER_AREA) \

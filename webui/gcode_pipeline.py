@@ -18,6 +18,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from images import flatten
+
 import planar
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -80,7 +82,7 @@ def to_pbm(src: Path, dst: Path, log) -> tuple[int, int, np.ndarray]:
     so pure yellow on tinted paper still separates correctly.
     """
     with Image.open(src) as im:
-        rgb = im.convert("RGB")
+        rgb = flatten(im)
         w, h = rgb.size
         a = np.asarray(rgb)
 

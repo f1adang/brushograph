@@ -153,6 +153,15 @@ Notes on things that needed care:
   saturated ink like yellow on the ink side, since it is dark in at least one
   channel however bright it looks. A file that comes out more than 97% ink is
   flagged in the log.
+- **Transparency is paper, not black.** An uploaded picture is composited onto
+  white before anything looks at it (`images.flatten`). Dropping the alpha
+  channel instead leaves whatever is stored underneath, which in a PNG is very
+  often black: a logo arrived with a transparent background whose hidden pixels
+  were (0.8, 0.8, 0.8), so the whole picture came through nearly black, its
+  lettering stopped being darker than what surrounded it, and the counters in
+  its O and R disappeared into the letters they belong to. Every entry point
+  flattens — the woodcut, the subject finder, the face filter and `to_pbm` —
+  because a photo with an alpha channel reaches all four.
 - **Small pictures are enlarged before the geometry is worked out.** The
   distance transform, the contours and the rescue pass all resolve to whole
   pixels, so when a picture is small and the painting is large the brush is

@@ -13,6 +13,8 @@ import cv2
 import numpy as np
 from PIL import Image
 
+from images import flatten
+
 # Working resolution, and how hard the cleanup stages press, both follow the
 # Detail control. At the top of the range only the brush itself is allowed to
 # limit what survives; at the bottom the picture is deliberately coarsened.
@@ -58,7 +60,7 @@ def convert(
     roughness = float(np.clip(roughness, 0, 100))
     hatching = float(np.clip(hatching, 0, 100))
 
-    rgb = np.asarray(image.convert("RGB"))
+    rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
     scale = min(1.0, working_side(detail) / max(h, w))
     if scale < 1.0:
