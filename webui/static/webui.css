@@ -614,3 +614,8 @@ dialog::backdrop { background: rgba(0,0,0,.3); }
 footer { display: flex; gap: 18px; align-items: center; justify-content: center; flex-wrap: wrap; }
 .theme-picker { display: flex; gap: 7px; align-items: center; font-size: 13px; color: var(--ink-dim); }
 .theme-picker select { width: auto; padding: 4px 7px; font-size: 13px; }
+
+/* The fill settings sit inside the run panel, above the button that uses them,
+   so they need the separation a panel edge would otherwise give them. */
+#fill-options { margin: 0 0 18px; padding: 0 0 16px; border-bottom: 1px solid var(--line-soft); }
+#fill-options .note { margin: -4px 0 12px; max-width: 68ch; }

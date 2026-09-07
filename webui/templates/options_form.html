@@ -150,6 +150,17 @@
       <p>Check the path, then send it to the machine.</p>
     </div>
     <div class="panel">
+    {% set fill = (schema | selectattr('key', 'equalto', 'slicer') | list | first) %}
+    {% if fill %}
+    <section class="group" id="fill-options">
+      <h3>{{ fill.title }}</h3>
+      <p class="note">How the brush covers a shape: the gap between strokes, the
+        pattern it lays them in, and how many times it goes round the outline.
+        Zero for the line distance leaves the shapes unfilled.</p>
+      <div class="grid">{% for f in fill.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+      {% for g in fill.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
+    </section>
+    {% endif %}
     <div class="actions">
       <button type="submit" class="primary" id="options-form-gcode">Generate G-code</button>
       <button type="submit" class="ghost" id="options-form-machine-config">Download config</button>
@@ -203,7 +214,7 @@
 
       {% if machine %}{% for g in machine.fields if g.group and not g.job %}{{ group(g) }}{% endfor %}{% endif %}
 
-      {% for section in schema if section.key not in ('trays', 'brushograph') %}
+      {% for section in schema if section.key not in ('trays', 'brushograph', 'slicer') %}
       <section class="group">
         <h3>{{ section.title }}</h3>
         <div class="grid">{% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>

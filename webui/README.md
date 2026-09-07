@@ -22,21 +22,31 @@ repo root or upload your own, and the whole options form is **generated from
 that file** — sections, fields, types and defaults all come from the config, so
 a config carrying different keys brings its own fields with it.
 
-- **Trays and Images** — the water tray, then one entry per colour in
-  `color_order`, each with tray X/Y and an image upload. Each tray's image is
-  either **already thresholded** or a **photo**, in which case it is converted to
-  a woodcut first (see below).
-- **Brushograph Options** — every key under `brushograph`, including the nested
-  `moves` speed groups, with explanatory tooltips.
-- **Slicer Options** / **Controller Options** — rendered when the config has them.
-- **Machine sketch** — a to-scale drawing of bed, image area and trays with
-  their entry and drip radii, redrawn as you edit. Trays parked outside the bed
-  are called out rather than quietly cropped.
-- **Match image** — sets Height, in whole millimetres, from the configured Width
-  and the uploaded image's aspect ratio. The pixel grid is mapped onto width x height regardless
-  of aspect, so a mismatch stretches the painting rather than fitting it. Warns
-  when the uploaded images disagree on ratio, or when the result exceeds
-  `max_height`.
+The form is organised by how often a setting changes, not by how the config
+file is laid out. Which pictures, what they are, how a photo is cut, how large
+it is painted and how the brush fills a shape change every run; tray positions,
+brush heights, dip depth, radii, backlash and feedrates are set once for a
+machine and left alone.
+
+- **The machine** — a to-scale plan of bed, image area and trays with their
+  entry and drip radii, redrawn as you edit. Trays parked outside the bed are
+  called out rather than quietly cropped.
+- **Artwork** — one card per colour in `color_order`, each taking a picture and
+  saying whether it is **already black and white** or a **photo**, in which case
+  it is cut first (see below) with the tuning controls appearing inline. Then the
+  painted size, with **Match image**: it sets Height, in whole millimetres, from
+  the configured Width and the uploaded image's aspect ratio. The pixel grid is
+  mapped onto width x height regardless of aspect, so a mismatch stretches the
+  painting rather than fitting it; it warns when the uploaded images disagree on
+  ratio, or when the result exceeds `max_height`.
+- **Run** — the fill settings, then Generate G-code, then the path preview. The
+  fill settings sit here rather than in machine setup because the stroke
+  spacing, the pattern and the wall count are decided per picture about as often
+  as per machine, and they belong beside the button that consumes them.
+- **Machine setup**, collapsed — tray positions, where the artwork sits on the
+  bed, brush heights, loading the brush, backlash, the `moves` speed groups and
+  the controller type. A config carrying keys this map has never heard of still
+  shows them, under **Other settings**.
 
 ### Settings the form always offers
 
