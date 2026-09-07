@@ -155,11 +155,47 @@
   box-shadow: 0 0 18px -6px var(--neon);
 }
 :root[data-theme="pinkograph"] .brand h1 {
-  color: var(--neon); text-shadow: 0 0 10px rgba(237,117,180,.65);
+  color: #fff;
+  text-shadow: 0 0 4px #fff, 0 0 11px var(--neon), 0 0 26px var(--neon),
+               0 0 48px rgba(237,117,180,.75);
+  animation: pk-flicker 4.2s infinite steps(1);
 }
 :root[data-theme="pinkograph"] .mark {
   background: conic-gradient(from 210deg, var(--neon), var(--neon-cold), var(--neon));
-  box-shadow: 0 0 14px 1px rgba(237,117,180,.6);
+  box-shadow: 0 0 10px 1px var(--neon), 0 0 26px 2px rgba(237,117,180,.6);
+  animation: pk-flicker-mark 4.2s infinite steps(1);
+}
+
+/* A tube striking and settling: mostly lit hard, with the short stutters a
+   neon sign makes when the gas catches. Both halves of the sign run off the
+   same clock, so the mark blinks with the word rather than against it. */
+@keyframes pk-flicker {
+  0%, 7%, 10%, 12%, 40%, 43%, 76%, 79%, 81%, 100% {
+    opacity: 1;
+    text-shadow: 0 0 4px #fff, 0 0 11px var(--neon), 0 0 26px var(--neon),
+                 0 0 48px rgba(237,117,180,.75);
+  }
+  8%, 11%, 41%, 77%, 80% {
+    opacity: .55;
+    text-shadow: 0 0 3px rgba(255,255,255,.5), 0 0 7px rgba(237,117,180,.45);
+  }
+  9%, 78% {   /* the surge as it catches */
+    opacity: 1;
+    text-shadow: 0 0 6px #fff, 0 0 16px #fff, 0 0 38px var(--neon),
+                 0 0 70px var(--neon);
+  }
+}
+@keyframes pk-flicker-mark {
+  0%, 7%, 10%, 12%, 40%, 43%, 76%, 79%, 81%, 100% {
+    box-shadow: 0 0 10px 1px var(--neon), 0 0 26px 2px rgba(237,117,180,.6);
+  }
+  8%, 11%, 41%, 77%, 80% {
+    box-shadow: 0 0 4px 0 rgba(237,117,180,.35); filter: brightness(.7);
+  }
+  9%, 78% {
+    box-shadow: 0 0 16px 3px var(--neon), 0 0 40px 6px rgba(237,117,180,.7);
+    filter: brightness(1.25);
+  }
 }
 
 /* Every slab: violet fill, a lit pink edge, and a glow that says it is a screen
@@ -315,6 +351,8 @@
   2%, 5%, 42% { opacity: .45; }
 }
 @media (prefers-reduced-motion: reduce) {
+  :root[data-theme="pinkograph"] .brand h1,
+  :root[data-theme="pinkograph"] .mark,
   :root[data-theme="uwu"] .brand h1,
   :root[data-theme="uwu"] .mark,
   :root[data-theme="uwu"] .primary { animation: none; }
