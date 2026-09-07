@@ -524,37 +524,55 @@ appeared to do nothing until it was fixed.
 
 ### Themes
 
-Four, chosen in the footer and remembered per browser. **Default** follows the
+Five, chosen in the footer and remembered per browser. **Default** follows the
 machine it is read on, light or dark. **Dark mode** holds dark whatever the room
-is doing. **Coconut mode** is husk, flesh and a palm lit from behind, and the mark in the
-corner is a coconut. **Pinkograph** is a pink sign with the lights up: the ground
-glows, every edge is lit, the rules under the headings and the Generate button
-run the rainbow, and the sign flickers. Everything that moves in it stops under
-`prefers-reduced-motion`.
+is doing. **Coconut mode** is husk, flesh and a palm lit from behind, and the
+mark in the corner is a coconut. **UwU** is a neon sign with all the lights up:
+the ground glows, every edge is lit, and the rules under the headings and the
+Generate button run the rainbow.
+
+**Pinkograph** is a port of the machine's own theme rather than an impression of
+one. `theme-Pinkograph.gz` sits on the controller's flash and is served over
+HTTP, so its values are read from the source rather than sampled from a
+screenshot: ground `#0B0014`, panel `#16032A`, strip `#22064A`, control
+`#2C0857`, pink `#FF6BB5`, text `#FFEAF4`, dim `#E3A0C0`, cyan `#00F5FF`. The
+body carries the same two washes — pink from the top left, cyan from the bottom
+right — and every panel is bordered and glowed like a lit tube with the same
+three shadows.
+
+The one thing that moves there is `pinkograph-hum`: the navbar's glow swelling
+and settling on a 2.6 s ease-in-out. That is what makes the sign look as though
+it is breathing — the logo itself has no animation at all, only a recolour. The
+same hum runs under the separators here and under the top and bottom bars, and
+it is applied to a one-pixel strip beneath each rule rather than to the heading
+block: animating the block's own shadow lit a rectangle behind the words and
+read as a panel. Measured at rest and at the swell, the glow under a rule goes
+from 33.1 to 48.7.
 
 An inline script in `<head>` puts the remembered theme on `<html>` before the
-first paint, so a chosen theme never flashes the default one first.
+first paint, so a chosen theme never flashes the default one first. Anyone who
+had chosen Pinkograph before the rename gets the new one, which is the point of
+the name.
 
-**The three drawings follow the theme.** The machine plan is rendered server-side,
-so the browser posts its theme with the sketch request and `sketch.py` picks a
-palette to match — surfaces and annotation only. The G-code preview is a canvas,
-so it reads `--sheet`, `--line-soft`, `--bad` and `--preview-cup` off the
-stylesheet at draw time. Changing the theme redraws both on the spot.
-
-The cut in the photo-tuning panel is the third. It is two tones and both of
-them are surfaces of the interface — the paper it will be painted on, and the
-mark the brush leaves — so `app.py` prints it on the theme's paper in the
-theme's ink, reusing `sketch.PALETTES` so there is one set of server-side theme
-colours rather than two. A theme change re-prints it, but only when a cut is
-already on screen: it is a round trip and a reconversion.
+**The three drawings follow the theme.** The machine plan is rendered
+server-side, so the browser posts its theme with the sketch request and
+`sketch.py` picks a palette to match — surfaces and annotation only. The G-code
+preview is a canvas, so it reads `--sheet`, `--line-soft`, `--bad` and
+`--preview-cup` off the stylesheet at draw time. The cut in the photo-tuning
+panel is the third: it is two tones and both are surfaces of the interface — the
+paper it will be painted on and the mark the brush leaves — so `app.py` prints
+it on the theme's paper in the theme's ink, reusing `sketch.PALETTES` so there
+is one set of server-side theme colours rather than two. Changing the theme
+redraws all three, though the cut only when one is already on screen: that one
+is a round trip and a reconversion.
 
 `--preview-cup` is a named token rather than a borrowed one. The trips into the
 cups were briefly drawn in `--ink-dim`, which in a dark theme is the brightest
 thing on the canvas: the dips shouted over the painting. Each theme now names a
-colour that is present but quieter than paint, and Pinkograph names violet
-because nothing in the trays is violet.
+colour that is present but quieter than paint — Pinkograph names the theme's own
+green `#39FF14`, which no tray holds.
 
-One thing stays fixed across all four: **colour means pigment.** Cyan, magenta,
+One thing stays fixed across all five: **colour means pigment.** Cyan, magenta,
 yellow and water identify trays and nothing else in the interface is saturated,
 so a coloured mark always stands for paint in a cup. The themes restyle every
 surface and every annotation, and leave the paint alone.
@@ -562,12 +580,11 @@ surface and every annotation, and leave the paint alone.
 Coconut declares `color-scheme: light` although its ground is dark, because
 every panel is pale and the form controls sit on those; under a dark scheme the
 browser drew unchecked boxes as filled dark squares on cream, which read as
-ticked. Pinkograph declares dark, because its panels are.
+ticked. Pinkograph and UwU declare dark, because their panels are.
 
-Every text colour in the two new palettes clears 4.5:1 against what it sits on,
-the Generate button's label included — it is dark rather than white because a
-dark label clears 4.5:1 over every stop of the rainbow it sits on and a white
-one would fail over all six.
+Everything that moves stops under `prefers-reduced-motion` — the machine's own
+theme says the same, in the same words: flashing signs are a migraine risk.
+Every text colour in every palette clears 4.5:1 against what it sits on.
 
 ### Why the 3D round trip went
 
