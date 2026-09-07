@@ -522,6 +522,25 @@ The start point is now repeated after the marker. On the line drawing this took
 painted distance from 2.66 m to 3.67 m, and it is why the centrelines above
 appeared to do nothing until it was fixed.
 
+### Themes
+
+Four, chosen in the footer and remembered per browser. **Default** follows the
+machine it is read on, light or dark. **Dark mode** holds dark whatever the room
+is doing. **Coconut mode** is husk, flesh and a palm lit from behind.
+**Pinkograph** is a tube of pink gas after dark, and the sign flickers — under
+`prefers-reduced-motion` it does not.
+
+An inline script in `<head>` puts the remembered theme on `<html>` before the
+first paint, so a chosen theme never flashes the default one first.
+
+One thing stays fixed across all four: **colour means pigment.** Cyan, magenta,
+yellow and water identify trays and nothing else in the interface is saturated,
+so a coloured mark always stands for paint in a cup. The themes restyle
+everything except what stands for paint, and Pinkograph keeps the plan view on
+white paper for the same reason — the drawing has to stay readable.
+
+Every text colour in the two new palettes clears 4.5:1 against what it sits on.
+
 ### Why the 3D round trip went
 
 The pipeline used to trace the bitmap to vectors (potrace), extrude those to a

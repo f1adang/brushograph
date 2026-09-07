@@ -28,14 +28,125 @@
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
   --step: 34px;
 }
+/* The default theme follows the machine it is being read on. Every other theme
+ * is a decision, so it holds whatever the light in the room is doing. */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme]), :root[data-theme="default"] { color-scheme: dark; }
+  :root:not([data-theme]), :root[data-theme="default"] {
     --ground: #161918; --sheet: #1d2120; --sunk: #232726;
     --line: #313736; --line-soft: #272c2b;
     --ink: #e6e9e8; --ink-dim: #9aa3a1; --ink-faint: #868f8d;
     --black: #f2f4f3;
     --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
   }
+}
+
+/* --------------------------------------------------------------- dark mode */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ground: #161918; --sheet: #1d2120; --sunk: #232726;
+  --line: #313736; --line-soft: #272c2b;
+  --ink: #e6e9e8; --ink-dim: #9aa3a1; --ink-faint: #868f8d;
+  --black: #f2f4f3;
+  --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
+}
+
+/* ----------------------------------------------------------- coconut mode */
+/* Husk, flesh and a palm lit from behind. The green is the one bright thing;
+ * the panels are the pale inside of the nut and the rules are its shell. */
+:root[data-theme="coconut"] {
+  color-scheme: dark;
+  --ground: #1b2a1c;
+  --sheet: #fdf6e8;
+  --sunk: #f4e8d2;
+  --line: #b98a52;
+  --line-soft: #e0cba7;
+  --ink: #37220f;
+  --ink-dim: #6b4a2a;
+  --ink-faint: #7d5c39;
+  --black: #2f7d32;
+  --bad: #9c2b16;
+  --good: #2f7d32;
+  --warn: #8a5a12;
+  --neon: #6bff3d;
+  --husk: #4a2c18;
+}
+:root[data-theme="coconut"] body {
+  background:
+    repeating-linear-gradient(103deg, rgba(0,0,0,.13) 0 2px, transparent 2px 7px),
+    repeating-linear-gradient(77deg, rgba(0,0,0,.09) 0 1px, transparent 1px 9px),
+    var(--ground);
+}
+:root[data-theme="coconut"] .topbar,
+:root[data-theme="coconut"] footer { border-color: var(--husk); }
+:root[data-theme="coconut"] .brand h1 { color: var(--neon); text-shadow: 0 0 14px rgba(107,255,61,.5); }
+:root[data-theme="coconut"] .brand p,
+:root[data-theme="coconut"] footer a { color: #cfe8bd; }
+:root[data-theme="coconut"] .topbar, :root[data-theme="coconut"] footer { background: var(--husk); }
+:root[data-theme="coconut"] .topbar .field-label { color: #cfe8bd; }
+:root[data-theme="coconut"] .step-head { border-bottom-color: var(--neon); }
+:root[data-theme="coconut"] .step-head h2 { color: var(--neon); }
+:root[data-theme="coconut"] .step-head p { color: #cfe8bd; }
+:root[data-theme="coconut"] .step-head h2::after { content: " 🥥"; font-size: .85em; }
+:root[data-theme="coconut"] .card, :root[data-theme="coconut"] .tray,
+:root[data-theme="coconut"] .plan, :root[data-theme="coconut"] .setup,
+:root[data-theme="coconut"] .canvas-wrap, :root[data-theme="coconut"] .sim-stat {
+  border-width: 2px; border-radius: 16px;
+}
+:root[data-theme="coconut"] .mark {
+  background: radial-gradient(circle at 34% 30%, #fdf6e8 0 22%, var(--husk) 23% 100%);
+  box-shadow: 0 0 0 2px var(--neon);
+}
+:root[data-theme="coconut"] .primary { background: var(--neon); color: #10240c; border-color: var(--neon); }
+:root[data-theme="coconut"] .placeholder p { color: #cfe8bd; }
+
+/* ------------------------------------------------------------- pinkograph */
+/* A tube of pink gas after dark: the ground goes out of the way, the glow does
+ * the drawing, and only the sign itself flickers. */
+:root[data-theme="pinkograph"] {
+  color-scheme: dark;
+  --ground: #0d0410;
+  --sheet: #170720;
+  --sunk: #1e0a29;
+  --line: #4a1a58;
+  --line-soft: #2c0f38;
+  --ink: #ffe8f6;
+  --ink-dim: #d8a8c8;
+  --ink-faint: #b382a4;
+  --black: #ff2d95;
+  --bad: #ff6b6b;
+  --good: #4ade80;
+  --warn: #fbbf24;
+  --neon: #ff2d95;
+  --glow: 0 0 6px rgba(255,45,149,.85), 0 0 18px rgba(255,45,149,.5);
+}
+:root[data-theme="pinkograph"] .brand h1 {
+  color: #fff; text-shadow: var(--glow), 0 0 34px rgba(255,45,149,.4);
+  animation: neon-flicker 6s infinite steps(1);
+}
+:root[data-theme="pinkograph"] .step-head { border-bottom-color: var(--neon); box-shadow: 0 1px 10px -4px var(--neon); }
+:root[data-theme="pinkograph"] .step-head h2 { color: #fff; text-shadow: var(--glow); }
+:root[data-theme="pinkograph"] .card, :root[data-theme="pinkograph"] .tray,
+:root[data-theme="pinkograph"] .plan, :root[data-theme="pinkograph"] .setup,
+:root[data-theme="pinkograph"] .canvas-wrap {
+  box-shadow: 0 0 0 1px rgba(255,45,149,.22), 0 0 22px -12px var(--neon);
+}
+:root[data-theme="pinkograph"] .mark { box-shadow: 0 0 12px 2px rgba(255,45,149,.75); }
+:root[data-theme="pinkograph"] .primary {
+  background: var(--neon); color: #23001a; border-color: var(--neon);
+  box-shadow: 0 0 14px -2px var(--neon);
+}
+:root[data-theme="pinkograph"] .switch { border-color: var(--line); }
+:root[data-theme="pinkograph"] .plan { background: #fff; }   /* the drawing stays readable */
+:root[data-theme="pinkograph"] .inline-file,
+:root[data-theme="pinkograph"] footer a { color: var(--ink); }
+
+@keyframes neon-flicker {
+  0%, 3%, 6%, 41%, 44%, 100% { opacity: 1; }
+  2%, 5%, 42% { opacity: .45; }
+}
+@media (prefers-reduced-motion: reduce) {
+  :root[data-theme="pinkograph"] .brand h1 { animation: none; }
 }
 * { box-sizing: border-box; }
 /* Several things here are shown and hidden by the `hidden` attribute, and a
@@ -114,6 +225,10 @@ footer a { color: var(--ink-dim); font-size: 13px; }
 
 /* ------------------------------------------------------------------ groups */
 .group { margin: 22px 0 0; }
+/* A group sitting straight on the ground gets a panel of its own. Text colour
+ * is chosen against the panel, and in a theme whose ground is dark and whose
+ * panels are pale — coconut — it is unreadable anywhere else. */
+.step > .group { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 15px 17px; }
 .group:first-child { margin-top: 0; }
 .group > h3 {
   margin: 0 0 12px; font-size: 14px; font-weight: 620; color: var(--ink);
@@ -275,3 +390,8 @@ dialog::backdrop { background: rgba(0,0,0,.3); }
 .group.tight .note { margin: 10px 0 0; max-width: 60ch; }
 .with-btn .ghost { white-space: nowrap; }
 @media (max-width: 760px) { .picker { width: 100%; } }
+
+/* ------------------------------------------------------------ theme picker */
+footer { display: flex; gap: 18px; align-items: center; justify-content: center; flex-wrap: wrap; }
+.theme-picker { display: flex; gap: 7px; align-items: center; font-size: 13px; color: var(--ink-dim); }
+.theme-picker select { width: auto; padding: 4px 7px; font-size: 13px; }

@@ -682,3 +682,20 @@ document.addEventListener("click", (e) => {
   setTimeout(() => window.addEventListener("scroll", closeDialog, { once: true, passive: true }), 100);
 });
 })();
+
+/* ------------------------------------------------------------------ themes */
+/* The chosen theme is already on <html> — an inline script in the head puts it
+ * there before the first paint. This only keeps the select in step with it. */
+(function themes() {
+  const sel = document.getElementById("theme-select");
+  if (!sel) return;
+  const KEY = "brushograph-theme";
+  let saved = "default";
+  try { saved = localStorage.getItem(KEY) || "default"; } catch (e) {}
+  sel.value = saved;
+  document.documentElement.dataset.theme = saved;
+  sel.addEventListener("change", () => {
+    document.documentElement.dataset.theme = sel.value;
+    try { localStorage.setItem(KEY, sel.value); } catch (e) {}
+  });
+})();

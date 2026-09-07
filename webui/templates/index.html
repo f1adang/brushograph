@@ -5,6 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="Brushograph WebUI — turn pictures into G-code for Brushograph-style brush plotters.">
 <title>Brushograph WebUI</title>
+<script>
+/* Before the first paint, so a remembered theme never flashes the default one. */
+try { var t = localStorage.getItem("brushograph-theme");
+      if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
 <link rel="stylesheet" href="{{ asset('webui.css') }}">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>🖌️</text></svg>">
 </head>
@@ -55,6 +60,15 @@
 
 <footer>
   <a href="/about">How this works</a>
+  <label class="theme-picker">
+    <span>Theme</span>
+    <select id="theme-select">
+      <option value="default">Default</option>
+      <option value="dark">Dark mode</option>
+      <option value="coconut">Coconut mode</option>
+      <option value="pinkograph">Pinkograph</option>
+    </select>
+  </label>
 </footer>
 
 <dialog id="info-dialog"></dialog>
