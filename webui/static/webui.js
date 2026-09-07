@@ -97,6 +97,7 @@ function wireForm() {
     const fd = new FormData(form);
     form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
     fd.append("sketch_only", "true");
+    fd.append("theme", document.documentElement.dataset.theme || "default");
 
     if (!form.checkValidity()) {
       sketch.classList.add("greyed");
@@ -127,6 +128,7 @@ function wireForm() {
     debounce = setTimeout(updateSketch, 180);
   });
   updateSketch();
+  document.addEventListener("brushograph:theme", updateSketch);
 
   /* ---- match height to the uploaded image's aspect ratio ---- */
   /* i2gc maps the pixel grid onto width x height regardless of aspect, so a
@@ -425,6 +427,20 @@ const FALLBACK_COLOURS = ["#2f7fd0", "#c85a2b", "#3f9c6d", "#8a5bd6", "#c0392b"]
 // strokes and the legend — and they must not drift apart.
 const CUP_COLOUR = "#8b3e2f";
 
+/* The preview sits on the page, so it takes its paper, its travel lines and its
+ * marker from whatever theme is on. The paint colours are not in here: a stroke
+ * is the colour of the paint that draws it, in every theme. */
+function themeInk() {
+  const cs = getComputedStyle(document.documentElement);
+  const pick = (name, fallback) => (cs.getPropertyValue(name) || "").trim() || fallback;
+  return {
+    paper: pick("--sheet", "#ffffff"),
+    travel: pick("--line-soft", "#e6e9ee"),
+    marker: pick("--bad", "#c0392b"),
+    cup: pick("--preview-cup", CUP_COLOUR),
+  };
+}
+
 function parseGcode(text) {
   const moves = [];
   let x = 0, y = 0, z = 10, tray = null, trayIndex = -1;
@@ -517,14 +533,15 @@ function drawGcode() {
   const px = (x) => pad + (x - minX) * scale;
   const py = (y) => canvas.height - pad - (y - minY) * scale;
 
-  ctx.fillStyle = "#ffffff";
+  const skin = themeInk();
+  ctx.fillStyle = skin.paper;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
 
   const cut = Math.floor(moves.length * sim.upto);
   // Travel first, so painting is never hidden under it.
-  ctx.strokeStyle = "#e6e9ee";
+  ctx.strokeStyle = skin.travel;
   ctx.lineWidth = 1;
   ctx.beginPath();
   for (let i = 0; i < cut; i++) {
@@ -540,7 +557,7 @@ function drawGcode() {
   for (let i = 0; i < cut; i++) {
     const m = moves[i];
     if (!m.down) continue;
-    const colour = m.cup ? CUP_COLOUR : trayColour(trays[m.tray], m.tray);
+    const colour = m.cup ? skin.cup : trayColour(trays[m.tray], m.tray);
     if (colour !== current) {
       if (current !== null) ctx.stroke();
       ctx.strokeStyle = colour;
@@ -555,7 +572,7 @@ function drawGcode() {
   // Where the brush is right now.
   if (cut > 0 && cut < moves.length) {
     const m = moves[cut - 1];
-    ctx.fillStyle = "#c0392b";
+    ctx.fillStyle = skin.marker;
     ctx.beginPath();
     ctx.arc(px(m.x2), py(m.y2), 4, 0, Math.PI * 2);
     ctx.fill();
@@ -587,7 +604,8 @@ function renderSimStats() {
   const entries = trays.length
     ? trays.map((t, i) => [trayColour(t, i), t])
     : [["#2f7fd0", "painting"]];
-  entries.push([CUP_COLOUR, "in the cups"], ["#e6e9ee", "travel"]);
+  const skin = themeInk();
+  entries.push([skin.cup, "in the cups"], [skin.travel, "travel"]);
   for (const [colour, label] of entries) {
     const item = el("span");
     const swatch = el("i");
@@ -625,6 +643,9 @@ function updateSimAt() {
 
 let simTimer = null;
 function wireSimulator() {
+  document.addEventListener("brushograph:theme", () => {
+    if (sim.data) { drawGcode(); renderSimStats(); }
+  });
   const scrub = $("sim-scrub"), play = $("sim-play"), open = $("sim-open");
   if (!scrub) return;
   scrub.addEventListener("input", () => {
@@ -697,5 +718,7 @@ document.addEventListener("click", (e) => {
   sel.addEventListener("change", () => {
     document.documentElement.dataset.theme = sel.value;
     try { localStorage.setItem(KEY, sel.value); } catch (e) {}
+    // Both drawings carry theme colours, so both are redrawn on the spot.
+    document.dispatchEvent(new CustomEvent("brushograph:theme"));
   });
 })();

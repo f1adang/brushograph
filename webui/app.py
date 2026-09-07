@@ -308,7 +308,9 @@ def options_form_post():
         return jsonify(error="; ".join(problems[:4])), 400
 
     if request.form.get("sketch_only") == "true":
-        return app.response_class(render_sketch(conf), mimetype="image/png")
+        # The plan is drawn on the same paper the page is using.
+        theme = request.form.get("theme", "default")
+        return app.response_class(render_sketch(conf, theme), mimetype="image/png")
 
     stem = Path(name).stem
     if request.form.get("config_only") == "true":

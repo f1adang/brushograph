@@ -24,6 +24,7 @@
   --good: #1c7a4e;
   --warn: #8a5a12;
   --c: #00aeef; --m: #ec008c; --y: #ffd400; --k: #23282f; --water: #96c8eb;
+  --preview-cup: #8b3e2f;    /* trips into the cups: present, never louder than paint */
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
   --step: 34px;
@@ -38,6 +39,7 @@
     --ink: #e6e9e8; --ink-dim: #9aa3a1; --ink-faint: #868f8d;
     --black: #f2f4f3;
     --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
+    --preview-cup: #b8735c;
   }
 }
 
@@ -49,6 +51,7 @@
   --ink: #e6e9e8; --ink-dim: #9aa3a1; --ink-faint: #868f8d;
   --black: #f2f4f3;
   --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
+  --preview-cup: #b8735c;
 }
 
 /* ----------------------------------------------------------- coconut mode */
@@ -70,6 +73,7 @@
   --warn: #8a5a12;
   --neon: #6bff3d;
   --husk: #4a2c18;
+  --preview-cup: #6b4a2a;
 }
 :root[data-theme="coconut"] body {
   background:
@@ -123,6 +127,7 @@
   --neon-2: #ff8ad4;
   --glow: 0 0 6px rgba(255,45,149,.95), 0 0 20px rgba(255,45,149,.7);
   --pride: linear-gradient(90deg, #ff2d95, #ff6b3d, #ffd400, #4ade80, #22d3ee, #a855f7, #ff2d95);
+  --preview-cup: #a855f7;   /* violet: nothing in the trays is violet */
 }
 :root[data-theme="pinkograph"] body {
   background:
@@ -158,6 +163,7 @@
 :root[data-theme="pinkograph"] .card, :root[data-theme="pinkograph"] .tray,
 :root[data-theme="pinkograph"] .plan, :root[data-theme="pinkograph"] .setup,
 :root[data-theme="pinkograph"] .canvas-wrap, :root[data-theme="pinkograph"] .step > .group,
+:root[data-theme="pinkograph"] .step > .panel,
 :root[data-theme="pinkograph"] .sim-stat {
   box-shadow: 0 0 0 1px rgba(255,45,149,.5), 0 0 26px -10px var(--neon),
               inset 0 0 30px -22px var(--neon-2);
@@ -175,7 +181,6 @@
 :root[data-theme="pinkograph"] .switch { border-color: var(--line-soft); background: var(--sunk); }
 :root[data-theme="pinkograph"] .switch b { color: var(--neon-2); }
 :root[data-theme="pinkograph"] .tag { border-color: var(--line-soft); color: var(--ink-dim); }
-:root[data-theme="pinkograph"] .plan { background: #fff; }   /* the drawing stays readable */
 :root[data-theme="pinkograph"] .inline-file,
 :root[data-theme="pinkograph"] footer a { color: var(--ink); }
 :root[data-theme="pinkograph"] input[type="text"],
@@ -281,7 +286,9 @@ footer a { color: var(--ink-dim); font-size: 13px; }
 /* A group sitting straight on the ground gets a panel of its own. Text colour
  * is chosen against the panel, and in a theme whose ground is dark and whose
  * panels are pale — coconut — it is unreadable anywhere else. */
-.step > .group { background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 15px 17px; }
+.step > .group, .step > .panel {
+  background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 15px 17px;
+}
 .group:first-child { margin-top: 0; }
 .group > h3 {
   margin: 0 0 12px; font-size: 14px; font-weight: 620; color: var(--ink);

@@ -11,12 +11,24 @@ from configspec import tray_entries
 W, H = 760, 480
 PAD = 46
 
-BG = (255, 255, 255)
-GRID = (232, 234, 238)
-BED = (120, 128, 140)
-CANVAS = (40, 44, 52)
-TEXT = (60, 66, 76)
-MUTED = (150, 156, 166)
+# One palette per interface theme, so the plan sits on the same paper the page
+# does. Only the surfaces and the annotation change: the tray fills are the
+# paint in the cups and are the same colour whatever the page is wearing.
+PALETTES = {
+    "default": dict(bg=(255, 255, 255), grid=(232, 234, 238), bed=(120, 128, 140),
+                    canvas=(40, 44, 52), text=(60, 66, 76), muted=(150, 156, 166),
+                    accent=(200, 90, 90)),
+    "dark": dict(bg=(29, 33, 32), grid=(45, 51, 50), bed=(123, 133, 131),
+                 canvas=(230, 233, 232), text=(211, 216, 214), muted=(134, 143, 141),
+                 accent=(224, 138, 122)),
+    "coconut": dict(bg=(253, 246, 232), grid=(234, 217, 189), bed=(185, 138, 82),
+                    canvas=(55, 34, 15), text=(74, 44, 24), muted=(125, 92, 57),
+                    accent=(156, 43, 22)),
+    "pinkograph": dict(bg=(43, 8, 36), grid=(69, 18, 58), bed=(255, 138, 212),
+                       canvas=(255, 232, 246), text=(255, 212, 238), muted=(229, 140, 192),
+                       accent=(255, 107, 107)),
+}
+
 TRAY_FILL = {
     "water": (150, 200, 235),
     "cyan": (0, 174, 239),
@@ -46,7 +58,11 @@ def _num(d, key, default=0.0):
         return default
 
 
-def render(conf: dict) -> bytes:
+def render(conf: dict, theme: str = "default") -> bytes:
+    pal = PALETTES.get(theme, PALETTES["default"])
+    BG, GRID, BED = pal["bg"], pal["grid"], pal["bed"]
+    CANVAS, TEXT, MUTED, ACCENT = pal["canvas"], pal["text"], pal["muted"], pal["accent"]
+
     bg = conf.get("brushograph", {})
     trays = conf.get("trays", {})
 
@@ -112,7 +128,7 @@ def render(conf: dict) -> bytes:
 
     # Canvas / image area
     if cw and ch:
-        d.rectangle([px(ox, oy + ch), px(ox + cw, oy)], fill=(40, 44, 52, 18), outline=CANVAS, width=2)
+        d.rectangle([px(ox, oy + ch), px(ox + cw, oy)], fill=(*CANVAS, 18), outline=CANVAS, width=2)
         tx, ty = px(ox, oy + ch)
         d.text((tx + 5, ty + 4), f"image {cw:g} × {ch:g} mm @ ({ox:g}, {oy:g})", font=fs, fill=TEXT)
 
@@ -137,19 +153,19 @@ def render(conf: dict) -> bytes:
         d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*fill, alpha), outline=(*CANVAS, alpha))
         off_bed = not (0 <= x <= max_w and 0 <= y <= max_h)
         tag = name + (" (off bed)" if off_bed else "")
-        d.text((cx + r + 4, cy - 6), tag, font=fs, fill=(200, 90, 90) if off_bed else (TEXT if in_use else MUTED))
+        d.text((cx + r + 4, cy - 6), tag, font=fs, fill=ACCENT if off_bed else (TEXT if in_use else MUTED))
 
-    d.line([px(min_x, 0), px(max_x, 0)], fill=(200, 90, 90), width=1)
-    d.line([px(0, min_y), px(0, max_y)], fill=(200, 90, 90), width=1)
+    d.line([px(min_x, 0), px(max_x, 0)], fill=ACCENT, width=1)
+    d.line([px(0, min_y), px(0, max_y)], fill=ACCENT, width=1)
     zx, zy = px(0, 0)
-    d.ellipse([zx - 3, zy - 3, zx + 3, zy + 3], fill=(200, 90, 90))
-    d.text((zx + 6, zy + 4), "0,0", font=fs, fill=(200, 90, 90))
+    d.ellipse([zx - 3, zy - 3, zx + 3, zy + 3], fill=ACCENT)
+    d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
 
     order = ", ".join(e["tray"] for e in entries if e["color"]) or "none in color_order"
     d.text((PAD, 12), f"Painting order: {order}", font=f, fill=TEXT)
     if offscreen:
         d.text((PAD, H - 24), f"not shown, parked far outside the bed: {', '.join(offscreen)}",
-               font=fs, fill=(200, 90, 90))
+               font=fs, fill=ACCENT)
 
     buf = io.BytesIO()
     img.save(buf, "PNG")
