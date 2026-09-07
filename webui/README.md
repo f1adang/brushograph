@@ -526,9 +526,11 @@ appeared to do nothing until it was fixed.
 
 Four, chosen in the footer and remembered per browser. **Default** follows the
 machine it is read on, light or dark. **Dark mode** holds dark whatever the room
-is doing. **Coconut mode** is husk, flesh and a palm lit from behind.
-**Pinkograph** is a tube of pink gas after dark, and the sign flickers — under
-`prefers-reduced-motion` it does not.
+is doing. **Coconut mode** is husk, flesh and a palm lit from behind, and the mark in the
+corner is a coconut. **Pinkograph** is a pink sign with the lights up: the ground
+glows, every edge is lit, the rules under the headings and the Generate button
+run the rainbow, and the sign flickers. Everything that moves in it stops under
+`prefers-reduced-motion`.
 
 An inline script in `<head>` puts the remembered theme on `<html>` before the
 first paint, so a chosen theme never flashes the default one first.
@@ -539,7 +541,10 @@ so a coloured mark always stands for paint in a cup. The themes restyle
 everything except what stands for paint, and Pinkograph keeps the plan view on
 white paper for the same reason — the drawing has to stay readable.
 
-Every text colour in the two new palettes clears 4.5:1 against what it sits on.
+Every text colour in the two new palettes clears 4.5:1 against what it sits on,
+the Generate button's label included — it is dark rather than white because a
+dark label clears 4.5:1 over every stop of the rainbow it sits on and a white
+one would fail over all six.
 
 ### Why the 3D round trip went
 

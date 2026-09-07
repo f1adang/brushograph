@@ -94,59 +94,112 @@
   border-width: 2px; border-radius: 16px;
 }
 :root[data-theme="coconut"] .mark {
-  background: radial-gradient(circle at 34% 30%, #fdf6e8 0 22%, var(--husk) 23% 100%);
-  box-shadow: 0 0 0 2px var(--neon);
+  background: none; box-shadow: none; border-radius: 0;
+  display: grid; place-items: center; font-size: 27px; line-height: 1;
 }
+:root[data-theme="coconut"] .mark::before { content: "🥥"; }
 :root[data-theme="coconut"] .primary { background: var(--neon); color: #10240c; border-color: var(--neon); }
 :root[data-theme="coconut"] .placeholder p { color: #cfe8bd; }
 
 /* ------------------------------------------------------------- pinkograph */
-/* A tube of pink gas after dark: the ground goes out of the way, the glow does
- * the drawing, and only the sign itself flickers. */
+/* A pink sign with the lights up. The ground is not black but the darkest pink
+ * that still reads as dark, every edge is lit, and the chrome carries the
+ * rainbow. Everything that moves stops under prefers-reduced-motion. */
 :root[data-theme="pinkograph"] {
   color-scheme: dark;
-  --ground: #0d0410;
-  --sheet: #170720;
-  --sunk: #1e0a29;
-  --line: #4a1a58;
-  --line-soft: #2c0f38;
+  --ground: #1a0416;
+  --sheet: #2b0824;
+  --sunk: #3a0c2f;
+  --line: #ff2d95;
+  --line-soft: #7d1f57;
   --ink: #ffe8f6;
-  --ink-dim: #d8a8c8;
-  --ink-faint: #b382a4;
+  --ink-dim: #ffb3de;
+  --ink-faint: #e58cc0;
   --black: #ff2d95;
   --bad: #ff6b6b;
   --good: #4ade80;
   --warn: #fbbf24;
   --neon: #ff2d95;
-  --glow: 0 0 6px rgba(255,45,149,.85), 0 0 18px rgba(255,45,149,.5);
+  --neon-2: #ff8ad4;
+  --glow: 0 0 6px rgba(255,45,149,.95), 0 0 20px rgba(255,45,149,.7);
+  --pride: linear-gradient(90deg, #ff2d95, #ff6b3d, #ffd400, #4ade80, #22d3ee, #a855f7, #ff2d95);
+}
+:root[data-theme="pinkograph"] body {
+  background:
+    radial-gradient(120% 70% at 50% -10%, rgba(255,45,149,.30), transparent 65%),
+    radial-gradient(90% 60% at 15% 110%, rgba(168,85,247,.26), transparent 60%),
+    var(--ground);
+  background-attachment: fixed;
+}
+:root[data-theme="pinkograph"] .topbar,
+:root[data-theme="pinkograph"] footer {
+  background: rgba(43,8,36,.92);
+  border-color: var(--neon);
+  box-shadow: 0 0 24px -6px var(--neon);
 }
 :root[data-theme="pinkograph"] .brand h1 {
-  color: #fff; text-shadow: var(--glow), 0 0 34px rgba(255,45,149,.4);
-  animation: neon-flicker 6s infinite steps(1);
+  background: var(--pride); background-size: 320% 100%;
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 0 9px rgba(255,45,149,.85));
+  animation: pride-run 9s linear infinite, neon-flicker 6s infinite steps(1);
 }
-:root[data-theme="pinkograph"] .step-head { border-bottom-color: var(--neon); box-shadow: 0 1px 10px -4px var(--neon); }
+:root[data-theme="pinkograph"] .mark {
+  background: conic-gradient(#ff2d95, #ff6b3d, #ffd400, #4ade80, #22d3ee, #a855f7, #ff2d95);
+  box-shadow: 0 0 16px 3px rgba(255,45,149,.85);
+  animation: mark-spin 14s linear infinite;
+}
+:root[data-theme="pinkograph"] .step-head {
+  border-bottom: 2px solid transparent;
+  border-image: var(--pride) 1;
+  box-shadow: 0 3px 18px -8px var(--neon);
+}
 :root[data-theme="pinkograph"] .step-head h2 { color: #fff; text-shadow: var(--glow); }
+:root[data-theme="pinkograph"] .step-head p { color: var(--ink-dim); }
 :root[data-theme="pinkograph"] .card, :root[data-theme="pinkograph"] .tray,
 :root[data-theme="pinkograph"] .plan, :root[data-theme="pinkograph"] .setup,
-:root[data-theme="pinkograph"] .canvas-wrap {
-  box-shadow: 0 0 0 1px rgba(255,45,149,.22), 0 0 22px -12px var(--neon);
+:root[data-theme="pinkograph"] .canvas-wrap, :root[data-theme="pinkograph"] .step > .group,
+:root[data-theme="pinkograph"] .sim-stat {
+  box-shadow: 0 0 0 1px rgba(255,45,149,.5), 0 0 26px -10px var(--neon),
+              inset 0 0 30px -22px var(--neon-2);
 }
-:root[data-theme="pinkograph"] .mark { box-shadow: 0 0 12px 2px rgba(255,45,149,.75); }
+:root[data-theme="pinkograph"] .group > h3 { color: var(--neon-2); text-shadow: 0 0 8px rgba(255,138,212,.55); }
+:root[data-theme="pinkograph"] .tray header b,
+:root[data-theme="pinkograph"] .coord b { color: #fff; text-shadow: 0 0 7px rgba(255,45,149,.6); }
 :root[data-theme="pinkograph"] .primary {
-  background: var(--neon); color: #23001a; border-color: var(--neon);
-  box-shadow: 0 0 14px -2px var(--neon);
+  background: var(--pride); background-size: 320% 100%;
+  color: #2b0016; border: 0; font-weight: 700;
+  box-shadow: 0 0 18px -2px var(--neon), 0 0 40px -10px #a855f7;
+  animation: pride-run 6s linear infinite, primary-pulse 2.6s ease-in-out infinite;
 }
-:root[data-theme="pinkograph"] .switch { border-color: var(--line); }
+:root[data-theme="pinkograph"] .ghost { border-color: var(--neon); }
+:root[data-theme="pinkograph"] .switch { border-color: var(--line-soft); background: var(--sunk); }
+:root[data-theme="pinkograph"] .switch b { color: var(--neon-2); }
+:root[data-theme="pinkograph"] .tag { border-color: var(--line-soft); color: var(--ink-dim); }
 :root[data-theme="pinkograph"] .plan { background: #fff; }   /* the drawing stays readable */
 :root[data-theme="pinkograph"] .inline-file,
 :root[data-theme="pinkograph"] footer a { color: var(--ink); }
+:root[data-theme="pinkograph"] input[type="text"],
+:root[data-theme="pinkograph"] input[type="number"],
+:root[data-theme="pinkograph"] select, :root[data-theme="pinkograph"] input[type="file"] {
+  background: var(--sunk); border-color: var(--line-soft);
+}
+:root[data-theme="pinkograph"] input[type="range"] { accent-color: var(--neon); }
+:root[data-theme="pinkograph"] input[type="checkbox"] { accent-color: var(--neon); }
 
+@keyframes pride-run { to { background-position: 320% 0; } }
+@keyframes mark-spin { to { transform: rotate(360deg); } }
+@keyframes primary-pulse {
+  0%, 100% { box-shadow: 0 0 18px -2px var(--neon), 0 0 40px -10px #a855f7; }
+  50% { box-shadow: 0 0 26px 1px var(--neon), 0 0 60px -6px #a855f7; }
+}
 @keyframes neon-flicker {
   0%, 3%, 6%, 41%, 44%, 100% { opacity: 1; }
   2%, 5%, 42% { opacity: .45; }
 }
 @media (prefers-reduced-motion: reduce) {
-  :root[data-theme="pinkograph"] .brand h1 { animation: none; }
+  :root[data-theme="pinkograph"] .brand h1,
+  :root[data-theme="pinkograph"] .mark,
+  :root[data-theme="pinkograph"] .primary { animation: none; }
 }
 * { box-sizing: border-box; }
 /* Several things here are shown and hidden by the `hidden` attribute, and a
