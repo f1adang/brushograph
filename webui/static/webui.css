@@ -110,10 +110,117 @@
 :root[data-theme="coconut"] .placeholder p { color: #cfe8bd; }
 
 /* ------------------------------------------------------------- pinkograph */
+/* Night in a city that never got the future it was promised: wet indigo dark,
+ * pink neon on one side of the street and cold cyan on the other, everything
+ * seen through haze and a tube that is slightly out of alignment. The glitch
+ * fires every few seconds rather than continuously — a sign with a loose
+ * connection, not a broken screen. All of it stops under reduced motion. */
+:root[data-theme="pinkograph"] {
+  color-scheme: dark;
+  --ground: #070a12;
+  --sheet: #0e1420;
+  --sunk: #131b2b;
+  --line: #2a3b57;
+  --line-soft: #1b2638;
+  --ink: #e8f4ff;
+  --ink-dim: #9fb6d4;
+  --ink-faint: #7d93b0;
+  --black: #ff1e6f;
+  --bad: #ff5c7a;
+  --good: #3ddc97;
+  --warn: #ffb347;
+  --neon: #ff1e6f;          /* the pink side of the street */
+  --neon-cold: #00e5ff;     /* and the cold side */
+  --preview-cup: #ffb347;   /* sodium amber: nothing in the trays is amber */
+}
+:root[data-theme="pinkograph"] body {
+  background:
+    radial-gradient(80% 50% at 78% 8%, rgba(255,30,111,.22), transparent 62%),
+    radial-gradient(70% 45% at 12% 34%, rgba(0,229,255,.16), transparent 60%),
+    radial-gradient(120% 60% at 50% 108%, rgba(255,30,111,.14), transparent 60%),
+    var(--ground);
+  background-attachment: fixed;
+}
+/* The tube this is being watched on. Fixed, so it does not scroll with the
+ * page, and inert so it never swallows a click. */
+:root[data-theme="pinkograph"] body::after {
+  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9;
+  background: repeating-linear-gradient(180deg,
+    rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+:root[data-theme="pinkograph"] .topbar,
+:root[data-theme="pinkograph"] footer {
+  background: rgba(14,20,32,.94);
+  border-color: var(--neon);
+  box-shadow: 0 0 28px -10px var(--neon);
+}
+:root[data-theme="pinkograph"] .brand h1 {
+  color: #fff; letter-spacing: .04em;
+  text-shadow: 0 0 7px rgba(255,30,111,.9), 0 0 24px rgba(255,30,111,.55),
+               2px 0 0 rgba(0,229,255,.55), -2px 0 0 rgba(255,30,111,.55);
+  animation: br-glitch 7s infinite steps(1);
+}
+:root[data-theme="pinkograph"] .brand p { color: var(--ink-dim); }
+:root[data-theme="pinkograph"] .mark {
+  background: radial-gradient(circle at 50% 50%, #fff 0 12%, var(--neon) 13% 46%, transparent 47%),
+              conic-gradient(from 0deg, var(--neon), var(--neon-cold), var(--neon));
+  box-shadow: 0 0 18px 2px rgba(255,30,111,.7), 0 0 34px -6px rgba(0,229,255,.5);
+}
+:root[data-theme="pinkograph"] .step-head { border-bottom-color: var(--neon); }
+:root[data-theme="pinkograph"] .step-head h2 {
+  color: #fff; text-transform: uppercase; letter-spacing: .12em; font-size: 17px;
+  text-shadow: 0 0 8px rgba(255,30,111,.85), 0 0 22px rgba(255,30,111,.4);
+}
+:root[data-theme="pinkograph"] .step-head p { color: var(--ink-dim); }
+:root[data-theme="pinkograph"] .card, :root[data-theme="pinkograph"] .tray,
+:root[data-theme="pinkograph"] .plan, :root[data-theme="pinkograph"] .setup,
+:root[data-theme="pinkograph"] .canvas-wrap, :root[data-theme="pinkograph"] .step > .group,
+:root[data-theme="pinkograph"] .step > .panel, :root[data-theme="pinkograph"] .sim-stat {
+  background: rgba(14,20,32,.86);
+  box-shadow: inset 0 1px 0 rgba(0,229,255,.14), 0 0 24px -14px var(--neon);
+}
+:root[data-theme="pinkograph"] .group > h3 {
+  color: var(--neon-cold); text-transform: uppercase; letter-spacing: .1em; font-size: 12.5px;
+  text-shadow: 0 0 9px rgba(0,229,255,.45);
+}
+:root[data-theme="pinkograph"] .tag {
+  border-color: rgba(0,229,255,.4); color: var(--neon-cold);
+}
+:root[data-theme="pinkograph"] .primary {
+  background: var(--neon); color: #14000a; border-color: var(--neon); font-weight: 700;
+  letter-spacing: .04em;
+  box-shadow: 0 0 18px -3px var(--neon), inset 0 0 0 1px rgba(255,255,255,.25);
+}
+:root[data-theme="pinkograph"] .ghost { border-color: rgba(0,229,255,.45); color: var(--ink); }
+:root[data-theme="pinkograph"] .switch { background: var(--sunk); border-color: var(--line-soft); }
+:root[data-theme="pinkograph"] .switch b { color: var(--neon-cold); }
+:root[data-theme="pinkograph"] input[type="text"],
+:root[data-theme="pinkograph"] input[type="number"],
+:root[data-theme="pinkograph"] select, :root[data-theme="pinkograph"] input[type="file"] {
+  background: var(--sunk); border-color: var(--line);
+}
+:root[data-theme="pinkograph"] input[type="range"] { accent-color: var(--neon); }
+:root[data-theme="pinkograph"] input[type="checkbox"] { accent-color: var(--neon); }
+:root[data-theme="pinkograph"] .sim-stat b { color: var(--neon-cold); }
+
+/* A loose connection: nothing for six seconds, then two frames of misalignment. */
+@keyframes br-glitch {
+  0%, 88%, 100% { transform: none;
+    text-shadow: 0 0 7px rgba(255,30,111,.9), 0 0 24px rgba(255,30,111,.55),
+                 2px 0 0 rgba(0,229,255,.55), -2px 0 0 rgba(255,30,111,.55); }
+  89% { transform: translate(-3px, 1px);
+    text-shadow: 5px 0 0 rgba(0,229,255,.9), -5px 0 0 rgba(255,30,111,.9); }
+  90% { transform: translate(3px, -1px);
+    text-shadow: -6px 0 0 rgba(0,229,255,.8), 6px 0 0 rgba(255,30,111,.8); }
+  91% { transform: translate(-1px, 0); opacity: .72; }
+}
+
+/* -------------------------------------------------------------------- uwu */
 /* A pink sign with the lights up. The ground is not black but the darkest pink
  * that still reads as dark, every edge is lit, and the chrome carries the
  * rainbow. Everything that moves stops under prefers-reduced-motion. */
-:root[data-theme="pinkograph"] {
+:root[data-theme="uwu"] {
   color-scheme: dark;
   --ground: #1a0416;
   --sheet: #2b0824;
@@ -133,67 +240,67 @@
   --pride: linear-gradient(90deg, #ff2d95, #ff6b3d, #ffd400, #4ade80, #22d3ee, #a855f7, #ff2d95);
   --preview-cup: #a855f7;   /* violet: nothing in the trays is violet */
 }
-:root[data-theme="pinkograph"] body {
+:root[data-theme="uwu"] body {
   background:
     radial-gradient(120% 70% at 50% -10%, rgba(255,45,149,.30), transparent 65%),
     radial-gradient(90% 60% at 15% 110%, rgba(168,85,247,.26), transparent 60%),
     var(--ground);
   background-attachment: fixed;
 }
-:root[data-theme="pinkograph"] .topbar,
-:root[data-theme="pinkograph"] footer {
+:root[data-theme="uwu"] .topbar,
+:root[data-theme="uwu"] footer {
   background: rgba(43,8,36,.92);
   border-color: var(--neon);
   box-shadow: 0 0 24px -6px var(--neon);
 }
-:root[data-theme="pinkograph"] .brand h1 {
+:root[data-theme="uwu"] .brand h1 {
   background: var(--pride); background-size: 320% 100%;
   -webkit-background-clip: text; background-clip: text; color: transparent;
   filter: drop-shadow(0 0 9px rgba(255,45,149,.85));
   animation: pride-run 9s linear infinite, neon-flicker 6s infinite steps(1);
 }
-:root[data-theme="pinkograph"] .mark {
+:root[data-theme="uwu"] .mark {
   background: conic-gradient(#ff2d95, #ff6b3d, #ffd400, #4ade80, #22d3ee, #a855f7, #ff2d95);
   box-shadow: 0 0 16px 3px rgba(255,45,149,.85);
   animation: mark-spin 14s linear infinite;
 }
-:root[data-theme="pinkograph"] .step-head {
+:root[data-theme="uwu"] .step-head {
   border-bottom: 2px solid transparent;
   border-image: var(--pride) 1;
   box-shadow: 0 3px 18px -8px var(--neon);
 }
-:root[data-theme="pinkograph"] .step-head h2 { color: #fff; text-shadow: var(--glow); }
-:root[data-theme="pinkograph"] .step-head p { color: var(--ink-dim); }
-:root[data-theme="pinkograph"] .card, :root[data-theme="pinkograph"] .tray,
-:root[data-theme="pinkograph"] .plan, :root[data-theme="pinkograph"] .setup,
-:root[data-theme="pinkograph"] .canvas-wrap, :root[data-theme="pinkograph"] .step > .group,
-:root[data-theme="pinkograph"] .step > .panel,
-:root[data-theme="pinkograph"] .sim-stat {
+:root[data-theme="uwu"] .step-head h2 { color: #fff; text-shadow: var(--glow); }
+:root[data-theme="uwu"] .step-head p { color: var(--ink-dim); }
+:root[data-theme="uwu"] .card, :root[data-theme="uwu"] .tray,
+:root[data-theme="uwu"] .plan, :root[data-theme="uwu"] .setup,
+:root[data-theme="uwu"] .canvas-wrap, :root[data-theme="uwu"] .step > .group,
+:root[data-theme="uwu"] .step > .panel,
+:root[data-theme="uwu"] .sim-stat {
   box-shadow: 0 0 0 1px rgba(255,45,149,.5), 0 0 26px -10px var(--neon),
               inset 0 0 30px -22px var(--neon-2);
 }
-:root[data-theme="pinkograph"] .group > h3 { color: var(--neon-2); text-shadow: 0 0 8px rgba(255,138,212,.55); }
-:root[data-theme="pinkograph"] .tray header b,
-:root[data-theme="pinkograph"] .coord b { color: #fff; text-shadow: 0 0 7px rgba(255,45,149,.6); }
-:root[data-theme="pinkograph"] .primary {
+:root[data-theme="uwu"] .group > h3 { color: var(--neon-2); text-shadow: 0 0 8px rgba(255,138,212,.55); }
+:root[data-theme="uwu"] .tray header b,
+:root[data-theme="uwu"] .coord b { color: #fff; text-shadow: 0 0 7px rgba(255,45,149,.6); }
+:root[data-theme="uwu"] .primary {
   background: var(--pride); background-size: 320% 100%;
   color: #2b0016; border: 0; font-weight: 700;
   box-shadow: 0 0 18px -2px var(--neon), 0 0 40px -10px #a855f7;
   animation: pride-run 6s linear infinite, primary-pulse 2.6s ease-in-out infinite;
 }
-:root[data-theme="pinkograph"] .ghost { border-color: var(--neon); }
-:root[data-theme="pinkograph"] .switch { border-color: var(--line-soft); background: var(--sunk); }
-:root[data-theme="pinkograph"] .switch b { color: var(--neon-2); }
-:root[data-theme="pinkograph"] .tag { border-color: var(--line-soft); color: var(--ink-dim); }
-:root[data-theme="pinkograph"] .inline-file,
-:root[data-theme="pinkograph"] footer a { color: var(--ink); }
-:root[data-theme="pinkograph"] input[type="text"],
-:root[data-theme="pinkograph"] input[type="number"],
-:root[data-theme="pinkograph"] select, :root[data-theme="pinkograph"] input[type="file"] {
+:root[data-theme="uwu"] .ghost { border-color: var(--neon); }
+:root[data-theme="uwu"] .switch { border-color: var(--line-soft); background: var(--sunk); }
+:root[data-theme="uwu"] .switch b { color: var(--neon-2); }
+:root[data-theme="uwu"] .tag { border-color: var(--line-soft); color: var(--ink-dim); }
+:root[data-theme="uwu"] .inline-file,
+:root[data-theme="uwu"] footer a { color: var(--ink); }
+:root[data-theme="uwu"] input[type="text"],
+:root[data-theme="uwu"] input[type="number"],
+:root[data-theme="uwu"] select, :root[data-theme="uwu"] input[type="file"] {
   background: var(--sunk); border-color: var(--line-soft);
 }
-:root[data-theme="pinkograph"] input[type="range"] { accent-color: var(--neon); }
-:root[data-theme="pinkograph"] input[type="checkbox"] { accent-color: var(--neon); }
+:root[data-theme="uwu"] input[type="range"] { accent-color: var(--neon); }
+:root[data-theme="uwu"] input[type="checkbox"] { accent-color: var(--neon); }
 
 @keyframes pride-run { to { background-position: 320% 0; } }
 @keyframes mark-spin { to { transform: rotate(360deg); } }
@@ -207,8 +314,9 @@
 }
 @media (prefers-reduced-motion: reduce) {
   :root[data-theme="pinkograph"] .brand h1,
-  :root[data-theme="pinkograph"] .mark,
-  :root[data-theme="pinkograph"] .primary { animation: none; }
+  :root[data-theme="uwu"] .brand h1,
+  :root[data-theme="uwu"] .mark,
+  :root[data-theme="uwu"] .primary { animation: none; }
 }
 * { box-sizing: border-box; }
 /* Several things here are shown and hidden by the `hidden` attribute, and a
