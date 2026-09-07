@@ -697,6 +697,29 @@ to the tray lifts to `go_in_tray_lift` before it moves, where the first move of
 the painting itself only lifts by `move_to_other_shape_lift` — two millimetres,
 which is clearance over the paper, not over a tray rim.
 
+### Wiping the brush
+
+After a pickup the brush carries a drop that would otherwise land on the paper.
+It is wiped by dragging the bristles over the rim at `remove_drops_lift`, and it
+happens **twice, once on each side**: wiping only where the brush happens to be
+leaving strips the drop off one side and leaves it on the other, and that one
+falls on the painting.
+
+How far the drag goes is `remove_drops_radius` and how fast is the config's
+`moves.remove_drops` group. Neither is decided in the code — an earlier version
+carried the brush a few millimetres past the radius and crossed the rim at a
+fixed 300 mm/min, which took both settings out of the config's hands.
+
+The direction is along the row the cups sit in, taken from the nearest other cup
+rather than assumed to be X, so a machine that arranges its cups differently
+still wipes along its own row. Square to the way the brush leaves is the other
+reading of "each side" and it is wrong here: the brush leaves towards the
+canvas, so square to that runs along the front edge of the bed and off it — the
+first attempt wiped to Y = -13.
+
+The wash dips do not wipe at all: they pass `remove_drop=False`, because a brush
+being rinsed has nothing to shed on the way out.
+
 ### Writing what copicograf expects
 
 `copicograf.prepare_path()` decides the brush is on the canvas by matching two

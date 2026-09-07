@@ -155,19 +155,50 @@ class Copicograf:
 
             return point_x, point_y
 
+        def wipe_axis(tray_x, tray_y):
+            """Which way the two wipes run for the cup at this position.
+
+            Along the row the cups sit in, taken from the nearest other cup
+            rather than assumed to be X, so a machine that arranges its cups
+            differently still wipes along its own row. Square to the way the
+            brush leaves would be the other reading of "each side", and it is
+            wrong here: the brush leaves towards the canvas, so square to that
+            runs along the front edge of the bed and off it.
+            """
+            nearest, ux, uy = None, 1.0, 0.0
+            for name, t in (self.conf.get("trays", {}) or {}).items():
+                if name == "additionals" or not isinstance(t, dict):
+                    continue
+                tx, ty = int(t.get("x", 0)), int(t.get("y", 0))
+                d = calculate_dist(tray_x, tray_y, tx, ty)
+                if d > 1 and (nearest is None or d < nearest):
+                    nearest, ux, uy = d, (tx - tray_x) / d, (ty - tray_y) / d
+            return ux, uy
+
         def remove_drops(tray_x, tray_y, x, y):
-            dist = calculate_dist(tray_x, tray_y, x + self.offset_x, y + self.offset_y)
-            ratioStart = self.tray_enter_radius / dist
-            ratioEnb = self.remove_drops_radius / dist
+            """Drag the bristles over the rim, once on each side.
 
-            x1, y1 = get_relative_point(tray_x, tray_y, x + self.offset_x, y + self.offset_y, ratioStart)
-            x2, y2 = get_relative_point(tray_x, tray_y, x + self.offset_x, y + self.offset_y, ratioEnb)
+            Wiping only where the brush happens to be leaving strips the drop
+            off one side and leaves it on the other, and that one falls on the
+            painting. How far out the drag goes is remove_drops_radius, and how
+            fast is the config's remove_drops speed group; neither is decided
+            here.
+            """
+            ux, uy = wipe_axis(tray_x, tray_y)
+            inner = self.tray_enter_radius
+            outer = self.remove_drops_radius
 
-            self.gcodes.append(GCodeLinearMove(X=x1, Y=y1))
-            self.gcodes.append(GCodeLinearMove(Z=self.remove_drops_lift))
-            set_remove_drops_speed()
-            self.gcodes.append(GCodeLinearMove(X=x2, Y=y2))
-            set_fast_speed()
+            for side in (1, -1):
+                self.gcodes.append(GCodeLinearMove(
+                    X=int(round(tray_x + ux * inner * side)),
+                    Y=int(round(tray_y + uy * inner * side))))
+                self.gcodes.append(GCodeLinearMove(Z=self.remove_drops_lift))
+                set_remove_drops_speed()
+                self.gcodes.append(GCodeLinearMove(
+                    X=int(round(tray_x + ux * outer * side)),
+                    Y=int(round(tray_y + uy * outer * side))))
+                self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+                set_fast_speed()
 
         def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
                               return_to_canvas=True):
