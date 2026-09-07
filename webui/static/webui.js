@@ -350,8 +350,11 @@ function wireForm() {
     e.preventDefault();
     const submitter = e.submitter;
     const wantsGcode = submitter === gcodeBtn;
-    const errBox = $("form-error");
-    const statusBox = $("form-status");
+    // The two buttons live in different sections now, so each reports where it
+    // is: a "Downloaded ..." line up in Run would be off screen for someone who
+    // is down in machine setup.
+    const errBox = (wantsGcode ? null : $("setup-error")) || $("form-error");
+    const statusBox = (wantsGcode ? null : $("setup-status")) || $("form-status");
     errBox.hidden = true;
     statusBox.hidden = true;
 
