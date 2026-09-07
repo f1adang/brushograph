@@ -737,6 +737,25 @@ the repeat the first segment of every stroke was being lost.
 instances; the pipeline always passes an explicit list so one run cannot append
 onto the previous one.
 
+## Sessions outlive a restart
+
+An uploaded config is written to `webui_sessions/<session id>/` and addressed by
+the session id in the cookie, so the id has to mean the same thing tomorrow that
+it meant today. The secret key that signs that cookie is therefore kept in
+`webui_sessions/.secret_key` (mode 600, and the directory is gitignored) rather
+than generated per process.
+
+Generating it per process is what the app used to do, and it fails in a way that
+does not look like a session problem at all: restart the service, every open
+page gets a new session id, and the next thing it asks for is a config the
+server can no longer find. The file is still on disk — under the previous id.
+The error read `config not found: pinkograph.conf` while the config sat right
+there, which sends you looking in entirely the wrong place. A missing upload now
+says that it is a missing upload, and what to do about it.
+
+Presets are unaffected either way: they are read from the repo root and have
+nothing to do with the session.
+
 ## Assets are never cached
 
 Static URLs carry the file's modification time (`webui.js?v=1788098129`) and

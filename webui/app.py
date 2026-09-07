@@ -31,8 +31,29 @@ MAX_UPLOAD_MB = 64
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
-app.secret_key = secrets.token_hex(16)
 SESSIONS_DIR.mkdir(exist_ok=True)
+
+
+def _secret_key() -> bytes:
+    """A key that survives a restart, so sessions do too.
+
+    A fresh key per process invalidates every cookie the moment the service is
+    restarted, which hands every open page a new session id. Uploaded configs
+    live under the old one, so the page then asks for a file the server can no
+    longer find — the config is still on disk, just addressed by a session that
+    no longer exists. Keeping the key on disk keeps the session, and with it
+    everything already uploaded.
+    """
+    path = SESSIONS_DIR / ".secret_key"
+    if path.exists():
+        return path.read_bytes()
+    key = secrets.token_bytes(32)
+    path.write_bytes(key)
+    path.chmod(0o600)
+    return key
+
+
+app.secret_key = _secret_key()
 
 # copicograf keeps state on the instance and the pipeline shells out through a
 # shared working directory, so one generation at a time.
@@ -93,6 +114,10 @@ def load_config(name: str, mode: str, sid: str) -> dict:
         raise ValueError("bad config name")
     path = session_dir(sid) / name if mode == "uploaded" else REPO_ROOT / name
     if not path.is_file():
+        if mode == "uploaded":
+            raise ValueError(
+                f"{name} is no longer on the server. Uploaded configs are kept with your "
+                "session and this one has expired — upload the file again, or pick a preset.")
         raise ValueError(f"config not found: {name}")
     with path.open() as f:
         return json.load(f)
