@@ -110,111 +110,113 @@
 :root[data-theme="coconut"] .placeholder p { color: #cfe8bd; }
 
 /* ------------------------------------------------------------- pinkograph */
-/* Night in a city that never got the future it was promised: wet indigo dark,
- * pink neon on one side of the street and cold cyan on the other, everything
- * seen through haze and a tube that is slightly out of alignment. The glitch
- * fires every few seconds rather than continuously — a sign with a loose
- * connection, not a broken screen. All of it stops under reduced motion. */
+/* The machine's own controller, wearing the colours it wears. Taken from a
+ * screenshot of the FluidNC dashboard: a purple-black ground, violet slabs for
+ * panels, and one pink that does all the work — every border, every heading,
+ * every lit edge. Cyan appears only where the console does, on the small
+ * technical chips. Nothing here moves; the dashboard does not either.
+ *
+ * Colours sampled from that screenshot rather than guessed:
+ *   ground #0e0217   panel #140428   control #2f1158
+ *   pink   #ed75b4   cyan  #70f1fc   text    #fbebf4
+ */
 :root[data-theme="pinkograph"] {
   color-scheme: dark;
-  --ground: #070a12;
-  --sheet: #0e1420;
-  --sunk: #131b2b;
-  --line: #2a3b57;
-  --line-soft: #1b2638;
-  --ink: #e8f4ff;
-  --ink-dim: #9fb6d4;
-  --ink-faint: #7d93b0;
-  --black: #ff1e6f;
-  --bad: #ff5c7a;
-  --good: #3ddc97;
-  --warn: #ffb347;
-  --neon: #ff1e6f;          /* the pink side of the street */
-  --neon-cold: #00e5ff;     /* and the cold side */
-  --preview-cup: #ffb347;   /* sodium amber: nothing in the trays is amber */
+  --ground: #0e0217;
+  --sheet: #140428;
+  --sunk: #2f1158;
+  --line: #ed75b4;
+  --line-soft: #3d1165;
+  --ink: #fbebf4;
+  --ink-dim: #c9a3c4;
+  --ink-faint: #a880ad;
+  --black: #ed75b4;
+  --bad: #ff7a8a;
+  --good: #5fe0a8;
+  --warn: #ffc061;
+  --neon: #ed75b4;
+  --neon-cold: #70f1fc;
+  --bar: #3d1165;           /* the strip a panel's name sits on */
+  /* Amber. Violet was tried and sat too close to the travel lines, which are
+   * violet because everything in this theme is; amber is the one hue that is
+   * neither the paint, nor the chrome, nor the travel. */
+  --preview-cup: #ffb347;
 }
 :root[data-theme="pinkograph"] body {
   background:
-    radial-gradient(80% 50% at 78% 8%, rgba(255,30,111,.22), transparent 62%),
-    radial-gradient(70% 45% at 12% 34%, rgba(0,229,255,.16), transparent 60%),
-    radial-gradient(120% 60% at 50% 108%, rgba(255,30,111,.14), transparent 60%),
+    radial-gradient(90% 55% at 50% -8%, rgba(237,117,180,.14), transparent 62%),
     var(--ground);
   background-attachment: fixed;
 }
-/* The tube this is being watched on. Fixed, so it does not scroll with the
- * page, and inert so it never swallows a click. */
-:root[data-theme="pinkograph"] body::after {
-  content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 9;
-  background: repeating-linear-gradient(180deg,
-    rgba(0,0,0,.22) 0 1px, transparent 1px 3px);
-  mix-blend-mode: multiply;
-}
 :root[data-theme="pinkograph"] .topbar,
 :root[data-theme="pinkograph"] footer {
-  background: rgba(14,20,32,.94);
+  background: var(--sheet);
   border-color: var(--neon);
-  box-shadow: 0 0 28px -10px var(--neon);
+  box-shadow: 0 0 18px -6px var(--neon);
 }
 :root[data-theme="pinkograph"] .brand h1 {
-  color: #fff; letter-spacing: .04em;
-  text-shadow: 0 0 7px rgba(255,30,111,.9), 0 0 24px rgba(255,30,111,.55),
-               2px 0 0 rgba(0,229,255,.55), -2px 0 0 rgba(255,30,111,.55);
-  animation: br-glitch 7s infinite steps(1);
+  color: var(--neon); text-shadow: 0 0 10px rgba(237,117,180,.65);
 }
-:root[data-theme="pinkograph"] .brand p { color: var(--ink-dim); }
 :root[data-theme="pinkograph"] .mark {
-  background: radial-gradient(circle at 50% 50%, #fff 0 12%, var(--neon) 13% 46%, transparent 47%),
-              conic-gradient(from 0deg, var(--neon), var(--neon-cold), var(--neon));
-  box-shadow: 0 0 18px 2px rgba(255,30,111,.7), 0 0 34px -6px rgba(0,229,255,.5);
+  background: conic-gradient(from 210deg, var(--neon), var(--neon-cold), var(--neon));
+  box-shadow: 0 0 14px 1px rgba(237,117,180,.6);
 }
-:root[data-theme="pinkograph"] .step-head { border-bottom-color: var(--neon); }
-:root[data-theme="pinkograph"] .step-head h2 {
-  color: #fff; text-transform: uppercase; letter-spacing: .12em; font-size: 17px;
-  text-shadow: 0 0 8px rgba(255,30,111,.85), 0 0 22px rgba(255,30,111,.4);
-}
-:root[data-theme="pinkograph"] .step-head p { color: var(--ink-dim); }
+
+/* Every slab: violet fill, a lit pink edge, and a glow that says it is a screen
+   rather than paper. */
 :root[data-theme="pinkograph"] .card, :root[data-theme="pinkograph"] .tray,
 :root[data-theme="pinkograph"] .plan, :root[data-theme="pinkograph"] .setup,
 :root[data-theme="pinkograph"] .canvas-wrap, :root[data-theme="pinkograph"] .step > .group,
 :root[data-theme="pinkograph"] .step > .panel, :root[data-theme="pinkograph"] .sim-stat {
-  background: rgba(14,20,32,.86);
-  box-shadow: inset 0 1px 0 rgba(0,229,255,.14), 0 0 24px -14px var(--neon);
+  background: var(--sheet);
+  border-color: var(--neon);
+  box-shadow: 0 0 14px -4px rgba(237,117,180,.75);
 }
+:root[data-theme="pinkograph"] .step-head { border-bottom-color: var(--neon); }
+:root[data-theme="pinkograph"] .step-head h2 {
+  color: var(--neon); text-shadow: 0 0 9px rgba(237,117,180,.5);
+}
+:root[data-theme="pinkograph"] .step-head p { color: var(--ink-dim); }
+
+/* A group's name sits on a rule that runs to the edge, as the dashboard's
+   "Modes" and "Controls commands" do. */
 :root[data-theme="pinkograph"] .group > h3 {
-  color: var(--neon-cold); text-transform: uppercase; letter-spacing: .1em; font-size: 12.5px;
-  text-shadow: 0 0 9px rgba(0,229,255,.45);
+  color: var(--neon); display: flex; align-items: center; gap: 12px;
 }
+:root[data-theme="pinkograph"] .group > h3::after {
+  content: ""; flex: 1; height: 1px; background: var(--neon); opacity: .45;
+}
+
+/* A tray card is a panel with its name on a violet strip. */
+:root[data-theme="pinkograph"] .tray header {
+  background: var(--bar); margin: -13px -15px 11px; padding: 9px 15px;
+  border-bottom: 1px solid var(--neon);
+}
+:root[data-theme="pinkograph"] .tray header b { color: var(--ink); }
+:root[data-theme="pinkograph"] .setup > summary { color: var(--neon); }
+:root[data-theme="pinkograph"] .setup > summary span { color: var(--neon); }
+
 :root[data-theme="pinkograph"] .tag {
-  border-color: rgba(0,229,255,.4); color: var(--neon-cold);
+  border-color: rgba(112,241,252,.45); color: var(--neon-cold);
 }
 :root[data-theme="pinkograph"] .primary {
-  background: var(--neon); color: #14000a; border-color: var(--neon); font-weight: 700;
-  letter-spacing: .04em;
-  box-shadow: 0 0 18px -3px var(--neon), inset 0 0 0 1px rgba(255,255,255,.25);
+  background: var(--neon); color: #2a0620; border-color: var(--neon); font-weight: 640;
+  box-shadow: 0 0 14px -3px var(--neon);
 }
-:root[data-theme="pinkograph"] .ghost { border-color: rgba(0,229,255,.45); color: var(--ink); }
+:root[data-theme="pinkograph"] .ghost, :root[data-theme="pinkograph"] .icon {
+  background: var(--sunk); border-color: var(--neon); color: var(--ink);
+}
 :root[data-theme="pinkograph"] .switch { background: var(--sunk); border-color: var(--line-soft); }
-:root[data-theme="pinkograph"] .switch b { color: var(--neon-cold); }
+:root[data-theme="pinkograph"] .switch b { color: var(--neon); }
 :root[data-theme="pinkograph"] input[type="text"],
 :root[data-theme="pinkograph"] input[type="number"],
 :root[data-theme="pinkograph"] select, :root[data-theme="pinkograph"] input[type="file"] {
-  background: var(--sunk); border-color: var(--line);
+  background: var(--sunk); border-color: rgba(237,117,180,.55);
 }
 :root[data-theme="pinkograph"] input[type="range"] { accent-color: var(--neon); }
 :root[data-theme="pinkograph"] input[type="checkbox"] { accent-color: var(--neon); }
-:root[data-theme="pinkograph"] .sim-stat b { color: var(--neon-cold); }
-
-/* A loose connection: nothing for six seconds, then two frames of misalignment. */
-@keyframes br-glitch {
-  0%, 88%, 100% { transform: none;
-    text-shadow: 0 0 7px rgba(255,30,111,.9), 0 0 24px rgba(255,30,111,.55),
-                 2px 0 0 rgba(0,229,255,.55), -2px 0 0 rgba(255,30,111,.55); }
-  89% { transform: translate(-3px, 1px);
-    text-shadow: 5px 0 0 rgba(0,229,255,.9), -5px 0 0 rgba(255,30,111,.9); }
-  90% { transform: translate(3px, -1px);
-    text-shadow: -6px 0 0 rgba(0,229,255,.8), 6px 0 0 rgba(255,30,111,.8); }
-  91% { transform: translate(-1px, 0); opacity: .72; }
-}
+:root[data-theme="pinkograph"] .sim-stat b { color: var(--neon); }
+:root[data-theme="pinkograph"] .coord { background: var(--sunk); border-color: var(--line-soft); }
 
 /* -------------------------------------------------------------------- uwu */
 /* A pink sign with the lights up. The ground is not black but the darkest pink
@@ -313,7 +315,6 @@
   2%, 5%, 42% { opacity: .45; }
 }
 @media (prefers-reduced-motion: reduce) {
-  :root[data-theme="pinkograph"] .brand h1,
   :root[data-theme="uwu"] .brand h1,
   :root[data-theme="uwu"] .mark,
   :root[data-theme="uwu"] .primary { animation: none; }
