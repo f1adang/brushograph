@@ -58,7 +58,11 @@
 /* Husk, flesh and a palm lit from behind. The green is the one bright thing;
  * the panels are the pale inside of the nut and the rules are its shell. */
 :root[data-theme="coconut"] {
-  color-scheme: dark;
+  /* Light, not dark: the ground is a dark palm but every panel is the pale
+   * inside of the nut, and the form controls sit on those. Under a dark scheme
+   * the browser drew unchecked boxes as filled dark squares on cream, which
+   * read as ticked. */
+  color-scheme: light;
   --ground: #1b2a1c;
   --sheet: #fdf6e8;
   --sunk: #f4e8d2;

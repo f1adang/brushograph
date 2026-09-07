@@ -221,6 +221,12 @@ function wireForm() {
     form.querySelectorAll("select.image-kind").forEach((s) =>
       s.addEventListener("change", () => { refreshWoodcut(); detectSubject(); }));
 
+    document.addEventListener("brushograph:theme", () => {
+      // The cut is printed on the theme's paper by the server, so a theme
+      // change means asking for it again — but only if one is being shown.
+      if (wcImg && !wcImg.hidden && photoTray()) wcBtn.click();
+    });
+
     wcBtn.addEventListener("click", async () => {
       const target = photoTray();
       if (!target) return;
@@ -235,6 +241,7 @@ function wireForm() {
       fd.append("woodcut_isolate", $("wc-isolate") && $("wc-isolate").checked ? "true" : "false");
       fd.append("woodcut_face_filter",
                 $("wc-face-filter") && $("wc-face-filter").checked ? "true" : "false");
+      fd.append("theme", document.documentElement.dataset.theme || "default");
 
       const label = wcBtn.textContent;
       wcBtn.textContent = "Converting…";

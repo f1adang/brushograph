@@ -14,6 +14,7 @@ from pathlib import Path
 
 from flask import (Flask, abort, jsonify, render_template, request, send_file,
                    session, url_for)
+import numpy as np
 from PIL import Image
 
 import facefilter
@@ -21,7 +22,7 @@ import gcode_pipeline
 import subject
 import woodcut
 from configspec import apply_form, build_schema, tray_entries
-from sketch import render as render_sketch
+from sketch import PALETTES, render as render_sketch
 
 WEBUI_DIR = Path(__file__).resolve().parent
 REPO_ROOT = WEBUI_DIR.parent
@@ -204,6 +205,24 @@ def detect_subject():
         return jsonify(error=f"Could not inspect that image: {exc}"), 400
 
 
+def _on_theme_paper(cut: Image.Image, theme: str) -> Image.Image:
+    """The cut printed on the theme's paper, in the theme's ink.
+
+    The preview is two tones and both of them are surfaces of the interface: the
+    paper it will be painted on and the mark the brush leaves. Neither stands
+    for a particular pigment — which tray paints it is chosen elsewhere — so
+    both follow the theme, and a dark theme gets a dark sheet with light marks
+    rather than a white rectangle cut out of the page.
+    """
+    pal = PALETTES.get(theme, PALETTES["default"])
+    grey = np.asarray(cut.convert("L"))
+    out = np.empty(grey.shape + (3,), np.uint8)
+    ink = grey < 128
+    out[ink] = pal["canvas"]
+    out[~ink] = pal["bg"]
+    return Image.fromarray(out, "RGB")
+
+
 @app.post("/woodcut_preview")
 def woodcut_preview():
     """Render the woodcut for one uploaded photo, so it can be judged before a run."""
@@ -225,7 +244,7 @@ def woodcut_preview():
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not convert that image: {exc}"), 400
     buf = io.BytesIO()
-    converted.convert("L").save(buf, "PNG")
+    _on_theme_paper(converted, request.form.get("theme", "default")).save(buf, "PNG")
     return app.response_class(buf.getvalue(), mimetype="image/png")
 
 

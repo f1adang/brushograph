@@ -535,11 +535,18 @@ run the rainbow, and the sign flickers. Everything that moves in it stops under
 An inline script in `<head>` puts the remembered theme on `<html>` before the
 first paint, so a chosen theme never flashes the default one first.
 
-**The two drawings follow the theme.** The machine plan is rendered server-side,
+**The three drawings follow the theme.** The machine plan is rendered server-side,
 so the browser posts its theme with the sketch request and `sketch.py` picks a
 palette to match — surfaces and annotation only. The G-code preview is a canvas,
 so it reads `--sheet`, `--line-soft`, `--bad` and `--preview-cup` off the
 stylesheet at draw time. Changing the theme redraws both on the spot.
+
+The cut in the photo-tuning panel is the third. It is two tones and both of
+them are surfaces of the interface — the paper it will be painted on, and the
+mark the brush leaves — so `app.py` prints it on the theme's paper in the
+theme's ink, reusing `sketch.PALETTES` so there is one set of server-side theme
+colours rather than two. A theme change re-prints it, but only when a cut is
+already on screen: it is a round trip and a reconversion.
 
 `--preview-cup` is a named token rather than a borrowed one. The trips into the
 cups were briefly drawn in `--ink-dim`, which in a dark theme is the brightest
@@ -551,6 +558,11 @@ One thing stays fixed across all four: **colour means pigment.** Cyan, magenta,
 yellow and water identify trays and nothing else in the interface is saturated,
 so a coloured mark always stands for paint in a cup. The themes restyle every
 surface and every annotation, and leave the paint alone.
+
+Coconut declares `color-scheme: light` although its ground is dark, because
+every panel is pale and the form controls sit on those; under a dark scheme the
+browser drew unchecked boxes as filled dark squares on cream, which read as
+ticked. Pinkograph declares dark, because its panels are.
 
 Every text colour in the two new palettes clears 4.5:1 against what it sits on,
 the Generate button's label included — it is dark rather than white because a
