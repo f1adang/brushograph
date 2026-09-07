@@ -1,6 +1,6 @@
 {% macro field(f) %}
 <label class="field {{ 'is-check' if f.type == 'checkbox' }}">
-  <span>
+  <span class="field-label">
     {{ f.label }}{% if f.help %} <button type="button" class="info-btn" title="{{ f.help }}" aria-label="{{ f.help }}">ⓘ</button>{% endif %}
   </span>
   {% if f.type == 'checkbox' %}
@@ -14,10 +14,9 @@
     {%- if f.name == 'brushograph-height' %}
     <span class="with-btn">
       <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="any" required>
-      <button type="button" class="ratio-btn" id="match-ratio" disabled
+      <button type="button" class="ghost" id="match-ratio" disabled
               title="Upload a tray image first">Match image</button>
     </span>
-    <span class="ratio-note" id="ratio-note" hidden></span>
     {%- else %}
     <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="any" required>
     {%- endif %}
@@ -27,149 +26,189 @@
 </label>
 {% endmacro %}
 
+{% macro group(g) %}
+<section class="group">
+  <h3>{{ g.group }}{% if g.help %} <button type="button" class="info-btn" title="{{ g.help }}" aria-label="{{ g.help }}">ⓘ</button>{% endif %}</h3>
+  <div class="grid">{% for f in g.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+  {% for gg in g.fields %}{% if gg.group %}
+  <section class="group nested">
+    <h4>{{ gg.group }}</h4>
+    <div class="grid">{% for f in gg.fields %}{{ field(f) }}{% endfor %}</div>
+  </section>
+  {% endif %}{% endfor %}
+</section>
+{% endmacro %}
+
+{% set trays = (schema | selectattr('key', 'equalto', 'trays') | list | first) %}
+{% set machine = (schema | selectattr('key', 'equalto', 'brushograph') | list | first) %}
+
 <form method="POST" id="options-form" action="options_form" enctype="multipart/form-data">
   <input type="hidden" name="session_id" value="{{ session_id }}">
   <input type="hidden" name="machine_config_name" value="{{ machine_config_name }}">
   <input type="hidden" name="machine_config_mode" value="{{ machine_config_mode }}">
 
-  <div class="sketch-card">
-    <div class="sketch-head">
-      <h2>Machine sketch</h2>
-      <span class="tag">{{ machine_config_name }}{% if generator != 'copicograf' %} · generator: {{ generator }}{% endif %}</span>
+  <!-- ------------------------------------------------------------ machine -->
+  <section class="step" id="step-machine">
+    <div class="step-head">
+      <h2>The machine</h2>
+      <p>Bed, canvas and trays drawn to scale, redrawn as you edit{% if generator != 'copicograf' %}. Running the {{ generator }} generator{% endif %}.</p>
     </div>
-    <img id="machine-sketch" alt="Machine sketch" title="Machine sketch" src="">
-    <p class="sketch-note">Updates as you edit. Trays drawn to scale with their entry and drip radii.</p>
-  </div>
+    <figure class="plan">
+      <img id="machine-sketch" alt="Plan view of the machine bed and its trays" src="">
+    </figure>
+  </section>
 
-  {% for section in schema %}
-  <fieldset class="card open">
-    <legend class="toggle">{{ section.title }}<span class="caret">▾</span></legend>
-    <div class="card-body">
-
-      {% if section.key == 'trays' %}
-        <p class="sub">One thresholded image per tray, in the order the machine paints them. Ink is anything that is not white.</p>
-        {% for t in section.trays %}
-        <div class="tray {{ 'tray-water' if not t.color }}">
-          <div class="tray-head">
-            <span class="dot" data-tray="{{ t.tray }}" style="{% if t.tray.startswith('#') %}background:{{ t.tray }}{% endif %}"></span>
-            <b>{{ t.label }}</b>
-            <span class="tag">{{ t.tray }}{% if t.color %} · {{ t.color }}{% endif %}</span>
-          </div>
-          <div class="tray-grid">
-            {% if t.image %}
-            <label class="field">
-              <span>Image</span>
-              <input type="file" name="trays-{{ t.tray }}-image" accept="image/*">
-            </label>
-            <label class="field">
-              <span>Image Type</span>
-              <select name="trays-{{ t.tray }}-image_kind" class="image-kind">
-                <option value="threshold" selected>Already thresholded</option>
-                <option value="photo">Photo &mdash; make woodcut</option>
-              </select>
-            </label>
-            {% endif %}
-            <label class="field"><span>Tray X</span>
-              <input type="number" name="trays-{{ t.tray }}-x" value="{{ t.x }}" step="any" required></label>
-            <label class="field"><span>Tray Y</span>
-              <input type="number" name="trays-{{ t.tray }}-y" value="{{ t.y }}" step="any" required></label>
-          </div>
-        </div>
-        {% endfor %}
-
-        <div class="subgroup" id="woodcut-panel" hidden>
-          <h3>Woodcut Conversion
-            <button type="button" class="info-btn"
-                    title="Turns a photograph into bold black and white before tracing. The pipeline paints black areas with a brush, so the result carries no grey and no detail finer than the brush can lay down."
-                    aria-label="Woodcut conversion help">&#9432;</button>
-          </h3>
-          <div class="grid">
-            <label class="field"><span>Detail <output id="wc-detail-out">78</output></span>
-              <input type="range" name="woodcut_detail" id="wc-detail" min="0" max="100" value="78"></label>
-            <label class="field"><span>Hatching <output id="wc-hatching-out">70</output></span>
-              <input type="range" name="woodcut_hatching" id="wc-hatching" min="0" max="100" value="70"></label>
-            <label class="field"><span>Black / White <output id="wc-threshold-out">8</output></span>
-              <input type="range" name="woodcut_threshold" id="wc-threshold" min="-50" max="50" value="8"></label>
-            <label class="field"><span>Edge Roughness <output id="wc-roughness-out">40</output></span>
-              <input type="range" name="woodcut_roughness" id="wc-roughness" min="0" max="100" value="40"></label>
-            <label class="field is-check">
-              <span>Contour Lines</span>
-              <input type="hidden" name="woodcut_outlines" value="false">
-              <input type="checkbox" name="woodcut_outlines" id="wc-outlines" value="true" checked>
-            </label>
-          </div>
-          <div class="subject-row" id="wc-subject-row" hidden>
-            <label class="field is-check">
-              <span id="wc-subject-label">Isolate subject</span>
-              <input type="hidden" name="woodcut_isolate" value="false">
-              <input type="checkbox" name="woodcut_isolate" id="wc-isolate" value="true">
-            </label>
-            <span class="ratio-note" id="wc-subject-note"></span>
-          </div>
-          <div class="subject-row" id="wc-face-row" hidden>
-            <label class="field is-check">
-              <span>Insta Face Filter</span>
-              <input type="hidden" name="woodcut_face_filter" value="false">
-              <input type="checkbox" name="woodcut_face_filter" id="wc-face-filter" value="true">
-            </label>
-            <span class="ratio-note">evens out the light on the face and smooths
-              the skin before the cut, keeping eyes, brows and lips sharp</span>
-          </div>
-          <div class="wc-preview">
-            <button type="button" class="ratio-btn" id="wc-preview-btn" disabled>Preview woodcut</button>
-            <span class="ratio-note" id="wc-note" hidden></span>
-          </div>
-          <img id="wc-image" alt="Woodcut preview" hidden>
-        </div>
-
-      {% else %}
-        <div class="grid">
-          {% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}
-        </div>
-        {% for g in section.fields %}{% if g.group %}
-        <div class="subgroup">
-          <h3>{{ g.group }}{% if g.help %} <button type="button" class="info-btn" title="{{ g.help }}" aria-label="{{ g.help }}">ⓘ</button>{% endif %}</h3>
-          <div class="grid">{% for f in g.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
-          {% for gg in g.fields %}{% if gg.group %}
-          <div class="subgroup nested">
-            <h4>{{ gg.group }}</h4>
-            <div class="grid">{% for f in gg.fields %}{{ field(f) }}{% endfor %}</div>
-          </div>
-          {% endif %}{% endfor %}
-        </div>
-        {% endif %}{% endfor %}
-      {% endif %}
-
+  <!-- ------------------------------------------------------------ artwork -->
+  <section class="step" id="step-artwork">
+    <div class="step-head">
+      <h2>Artwork</h2>
+      <p>One picture per colour, painted in the order below. Ink is anything not white.</p>
     </div>
-  </fieldset>
-  {% endfor %}
 
-  <fieldset class="card open" id="preview-card" hidden>
-    <legend class="toggle">G-code Preview<span class="caret">▾</span></legend>
-    <div class="card-body">
-      <p class="sub">The path the brush will take. Painting strokes are coloured per tray,
-      travel is faint, and trips into the cups are marked.</p>
-      <canvas id="gcode-canvas" width="900" height="700"></canvas>
-      <div class="sim-controls">
-        <button type="button" class="ratio-btn" id="sim-play">▶ Play</button>
+    {% if trays %}
+    <div class="tray-list">
+      {% for t in trays.trays if t.image %}
+      <article class="tray" data-tray="{{ t.tray }}">
+        <header>
+          <span class="dot" data-tray="{{ t.tray }}" style="{% if t.tray.startswith('#') %}background:{{ t.tray }}{% endif %}"></span>
+          <b>{{ t.label }}</b>
+          <span class="tag">{{ t.tray }}</span>
+        </header>
+        <div class="tray-fields">
+          <label class="field">
+            <span class="field-label">Picture</span>
+            <input type="file" name="trays-{{ t.tray }}-image" accept="image/*">
+          </label>
+          <label class="field">
+            <span class="field-label">What it is</span>
+            <select name="trays-{{ t.tray }}-image_kind" class="image-kind">
+              <option value="threshold" selected>Already black and white</option>
+              <option value="photo">A photo &mdash; cut it for me</option>
+            </select>
+          </label>
+        </div>
+      </article>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <section class="group" id="woodcut-panel" hidden>
+      <h3>Turning the photo into a cut
+        <button type="button" class="info-btn"
+                title="A brush paints solid black or nothing at all, so a photograph has to become two tones before it can be painted. Shadows go solid, midtones are carried by hatching that follows the shapes in the picture, and highlights stay as bare paper."
+                aria-label="About the woodcut conversion">ⓘ</button>
+      </h3>
+      <div class="grid sliders">
+        <label class="field"><span class="field-label">Detail <output id="wc-detail-out">78</output></span>
+          <input type="range" name="woodcut_detail" id="wc-detail" min="0" max="100" value="78"></label>
+        <label class="field"><span class="field-label">Hatching <output id="wc-hatching-out">70</output></span>
+          <input type="range" name="woodcut_hatching" id="wc-hatching" min="0" max="100" value="70"></label>
+        <label class="field"><span class="field-label">Darkness <output id="wc-threshold-out">8</output></span>
+          <input type="range" name="woodcut_threshold" id="wc-threshold" min="-50" max="50" value="8"></label>
+        <label class="field"><span class="field-label">Edge roughness <output id="wc-roughness-out">40</output></span>
+          <input type="range" name="woodcut_roughness" id="wc-roughness" min="0" max="100" value="40"></label>
+      </div>
+      <div class="switches">
+        <label class="switch">
+          <input type="hidden" name="woodcut_outlines" value="false">
+          <input type="checkbox" name="woodcut_outlines" id="wc-outlines" value="true" checked>
+          <span><b>Contour lines</b>Keep the dark edges in the picture as knife lines.</span>
+        </label>
+        <label class="switch" id="wc-subject-row" hidden>
+          <input type="hidden" name="woodcut_isolate" value="false">
+          <input type="checkbox" name="woodcut_isolate" id="wc-isolate" value="true">
+          <span><b id="wc-subject-label">Isolate the subject</b><i id="wc-subject-note"></i></span>
+        </label>
+        <label class="switch" id="wc-face-row" hidden>
+          <input type="hidden" name="woodcut_face_filter" value="false">
+          <input type="checkbox" name="woodcut_face_filter" id="wc-face-filter" value="true">
+          <span><b>Insta face filter</b><i>Evens the light on the face and smooths the skin,
+            keeping eyes, brows and lips sharp.</i></span>
+        </label>
+      </div>
+      <div class="row">
+        <button type="button" class="ghost" id="wc-preview-btn" disabled>Show me the cut</button>
+        <span class="note" id="wc-note" hidden></span>
+      </div>
+      <img id="wc-image" alt="The photo as it will be painted" hidden>
+    </section>
+
+    {% if machine %}{% for g in machine.fields if g.group and g.job %}
+    <section class="group tight">
+      <h3>{{ g.group }}</h3>
+      <div class="grid">{% for f in g.fields %}{{ field(f) }}{% endfor %}</div>
+      <p class="note">The picture is scaled to fit this. Match image takes the height from the
+        aspect ratio of the first picture you loaded.</p>
+    </section>
+    {% endfor %}{% endif %}
+  </section>
+
+  <!-- ---------------------------------------------------------------- run -->
+  <section class="step" id="step-run">
+    <div class="step-head">
+      <h2>Run</h2>
+      <p>Check the path, then send it to the machine.</p>
+    </div>
+    <div class="actions">
+      <button type="submit" class="primary" id="options-form-gcode">Generate G-code</button>
+      <button type="submit" class="ghost" id="options-form-machine-config">Download config</button>
+      <span class="note" id="form-status" hidden></span>
+    </div>
+    <p class="error" id="form-error" hidden></p>
+
+    <div id="preview-card" hidden>
+      <div class="canvas-wrap">
+        <canvas id="gcode-canvas" width="900" height="700"></canvas>
+      </div>
+      <div class="row">
+        <button type="button" class="ghost" id="sim-play">▶ Play</button>
         <input type="range" id="sim-scrub" min="0" max="1000" value="1000">
-        <span class="ratio-note" id="sim-at"></span>
+        <span class="note" id="sim-at"></span>
       </div>
       <div class="sim-stats" id="sim-stats"></div>
-      <div class="sim-controls">
+      <div class="row">
         <button type="button" class="primary" id="gcode-download" hidden></button>
-        <span class="ratio-note" id="gcode-note" hidden></span>
+        <span class="note" id="gcode-note" hidden></span>
       </div>
-      <p class="sub">Or inspect a file you already have:
-        <label class="inline-file">choose a .gcode<input type="file" id="sim-open" accept=".gcode,.nc,.txt" hidden></label>
-      </p>
     </div>
-  </fieldset>
+    <p class="note">Already have a file?
+      <label class="inline-file">Open a .gcode<input type="file" id="sim-open" accept=".gcode,.nc,.txt" hidden></label>
+    </p>
+  </section>
 
-  <div class="actions">
-    <button type="submit" class="secondary" id="options-form-machine-config">Download Config</button>
-    <button type="submit" class="primary" id="options-form-gcode">Generate Gcode</button>
-  </div>
-  <p class="error" id="form-error" hidden></p>
-  <p class="status" id="form-status" hidden></p>
+  <!-- -------------------------------------------------------------- setup -->
+  <details class="setup" id="machine-setup">
+    <summary><span>Machine setup</span><i>Tray positions, brush heights, speeds — set once per machine</i></summary>
+    <div class="setup-body">
+
+      {% if trays %}
+      <section class="group">
+        <h3>Tray positions</h3>
+        <div class="tray-coords">
+          {% for t in trays.trays %}
+          <div class="coord">
+            <span class="dot" data-tray="{{ t.tray }}" style="{% if t.tray.startswith('#') %}background:{{ t.tray }}{% endif %}"></span>
+            <b>{{ t.label }}</b>
+            <label class="field"><span class="field-label">X</span>
+              <input type="number" name="trays-{{ t.tray }}-x" value="{{ t.x }}" step="any" required></label>
+            <label class="field"><span class="field-label">Y</span>
+              <input type="number" name="trays-{{ t.tray }}-y" value="{{ t.y }}" step="any" required></label>
+          </div>
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
+
+      {% if machine %}{% for g in machine.fields if g.group and not g.job %}{{ group(g) }}{% endfor %}{% endif %}
+
+      {% for section in schema if section.key not in ('trays', 'brushograph') %}
+      <section class="group">
+        <h3>{{ section.title }}</h3>
+        <div class="grid">{% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+        {% for g in section.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
+      </section>
+      {% endfor %}
+
+    </div>
+  </details>
 </form>

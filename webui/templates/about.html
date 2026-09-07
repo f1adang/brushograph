@@ -10,12 +10,14 @@
 <header class="topbar">
   <div class="brand">
     <span class="mark" aria-hidden="true"></span>
-    <div><h1>About Brushograph</h1><p>What this interface does</p></div>
+    <div class="brand-name"><h1>How this works</h1><p>What the machine is doing, and why</p></div>
+    <p class="picker"><a href="/">← Back to the machine</a></p>
   </div>
 </header>
 <main class="wrap prose">
-  <p>A simple interface to the Brushograph software: it turns uploaded thresholded
-  images into G-code for Brushograph-style brush plotters.</p>
+  <p>This turns a picture into the movements a Brushograph makes: where to dip the brush,
+  where to put it down, and the path to drag it along. What comes out is a G-code file you
+  stream to the machine.</p>
 
   <h2>How a run works</h2>
   <ol>
@@ -95,7 +97,7 @@
     It is not rewritten to <code>$H</code>, which needs limit switches —
     <b>home or zero the machine yourself before streaming.</b></li>
   </ul>
-  <p><a href="/">← Back to the WebUI</a></p>
+  <p><a href="/">← Back to the machine</a></p>
 </main>
 </body>
 </html>

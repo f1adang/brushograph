@@ -89,9 +89,8 @@ function wireForm() {
   const configBtn = $("options-form-machine-config");
   const sketch = $("machine-sketch");
 
-  container.querySelectorAll("legend.toggle").forEach((lg) => {
-    lg.addEventListener("click", () => lg.closest(".card").classList.toggle("open"));
-  });
+  // Sections that fold are <details> now, which the browser opens and closes
+  // itself, keyboard and screen reader included.
 
   /* ---- live machine sketch ---- */
   function updateSketch() {
@@ -605,7 +604,10 @@ function showGcode(text) {
   if (!card) return;
   sim.data = parseGcode(text);
   sim.upto = 1;
+  const wasHidden = card.hidden;
   card.hidden = false;
+  // The path is the answer to pressing Generate, so bring it into view once.
+  if (wasHidden) card.scrollIntoView({ block: "nearest", behavior: "smooth" });
   const scrub = $("sim-scrub");
   if (scrub) scrub.value = 1000;
   drawGcode();

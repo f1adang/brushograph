@@ -51,6 +51,23 @@ def with_defaults(conf: dict) -> dict:
     return out
 
 
+# The machine section is a flat list of nineteen settings in whatever order the
+# config file happens to list them, which put Width beside Offset Y beside Paint
+# Per Run Min. They are grouped here by what they are actually for. The first
+# group is marked `job` because it is the only one that changes from one run to
+# the next, and the form shows it with the artwork rather than the machine.
+BRUSHOGRAPH_GROUPS = [
+    ("Painted size", ["width", "height"], True),
+    ("Where it sits on the bed",
+     ["offset_x", "offset_y", "max_width", "max_height", "canvas_height"], False),
+    ("Brush heights",
+     ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
+    ("Loading the brush",
+     ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
+      "tray_enter_radius", "remove_drops_radius"], False),
+    ("Backlash", ["backlash_compensation", "backlash_x", "backlash_y"], False),
+]
+
 SECTIONS = [
     ("trays", "Trays and Images"),
     ("brushograph", "Brushograph Options"),
@@ -196,6 +213,26 @@ def tray_entries(conf: dict) -> list[dict]:
     return entries
 
 
+def _regroup(fields: list[dict], groups) -> list[dict]:
+    """Sort flat fields into named groups, keeping anything unlisted."""
+    loose, nested = {}, []
+    for f in fields:
+        if f.get("group"):
+            nested.append(f)          # a dict in the config, already a group
+        else:
+            loose[f["name"].rsplit("-", 1)[-1]] = f
+    out = []
+    for title, keys, is_job in groups:
+        picked = [loose.pop(k) for k in keys if k in loose]
+        if picked:
+            out.append({"group": title, "fields": picked, "job": is_job})
+    # A config with settings this map has never heard of still shows them.
+    if loose:
+        out.append({"group": "Other settings", "fields": list(loose.values()), "job": False})
+    out.extend(nested)
+    return out
+
+
 def build_schema(conf: dict) -> list[dict]:
     """Sections in the order the UI renders them, skipping ones the config lacks."""
     conf = with_defaults(conf)
@@ -206,7 +243,10 @@ def build_schema(conf: dict) -> list[dict]:
         if key == "trays":
             schema.append({"key": key, "title": title, "trays": tray_entries(conf)})
         else:
-            schema.append({"key": key, "title": title, "fields": _walk([key], conf[key])})
+            fields = _walk([key], conf[key])
+            if key == "brushograph":
+                fields = _regroup(fields, BRUSHOGRAPH_GROUPS)
+            schema.append({"key": key, "title": title, "fields": fields})
     return schema
 
 
