@@ -45,8 +45,8 @@ machine and left alone.
   as per machine, and they belong beside the button that consumes them.
 - **Machine setup**, collapsed — tray positions, where the artwork sits on the
   bed, brush heights, loading the brush, backlash, the `moves` speed groups and
-  the controller type, and at the end **Download config**, which writes all of
-  it back out as a `.conf`. A config carrying keys this map has never heard of
+  the controller type, and at the end **Download Machine Config**, which writes
+  all of it back out as a `.conf`. A config carrying keys this map has never heard of
   still shows them, under **Other settings**.
 
 The two submit buttons report where they are: each has its own status and error
