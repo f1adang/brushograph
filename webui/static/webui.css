@@ -383,11 +383,18 @@ h1, h2, h3, h4 { letter-spacing: -.015em; }
 /* ----------------------------------------------------------------- chrome */
 .topbar { background: var(--sheet); border-bottom: 1px solid var(--line); }
 .brand {
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: 14px 18px; flex-wrap: wrap;
   max-width: 1000px; margin: 0 auto; padding: 15px 28px;
 }
 .brand h1 { margin: 0; font-size: 18px; font-weight: 620; }
 .brand p { margin: 2px 0 0; font-size: 13px; color: var(--ink-dim); }
+/* The slogan's links take the text's colour rather than the browser's blue:
+   in this interface a colour means paint, and neither of these is paint. */
+.brand p a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
+.brand p a:hover { color: var(--ink); }
+/* The edition's name breaks as a unit: wrapping between its words split the
+   congress across two lines mid-title. */
+.brand p a.edition { white-space: nowrap; }
 .mark {
   width: 30px; height: 30px; border-radius: 50%; flex: none;
   background: conic-gradient(from 210deg, var(--c), var(--m), var(--y), var(--c));
