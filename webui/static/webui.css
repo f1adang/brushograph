@@ -223,17 +223,61 @@
 :root[data-theme="pinkograph"] .tag { border-color: rgba(0,245,255,.45); color: var(--neon-cold); }
 
 /* Controls, exactly as the dashboard styles its buttons. */
+/* Buttons are tubes too. They breathe on the same 2.6s the sign does, so the
+   whole thing pulses as one rather than to two different clocks — a filled one
+   throwing light around it, an outlined one lit from within. A button that
+   cannot be pressed does neither. */
 :root[data-theme="pinkograph"] .ghost, :root[data-theme="pinkograph"] .icon {
   background: #2C0857; border-color: var(--neon); color: var(--ink);
+  text-shadow: 0 0 7px rgba(255,107,181,.45);
+}
+:root[data-theme="pinkograph"] .ghost:not(:disabled),
+:root[data-theme="pinkograph"] .icon:not(:disabled) {
+  animation: pk-tube-hum 2.6s ease-in-out infinite;
 }
 :root[data-theme="pinkograph"] .ghost:hover, :root[data-theme="pinkograph"] .icon:hover {
   background: #3C0A66; border-color: var(--neon); color: var(--neon);
 }
 :root[data-theme="pinkograph"] .primary {
-  background: var(--neon); border-color: var(--neon); color: #14001F; font-weight: 640;
-  box-shadow: 0 0 12px rgba(255,107,181,.5);
+  background: var(--neon); border-color: var(--neon); color: #14001F; font-weight: 700;
+  letter-spacing: .01em;
+  box-shadow: 0 0 12px rgba(255,107,181,.6), 0 0 30px rgba(255,107,181,.3);
 }
-:root[data-theme="pinkograph"] .primary:hover { background: #FFA6D4; border-color: #FFA6D4; }
+:root[data-theme="pinkograph"] .primary:not(:disabled) {
+  animation: pk-sign-hum 2.6s ease-in-out infinite;
+}
+:root[data-theme="pinkograph"] .primary:hover {
+  background: #FFA6D4; border-color: #FFA6D4;
+}
+:root[data-theme="pinkograph"] button:disabled { box-shadow: none; opacity: .38; }
+
+/* The swing is wide on purpose: a glow that only varies by a tenth reads as a
+   rendering artefact rather than as a sign breathing. The fill brightens with
+   the halo, so the button itself pulses and not just the air around it. */
+/* The fill is animated directly rather than through filter: brightness, which
+   is applied to the element's shadow as well and made the halo shrink as the
+   face brightened — the two halves of the pulse fighting each other. */
+@keyframes pk-sign-hum {
+  0%, 100% {
+    background-color: #E05398;
+    box-shadow: 0 0 6px rgba(255,107,181,.40), 0 0 14px rgba(255,107,181,.16);
+  }
+  50% {
+    background-color: #FFA6D4;
+    box-shadow: 0 0 26px rgba(255,107,181,1), 0 0 62px rgba(255,107,181,.75),
+                0 0 110px rgba(255,107,181,.4);
+  }
+}
+@keyframes pk-tube-hum {
+  0%, 100% {
+    box-shadow: inset 0 0 8px rgba(255,107,181,.08), 0 0 5px rgba(255,107,181,.18);
+    border-color: rgba(255,107,181,.55);
+  }
+  50% {
+    box-shadow: inset 0 0 18px rgba(255,107,181,.30), 0 0 26px rgba(255,107,181,.75);
+    border-color: #FFA6D4;
+  }
+}
 :root[data-theme="pinkograph"] input[type="text"],
 :root[data-theme="pinkograph"] input[type="number"],
 :root[data-theme="pinkograph"] select, :root[data-theme="pinkograph"] input[type="file"] {
@@ -261,6 +305,11 @@
   :root[data-theme="pinkograph"] footer,
   :root[data-theme="pinkograph"] .step-head::after {
     animation: none; box-shadow: 0 2px 14px rgba(255,107,181,.55);
+  }
+  :root[data-theme="pinkograph"] .primary,
+  :root[data-theme="pinkograph"] .ghost,
+  :root[data-theme="pinkograph"] .icon {
+    animation: none;
   }
 }
 

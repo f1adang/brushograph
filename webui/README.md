@@ -567,11 +567,19 @@ three shadows.
 The one thing that moves there is `pinkograph-hum`: the navbar's glow swelling
 and settling on a 2.6 s ease-in-out. That is what makes the sign look as though
 it is breathing — the logo itself has no animation at all, only a recolour. The
-same hum runs under the separators here and under the top and bottom bars, and
-it is applied to a one-pixel strip beneath each rule rather than to the heading
+same hum runs under the separators here, under the top and bottom bars, and
+through the buttons — a filled one throws light around itself and brightens as
+it does, an outlined one lights from within and its border comes up with it, so
+the whole interface pulses to one clock rather than several. A button that
+cannot be pressed does neither, and reduced motion stops all of it.
+
+It is applied to a one-pixel strip beneath each rule rather than to the heading
 block: animating the block's own shadow lit a rectangle behind the words and
-read as a panel. Measured at rest and at the swell, the glow under a rule goes
-from 33.1 to 48.7.
+read as a panel. A button's face is animated as a colour rather than through
+`filter: brightness`, which applies to the element's shadow as well and made the
+halo shrink as the face brightened, the two halves of the pulse working against
+each other. Measured at rest and at the swell, the glow under a rule goes from
+33.1 to 48.7, and a button with its halo differs by 25% across half a cycle.
 
 An inline script in `<head>` puts the remembered theme on `<html>` before the
 first paint, so a chosen theme never flashes the default one first. Anyone who
