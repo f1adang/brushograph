@@ -539,11 +539,22 @@ function drawGcode() {
   const { moves, trays } = sim.data;
   const ctx = canvas.getContext("2d");
 
-  const xs = [], ys = [];
-  for (const m of moves) { xs.push(m.x1, m.x2); ys.push(m.y1, m.y2); }
-  if (!xs.length) return;
-  const minX = Math.min(...xs), maxX = Math.max(...xs);
-  const minY = Math.min(...ys), maxY = Math.max(...ys);
+  // Swept in a loop rather than with Math.min(...xs). The spread passes one
+  // argument per coordinate, and a real job has hundreds of thousands of them:
+  // past roughly a hundred thousand the call stack gives out and the preview
+  // dies with "Maximum call stack size exceeded".
+  if (!moves.length) return;
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const m of moves) {
+    if (m.x1 < minX) minX = m.x1;
+    if (m.x1 > maxX) maxX = m.x1;
+    if (m.x2 < minX) minX = m.x2;
+    if (m.x2 > maxX) maxX = m.x2;
+    if (m.y1 < minY) minY = m.y1;
+    if (m.y1 > maxY) maxY = m.y1;
+    if (m.y2 < minY) minY = m.y2;
+    if (m.y2 > maxY) maxY = m.y2;
+  }
   const pad = 16;
   const scale = Math.min((canvas.width - 2 * pad) / Math.max(maxX - minX, 1),
                          (canvas.height - 2 * pad) / Math.max(maxY - minY, 1));
@@ -741,6 +752,39 @@ document.addEventListener("click", (e) => {
  * not necessarily on the same one as the server.
  */
 const SD_SYNC_MS = 2000;
+const WS_OPEN_MS = 6000;
+const WS_LISTEN_MS = 2500;
+
+/* FluidNC will not take a command unless a websocket session is live: ask it
+ * to run a file with none open and /command answers 500 "WebSocket dead",
+ * which is exactly what an upload that lands but never starts looks like. So
+ * one is opened first and held while the command goes out. It is not a
+ * transport for the file — that is still a plain POST — it is the thing that
+ * makes the controller listen at all.
+ *
+ * A websocket is not subject to CORS, so the page may open it directly. What
+ * comes back over it is the machine's own console, which is the only way this
+ * page can report what the machine did rather than what it was told. */
+function openMachineSocket(base, heard) {
+  return new Promise((resolve, reject) => {
+    let ws;
+    try {
+      ws = new WebSocket(base.replace(/^http/, "ws") + "/", "webui-v3");
+    } catch (e) {
+      reject(e);
+      return;
+    }
+    const giveUp = setTimeout(() => {
+      try { ws.close(); } catch (e) { /* already gone */ }
+      reject(new Error("the machine did not accept a websocket connection"));
+    }, WS_OPEN_MS);
+    ws.onopen = () => { clearTimeout(giveUp); resolve(ws); };
+    ws.onerror = () => { clearTimeout(giveUp); reject(new Error("websocket refused")); };
+    ws.onmessage = (ev) => {
+      if (typeof ev.data === "string") heard.push(ev.data.trim());
+    };
+  });
+}
 
 function machineHost() {
   const field = document.querySelector('[name="connection-hostname"]');
@@ -799,6 +843,7 @@ async function sendToMachine(start) {
   const buttons = [$("gcode-send"), $("gcode-run")].filter(Boolean);
   const labels = buttons.map((b) => b.textContent);
   buttons.forEach((b) => { b.disabled = true; });
+  let ws = null;
 
   try {
     machineSay(`Sending ${name} to ${base}…`);
@@ -812,20 +857,28 @@ async function sendToMachine(start) {
         + "machine's own file list to be sure.");
       return;
     }
-    // The controller needs a moment to commit the file to the card before it
-    // can be asked to run it; openBatak-Assembler waits two seconds and so
-    // does this.
+    // The card needs a moment to commit the file before the controller can be
+    // asked to run it.
     machineSay(`${name} sent. Waiting ${SD_SYNC_MS / 1000}s for the card to catch up…`);
     buttons[1].textContent = "Starting…";
     await new Promise((r) => setTimeout(r, SD_SYNC_MS));
+
+    const heard = [];
+    ws = await openMachineSocket(base, heard);
     const cmd = encodeURIComponent(`$SD/Run=/${name}`);
     await fetch(`${base}/command?cmd=${cmd}`, { mode: "no-cors" });
-    machineSay(`${name} sent and $SD/Run issued. Watch the machine.`);
+    // Listen to the machine's own console rather than assuming.
+    await new Promise((r) => setTimeout(r, WS_LISTEN_MS));
+    const said = heard.filter((m) => m && !/^PING/i.test(m)).slice(-3).join(" · ");
+    machineSay(said
+      ? `${name}: $SD/Run sent. The machine says: ${said}`
+      : `${name}: $SD/Run sent, but the machine said nothing back. Check it.`);
   } catch (e) {
     machineSay(`Could not reach ${base}: ${e.message || e}. `
       + "Check the hostname under Machine setup, Connection, and that this page "
       + "and the machine are on the same network.", true);
   } finally {
+    if (ws) { try { ws.close(); } catch (e) { /* already gone */ } }
     buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; });
   }
 }

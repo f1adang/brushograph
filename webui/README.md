@@ -771,9 +771,19 @@ which does this from the page:
   `myfiles`, a size field named after the full path with an `S` appended, a `T`
   for the timestamp — and an earlier version of this copied that. The short form
   is what openBatak-Assembler uses and it is enough.
-- `GET <host>/command?cmd=$SD/Run=/<name>` to start it.
+- `GET <host>/command?cmd=$SD/Run=/<name>` to start it, **with a websocket
+  open to `ws://<host>/` (subprotocol `webui-v3`) while it goes**. FluidNC will
+  not take a command otherwise: with none open, `/command` answers
+  `500 WebSocket dead`. That is precisely what an upload which lands but never
+  starts looks like, and it is why the file appeared on the card while the job
+  did not begin. The websocket is not a transport for the file — that is still
+  a plain POST — it is what makes the controller listen.
 - **Two seconds between the two.** The card needs a moment to commit the file
   before the controller can be told to run it.
+
+What comes back over that websocket is the machine's own console, so the page
+reports what the machine said rather than what it was told: `$SD/Run sent. The
+machine says: <Run|MPos:0.000,0.000,0.000|FS:0,0|SD:0.00,/fabrik_c1_infill.gcode>`.
 
 Both go out as `mode: "no-cors"`. FluidNC answers a cross-origin preflight
 without an allow-origin header, so a normal fetch cannot read its reply — but a
@@ -797,6 +807,14 @@ the hostname is already an address, the page carries on with what was typed.
 The one thing no amount of no-cors fixes: a page served over https may not
 reach a machine over http, and the browser blocks it as mixed content. That is
 detected and said plainly rather than failing silently.
+
+### The preview is swept, not spread
+
+The drawing's bounds used to come from `Math.min(...xs)` over one argument per
+coordinate. A real job has hundreds of thousands of them, and past about 124,000
+arguments — some 62,000 moves — the call stack gives out and the preview dies
+with *Maximum call stack size exceeded*. A small job draws, a large one does
+not. The bounds are swept in a loop now, and a 100,000-move file draws.
 
 ### The preview says when it cannot draw
 
