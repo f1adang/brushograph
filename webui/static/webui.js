@@ -720,61 +720,87 @@ document.addEventListener("click", (e) => {
   dialog.showModal();
   setTimeout(() => window.addEventListener("scroll", closeDialog, { once: true, passive: true }), 100);
 });
-})();
-
 /* ----------------------------------------------------------- to the machine */
-/* The upload goes through this server rather than straight from the page: the
- * controller answers a cross-origin preflight without an allow-origin header,
- * so the browser would throw the reply away. Which also means it only works
- * from somewhere that can reach the machine. */
-async function sendToMachine(start) {
+/* Following openBatak-Assembler, which does this from the page rather than
+ * through a server. FluidNC answers a cross-origin preflight without an
+ * allow-origin header, so a normal fetch cannot read its reply — but a
+ * `no-cors` request is still delivered, and multipart/form-data is a
+ * CORS-safelisted content type, so it needs no preflight at all. The cost is
+ * that the reply is opaque: the page can say a file was sent, never that it
+ * arrived. Doing it from the browser is also what makes it work at all, since
+ * the machine sits on the same network as whoever is looking at this page and
+ * not necessarily on the same one as the server.
+ */
+const SD_SYNC_MS = 2000;
+
+function machineBase() {
+  const field = document.querySelector('[name="connection-hostname"]');
+  const host = field ? field.value.trim().replace(/\/+$/, "") : "";
+  if (!host) return null;
+  return /^https?:\/\//.test(host) ? host : "http://" + host;
+}
+
+function machineSay(text, bad) {
   const note = $("machine-note");
   const err = $("machine-error");
-  const buttons = [$("gcode-send"), $("gcode-run")].filter(Boolean);
-  const host = document.querySelector('[name="connection-hostname"]');
   if (note) note.hidden = true;
   if (err) err.hidden = true;
+  const box = bad ? err : note;
+  if (box) {
+    box.textContent = text;
+    box.hidden = false;
+  }
+}
+
+async function sendToMachine(start) {
   if (!pendingFile) return;
-  if (!host || !host.value.trim()) {
-    if (err) {
-      err.textContent = "Set a hostname under Machine setup, Connection.";
-      err.hidden = false;
-    }
+  const base = machineBase();
+  if (!base) {
+    machineSay("Set a hostname under Machine setup, Connection.", true);
+    return;
+  }
+  // A page served over https may not talk to a machine over http, and no
+  // amount of no-cors changes that: the browser blocks it as mixed content.
+  if (location.protocol === "https:" && base.startsWith("http:")) {
+    machineSay(`This page is on https and ${base} is not, so the browser will `
+      + "block the connection. Open the WebUI over http on the same network as "
+      + "the machine, or download the file and upload it yourself.", true);
     return;
   }
 
+  const name = pendingFile.filename.replace(/[^A-Za-z0-9._-]/g, "_");
+  const buttons = [$("gcode-send"), $("gcode-run")].filter(Boolean);
   const labels = buttons.map((b) => b.textContent);
   buttons.forEach((b) => { b.disabled = true; });
-  buttons[start ? 1 : 0].textContent = start ? "Starting…" : "Sending…";
-  if (note) {
-    note.textContent = `Sending ${pendingFile.filename} to ${host.value.trim()}…`;
-    note.hidden = false;
-  }
 
-  const fd = new FormData();
-  fd.append("gcode", pendingFile.blob, pendingFile.filename);
-  fd.append("hostname", host.value.trim());
-  fd.append("start", start ? "true" : "false");
   try {
-    const res = await fetch("machine/send", { method: "POST", body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
-    if (note) {
-      note.textContent = data.started
-        ? `${data.name} is on ${data.host} and running.`
-        : `${data.name} is on ${data.host}. Start it from the machine, or use Upload & start.`;
-      note.hidden = false;
+    machineSay(`Sending ${name} to ${base}…`);
+    const fd = new FormData();
+    fd.append("path", "/");
+    fd.append("myfile", pendingFile.blob, name);
+    await fetch(`${base}/upload`, { method: "POST", body: fd, mode: "no-cors" });
+
+    if (!start) {
+      machineSay(`${name} sent to ${base}. The reply is opaque, so check the `
+        + "machine's own file list to be sure.");
+      return;
     }
+    // The controller needs a moment to commit the file to the card before it
+    // can be asked to run it; openBatak-Assembler waits two seconds and so
+    // does this.
+    machineSay(`${name} sent. Waiting ${SD_SYNC_MS / 1000}s for the card to catch up…`);
+    buttons[1].textContent = "Starting…";
+    await new Promise((r) => setTimeout(r, SD_SYNC_MS));
+    const cmd = encodeURIComponent(`$SD/Run=/${name}`);
+    await fetch(`${base}/command?cmd=${cmd}`, { mode: "no-cors" });
+    machineSay(`${name} sent and $SD/Run issued. Watch the machine.`);
   } catch (e) {
-    if (note) note.hidden = true;
-    if (err) {
-      err.textContent = String(e.message || e);
-      err.hidden = false;
-    }
+    machineSay(`Could not reach ${base}: ${e.message || e}`, true);
   } finally {
     buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; });
   }
 }
+})();
 
 /* ------------------------------------------------------------------ themes */
 /* The chosen theme is already on <html> — an inline script in the head puts it

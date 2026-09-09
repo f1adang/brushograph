@@ -762,28 +762,35 @@ onto the previous one.
 ## Sending a job to the machine
 
 Once a run has produced G-code the preview offers three things: download it,
-**Send to machine**, or **Upload & start**.
+**Send to machine**, or **Upload & start**. The approach is
+[openBatak-Assembler](https://github.com/openBrushograph/openBatak-Assembler)'s,
+which does this from the page:
 
-The machine's own web interface is ESP3D's, so the protocol is taken from it
-rather than guessed: a file goes to `POST /upload` as multipart, and a job is
-set running with `GET /command?cmd=$SD/Run=/<name>`. The upload body's field
-names are particular — the destination in `path`, the size in a field named
-after the full path with an `S` appended, the modification time likewise with a
-`T`, and the file itself under `myfiles` with the full path as its filename. Get
-one wrong and the upload is accepted and quietly ignored.
+- `POST <host>/upload` with a `FormData` carrying `path` (`/`) and `myfile`
+  (the blob, named). The controller's own web UI sends a more elaborate form —
+  `myfiles`, a size field named after the full path with an `S` appended, a `T`
+  for the timestamp — and an earlier version of this copied that. The short form
+  is what openBatak-Assembler uses and it is enough.
+- `GET <host>/command?cmd=$SD/Run=/<name>` to start it.
+- **Two seconds between the two.** The card needs a moment to commit the file
+  before the controller can be told to run it.
 
-**It is HTTP, not a websocket.** The controller does expose one, at `/ws` with
-the `webui-v3` subprotocol, but that is the console — status and terminal
-output. No file travels down it, so this does not pretend to.
+Both go out as `mode: "no-cors"`. FluidNC answers a cross-origin preflight
+without an allow-origin header, so a normal fetch cannot read its reply — but a
+no-cors request is still delivered, and `multipart/form-data` is CORS-safelisted
+so it needs no preflight at all. The cost is an opaque response: the page can
+say a file was sent, never that it arrived, which is why **Send to machine**
+suggests checking the machine's file list.
 
-**The request is made by this server, not by the browser.** The controller
-answers a cross-origin preflight with 200 and no `Access-Control-Allow-Origin`,
-so a browser discards the reply. The consequence is worth stating plainly: this
-only works from somewhere that can reach the machine. Running the WebUI on the
-same network as the Brushograph, it works. Running it on a VM elsewhere, the
-machine is not routable and these two buttons cannot be.
+Sending from the page rather than from this server is what makes it work at
+all. The machine shares a network with whoever is reading the page, not
+necessarily with wherever the server is.
 
-The hostname lives in the config, under **Connection**, defaulting to
+The one thing no amount of no-cors fixes: a page served over https may not
+reach a machine over http, and the browser blocks it as mixed content. That is
+detected and said plainly rather than failing silently.
+
+The hostname lives in the config under **Connection**, defaulting to
 `fluidnc.local`. A config written before that section existed gains it, like
 every other always-offered setting.
 
