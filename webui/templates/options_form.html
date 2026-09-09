@@ -179,8 +179,12 @@
       <div class="sim-stats" id="sim-stats"></div>
       <div class="row">
         <button type="button" class="primary" id="gcode-download" hidden></button>
+        <button type="button" class="primary" id="gcode-send" hidden>Send to machine</button>
+        <button type="button" class="primary" id="gcode-run" hidden>Upload &amp; start</button>
         <span class="note" id="gcode-note" hidden></span>
       </div>
+      <p class="note" id="machine-note" hidden></p>
+      <p class="error" id="machine-error" hidden></p>
     </div>
     <p class="note">Already have a file?
       <label class="inline-file">Open a .gcode<input type="file" id="sim-open" accept=".gcode,.nc,.txt" hidden></label>

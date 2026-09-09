@@ -516,6 +516,10 @@ function offerDownload(blob, filename) {
   pendingFile = { blob, filename };
   const button = $("gcode-download");
   const note = $("gcode-note");
+  for (const id of ["gcode-send", "gcode-run"]) {
+    const b = $(id);
+    if (b) b.hidden = false;
+  }
   if (!button) return;
   button.textContent = `Download ${filename}`;
   button.hidden = false;
@@ -683,6 +687,10 @@ function wireSimulator() {
       if (pendingFile) saveBlob(pendingFile.blob, pendingFile.filename);
     });
   }
+  const send = $("gcode-send");
+  if (send) send.addEventListener("click", () => sendToMachine(false));
+  const run = $("gcode-run");
+  if (run) run.addEventListener("click", () => sendToMachine(true));
   if (open) {
     open.addEventListener("change", async () => {
       const file = open.files[0];
@@ -713,6 +721,60 @@ document.addEventListener("click", (e) => {
   setTimeout(() => window.addEventListener("scroll", closeDialog, { once: true, passive: true }), 100);
 });
 })();
+
+/* ----------------------------------------------------------- to the machine */
+/* The upload goes through this server rather than straight from the page: the
+ * controller answers a cross-origin preflight without an allow-origin header,
+ * so the browser would throw the reply away. Which also means it only works
+ * from somewhere that can reach the machine. */
+async function sendToMachine(start) {
+  const note = $("machine-note");
+  const err = $("machine-error");
+  const buttons = [$("gcode-send"), $("gcode-run")].filter(Boolean);
+  const host = document.querySelector('[name="connection-hostname"]');
+  if (note) note.hidden = true;
+  if (err) err.hidden = true;
+  if (!pendingFile) return;
+  if (!host || !host.value.trim()) {
+    if (err) {
+      err.textContent = "Set a hostname under Machine setup, Connection.";
+      err.hidden = false;
+    }
+    return;
+  }
+
+  const labels = buttons.map((b) => b.textContent);
+  buttons.forEach((b) => { b.disabled = true; });
+  buttons[start ? 1 : 0].textContent = start ? "Starting…" : "Sending…";
+  if (note) {
+    note.textContent = `Sending ${pendingFile.filename} to ${host.value.trim()}…`;
+    note.hidden = false;
+  }
+
+  const fd = new FormData();
+  fd.append("gcode", pendingFile.blob, pendingFile.filename);
+  fd.append("hostname", host.value.trim());
+  fd.append("start", start ? "true" : "false");
+  try {
+    const res = await fetch("machine/send", { method: "POST", body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || `Server returned ${res.status}`);
+    if (note) {
+      note.textContent = data.started
+        ? `${data.name} is on ${data.host} and running.`
+        : `${data.name} is on ${data.host}. Start it from the machine, or use Upload & start.`;
+      note.hidden = false;
+    }
+  } catch (e) {
+    if (note) note.hidden = true;
+    if (err) {
+      err.textContent = String(e.message || e);
+      err.hidden = false;
+    }
+  } finally {
+    buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; });
+  }
+}
 
 /* ------------------------------------------------------------------ themes */
 /* The chosen theme is already on <html> — an inline script in the head puts it

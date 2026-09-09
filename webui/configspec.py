@@ -26,6 +26,7 @@ ALWAYS_OFFERED = {
     ("brushograph", "backlash_compensation"): True,
     ("brushograph", "backlash_x"): 0.5,
     ("brushograph", "backlash_y"): 0.5,
+    ("connection", "hostname"): "fluidnc.local",
 }
 
 
@@ -70,6 +71,7 @@ BRUSHOGRAPH_GROUPS = [
 
 SECTIONS = [
     ("trays", "Trays and Images"),
+    ("connection", "Connection"),
     ("brushograph", "Brushograph Options"),
     ("slicer", "Fill Options"),
     ("controller", "Controller Options"),
@@ -89,6 +91,9 @@ ENUMS = {
 TRAY_SKIP = {"additionals"}
 
 HELP = {
+    "connection-hostname": "Where the machine answers on the network — the name or address of its "
+                           "FluidNC controller, without http://. Used by Send to machine and "
+                           "Upload & start.",
     "brushograph-width": "Width of a file (mm); you may upload larger files, but they need to be in the same aspect ratio",
     "brushograph-height": "Height of a file (mm); you may upload larger files, but they need to be in the same aspect ratio",
     "brushograph-offset_x": "X offset for image (0,0) position",

@@ -759,6 +759,34 @@ the repeat the first segment of every stroke was being lost.
 instances; the pipeline always passes an explicit list so one run cannot append
 onto the previous one.
 
+## Sending a job to the machine
+
+Once a run has produced G-code the preview offers three things: download it,
+**Send to machine**, or **Upload & start**.
+
+The machine's own web interface is ESP3D's, so the protocol is taken from it
+rather than guessed: a file goes to `POST /upload` as multipart, and a job is
+set running with `GET /command?cmd=$SD/Run=/<name>`. The upload body's field
+names are particular — the destination in `path`, the size in a field named
+after the full path with an `S` appended, the modification time likewise with a
+`T`, and the file itself under `myfiles` with the full path as its filename. Get
+one wrong and the upload is accepted and quietly ignored.
+
+**It is HTTP, not a websocket.** The controller does expose one, at `/ws` with
+the `webui-v3` subprotocol, but that is the console — status and terminal
+output. No file travels down it, so this does not pretend to.
+
+**The request is made by this server, not by the browser.** The controller
+answers a cross-origin preflight with 200 and no `Access-Control-Allow-Origin`,
+so a browser discards the reply. The consequence is worth stating plainly: this
+only works from somewhere that can reach the machine. Running the WebUI on the
+same network as the Brushograph, it works. Running it on a VM elsewhere, the
+machine is not routable and these two buttons cannot be.
+
+The hostname lives in the config, under **Connection**, defaulting to
+`fluidnc.local`. A config written before that section existed gains it, like
+every other always-offered setting.
+
 ## Sessions outlive a restart
 
 An uploaded config is written to `webui_sessions/<session id>/` and addressed by

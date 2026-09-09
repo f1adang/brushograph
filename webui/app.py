@@ -6,6 +6,11 @@ import io
 import json
 import re
 import secrets
+from datetime import datetime
+import socket
+import urllib.error
+import urllib.parse
+import urllib.request
 import shutil
 import tempfile
 import threading
@@ -271,6 +276,103 @@ def woodcut_preview():
     buf = io.BytesIO()
     _on_theme_paper(converted, request.form.get("theme", "default")).save(buf, "PNG")
     return app.response_class(buf.getvalue(), mimetype="image/png")
+
+
+# ------------------------------------------------------------------ the machine
+
+# FluidNC's web UI is ESP3D's: a file goes to /upload as multipart, and a job is
+# started by handing the controller the command $SD/Run=/<name>. Both are plain
+# HTTP. The websocket it also exposes is the console — status and terminal
+# output — and carries no file transfer, so it is not the road a G-code file
+# travels down.
+#
+# The request is made from here rather than from the browser because the machine
+# answers a cross-origin preflight without an Access-Control-Allow-Origin
+# header, so a browser refuses the reply. That means this only works where the
+# server itself can reach the machine.
+MACHINE_TIMEOUT = 60
+_HOSTNAME_OK = re.compile(r"^[A-Za-z0-9._-]+(:\d{1,5})?$")
+
+
+def _machine_url(host: str, path: str, query: dict | None = None) -> str:
+    url = f"http://{host}{path}"
+    if query:
+        url += "?" + urllib.parse.urlencode(query)
+    return url
+
+
+def _multipart(name: str, data: bytes, path: str = "/") -> tuple[bytes, str]:
+    """The upload body ESP3D expects, field for field.
+
+    Taken from the machine's own web UI rather than guessed: the destination in
+    `path`, the size in a field named after the full path with an S on the end,
+    the modification time likewise with a T, and the file itself under
+    `myfiles` with the full path as its filename. Getting any of those names
+    wrong is accepted and then silently ignored.
+    """
+    full = (path.rstrip("/") + "/" + name) if path != "/" else "/" + name
+    stamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    boundary = "----brushograph" + secrets.token_hex(8)
+    out = []
+    for field, value in (("path", path), (full + "S", str(len(data))), (full + "T", stamp)):
+        out.append((f"--{boundary}\r\n"
+                    f'Content-Disposition: form-data; name="{field}"\r\n\r\n'
+                    f"{value}\r\n").encode())
+    out.append((f"--{boundary}\r\n"
+                f'Content-Disposition: form-data; name="myfiles"; filename="{full}"\r\n'
+                f"Content-Type: application/octet-stream\r\n\r\n").encode())
+    out.append(data)
+    out.append(f"\r\n--{boundary}--\r\n".encode())
+    return b"".join(out), f"multipart/form-data; boundary={boundary}"
+
+
+def _ask_machine(req: urllib.request.Request) -> str:
+    with urllib.request.urlopen(req, timeout=MACHINE_TIMEOUT) as r:
+        return r.read(20000).decode("utf-8", "replace")
+
+
+@app.post("/machine/send")
+def machine_send():
+    """Put a G-code file on the machine, and optionally set it running."""
+    host = (request.form.get("hostname") or "").strip().rstrip("/")
+    host = host.split("://", 1)[-1]
+    if not host or not _HOSTNAME_OK.match(host):
+        return jsonify(error="Set a machine hostname in Connection first."), 400
+    upload = request.files.get("gcode")
+    if not upload or not upload.filename:
+        return jsonify(error="No G-code to send"), 400
+    name = Path(upload.filename).name
+    if not SAFE_NAME.match(name):
+        return jsonify(error="That filename cannot go on the machine"), 400
+    data = upload.read()
+    start = _flag(request.form, "start", "false")
+
+    body, content_type = _multipart(name, data)
+    try:
+        _ask_machine(urllib.request.Request(
+            _machine_url(host, "/upload"), data=body,
+            headers={"Content-Type": content_type}, method="POST"))
+    except (urllib.error.URLError, socket.timeout, OSError) as exc:
+        reason = getattr(exc, "reason", exc)
+        # A machine mid-job refuses the web UI outright, which is worth saying.
+        if getattr(exc, "code", None) == 503:
+            return jsonify(error=f"{host} is busy running a job — stop it first."), 502
+        return jsonify(error=f"Could not reach {host}: {reason}"), 502
+
+    started = False
+    if start:
+        try:
+            _ask_machine(urllib.request.Request(
+                _machine_url(host, "/command", {"cmd": f"$SD/Run=/{name}"})))
+            started = True
+        except (urllib.error.URLError, socket.timeout, OSError) as exc:
+            return jsonify(
+                error=f"{name} is on {host}, but it would not start: "
+                      f"{getattr(exc, 'reason', exc)}"), 502
+
+    app.logger.info("sent %s (%d KB) to %s%s", name, len(data) // 1024, host,
+                    " and started it" if started else "")
+    return jsonify(name=name, host=host, started=started, bytes=len(data))
 
 
 @app.get("/about")
