@@ -786,9 +786,27 @@ Sending from the page rather than from this server is what makes it work at
 all. The machine shares a network with whoever is reading the page, not
 necessarily with wherever the server is.
 
+**The name is resolved here, not in the browser.** Chromium looks a `.local`
+name up through mDNS; Firefox returns a bare `NetworkError` for the same
+address. So the page asks `GET /machine/resolve?host=` first and then talks to
+the address it gets back. This server is on the same network and its resolver
+does know the name. Nothing is fetched from the machine by that endpoint — only
+its name looked up — and if it cannot answer, because the server is elsewhere or
+the hostname is already an address, the page carries on with what was typed.
+
 The one thing no amount of no-cors fixes: a page served over https may not
 reach a machine over http, and the browser blocks it as mixed content. That is
 detected and said plainly rather than failing silently.
+
+### The preview says when it cannot draw
+
+The file is offered for download before the preview is drawn, so a preview that
+fails leaves a working download button above an empty box. It used to fail into
+`console.error` alone, which is no use to anyone not holding the console open;
+it now says so on the page. And a file with no `G0`/`G1` movement in it gave
+infinite bounds, a NaN scale, and a canvas whose every draw call was quietly
+ignored — an empty box and no complaint. That case is named now rather than
+drawn.
 
 The hostname lives in the config under **Connection**, defaulting to
 `fluidnc.local`. A config written before that section existed gains it, like

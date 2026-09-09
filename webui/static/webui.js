@@ -407,7 +407,11 @@ function wireForm() {
       try {
         showGcode(text);
       } catch (err) {
+        // The file is already downloadable at this point, so a preview that
+        // fails used to leave an empty box and no explanation.
         console.error("preview failed", err);
+        errBox.textContent = `The file is ready, but the preview could not be drawn: ${err.message || err}`;
+        errBox.hidden = false;
       }
     } catch (err) {
       statusBox.hidden = true;
@@ -635,6 +639,11 @@ function showGcode(text) {
   const card = $("preview-card");
   if (!card) return;
   sim.data = parseGcode(text);
+  // With no moves the bounds come out infinite, the scale NaN, and every draw
+  // call is quietly ignored — an empty box and no complaint. Say so instead.
+  if (!sim.data.moves.length) {
+    throw new Error("no G0/G1 movement was found in that file");
+  }
   sim.upto = 1;
   const wasHidden = card.hidden;
   card.hidden = false;
@@ -733,11 +742,29 @@ document.addEventListener("click", (e) => {
  */
 const SD_SYNC_MS = 2000;
 
-function machineBase() {
+function machineHost() {
   const field = document.querySelector('[name="connection-hostname"]');
-  const host = field ? field.value.trim().replace(/\/+$/, "") : "";
+  return field ? field.value.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
+}
+
+/* Not every browser looks a `.local` name up. Chromium resolves them through
+ * mDNS; Firefox returns a bare NetworkError. This server sits on the same
+ * network and its resolver does know the name, so ask it and use the address
+ * it gives back. If it cannot answer — it is somewhere else, or the name is
+ * already an address — carry on with what was typed. */
+async function machineBase() {
+  const host = machineHost();
   if (!host) return null;
-  return /^https?:\/\//.test(host) ? host : "http://" + host;
+  const bare = host.split(":")[0];
+  if (/^[0-9.]+$/.test(bare)) return "http://" + host;
+  try {
+    const res = await fetch(`machine/resolve?host=${encodeURIComponent(bare)}`);
+    if (res.ok) {
+      const { ip } = await res.json();
+      if (ip) return "http://" + host.replace(bare, ip);
+    }
+  } catch (e) { /* fall back to the name as typed */ }
+  return "http://" + host;
 }
 
 function machineSay(text, bad) {
@@ -754,7 +781,7 @@ function machineSay(text, bad) {
 
 async function sendToMachine(start) {
   if (!pendingFile) return;
-  const base = machineBase();
+  const base = await machineBase();
   if (!base) {
     machineSay("Set a hostname under Machine setup, Connection.", true);
     return;
@@ -795,7 +822,9 @@ async function sendToMachine(start) {
     await fetch(`${base}/command?cmd=${cmd}`, { mode: "no-cors" });
     machineSay(`${name} sent and $SD/Run issued. Watch the machine.`);
   } catch (e) {
-    machineSay(`Could not reach ${base}: ${e.message || e}`, true);
+    machineSay(`Could not reach ${base}: ${e.message || e}. `
+      + "Check the hostname under Machine setup, Connection, and that this page "
+      + "and the machine are on the same network.", true);
   } finally {
     buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; });
   }

@@ -6,6 +6,7 @@ import io
 import json
 import re
 import secrets
+import socket
 import shutil
 import tempfile
 import threading
@@ -271,6 +272,27 @@ def woodcut_preview():
     buf = io.BytesIO()
     _on_theme_paper(converted, request.form.get("theme", "default")).save(buf, "PNG")
     return app.response_class(buf.getvalue(), mimetype="image/png")
+
+
+@app.get("/machine/resolve")
+def machine_resolve():
+    """Turn a machine name into an address, on the page's behalf.
+
+    The upload itself goes straight from the browser to the machine, but not
+    every browser will look a `.local` name up: Chromium resolves them through
+    mDNS and Firefox reports a bare NetworkError. This server is on the same
+    network and its resolver does know the name, so the page asks here first
+    and then talks to the address it gets back. Nothing is fetched from the
+    machine here — only its name looked up.
+    """
+    host = (request.args.get("host") or "").strip()
+    if not host or not SAFE_NAME.match(host):
+        return jsonify(error="bad host"), 400
+    try:
+        ip = socket.gethostbyname(host)
+    except OSError as exc:
+        return jsonify(error=f"{host} did not resolve: {exc}"), 404
+    return jsonify(host=host, ip=ip)
 
 
 @app.get("/about")
