@@ -984,13 +984,12 @@ none of the pictures a G-code run refuses to proceed without.
   in position, the same idiom the README already documented for FluidNC's own
   `startup_line0: G10 P0 L20 …`.
 - **home.g** parks at X0 Y0, Z at `dip_depth + 1` — a literal reading of that
-  spec, not `canvas_height` or `go_in_tray_lift`, so it lands just above
-  dipping depth rather than at a travel-safe height. It still lifts to the
-  travel-safe height *before* crossing the bed, the same `_safe_z()` copicograf
-  itself would use, and only descends to the park height once it is over X0 Y0.
+  spec, so it lands just above dipping depth rather than at travel height. It
+  still lifts to `go_in_tray_lift` *before* crossing the bed, and only
+  descends to the park height once it is over X0 Y0.
 - **paper.g** moves to half of `max_width` on X and all of `max_height` on Y,
-  at the travel-safe height — a placement check, not a touch: it does not
-  descend to `canvas_height`. Absent `max_width`/`max_height`, it falls back to
+  at `go_in_tray_lift` — a placement check, not a touch: it does not descend to
+  `canvas_height`. Absent `max_width`/`max_height`, it falls back to
   `width`/`height`, the always-present painted size — the same fallback
   `sketch.py` already uses for the plan view, for the same reason: a config
   need not carry a travel limit distinct from what it paints.
@@ -1006,6 +1005,13 @@ none of the pictures a G-code run refuses to proceed without.
   again, each ending on the paper — because it is written to run once at the
   start of a real job. calibrate.g is meant to run on its own, so it keeps only
   the wash and the one dot that names it.
+
+Every move to somewhere new — a tray, the canvas, the origin — is preceded by
+a lift to `go_in_tray_lift`, and only that: never the larger of it and
+`move_to_other_shape_lift + canvas_height`, the way copicograf's own travel
+height for a real job is computed. A macro's travel Z is always the one figure
+the config names for it, so raising `move_to_other_shape_lift` does not quietly
+raise how high these five clear the bed.
 
 clean.g and calibrate.g's wash follow whichever shape `cup_shape` names, and
 are meant to read as a real pickup's motion, not merely approximate it: a

@@ -52,12 +52,6 @@ def _feed(bg: dict, group: str, fallback: str = "G0 F1000") -> str:
     return val or fallback
 
 
-def _safe_z(bg: dict) -> float:
-    """The height copicograf already treats as clear of every cup and the paper."""
-    return max(_num(bg, "go_in_tray_lift", 10),
-               _num(bg, "move_to_other_shape_lift") + _num(bg, "canvas_height"))
-
-
 def _preamble(bg: dict, feed_group: str = "normal") -> list[str]:
     return ["G90 ; absolute positioning", "G21 ; millimetres", _feed(bg, feed_group)]
 
@@ -152,7 +146,10 @@ def generate_macros(conf: dict) -> dict[str, str]:
     wx, wy = _num(water, "x", 0), _num(water, "y", 0)
     controller = str(conf.get("controller", {}).get("controller_type") or "GRBL").strip().lower()
     shape = str(bg.get("cup_shape", "classic")).strip().lower()
-    safe_z = _safe_z(bg)
+    # Every move to somewhere new — a tray, the canvas, the origin — is preceded
+    # by a lift to this, and only this: not the larger of it and some other
+    # height, so a macro's travel Z is always the one the config names for it.
+    go_lift = _num(bg, "go_in_tray_lift", 8)
     dip = _num(bg, "dip_depth", -4)
     # A config need not carry a travel limit distinct from the painted size —
     # sketch.py falls back the same way for the same reason.
@@ -181,7 +178,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     lines = [
         "; home.g — park over the origin, just above dipping depth",
         *_preamble(bg, "normal"),
-        f"G00 Z{_fmt(safe_z)} ; lift clear before crossing the bed",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
         "G00 X0 Y0",
         f"G00 Z{_fmt(park_z)} ; Dip Depth + 1",
     ]
@@ -192,7 +189,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     lines = [
         "; paper.g — position over the paper for a placement check",
         *_preamble(bg, "normal"),
-        f"G00 Z{_fmt(safe_z)} ; lift clear before crossing the bed",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
         f"G00 X{_fmt(px)} Y{_fmt(py)} ; half of Max Width, all of Max Height",
     ]
     out["paper.g"] = "\n".join(lines) + "\n"
@@ -203,10 +200,10 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "; clean.g — wash the brush in the water container",
         f"; containers: {shape}",
         *_preamble(bg, "fast"),
-        f"G00 Z{_fmt(safe_z)}",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
         *_container_motion(bg, conf, wx, wy, reps=_WASH_REPS, wipe=False),
-        f"G00 Z{_fmt(safe_z)}",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
     ]
     out["clean.g"] = "\n".join(lines) + "\n"
 
@@ -222,13 +219,13 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "; calibrate.g — wash the brush, then touch the canvas once",
         f"; containers: {shape}",
         *_preamble(bg, "fast"),
-        f"G00 Z{_fmt(safe_z)}",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
         *_container_motion(bg, conf, wx, wy, reps=_WASH_REPS, wipe=False),
-        f"G00 Z{_fmt(safe_z)} ; lift clear before crossing to the canvas",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — before crossing to the canvas",
         f"G00 X{_fmt(ox)} Y{_fmt(oy)} ; the canvas origin",
         f"G00 Z{_fmt(canvas_z)} ; touch down — the single dot",
-        f"G00 Z{_fmt(safe_z)} ; lift clear",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
     ]
     out["calibrate.g"] = "\n".join(lines) + "\n"
 
