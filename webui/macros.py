@@ -1,8 +1,10 @@
 """Five small utility routines, built from the same config the pipeline reads.
 
 zero.g sets the controller's origin, home.g parks the brush, paper.g positions
-it over the paper for a placement check, and clean.g/prime.g wash and charge
-the brush the way a real job does — following whichever container shape
+it over the paper for a placement check, clean.g washes the brush the way a
+real job does, and calibrate.g washes then touches the canvas once, mirroring
+the opening `calibrate=True` gives a job run through copicograf directly. The
+wash in clean.g and calibrate.g follows whichever container shape
 `brushograph.cup_shape` names, classic or modern.
 
 None of the five carries an M-code or a G28, so none needs the controller
@@ -13,9 +15,9 @@ from __future__ import annotations
 
 import math
 
-from configspec import CMYK_TO_TRAY, with_defaults
+from configspec import with_defaults
 
-MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "prime.g"]
+MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g"]
 
 # The classic dip sweep in copicograf picks a random quadrant each time, which
 # suits a real job's hundreds of pickups — spreading the wear across the cup —
@@ -58,18 +60,6 @@ def _safe_z(bg: dict) -> float:
 
 def _preamble(bg: dict, feed_group: str = "normal") -> list[str]:
     return ["G90 ; absolute positioning", "G21 ; millimetres", _feed(bg, feed_group)]
-
-
-def _color_trays(conf: dict) -> list[tuple[str, float, float]]:
-    """[(tray name, x, y), ...] for every colour in color_order, config order."""
-    trays = conf.get("trays", {})
-    out = []
-    for color in conf.get("color_order", []):
-        name = CMYK_TO_TRAY.get(color, color)
-        t = trays.get(name)
-        if isinstance(t, dict) and "x" in t:
-            out.append((name, float(t["x"]), float(t["y"])))
-    return out
 
 
 def _wipe_axis(conf: dict, tray_x: float, tray_y: float) -> tuple[float, float]:
@@ -168,7 +158,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # sketch.py falls back the same way for the same reason.
     max_w = _num(bg, "max_width", _num(bg, "width", 200))
     max_h = _num(bg, "max_height", _num(bg, "height", 200))
-    prepare_count = max(1, int(_num(bg, "prepare_paint_count", 3)))
+    ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
+    canvas_z = _num(bg, "canvas_height", 0)
 
     out: dict[str, str] = {}
 
@@ -219,22 +210,26 @@ def generate_macros(conf: dict) -> dict[str, str]:
     ]
     out["clean.g"] = "\n".join(lines) + "\n"
 
-    # prime.g — charge every colour tray in color_order, Prepare Paint Count
-    # dips or swipes each, matching copicograf's own prepare_paint().
+    # calibrate.g — a wash, then one touch on the canvas. Mirrors the opening
+    # copicograf's own prepare_path() gives a job run with calibrate=True: a
+    # trip that ends by touching the paper at the origin rather than at a
+    # colour, since this checks the wash and the canvas height, not a mix.
+    # That opening leaves three such dots — mixing the first colour, washing,
+    # then loading paint again, each ending on the paper — because it is
+    # meant to happen once per real job. calibrate.g is meant to be run on its
+    # own, so it takes only the wash and leaves the one dot that names it.
     lines = [
-        "; prime.g — charge every colour container before a job",
+        "; calibrate.g — wash the brush, then touch the canvas once",
         f"; containers: {shape}",
         *_preamble(bg, "fast"),
         f"G00 Z{_fmt(safe_z)}",
+        f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
+        *_container_motion(bg, conf, wx, wy, reps=_WASH_REPS, wipe=False),
+        f"G00 Z{_fmt(safe_z)} ; lift clear before crossing to the canvas",
+        f"G00 X{_fmt(ox)} Y{_fmt(oy)} ; the canvas origin",
+        f"G00 Z{_fmt(canvas_z)} ; touch down — the single dot",
+        f"G00 Z{_fmt(safe_z)} ; lift clear",
     ]
-    colors = _color_trays(conf)
-    if not colors:
-        lines.append("; no colour containers configured in color_order")
-    for name, tx, ty in colors:
-        lines.append(f"; {name}")
-        lines.append(f"G00 X{_fmt(tx)} Y{_fmt(ty)}")
-        lines += _container_motion(bg, conf, tx, ty, reps=prepare_count, wipe=True)
-        lines.append(f"G00 Z{_fmt(safe_z)}")
-    out["prime.g"] = "\n".join(lines) + "\n"
+    out["calibrate.g"] = "\n".join(lines) + "\n"
 
     return out

@@ -447,8 +447,8 @@ def options_form_post():
 
 @app.post("/macros")
 def macros_post():
-    """zero.g, home.g, paper.g, clean.g, prime.g — built from the form as it
-    currently stands, the same way Download Machine Config reads it, and
+    """zero.g, home.g, paper.g, clean.g, calibrate.g — built from the form as
+    it currently stands, the same way Download Machine Config reads it, and
     needing none of the tray images that endpoint would refuse to run without.
     """
     sid = session_id()

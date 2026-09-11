@@ -47,7 +47,7 @@ machine and left alone.
   settings**. It sits above Run, not below it, because it and Macro generator
   are the two panels someone opens once per machine rather than once per job.
 - **Macro generator**, collapsed — `zero.g`, `home.g`, `paper.g`, `clean.g` and
-  `prime.g`, built from the settings in Machine setup (see below).
+  `calibrate.g`, built from the settings in Machine setup (see below).
 - **Run** — the fill settings, then Generate G-code, then the path preview. The
   fill settings sit here rather than in machine setup because the stroke
   spacing, the pattern and the wall count are decided per picture about as often
@@ -974,9 +974,9 @@ every other always-offered setting.
 Below Machine setup — moved above Run so the two collapsed panels sit
 together — a second `<details>`, **Macro generator**, builds five small
 routines from the same settings: `zero.g`, `home.g`, `paper.g`, `clean.g` and
-`prime.g`. All five come from `webui/macros.py`, a module the pipeline never
-imports and that never touches a tray image, so generating them needs none of
-the pictures a G-code run refuses to proceed without.
+`calibrate.g`. All five come from `webui/macros.py`, a module the pipeline
+never imports and that never touches a tray image, so generating them needs
+none of the pictures a G-code run refuses to proceed without.
 
 - **zero.g** declares wherever the brush is physically parked as the
   controller's origin — `G10 L20 P0 X0 Y0 Z0` on GRBL and FluidNC, `G92 X0 Y0
@@ -997,26 +997,29 @@ the pictures a G-code run refuses to proceed without.
 - **clean.g** washes the brush at the water container, three dips or swipes
   with no rim wipe — matching the `3` and the `False` hardcoded into
   copicograf's own `wash_the_brush()`.
-- **prime.g** charges every colour container named in `color_order`,
-  `prepare_paint_count` dips or swipes each — matching `prepare_paint()`. Which
-  trays to prime is not specified by the request that asked for this feature;
-  priming every configured colour, not just the first, is the reading applied
-  here, on the theory that a "prime everything" macro is more useful before a
-  job than one that only charges whichever tray happens to be first.
+- **calibrate.g** washes the same way, then touches the canvas origin once —
+  down to `canvas_height`, straight back up — leaving a single dot. It mirrors
+  the opening `Copicograf.prepare_path()` gives a job run with `calibrate=True`:
+  a trip that ends on the paper at the origin rather than at a colour, so what
+  gets checked is the wash and the canvas height, not a colour mix. That
+  opening leaves *three* dots — mixing the first colour, washing, loading paint
+  again, each ending on the paper — because it is written to run once at the
+  start of a real job. calibrate.g is meant to run on its own, so it keeps only
+  the wash and the one dot that names it.
 
-clean.g and prime.g follow whichever shape `cup_shape` names, and are meant to
-read as a real pickup's motion, not merely approximate it: a modern container
-gets the same swipe up the stairs `append_go_in_tray()` emits for a real job,
-margin and all, and a classic one gets the same down-sweep-up dance. The one
-deliberate difference is that the classic dip's quadrant is no longer random.
-copicograf spreads wear across the cup by picking one of four quadrants at
-random on every real pickup; a macro generated once and kept is more useful
-being reproducible, so it cycles the same four quadrants by repetition index
-instead — the same coverage, without two downloads of the same config ever
-differing. The classic wipe direction is still computed the way copicograf's
-own `wipe_axis()` computes it — from the nearest other container, not assumed
-to be X — so a machine whose containers run along Y still wipes along its own
-row here too.
+clean.g and calibrate.g's wash follow whichever shape `cup_shape` names, and
+are meant to read as a real pickup's motion, not merely approximate it: a
+modern container gets the same swipe up the stairs `append_go_in_tray()` emits
+for a real job, margin and all, and a classic one gets the same down-sweep-up
+dance. The one deliberate difference is that the classic dip's quadrant is no
+longer random. copicograf spreads wear across the cup by picking one of four
+quadrants at random on every real pickup; a macro generated once and kept is
+more useful being reproducible, so it cycles the same four quadrants by
+repetition index instead — the same coverage, without two downloads of the
+same config ever differing. The classic wipe direction is still computed the
+way copicograf's own `wipe_axis()` computes it — from the nearest other
+container, not assumed to be X — so a machine whose containers run along Y
+still wipes along its own row here too.
 
 None of the five macros carries an M-code or a `G28`: no `sanitize_for_controller`
 pass is needed, because `G90`/`G21`/`G0`/`G1`/`G10`/`G92` mean the same thing to
