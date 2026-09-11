@@ -1005,10 +1005,14 @@ async function sendToMachine(start) {
   }
 }
 
-/* Same upload as sendToMachine(), one request per macro rather than one file
- * — the machine's /upload takes a single file per POST, and there is no
- * $SD/Run here: these are routines an operator runs by hand, not a job to
- * start the moment it lands. */
+/* Same shape as sendToMachine(), one request per macro rather than one file,
+ * but a different endpoint: /upload writes to the SD card, and macros are not
+ * a job the SD card ever runs — FluidNC's own web server registers /files for
+ * its local flash filesystem and /upload for the SD card as two distinct
+ * routes (WebUIServer.cpp: "/files" -> LocalFSFileupload, "/upload" ->
+ * SDFileUpload), sharing the same fileUpload() and so the same path/myfile
+ * shape either way. There is no $SD/Run here either: these are routines an
+ * operator runs by hand, not a job to start the moment it lands. */
 async function uploadMacrosToMachine() {
   if (!pendingMacros) return;
   const note = $("macros-machine-note");
@@ -1039,15 +1043,15 @@ async function uploadMacrosToMachine() {
   let sent = 0;
   try {
     for (const name of names) {
-      say(`Sending ${name} to ${base}… (${sent}/${names.length})`);
+      say(`Sending ${name} to ${base} (flash)… (${sent}/${names.length})`);
       const fd = new FormData();
       fd.append("path", "/");
       fd.append("myfile", new Blob([pendingMacros[name]], { type: "text/plain" }), name);
-      await fetch(`${base}/upload`, { method: "POST", body: fd, mode: "no-cors" });
+      await fetch(`${base}/files`, { method: "POST", body: fd, mode: "no-cors" });
       sent += 1;
     }
-    say(`Sent ${sent} macro${sent === 1 ? "" : "s"} to ${base}. The reply is opaque, `
-      + "so check the machine's own file list to be sure.");
+    say(`Sent ${sent} macro${sent === 1 ? "" : "s"} to ${base}'s flash filesystem. `
+      + "The reply is opaque, so check the machine's own file list to be sure.");
   } catch (e) {
     say(`Could not reach ${base}: ${e.message || e}. Sent ${sent}/${names.length} `
       + "before that. Check the hostname under Machine setup, Connection, and "

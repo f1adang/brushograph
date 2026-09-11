@@ -1036,10 +1036,19 @@ config download goes through, so a macro reflects whatever is currently typed
 into the form, saved or not, the way Download Machine Config already does.
 **Download macros** saves the five as separate files rather than a zip; five
 small text files did not seem worth a new dependency. **Upload to machine**
-sends them the way `gcode-send` sends a job — one `POST <host>/upload` per
-file, `mode: "no-cors"`, opaque reply — except there is no `$SD/Run` here:
-these are routines an operator runs by hand from the controller's own
-interface, not a job meant to start the moment it lands.
+sends them the same shape `gcode-send` sends a job in — one `POST` per file,
+`multipart/form-data` carrying `path` (`/`) and `myfile`, `mode: "no-cors"`,
+opaque reply — but to `<host>/files`, not `<host>/upload`. FluidNC's web
+server registers the two as separate routes onto the same handler
+(`WebUIServer.cpp`: `"/files"` → `LocalFSFileupload`, `"/upload"` →
+`SDFileUpload`, both calling the shared `fileUpload()`): `/upload` writes to
+the SD card, which is where a job's G-code belongs and where `$SD/Run` looks;
+`/files` writes to the flash filesystem, which is where the controller's own
+dashboard theme already lives (see **Pinkograph**, above) and where a
+standing macro belongs — a card can be swapped or reformatted, and a job's
+G-code is not meant to survive that, but these five are. There is no
+`$SD/Run` here either: these are routines an operator runs by hand from the
+controller's own interface, not a job meant to start the moment it lands.
 
 ## Sessions outlive a restart
 
