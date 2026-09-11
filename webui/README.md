@@ -973,16 +973,21 @@ every other always-offered setting.
 
 Below Machine setup — moved above Run so the two collapsed panels sit
 together — a second `<details>`, **Macro generator**, builds five small
-routines from the same settings: `zero.g`, `home.g`, `paper.g`, `clean.g` and
-`calibrate.g`. All five come from `webui/macros.py`, a module the pipeline
-never imports and that never touches a tray image, so generating them needs
-none of the pictures a G-code run refuses to proceed without.
+routines: `zero.g`, `home.g`, `paper.g`, `clean.g` and `calibrate.g`. All five
+come from `webui/macros.py`, a module the pipeline never imports and that
+never touches a tray image, so generating them needs none of the pictures a
+G-code run refuses to proceed without. Four of the five are built from the
+config; `zero.g` is not (see below).
 
-- **zero.g** declares wherever the brush is physically parked as the
-  controller's origin — `G10 L20 P0 X0 Y0 Z0` on GRBL and FluidNC, `G92 X0 Y0
-  Z0` on Marlin. It moves nothing; it is meant to be run with the brush already
-  in position, the same idiom the README already documented for FluidNC's own
-  `startup_line0: G10 P0 L20 …`.
+- **zero.g** is not derived from the config at all — every other macro reads
+  the settings above it; this one is the same eleven lines regardless of what
+  they say. It is the machine's own self-zero dance, reproduced verbatim: zero
+  the near corner, lift, sweep out to the far corner and back to confirm
+  nothing is fouled along the way, re-zero at a travel height, jog down and
+  back up, jog to two more points, and finish by declaring the offset `X10 Y0
+  Z10` point. Tuned on the actual hardware; nothing here reads
+  `go_in_tray_lift` or any other setting, which is also why it is the one
+  macro two different machine configs can never disagree about.
 - **home.g** parks at X0 Y0, Z at `dip_depth + 1` — a literal reading of that
   spec, so it lands just above dipping depth rather than at travel height. It
   still lifts to `go_in_tray_lift` *before* crossing the bed, and only
@@ -1006,12 +1011,14 @@ none of the pictures a G-code run refuses to proceed without.
   start of a real job. calibrate.g is meant to run on its own, so it keeps only
   the wash and the one dot that names it.
 
-Every move to somewhere new — a tray, the canvas, the origin — is preceded by
-a lift to `go_in_tray_lift`, and only that: never the larger of it and
-`move_to_other_shape_lift + canvas_height`, the way copicograf's own travel
-height for a real job is computed. A macro's travel Z is always the one figure
-the config names for it, so raising `move_to_other_shape_lift` does not quietly
-raise how high these five clear the bed.
+In the four config-driven macros, every move to somewhere new — a tray, the
+canvas, the origin — is preceded by a lift to `go_in_tray_lift`, and only
+that: never the larger of it and `move_to_other_shape_lift + canvas_height`,
+the way copicograf's own travel height for a real job is computed. A macro's
+travel Z is always the one figure the config names for it, so raising
+`move_to_other_shape_lift` does not quietly raise how high these clear the
+bed. zero.g's own heights (`Z10`, `Z32`, `Z15`) are none of the config's:
+they are part of the fixed routine above.
 
 clean.g and calibrate.g's wash follow whichever shape `cup_shape` names, and
 are meant to read as a real pickup's motion, not merely approximate it: a

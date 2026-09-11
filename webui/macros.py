@@ -1,15 +1,20 @@
-"""Five small utility routines, built from the same config the pipeline reads.
+"""Five small utility routines. Four are built from the same config the
+pipeline reads; zero.g is not.
 
-zero.g sets the controller's origin, home.g parks the brush, paper.g positions
-it over the paper for a placement check, clean.g washes the brush the way a
-real job does, and calibrate.g washes then touches the canvas once, mirroring
-the opening `calibrate=True` gives a job run through copicograf directly. The
-wash in clean.g and calibrate.g follows whichever container shape
-`brushograph.cup_shape` names, classic or modern.
+home.g parks the brush, paper.g positions it over the paper for a placement
+check, clean.g washes the brush the way a real job does, and calibrate.g
+washes then touches the canvas once, mirroring the opening `calibrate=True`
+gives a job run through copicograf directly. The wash in clean.g and
+calibrate.g follows whichever container shape `brushograph.cup_shape` names,
+classic or modern.
+
+zero.g is the machine's own self-zero dance — a fixed sequence tuned on the
+actual hardware, reproduced here verbatim rather than derived from any config
+field.
 
 None of the five carries an M-code or a G28, so none needs the controller
 dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
-G90/G21/G0/G1/G10/G92 are understood the same way by Marlin, GRBL and FluidNC.
+G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
 
@@ -144,7 +149,6 @@ def generate_macros(conf: dict) -> dict[str, str]:
     trays = conf.get("trays", {})
     water = trays.get("water", {}) if isinstance(trays, dict) else {}
     wx, wy = _num(water, "x", 0), _num(water, "y", 0)
-    controller = str(conf.get("controller", {}).get("controller_type") or "GRBL").strip().lower()
     shape = str(bg.get("cup_shape", "classic")).strip().lower()
     # Every move to somewhere new — a tray, the canvas, the origin — is preceded
     # by a lift to this, and only this: not the larger of it and some other
@@ -160,18 +164,25 @@ def generate_macros(conf: dict) -> dict[str, str]:
 
     out: dict[str, str] = {}
 
-    # zero.g — the current physical position becomes the origin. Run with the
-    # brush parked exactly where 0,0,0 should be.
-    lines = [
-        "; zero.g — set the current physical position as X0 Y0 Z0",
-        "; park the brush by hand first: this does not move anything",
-        "G90", "G21",
-    ]
-    if controller == "marlin":
-        lines.append("G92 X0 Y0 Z0")
-    else:
-        lines.append("G10 L20 P0 X0 Y0 Z0 ; FluidNC/GRBL: here becomes the origin")
-    out["zero.g"] = "\n".join(lines) + "\n"
+    # zero.g — the machine's own self-zero dance: touch the near corner off at
+    # 0,0,0, sweep to the far corner and back to confirm nothing is fouled,
+    # re-zero at a travel height, then a short jog sequence that ends by
+    # declaring the offset X10 Y0 Z10 point. A fixed routine tuned on the
+    # actual hardware, not derived from the config — nothing here reads
+    # go_in_tray_lift or any other setting.
+    out["zero.g"] = "\n".join([
+        "G10 P0 L20 X0 Y0 Z0;",
+        "G0 Z10 F1000;",
+        "G90;",
+        "G0 X160 Y160 Z32 F2100;",
+        "G0 X0 Y0 Z32 F2100;",
+        "G10 P0 L20 X0 Y0 Z10;",
+        "G1 Z15 F1000;",
+        "G1 Z10 F1000;",
+        "G0 X-10 Y-10 F1200;",
+        "G0 X+2 Y-8 F2100;",
+        "G10 P0 L20 X10 Y0 Z10;",
+    ]) + "\n"
 
     # home.g — park at X0 Y0, Z = Dip Depth + 1.
     park_z = dip + 1
