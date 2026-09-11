@@ -23,6 +23,17 @@ CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 # tuning rather than large enough to matter if ignored.
 ALWAYS_OFFERED = {
     ("brushograph", "dip_depth"): -4.0,
+    # The cups. "classic" is the round petri dish the machine was built around;
+    # "modern" is the rectangular CMYK holder, whose floor steps up towards the
+    # back so the brush can be drawn out of the paint rather than lifted from
+    # it. Measured off CMYK_holder_big.stl: a colour bay is 29.2 mm across and
+    # about 29.8 mm deep, and the stepped floor is not in that file — it is a
+    # frame over the paint — so the two Z figures below have to be measured on
+    # the machine rather than derived.
+    ("brushograph", "cup_shape"): "classic",
+    ("brushograph", "cup_width"): 29.0,
+    ("brushograph", "cup_depth"): 30.0,
+    ("brushograph", "cup_swipe_exit_z"): 1.0,
     ("brushograph", "backlash_compensation"): True,
     ("brushograph", "backlash_x"): 0.5,
     ("brushograph", "backlash_y"): 0.5,
@@ -63,6 +74,8 @@ BRUSHOGRAPH_GROUPS = [
      ["offset_x", "offset_y", "max_width", "max_height", "canvas_height"], False),
     ("Brush heights",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
+    ("The cups",
+     ["cup_shape", "cup_width", "cup_depth", "cup_swipe_exit_z"], False),
     ("Loading the brush",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
@@ -77,6 +90,14 @@ SECTIONS = [
     ("controller", "Controller Options"),
 ]
 
+# How an enum's values are spelled in the picker. Anything missing shows as it is
+# stored, which suits the slicer patterns and controller names: those are spelled
+# the way the slicer and the firmware spell them.
+ENUM_LABELS = {
+    "classic": "Classic",
+    "modern": "Modern",
+}
+
 ENUMS = {
     # Ordered by how well
     # they suit a brush: long flowing strokes first, raster last.
@@ -84,6 +105,7 @@ ENUMS = {
         "concentric", "archimedeanchords", "alignedrectilinear", "rectilinear", "hilbertcurve",
     ],
     "controller-controller_type": ["GRBL", "Marlin", "FluidNC"],
+    "brushograph-cup_shape": ["classic", "modern"],
 }
 
 # Keys that describe the machine rather than a run, kept out of the generated
@@ -104,6 +126,10 @@ HELP = {
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
+    "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. Modern is the rectangular CMYK holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.",
+    "brushograph-cup_width": "How wide a cup is across X (mm). Modern cups only; a colour bay of the printed holder measures 29.2.",
+    "brushograph-cup_depth": "How deep a cup is along Y (mm) — the length of the swipe. Modern cups only; a bay of the printed holder measures about 29.8.",
+    "brushograph-cup_swipe_exit_z": "Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Measure it on the machine: nothing in the holder's STL gives the step heights.",
     "brushograph-dip_depth": "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.",
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",
     "brushograph-move_to_other_shape_lift": "Lift on Z-axis when painting/drawing",
@@ -148,7 +174,7 @@ def _field(path: list[str], value) -> dict:
         options = list(ENUMS[name])
         if value not in options:
             options.insert(0, value)
-        f["options"] = options
+        f["options"] = [{"value": o, "label": ENUM_LABELS.get(o, o)} for o in options]
     elif isinstance(value, bool):
         f["type"] = "checkbox"
     elif isinstance(value, (int, float)):

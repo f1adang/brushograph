@@ -24,6 +24,11 @@ class Copicograf:
         # behaviour.
         self.dip_depth = float(self.conf["brushograph"].get("dip_depth", -4))
         self.remove_drops_radius = int(self.conf["brushograph"]["remove_drops_radius"])
+        bg = self.conf["brushograph"]
+        self.cup_shape = str(bg.get("cup_shape", "classic")).strip().lower()
+        self.cup_width = float(bg.get("cup_width", 29.0))
+        self.cup_depth = float(bg.get("cup_depth", 30.0))
+        self.cup_swipe_exit_z = float(bg.get("cup_swipe_exit_z", 1.0))
 
         self.offset_y = float(self.conf["brushograph"]["offset_y"])
         self.offset_x = float(self.conf["brushograph"]["offset_x"])
@@ -216,20 +221,43 @@ class Copicograf:
                 if first_coords[1] > 1000 or second_coords[1] > 1000:
                     print("napaka")
 
-                ###############################################################
-                # Go down and come back up over the middle of the cup.        #
-                # The cups are round, so the centre is the point furthest     #
-                # from the wall in every direction; descending or lifting out  #
-                # at tray_enter_radius puts the brush against the rim.        #
-                # The loading sweep still runs the full chord, but it happens  #
-                # down in the paint where the brush is already inside.        #
-                ###############################################################
-                self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
-                self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
-                self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
-                self.gcodes.append(GCodeRapidMove(X=second_coords[0], Y=second_coords[1]))
-                self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
-                self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+                if self.cup_shape == "modern":
+                    ###########################################################
+                    # A rectangular cup whose floor climbs towards the back.  #
+                    # One swipe: enter at the deep end, then draw the brush   #
+                    # the length of the bay while Z rises with it, so it      #
+                    # leaves the paint by walking up the stairs rather than   #
+                    # being lifted out of it.                                 #
+                    #                                                         #
+                    # It is one interpolated move rather than a tread-by-     #
+                    # tread staircase. The bristles flex over the steps, and  #
+                    # a stepped path would need the step count and their      #
+                    # heights, which the holder's STL does not carry: its     #
+                    # bays are open, the floor is not part of that model.     #
+                    ###########################################################
+                    margin = self.cup_depth * 0.15
+                    near = tray_y - self.cup_depth / 2 + margin
+                    far = tray_y + self.cup_depth / 2 - margin
+                    self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(round(near))))
+                    self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
+                    self.gcodes.append(GCodeLinearMove(
+                        X=int(tray_x), Y=int(round(far)), Z=self.cup_swipe_exit_z))
+                    self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+                else:
+                    ###########################################################
+                    # Go down and come back up over the middle of the cup.    #
+                    # The cups are round, so the centre is the point furthest #
+                    # from the wall in every direction; descending or lifting #
+                    # out at tray_enter_radius puts the brush against the rim.#
+                    # The loading sweep still runs the full chord, but it     #
+                    # happens down in the paint where the brush is inside.    #
+                    ###########################################################
+                    self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
+                    self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
+                    self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
+                    self.gcodes.append(GCodeRapidMove(X=second_coords[0], Y=second_coords[1]))
+                    self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
+                    self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
 
             if remove_drop == True:
                 remove_drops(tray_x, tray_y, x, y)

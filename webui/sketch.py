@@ -32,6 +32,10 @@ PALETTES = {
                        accent=(255, 107, 107)),
 }
 
+# How many steps to draw across a modern cup. The holder's own floor is not in
+# its STL, so this is a drawing convention rather than a measurement.
+MODERN_STEPS = 4
+
 TRAY_FILL = {
     "water": (150, 200, 235),
     "cyan": (0, 174, 239),
@@ -74,6 +78,9 @@ def render(conf: dict, theme: str = "default") -> bytes:
     cw, ch = _num(bg, "width", 0), _num(bg, "height", 0)
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
     enter_r = _num(bg, "tray_enter_radius", _num(bg, "dip_entry_radius", 5))
+    modern = str(bg.get("cup_shape", "classic")).strip().lower() == "modern"
+    cup_w = _num(bg, "cup_width", 29.0)
+    cup_h = _num(bg, "cup_depth", 30.0)
     drops_r = _num(bg, "remove_drops_radius", _num(bg, "dip_wipe_radius", 0))
 
     entries = tray_entries(conf)
@@ -93,7 +100,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # the scale would squash the part you care about into a corner.
     active = {e["tray"] for e in entries}
     framed = [(n, x, y) for n, x, y in all_trays if n in active]
-    pad_r = max(drops_r, enter_r)
+    pad_r = max(cup_w, cup_h) / 2 if modern else max(drops_r, enter_r)
     xs = [0.0, max_w, ox, ox + cw] + [x + pad_r for _, x, _ in framed] + [x - pad_r for _, x, _ in framed]
     ys = [0.0, max_h, oy, oy + ch] + [y + pad_r for _, _, y in framed] + [y - pad_r for _, _, y in framed]
     min_x, max_x = min(xs), max(xs)
@@ -149,14 +156,37 @@ def render(conf: dict, theme: str = "default") -> bytes:
             except ValueError:
                 pass
         alpha = 255 if in_use else 70
-        if drops_r:
-            r = drops_r * scale
-            d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*MUTED, alpha))
-        r = max(enter_r * scale, 3)
-        d.ellipse([cx - r, cy - r, cx + r, cy + r], fill=(*fill, alpha), outline=(*CANVAS, alpha))
+        if modern:
+            # A rectangular bay, with the steps its floor climbs drawn across
+            # it: the brush swipes from the near end to the far one, rising as
+            # it goes, so the steps are the thing worth seeing.
+            hw, hh = max(cup_w * scale / 2, 3), max(cup_h * scale / 2, 3)
+            d.rectangle([cx - hw, cy - hh, cx + hw, cy + hh],
+                        fill=(*fill, alpha), outline=(*CANVAS, alpha), width=1)
+            for i in range(1, MODERN_STEPS):
+                sy = cy - hh + 2 * hh * i / MODERN_STEPS
+                d.line([(cx - hw, sy), (cx + hw, sy)], fill=(*CANVAS, alpha))
+            # The swipe runs from the deep end to the shallow one.
+            d.line([(cx, cy + hh - 2), (cx, cy - hh + 2)], fill=(*CANVAS, alpha))
+            d.polygon([(cx, cy - hh + 1), (cx - 3, cy - hh + 7), (cx + 3, cy - hh + 7)],
+                      fill=(*CANVAS, alpha))
+            r = hw
+        else:
+            if drops_r:
+                r = drops_r * scale
+                d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*MUTED, alpha))
+            r = max(enter_r * scale, 3)
+            d.ellipse([cx - r, cy - r, cx + r, cy + r],
+                      fill=(*fill, alpha), outline=(*CANVAS, alpha))
         off_bed = not (0 <= x <= max_w and 0 <= y <= max_h)
         tag = name + (" (off bed)" if off_bed else "")
-        d.text((cx + r + 4, cy - 6), tag, font=fs, fill=ACCENT if off_bed else (TEXT if in_use else MUTED))
+        colour = ACCENT if off_bed else (TEXT if in_use else MUTED)
+        if modern:
+            # Under the bay: beside it would be on top of the next one along.
+            tw = d.textlength(tag, font=fs)
+            d.text((cx - tw / 2, cy + hh + 5), tag, font=fs, fill=colour)
+        else:
+            d.text((cx + r + 4, cy - 6), tag, font=fs, fill=colour)
 
     d.line([px(min_x, 0), px(max_x, 0)], fill=ACCENT, width=1)
     d.line([px(0, min_y), px(0, max_y)], fill=ACCENT, width=1)

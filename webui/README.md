@@ -742,6 +742,50 @@ first attempt wiped to Y = -13.
 The wash dips do not wipe at all: they pass `remove_drop=False`, because a brush
 being rinsed has nothing to shed on the way out.
 
+### Round cups and rectangular ones
+
+Two paint holders exist, and `brushograph.cup_shape` picks between them.
+
+**Classic** is the round cup the machine was built around. The brush goes down
+the middle — the point furthest from the wall in every direction — sweeps a
+chord down in the paint where the bristles are inside the cup, returns to the
+middle and lifts.
+
+**Modern** is the printed CMYK holder, a 192 × 46.5 × 4 mm plate with five bays
+labelled W C M Y K. The colour bays are 29.2 mm wide on 34 mm centres, the water
+bay 39.2 mm, and every bay is about 29.8 mm deep along Y; `cup_width` and
+`cup_depth` default to those. Its floor is a staircase, so loading is one swipe
+from the deep end to the shallow one, rising as it goes:
+
+    G00 X53 Y-4      ; deep end, in front
+    G00 Z-4          ; down into the paint, at dip_depth
+    G01 X53 Y16 Z1   ; draw the length of the bay, climbing to cup_swipe_exit_z
+    G00 Z8           ; clear
+
+It is one interpolated move rather than a tread-by-tread staircase. The bristles
+flex over the steps, and a stepped path would need the step count and their
+heights — which **the STL does not carry**. Its bays are open through the plate:
+the model is a frame, the stepped floor is not part of it. So `cup_swipe_exit_z`
+is measured on the machine, not derived. It defaults to 1 mm rather than 0
+because 0 is `canvas_height` here, and a brush leaving the cup at paper level is
+both wrong physically and drawn as painting in the preview.
+
+The swipe runs front to back, finishing on the canvas side, so the brush leaves
+the cup already pointed at the paper. With the stock config its near end is
+Y −4.5, which looks like the off-the-bed fault the wipe had — it is not: the
+classic sweep reaches Y −4 from the same `tray_y` of 6 and `tray_enter_radius`
+of 10, and has done so on this machine all along. Both then read about a
+millimetre lower in the file as Y backlash take-up.
+
+The wash goes through the same motion, so in a rectangular bay its three dips
+become three swipes the length of the water. That rinses more, not less, and
+it still wipes nothing on the way out (`remove_drop=False`).
+
+The machine view draws whichever is configured — circles with their sweep, or
+rectangles with their treads and an arrow along the swipe — and redraws as soon
+as the picker changes. It draws every bay at `cup_width`, including the water
+one, which on the printed holder is the wider of the two.
+
 ### Writing what copicograf expects
 
 `copicograf.prepare_path()` decides the brush is on the canvas by matching two

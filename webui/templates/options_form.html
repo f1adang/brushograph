@@ -8,7 +8,7 @@
     <input type="checkbox" name="{{ f.name }}" value="true" {{ 'checked' if f.value }}>
   {% elif f.type == 'select' %}
     <select name="{{ f.name }}">
-      {% for o in f.options %}<option value="{{ o }}" {{ 'selected' if o == f.value }}>{{ o }}</option>{% endfor %}
+      {% for o in f.options %}<option value="{{ o.value }}" {{ 'selected' if o.value == f.value }}>{{ o.label }}</option>{% endfor %}
     </select>
   {% elif f.type == 'number' %}
     {%- if f.name == 'brushograph-height' %}
