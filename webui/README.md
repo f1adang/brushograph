@@ -30,7 +30,17 @@ machine and left alone.
 
 - **The machine** — a to-scale plan of bed, image area and trays with their
   entry and drip radii, redrawn as you edit. Trays parked outside the bed are
-  called out rather than quietly cropped.
+  called out rather than quietly cropped. Two collapsed panels sit under the
+  plan, because both are about the machine rather than about a picture:
+    - **Machine setup** — containers, their positions, where the artwork sits
+      on the bed, brush heights, loading the brush, backlash, the `moves`
+      speed groups and the controller type, and at the end **Download Machine
+      Config**, which writes all of it back out as a `.conf`. A config
+      carrying keys this map has never heard of still shows them, under
+      **Other settings**.
+    - **Macro generator** — `zero.g`, `home.g`, `paper.g`, `clean.g` and
+      `calibrate.g`, built from the settings in Machine setup above it (see
+      below).
 - **Artwork** — one card per colour in `color_order`, each taking a picture and
   saying whether it is **already black and white** or a **photo**, in which case
   it is cut first (see below) with the tuning controls appearing inline. Then the
@@ -39,15 +49,6 @@ machine and left alone.
   mapped onto width x height regardless of aspect, so a mismatch stretches the
   painting rather than fitting it; it warns when the uploaded images disagree on
   ratio, or when the result exceeds `max_height`.
-- **Machine setup**, collapsed — containers, their positions, where the
-  artwork sits on the bed, brush heights, loading the brush, backlash, the
-  `moves` speed groups and the controller type, and at the end **Download
-  Machine Config**, which writes all of it back out as a `.conf`. A config
-  carrying keys this map has never heard of still shows them, under **Other
-  settings**. It sits above Run, not below it, because it and Macro generator
-  are the two panels someone opens once per machine rather than once per job.
-- **Macro generator**, collapsed — `zero.g`, `home.g`, `paper.g`, `clean.g` and
-  `calibrate.g`, built from the settings in Machine setup (see below).
 - **Run** — the fill settings, then Generate G-code, then the path preview. The
   fill settings sit here rather than in machine setup because the stroke
   spacing, the pattern and the wall count are decided per picture about as often
@@ -971,13 +972,14 @@ every other always-offered setting.
 
 ## Macro generator
 
-Below Machine setup — moved above Run so the two collapsed panels sit
-together — a second `<details>`, **Macro generator**, builds five small
-routines: `zero.g`, `home.g`, `paper.g`, `clean.g` and `calibrate.g`. All five
-come from `webui/macros.py`, a module the pipeline never imports and that
-never touches a tray image, so generating them needs none of the pictures a
-G-code run refuses to proceed without. Four of the five are built from the
-config; `zero.g` is not (see below).
+Under Machine setup, in The machine — both are about the machine rather than
+about a picture, so both live with its plan drawing rather than down by Run —
+a second `<details>`, **Macro generator**, builds five small routines:
+`zero.g`, `home.g`, `paper.g`, `clean.g` and `calibrate.g`. All five come from
+`webui/macros.py`, a module the pipeline never imports and that never touches
+a tray image, so generating them needs none of the pictures a G-code run
+refuses to proceed without. Four of the five are built from the config;
+`zero.g` is not (see below).
 
 - **zero.g** is not derived from the config at all — every other macro reads
   the settings above it; this one is the same eleven lines regardless of what

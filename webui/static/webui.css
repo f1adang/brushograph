@@ -608,7 +608,7 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
 /* ------------------------------------------------------------------- setup */
 .setup {
   background: var(--sheet); border: 1px solid var(--line); border-radius: 6px;
-  padding: 0 20px;
+  padding: 0 20px; margin-top: 18px;
 }
 .setup > summary {
   cursor: pointer; padding: 15px 0; list-style: none;
