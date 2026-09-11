@@ -191,7 +191,7 @@ HELP = {
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",
     "brushograph-move_to_other_shape_lift": "Lift on Z-axis when painting/drawing",
     "brushograph-tray_enter_radius": "Must be smaller than the radius of the container",
-    "brushograph-remove_drops_radius": "Radius for exiting the container, typically the same or slightly larger than radius of petridish",
+    "brushograph-remove_drops_radius": "How far the brush is dragged over the rim to knock the drop off, once on each side (mm). Typically the same or slightly larger than the radius of the petri dish. Classic containers only: a modern bay wipes the brush on its own stairs, so nothing reads this.",
     "brushograph-prepare_paint_count": "Number of initial color mixing cycles. 0 for plotter",
     "brushograph-moves": "Speed settings for painting/drawing, fetching color (faster), and removing color drops",
     "brushograph-backlash_compensation": "Post-processes the generated G-code to apply backlash compensation by injecting specific corrective moves whenever the X or Y axis changes direction",

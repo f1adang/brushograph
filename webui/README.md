@@ -711,8 +711,10 @@ ends with the brush arriving there loaded rather than touching down somewhere
 else and leaving a mark.
 
 A colour change therefore reads: wash (three dips in the water), lift clear,
-dip the next colour, knock the drips off, travel to the first stroke of that
-colour, and paint.
+dip the next colour, shed the drip it comes up with, travel to the first stroke
+of that colour, and paint. How the drip is shed depends on the containers: a
+round cup is wiped on its rim afterwards, a rectangular one has done it already
+on the way up its stairs.
 
 Two things used to happen in the middle of that and no longer do. The wash
 ended by crossing back to the canvas origin and touching the paper, which left
@@ -731,11 +733,11 @@ which is clearance over the paper, not over a tray rim.
 
 ### Wiping the brush
 
-After a pickup the brush carries a drop that would otherwise land on the paper.
-It is wiped by dragging the bristles over the rim at `remove_drops_lift`, and it
-happens **twice, once on each side**: wiping only where the brush happens to be
-leaving strips the drop off one side and leaves it on the other, and that one
-falls on the painting.
+After a pickup from a **round** cup the brush carries a drop that would
+otherwise land on the paper. It is wiped by dragging the bristles over the rim
+at `remove_drops_lift`, and it happens **twice, once on each side**: wiping only
+where the brush happens to be leaving strips the drop off one side and leaves it
+on the other, and that one falls on the painting.
 
 How far the drag goes is `remove_drops_radius` and how fast is the config's
 `moves.remove_drops` group. Neither is decided in the code — an earlier version
@@ -751,6 +753,15 @@ first attempt wiped to Y = -13.
 
 The wash dips do not wipe at all: they pass `remove_drop=False`, because a brush
 being rinsed has nothing to shed on the way out.
+
+Neither does a pickup from a **rectangular** bay, and for the same kind of
+reason: it has already been wiped. The swipe up the stairs drags the bristles
+along the floor and out of the paint over the length of the bay, which is the
+rim wipe's own motion over a better edge. Two more passes over the rim
+afterwards put paint back on a brush that has just been drawn clean — and on
+34 mm centres they reach into the bay next door to do it. So `remove_drop` is
+ignored when the containers are modern, and `remove_drops_radius` is a
+round-cup setting that nothing else reads.
 
 ### Round cups and rectangular ones
 
@@ -854,14 +865,12 @@ Three things had been written for CMY alone and are not any more:
 - **The plan view** called the cup `kroma`, which is this project's word and not
   one stamped on the holder. It says `black`.
 
-`remove_drops_radius` is the setting to check after moving to this holder, and
-the plan view now draws it for rectangular cups as the reach it is — a dimension
-line above each bay, ticked at both ends — rather than only for round ones. At
-34 mm centres a radius over 17 mm carries the wipe into the bay next door: the
-20 mm that suited cups 45 mm apart puts the wipe from the black bay at X 129,
+Cups this close together are also why the rim wipe had to go for the modern
+holder, quite apart from being redundant after the stairs. At 34 mm centres a
+`remove_drops_radius` over 17 mm carries the wipe into the bay next door: the
+20 mm that suited cups 45 mm apart put the wipe from the black bay at X 129,
 inside the yellow bay, and at X 169, which is 18 mm past the end of a 151 mm
-machine. Drawn, the reaches run into one another instead of standing apart, and
-the value is the config's to set.
+machine. Round cups 45 mm apart still wipe, and still read that setting.
 
 The machine view draws whichever is configured — circles with their sweep, or
 rectangles with their treads and an arrow along the swipe — and redraws as soon

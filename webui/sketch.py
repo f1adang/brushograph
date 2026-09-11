@@ -111,7 +111,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # the scale would squash the part you care about into a corner.
     active = {e["tray"] for e in entries}
     framed = [(n, x, y) for n, x, y in all_trays if n in active]
-    pad_r = max(cup_w_water / 2, cup_w / 2, cup_h / 2, drops_r) if modern else max(drops_r, enter_r)
+    pad_r = max(cup_w_water / 2, cup_w / 2, cup_h / 2) if modern else max(drops_r, enter_r)
     xs = [0.0, max_w, ox, ox + cw] + [x + pad_r for _, x, _ in framed] + [x - pad_r for _, x, _ in framed]
     ys = [0.0, max_h, oy, oy + ch] + [y + pad_r for _, _, y in framed] + [y - pad_r for _, _, y in framed]
     min_x, max_x = min(xs), max(xs)
@@ -154,7 +154,6 @@ def render(conf: dict, theme: str = "default") -> bytes:
         d.text((tx + 5, ty + 4), f"image {cw:g} × {ch:g} mm @ ({ox:g}, {oy:g})", font=fs, fill=TEXT)
 
     offscreen = []
-    wipe_marks = []
     for name, x, y in all_trays:
         if not (min_x - pad_r <= x <= max_x + pad_r and min_y - pad_r <= y <= max_y + pad_r):
             offscreen.append(name)
@@ -184,13 +183,9 @@ def render(conf: dict, theme: str = "default") -> bytes:
             d.line([(cx, cy + hh - 2), (cx, cy - hh + 2)], fill=(*CANVAS, alpha))
             d.polygon([(cx, cy - hh + 1), (cx - 3, cy - hh + 7), (cx + 3, cy - hh + 7)],
                       fill=(*CANVAS, alpha))
-            # How far the wipe carries. The round cups get this as a circle;
-            # here it matters more, because the holder puts the bays on 34 mm
-            # centres and a reach over half of that flicks the drop into the
-            # bay next door. Kept for a second pass: drawn here, the next bay
-            # along would paint over the very overlap worth seeing.
-            if drops_r:
-                wipe_marks.append((cx, cy - hh - 5, drops_r * scale, alpha))
+            # No wipe reach to draw: a rectangular bay does its own wiping on
+            # the way up the stairs, so remove_drops_radius is a round-cup
+            # setting and nothing here answers to it.
             r = hw
         else:
             if drops_r:
@@ -208,11 +203,6 @@ def render(conf: dict, theme: str = "default") -> bytes:
             d.text((cx - tw / 2, cy + hh + 5), tag, font=fs, fill=colour)
         else:
             d.text((cx + r + 4, cy - 6), tag, font=fs, fill=colour)
-
-    for cx, wy, wr, alpha in wipe_marks:
-        d.line([(cx - wr, wy), (cx + wr, wy)], fill=(*MUTED, alpha))
-        for end in (cx - wr, cx + wr):
-            d.line([(end, wy - 3), (end, wy + 3)], fill=(*MUTED, alpha))
 
     d.line([px(min_x, 0), px(max_x, 0)], fill=ACCENT, width=1)
     d.line([px(0, min_y), px(0, max_y)], fill=ACCENT, width=1)

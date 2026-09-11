@@ -259,7 +259,14 @@ class Copicograf:
                     self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
 
-            if remove_drop == True:
+            # The rim wipe is for a round cup, where the brush comes straight
+            # up out of the paint carrying a drop. A modern bay has already
+            # wiped it: the swipe climbs the stairs with the bristles dragging
+            # along the floor, which is the same motion over a better edge, and
+            # the two passes over the rim afterwards only put paint back on a
+            # brush that has just been drawn clean — and, on 34 mm centres,
+            # reach into the bay next door to do it.
+            if remove_drop and self.cup_shape != "modern":
                 remove_drops(tray_x, tray_y, x, y)
 
             ########################
