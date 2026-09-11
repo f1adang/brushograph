@@ -609,6 +609,13 @@ yellow and water identify trays and nothing else in the interface is saturated,
 so a coloured mark always stands for paint in a cup. The themes restyle every
 surface and every annotation, and leave the paint alone.
 
+Black is the one paint that cannot be left alone. On the three dark papers it is
+the paper — `#1b1f26` on `#1d2120` is a contrast ratio of 1.02, which is to say
+invisible — so it comes off the stylesheet as `--preview-key`, the way the cup
+marks come off `--preview-cup`, and each theme says what its darkest ink looks
+like. That keeps the rule the rule: the exception exists so black still reads as
+paint rather than as nothing at all.
+
 Coconut declares `color-scheme: light` although its ground is dark, because
 every panel is pale and the form controls sit on those; under a dark scheme the
 browser drew unchecked boxes as filled dark squares on cream, which read as
@@ -752,10 +759,11 @@ chord down in the paint where the bristles are inside the cup, returns to the
 middle and lifts.
 
 **Modern** is the printed CMYK holder, a 192 × 46.5 × 4 mm plate with five bays
-labelled W C M Y K. The colour bays are 29.2 mm wide on 34 mm centres, the water
-bay 39.2 mm, and every bay is about 29.8 mm deep along Y; `cup_width` and
-`cup_depth` default to those. Its floor is a staircase, so loading is one swipe
-from the deep end to the shallow one, rising as it goes:
+labelled W C M Y K. Slicing the model at mid-height shows six 1 mm ribs at X
+−24, 20, 54, 88, 122 and 156, and the bays are the gaps between them: water
+39.1 mm across, the four colour bays 29.1 mm, about 30 mm deep along Y.
+`cup_width` and `cup_depth` default to those. Its floor is a staircase, so
+loading is one swipe from the deep end to the shallow one, rising as it goes:
 
     G00 X53 Y-4      ; deep end, in front
     G00 Z-4          ; down into the paint, at dip_depth
@@ -780,6 +788,48 @@ millimetre lower in the file as Y backlash take-up.
 The wash goes through the same motion, so in a rectangular bay its three dips
 become three swipes the length of the water. That rinses more, not less, and
 it still wipes nothing on the way out (`remove_drop=False`).
+
+### The fifth cup
+
+The holder has a bay for black, so the machine paints CMYK rather than CMY. Very
+little had to be taught that: `CMYK_TO_TRAY` has mapped `K` to the `kroma` tray
+since the original project, and the form, the pipeline and the preview are all
+built from `color_order`, so a fourth colour flows through them on its own. What
+was missing was everything that had only ever been written for three.
+
+The bay spacing is not a machine measurement, because the holder is one piece:
+its five bays are 34 mm apart centre to centre, the first colour 39 mm from the
+water, and only where the whole thing sits is anyone's to decide. Those offsets
+are `MODERN_BAY_OFFSETS`, and **Space cups for the holder** in the tray
+positions applies them from wherever the water cup has been put. It shows itself
+only when the modern holder is the one selected; there is no such thing as the
+holder's spacing for loose round cups.
+
+Five cups on 34 mm centres span 141 mm, which is why `pinkograph.conf` now
+starts its water bay at X 8: the bed is 151 mm wide, so anything past 10 puts
+the black cup out of reach. `small_machineM2.conf` was already far enough left.
+
+Three things had been written for CMY alone and are not any more:
+
+- **The tray dot** was styled for `[data-tray="black"]` and `[data-tray="key"]`,
+  neither of which is the key this project uses. The K cup is keyed `kroma`
+  everywhere, so its dot fell through to the default grey.
+- **Tray numbering** counted `additionals`, which sits in the `trays` dict but
+  is a group of colours rather than a cup. With four trays declared before it
+  nothing showed; the fifth came out as "Tray 5". Colour trays are now named
+  after the channel — Cyan (C), Black (K) — and the positional name is the
+  fallback for the additionals, which have no channel to be named after.
+- **The plan view** called the cup `kroma`, which is this project's word and not
+  one stamped on the holder. It says `black`.
+
+`remove_drops_radius` is the setting to check after moving to this holder, and
+the plan view now draws it for rectangular cups as the reach it is — a dimension
+line above each bay, ticked at both ends — rather than only for round ones. At
+34 mm centres a radius over 17 mm carries the wipe into the bay next door: the
+20 mm that suited cups 45 mm apart puts the wipe from the black bay at X 129,
+inside the yellow bay, and at X 169, which is 18 mm past the end of a 151 mm
+machine. Drawn, the reaches run into one another instead of standing apart, and
+the value is the config's to set.
 
 The machine view draws whichever is configured — circles with their sweep, or
 rectangles with their treads and an arrow along the swipe — and redraws as soon

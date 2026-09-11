@@ -64,8 +64,9 @@ try { var t = localStorage.getItem("brushograph-theme");
     every ribbon, hairline and rib is drawn rather than dropped.</li>
     <li>An <b>infill line distance of 0</b> paints outlines only. A nominal 1&nbsp;mm stroke
     width stands in for the brush, since the config then states none.</li>
-    <li>Files are named after the picture and the colours used &mdash;
-    <code>vali_letten_c1_infill.gcode</code> &mdash; with the tray numbers the form shows.</li>
+    <li>Files are named after the picture and the trays used &mdash;
+    <code>vali_letten_c1_infill.gcode</code> &mdash; numbering the trays in the order the
+    config declares them, with the water tray as 0.</li>
     <li>The ink/paper split is found per image rather than fixed, so a print on cream paper is
     not read as one solid block of ink. It is taken on the darkest colour channel, so a light
     ink such as yellow still counts as ink.</li>
@@ -109,7 +110,9 @@ try { var t = localStorage.getItem("brushograph-theme");
   like a neon tube, and <b>UwU</b> is that sign with all the lights up. Neither moves if you
   have asked your system to reduce motion.
   The machine plan and the G-code preview follow the theme too. The tray colours never do:
-  a coloured mark always means paint in a cup, whatever the interface is wearing.</p>
+  a coloured mark always means paint in a cup, whatever the interface is wearing. Black paint
+  is the exception, and only because on a dark paper it would be the paper: each theme says
+  what its darkest ink looks like, so black still reads as paint.</p>
 
   <p><a href="/">← Back to the machine</a></p>
 </main>

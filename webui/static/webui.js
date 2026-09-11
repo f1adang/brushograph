@@ -130,6 +130,40 @@ function wireForm() {
   updateSketch();
   document.addEventListener("brushograph:theme", updateSketch);
 
+  /* ---- space the cups the way the printed holder does ---- */
+  /* The modern holder is one piece, so its five bays cannot be moved relative
+     to each other: only where the whole thing sits is a machine measurement.
+     This spaces the other four off the water cup using the holder's own
+     centres, and only offers itself when that holder is the one selected. */
+  const spaceBtn = $("space-cups");
+  const holderNote = $("holder-note");
+  const shapeSelect = form.querySelector('[name="brushograph-cup_shape"]');
+  if (spaceBtn && shapeSelect) {
+    const offsets = JSON.parse(spaceBtn.dataset.offsets || "{}");
+    const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
+    const showIfModern = () => {
+      const on = shapeSelect.value === "modern" && !!trayX("water");
+      spaceBtn.hidden = !on;
+      if (holderNote) holderNote.hidden = !on;
+    };
+    shapeSelect.addEventListener("change", showIfModern);
+    showIfModern();
+    spaceBtn.addEventListener("click", () => {
+      const water = trayX("water");
+      const base = parseFloat(water && water.value);
+      if (!isFinite(base)) return;
+      let moved = 0;
+      for (const [name, off] of Object.entries(offsets)) {
+        const input = trayX(name);
+        if (!input) continue;
+        input.value = String(Math.round((base + off) * 100) / 100);
+        moved += 1;
+      }
+      // One event for the lot: the sketch redraws off the form, not per field.
+      if (moved) form.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
   /* ---- match height to the uploaded image's aspect ratio ---- */
   /* i2gc maps the pixel grid onto width x height regardless of aspect, so a
      mismatch stretches the painting rather than fitting it. */
@@ -443,7 +477,9 @@ const CUP_COLOUR = "#8b3e2f";
 
 /* The preview sits on the page, so it takes its paper, its travel lines and its
  * marker from whatever theme is on. The paint colours are not in here: a stroke
- * is the colour of the paint that draws it, in every theme. */
+ * is the colour of the paint that draws it. Black is the exception, and only
+ * because it has to be — on the dark papers it is the paper, so each theme
+ * says what its darkest ink looks like. */
 function themeInk() {
   const cs = getComputedStyle(document.documentElement);
   const pick = (name, fallback) => (cs.getPropertyValue(name) || "").trim() || fallback;
@@ -452,6 +488,7 @@ function themeInk() {
     travel: pick("--line-soft", "#e6e9ee"),
     marker: pick("--bad", "#c0392b"),
     cup: pick("--preview-cup", CUP_COLOUR),
+    key: pick("--preview-key", TRAY_COLOURS.kroma),
   };
 }
 
@@ -497,8 +534,13 @@ function parseGcode(text) {
 }
 
 function trayColour(name, index) {
-  if (name && TRAY_COLOURS[name.toLowerCase()]) return TRAY_COLOURS[name.toLowerCase()];
-  if (name && /^#[0-9a-f]{6}$/i.test(name)) return name;
+  const key = name && name.toLowerCase();
+  // Black is the one paint whose own colour will not do in every theme: on the
+  // dark papers it *is* the paper. So it comes off the stylesheet the way the
+  // cup marks do, each theme saying what its darkest ink looks like.
+  if (key === "kroma" || key === "black" || key === "key") return themeInk().key;
+  if (key && TRAY_COLOURS[key]) return TRAY_COLOURS[key];
+  if (key && /^#[0-9a-f]{6}$/i.test(key)) return key;
   return FALLBACK_COLOURS[(index < 0 ? 0 : index) % FALLBACK_COLOURS.length];
 }
 

@@ -22,7 +22,7 @@ import facefilter
 import gcode_pipeline
 import subject
 import woodcut
-from configspec import apply_form, build_schema, tray_entries
+from configspec import MODERN_BAY_OFFSETS, apply_form, build_schema, tray_entries
 from sketch import PALETTES, render as render_sketch
 
 WEBUI_DIR = Path(__file__).resolve().parent
@@ -355,6 +355,7 @@ def options_form():
         machine_config_name=name,
         machine_config_mode=mode,
         generator=conf.get("brushograph", {}).get("generator", "copicograf"),
+        bay_offsets=json.dumps(MODERN_BAY_OFFSETS),
     )
 
 

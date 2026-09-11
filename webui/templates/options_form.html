@@ -200,6 +200,10 @@
       {% if trays %}
       <section class="group">
         <h3>Tray positions</h3>
+        <p class="note" id="holder-note" hidden>The printed holder fixes the spacing:
+          its five bays put the colours on 34&nbsp;mm centres, with the first 39&nbsp;mm
+          from the water. Set the water cup where the holder actually sits and space
+          the rest from it.</p>
         <div class="tray-coords">
           {% for t in trays.trays %}
           <div class="coord">
@@ -212,6 +216,8 @@
           </div>
           {% endfor %}
         </div>
+        <button type="button" class="ghost" id="space-cups" hidden
+                data-offsets='{{ bay_offsets }}'>Space cups for the holder</button>
       </section>
       {% endif %}
 

@@ -36,6 +36,10 @@ PALETTES = {
 # its STL, so this is a drawing convention rather than a measurement.
 MODERN_STEPS = 4
 
+# The K tray is keyed "kroma" throughout this project. The holder has W C M Y K
+# stamped on it and nothing says kroma, so the drawing calls it black.
+TRAY_LABEL = {"kroma": "black"}
+
 TRAY_FILL = {
     "water": (150, 200, 235),
     "cyan": (0, 174, 239),
@@ -100,7 +104,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # the scale would squash the part you care about into a corner.
     active = {e["tray"] for e in entries}
     framed = [(n, x, y) for n, x, y in all_trays if n in active]
-    pad_r = max(cup_w, cup_h) / 2 if modern else max(drops_r, enter_r)
+    pad_r = max(cup_w / 2, cup_h / 2, drops_r) if modern else max(drops_r, enter_r)
     xs = [0.0, max_w, ox, ox + cw] + [x + pad_r for _, x, _ in framed] + [x - pad_r for _, x, _ in framed]
     ys = [0.0, max_h, oy, oy + ch] + [y + pad_r for _, _, y in framed] + [y - pad_r for _, _, y in framed]
     min_x, max_x = min(xs), max(xs)
@@ -143,6 +147,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
         d.text((tx + 5, ty + 4), f"image {cw:g} × {ch:g} mm @ ({ox:g}, {oy:g})", font=fs, fill=TEXT)
 
     offscreen = []
+    wipe_marks = []
     for name, x, y in all_trays:
         if not (min_x - pad_r <= x <= max_x + pad_r and min_y - pad_r <= y <= max_y + pad_r):
             offscreen.append(name)
@@ -170,6 +175,13 @@ def render(conf: dict, theme: str = "default") -> bytes:
             d.line([(cx, cy + hh - 2), (cx, cy - hh + 2)], fill=(*CANVAS, alpha))
             d.polygon([(cx, cy - hh + 1), (cx - 3, cy - hh + 7), (cx + 3, cy - hh + 7)],
                       fill=(*CANVAS, alpha))
+            # How far the wipe carries. The round cups get this as a circle;
+            # here it matters more, because the holder puts the bays on 34 mm
+            # centres and a reach over half of that flicks the drop into the
+            # bay next door. Kept for a second pass: drawn here, the next bay
+            # along would paint over the very overlap worth seeing.
+            if drops_r:
+                wipe_marks.append((cx, cy - hh - 5, drops_r * scale, alpha))
             r = hw
         else:
             if drops_r:
@@ -179,7 +191,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
             d.ellipse([cx - r, cy - r, cx + r, cy + r],
                       fill=(*fill, alpha), outline=(*CANVAS, alpha))
         off_bed = not (0 <= x <= max_w and 0 <= y <= max_h)
-        tag = name + (" (off bed)" if off_bed else "")
+        tag = TRAY_LABEL.get(name, name) + (" (off bed)" if off_bed else "")
         colour = ACCENT if off_bed else (TEXT if in_use else MUTED)
         if modern:
             # Under the bay: beside it would be on top of the next one along.
@@ -188,13 +200,19 @@ def render(conf: dict, theme: str = "default") -> bytes:
         else:
             d.text((cx + r + 4, cy - 6), tag, font=fs, fill=colour)
 
+    for cx, wy, wr, alpha in wipe_marks:
+        d.line([(cx - wr, wy), (cx + wr, wy)], fill=(*MUTED, alpha))
+        for end in (cx - wr, cx + wr):
+            d.line([(end, wy - 3), (end, wy + 3)], fill=(*MUTED, alpha))
+
     d.line([px(min_x, 0), px(max_x, 0)], fill=ACCENT, width=1)
     d.line([px(0, min_y), px(0, max_y)], fill=ACCENT, width=1)
     zx, zy = px(0, 0)
     d.ellipse([zx - 3, zy - 3, zx + 3, zy + 3], fill=ACCENT)
     d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
 
-    order = ", ".join(e["tray"] for e in entries if e["color"]) or "none in color_order"
+    order = ", ".join(TRAY_LABEL.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
+        or "none in color_order"
     d.text((PAD, 12), f"Painting order: {order}", font=f, fill=TEXT)
     if offscreen:
         d.text((PAD, H - 24), f"not shown, parked far outside the bed: {', '.join(offscreen)}",

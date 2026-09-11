@@ -13,6 +13,21 @@ from collections import OrderedDict
 
 CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 
+# What each channel is called in the form. "kroma" is what the tray is keyed as
+# throughout this project, and it is not a word anyone reading the machine
+# expects: the holder has W C M Y K stamped on it, so the form says Black (K)
+# and leaves "kroma" showing as the config key it is.
+CMYK_LABEL = {"C": "Cyan", "M": "Magenta", "Y": "Yellow", "K": "Black"}
+
+# The modern holder, measured off CMYK_holder_big.stl. Five bays: the water one
+# is 39.1 mm across and every colour bay 29.1, with the walls between them
+# putting the colour bays on 34 mm centres and the first colour 39 mm from the
+# water. The numbers here are centre-to-centre offsets from the water bay, so a
+# layout only needs to know where the holder's water end sits.
+MODERN_BAY_OFFSETS = OrderedDict(
+    [("water", 0.0), ("cyan", 39.0), ("magenta", 73.0), ("yellow", 107.0), ("kroma", 141.0)]
+)
+
 # Settings the form always offers, whatever the config happens to carry. The
 # form is otherwise built from the config's own keys, so a machine file written
 # before one of these existed — or by hand, or by an older version — simply has
@@ -206,10 +221,15 @@ def tray_entries(conf: dict) -> list[dict]:
     """Water tray plus one entry per colour in color_order, in config order.
 
     Tray numbering follows the position in the trays dict, which is why a config
-    with a water tray starts its colours at 1 and one without starts at 0.
+    with a water tray starts its colours at 1 and one without starts at 0. A
+    CMYK channel is labelled by its colour instead; the positional name is the
+    fallback for the additionals, which have no channel to be named after.
     """
     trays = conf.get("trays", {})
-    order = list(trays.keys())
+    # Number by position among actual trays. "additionals" sits in the same dict
+    # but is a group of colours, not a cup, so counting it would skip a number
+    # for every tray declared after it — which is where a fifth cup lands.
+    order = [k for k in trays if k not in TRAY_SKIP]
     wanted = []
     for color in conf.get("color_order", []):
         tray_name = CMYK_TO_TRAY.get(color, color)
@@ -235,7 +255,8 @@ def tray_entries(conf: dict) -> list[dict]:
                 "tray": tray_name,
                 "color": color,
                 "index": order.index(tray_name),
-                "label": f"Tray {order.index(tray_name)}",
+                "label": CMYK_LABEL.get(color, f"Tray {order.index(tray_name)}")
+                + (f" ({color})" if color in CMYK_LABEL else ""),
                 "image": True,
                 "x": trays[tray_name].get("x", 0),
                 "y": trays[tray_name].get("y", 0),
