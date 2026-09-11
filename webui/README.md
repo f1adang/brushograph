@@ -826,10 +826,10 @@ unused black cup costs one row in the setup and nothing else.
 The bay spacing is not a machine measurement, because the holder is one piece:
 its five bays are 34 mm apart centre to centre, the first colour 39 mm from the
 water, and only where the whole thing sits is anyone's to decide. Those offsets
-are `MODERN_BAY_OFFSETS`, and **Space cups for the holder** in the tray
-positions applies them from wherever the water cup has been put. It shows itself
-only when the modern holder is the one selected; there is no such thing as the
-holder's spacing for loose round cups.
+are `MODERN_BAY_OFFSETS`, and **Auto-space containers for modern holder** under
+the container positions applies them from wherever the water cup has been put.
+It shows itself only when the modern holder is the one selected; there is no
+such thing as the holder's spacing for loose round cups.
 
 Five cups on 34 mm centres span 141 mm, which is why `pinkograph.conf` now
 starts its water bay at X 8: the bed is 151 mm wide, so anything past 10 puts

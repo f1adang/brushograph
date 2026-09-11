@@ -194,12 +194,16 @@
 
   <!-- -------------------------------------------------------------- setup -->
   <details class="setup" id="machine-setup">
-    <summary><span>Machine setup</span><i>Tray positions, brush heights, speeds — set once per machine</i></summary>
+    <summary><span>Machine setup</span><i>Containers, brush heights, speeds — set once per machine</i></summary>
     <div class="setup-body">
+
+      {# Containers first: what the cups are shapes what their positions mean. #}
+      {% set cups = (machine.fields | selectattr('group', 'equalto', 'Containers') | list | first) if machine else none %}
+      {% if cups %}{{ group(cups) }}{% endif %}
 
       {% if trays %}
       <section class="group">
-        <h3>Tray positions</h3>
+        <h3>Container positions</h3>
         <p class="note" id="holder-note" hidden>The printed holder fixes the spacing:
           its five bays put the colours on 34&nbsp;mm centres, with the first 39&nbsp;mm
           from the water. Set the water cup where the holder actually sits and space
@@ -217,11 +221,11 @@
           {% endfor %}
         </div>
         <button type="button" class="ghost" id="space-cups" hidden
-                data-offsets='{{ bay_offsets }}'>Space cups for the holder</button>
+                data-offsets='{{ bay_offsets }}'>Auto-space containers for modern holder</button>
       </section>
       {% endif %}
 
-      {% if machine %}{% for g in machine.fields if g.group and not g.job %}{{ group(g) }}{% endfor %}{% endif %}
+      {% if machine %}{% for g in machine.fields if g.group and not g.job and g.group != 'Containers' %}{{ group(g) }}{% endfor %}{% endif %}
 
       {% for section in schema if section.key not in ('trays', 'brushograph', 'slicer') %}
       <section class="group">

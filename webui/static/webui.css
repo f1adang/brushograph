@@ -478,7 +478,10 @@ footer a { color: var(--ink-dim); font-size: 13px; }
 .plan figcaption { margin-top: 10px; font-size: 12.5px; color: var(--ink-faint); }
 
 /* ------------------------------------------------------------------- trays */
-.tray-list { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+/* 210px so the four colours of a CMYK job sit on one line: the wrap is 1000px
+   less 28px of padding either side, which leaves 225 per card once three
+   14px gaps are taken out. Narrower viewports still wrap on their own. */
+.tray-list { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); }
 .tray {
   background: var(--sheet); border: 1px solid var(--line); border-radius: 6px;
   border-left: 3px solid var(--tray, var(--line)); padding: 13px 15px 15px;

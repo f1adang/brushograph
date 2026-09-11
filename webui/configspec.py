@@ -130,7 +130,7 @@ BRUSHOGRAPH_GROUPS = [
      ["offset_x", "offset_y", "max_width", "max_height", "canvas_height"], False),
     ("Brush heights",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
-    ("The cups",
+    ("Containers",
      ["cup_shape", "cup_width", "cup_width_water", "cup_depth", "cup_swipe_exit_z"], False),
     ("Loading the brush",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
