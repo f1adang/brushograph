@@ -41,12 +41,14 @@ ALWAYS_OFFERED = {
     # The cups. "classic" is the round petri dish the machine was built around;
     # "modern" is the rectangular CMYK holder, whose floor steps up towards the
     # back so the brush can be drawn out of the paint rather than lifted from
-    # it. Measured off CMYK_holder_big.stl: a colour bay is 29.2 mm across and
-    # about 29.8 mm deep, and the stepped floor is not in that file — it is a
+    # it. Measured off CMYK_holder_big.stl by bisecting to the bay walls: the
+    # four colour bays are 29.2 mm across and the water bay 39.2, all of them
+    # opening 35.1 mm deep. The stepped floor is not in that file — it is a
     # frame over the paint — so the two Z figures below have to be measured on
-    # the machine rather than derived.
+    # the machine rather than derived, and the depth stays inside the opening.
     ("brushograph", "cup_shape"): "classic",
-    ("brushograph", "cup_width"): 29.0,
+    ("brushograph", "cup_width"): 29.2,
+    ("brushograph", "cup_width_water"): 39.2,
     ("brushograph", "cup_depth"): 30.0,
     ("brushograph", "cup_swipe_exit_z"): 1.0,
     ("brushograph", "backlash_compensation"): True,
@@ -75,7 +77,46 @@ def with_defaults(conf: dict) -> dict:
     out = json.loads(json.dumps(conf))
     for path, value in ALWAYS_OFFERED.items():
         _dig(out, path).setdefault(path[-1], value)
+    _offer_black(out)
     return out
+
+
+def _offer_black(conf: dict) -> None:
+    """Give a config a black cup if it has not got one.
+
+    The holder has a bay for black, so the machine paints CMYK. A config
+    written before that bay existed names three colours, and the form is built
+    from the config: with no `kroma` tray and no `K` in `color_order` there is
+    no black card to upload to and no way to gain one, which is the same reason
+    ALWAYS_OFFERED exists for settings.
+
+    Where the cup is, is a measurement. The guess is one more step along the row
+    the other cups are already in — the gap between the last two of them, or the
+    holder's own 34 mm if there are not two to learn from — which lands it about
+    where a fifth cup goes and leaves a wrong number visible in the form and
+    flagged in the plan view rather than a missing one that is not.
+
+    Nothing is painted from it until a picture is uploaded for it: a tray in
+    `color_order` with no image is skipped, so an unused black cup costs a row
+    in the setup and nothing else.
+    """
+    trays = conf.setdefault("trays", {})
+    order = conf.setdefault("color_order", [])
+    if not isinstance(trays, dict) or not isinstance(order, list):
+        return
+    black = CMYK_TO_TRAY["K"]
+    if black not in trays:
+        cups = [(k, v) for k, v in trays.items()
+                if k not in TRAY_SKIP and isinstance(v, dict) and "x" in v]
+        if not cups:
+            return                      # nothing to place it relative to
+        xs = [float(v["x"]) for _, v in cups]
+        step = xs[-1] - xs[-2] if len(xs) > 1 else MODERN_BAY_OFFSETS["magenta"] - \
+            MODERN_BAY_OFFSETS["cyan"]
+        last = cups[-1][1]
+        trays[black] = {"x": xs[-1] + step, "y": last.get("y", 0)}
+    if "K" not in order:
+        order.append("K")               # the key plate goes on last
 
 
 # The machine section is a flat list of nineteen settings in whatever order the
@@ -90,7 +131,7 @@ BRUSHOGRAPH_GROUPS = [
     ("Brush heights",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
     ("The cups",
-     ["cup_shape", "cup_width", "cup_depth", "cup_swipe_exit_z"], False),
+     ["cup_shape", "cup_width", "cup_width_water", "cup_depth", "cup_swipe_exit_z"], False),
     ("Loading the brush",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
@@ -142,8 +183,9 @@ HELP = {
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
     "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. Modern is the rectangular CMYK holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.",
-    "brushograph-cup_width": "How wide a cup is across X (mm). Modern cups only; a colour bay of the printed holder measures 29.2.",
-    "brushograph-cup_depth": "How deep a cup is along Y (mm) — the length of the swipe. Modern cups only; a bay of the printed holder measures about 29.8.",
+    "brushograph-cup_width": "How wide a colour cup is across X (mm). Modern cups only; a colour bay of the printed holder measures 29.2.",
+    "brushograph-cup_width_water": "How wide the water cup is across X (mm). Modern cups only. The holder gives the water its own, wider bay — 39.2 against the colours' 29.2 — so the brush has room to be rinsed.",
+    "brushograph-cup_depth": "How deep a cup is along Y (mm) — the length of the swipe. Modern cups only. The holder's bays open 35.1 mm deep; the default keeps the swipe inside that.",
     "brushograph-cup_swipe_exit_z": "Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Measure it on the machine: nothing in the holder's STL gives the step heights.",
     "brushograph-dip_depth": "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.",
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",

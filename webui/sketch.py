@@ -13,23 +13,25 @@ PAD = 46
 
 # One palette per interface theme, so the plan sits on the same paper the page
 # does. Only the surfaces and the annotation change: the tray fills are the
-# paint in the cups and are the same colour whatever the page is wearing.
+# paint in the cups and are the same colour whatever the page is wearing —
+# except black, which on a dark ground is the ground. Each palette carries a
+# `key` for that, the same value the stylesheet gives `--k`.
 PALETTES = {
     "default": dict(bg=(255, 255, 255), grid=(232, 234, 238), bed=(120, 128, 140),
                     canvas=(40, 44, 52), text=(60, 66, 76), muted=(150, 156, 166),
-                    accent=(200, 90, 90)),
+                    accent=(200, 90, 90), key=(35, 35, 40)),
     "dark": dict(bg=(29, 33, 32), grid=(45, 51, 50), bed=(123, 133, 131),
                  canvas=(230, 233, 232), text=(211, 216, 214), muted=(134, 143, 141),
-                 accent=(224, 138, 122)),
+                 accent=(224, 138, 122), key=(223, 228, 226)),
     "coconut": dict(bg=(253, 246, 232), grid=(234, 217, 189), bed=(185, 138, 82),
                     canvas=(55, 34, 15), text=(74, 44, 24), muted=(125, 92, 57),
-                    accent=(156, 43, 22)),
+                    accent=(156, 43, 22), key=(35, 35, 40)),
     "pinkograph": dict(bg=(22, 3, 42), grid=(60, 10, 102), bed=(255, 107, 181),
                        canvas=(255, 234, 244), text=(227, 160, 192), muted=(160, 110, 150),
-                       accent=(0, 245, 255)),
+                       accent=(0, 245, 255), key=(232, 214, 245)),
     "uwu": dict(bg=(43, 8, 36), grid=(69, 18, 58), bed=(255, 138, 212),
                        canvas=(255, 232, 246), text=(255, 212, 238), muted=(229, 140, 192),
-                       accent=(255, 107, 107)),
+                       accent=(255, 107, 107), key=(255, 220, 240)),
 }
 
 # How many steps to draw across a modern cup. The holder's own floor is not in
@@ -45,7 +47,8 @@ TRAY_FILL = {
     "cyan": (0, 174, 239),
     "magenta": (236, 0, 140),
     "yellow": (255, 212, 0),
-    "kroma": (35, 35, 40),
+    # kroma is not here: black is whatever the palette's `key` says, because on
+    # the dark grounds a black cup drawn black is an empty patch of background.
 }
 
 
@@ -83,8 +86,12 @@ def render(conf: dict, theme: str = "default") -> bytes:
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
     enter_r = _num(bg, "tray_enter_radius", _num(bg, "dip_entry_radius", 5))
     modern = str(bg.get("cup_shape", "classic")).strip().lower() == "modern"
-    cup_w = _num(bg, "cup_width", 29.0)
+    cup_w = _num(bg, "cup_width", 29.2)
+    cup_w_water = _num(bg, "cup_width_water", 39.2)
     cup_h = _num(bg, "cup_depth", 30.0)
+
+    def bay_w(name):
+        return cup_w_water if name == "water" else cup_w
     drops_r = _num(bg, "remove_drops_radius", _num(bg, "dip_wipe_radius", 0))
 
     entries = tray_entries(conf)
@@ -104,7 +111,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # the scale would squash the part you care about into a corner.
     active = {e["tray"] for e in entries}
     framed = [(n, x, y) for n, x, y in all_trays if n in active]
-    pad_r = max(cup_w / 2, cup_h / 2, drops_r) if modern else max(drops_r, enter_r)
+    pad_r = max(cup_w_water / 2, cup_w / 2, cup_h / 2, drops_r) if modern else max(drops_r, enter_r)
     xs = [0.0, max_w, ox, ox + cw] + [x + pad_r for _, x, _ in framed] + [x - pad_r for _, x, _ in framed]
     ys = [0.0, max_h, oy, oy + ch] + [y + pad_r for _, _, y in framed] + [y - pad_r for _, _, y in framed]
     min_x, max_x = min(xs), max(xs)
@@ -154,7 +161,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
             continue
         cx, cy = px(x, y)
         in_use = name in active
-        fill = TRAY_FILL.get(name, (120, 120, 130))
+        fill = pal["key"] if name == "kroma" else TRAY_FILL.get(name, (120, 120, 130))
         if name.startswith("#"):
             try:
                 fill = tuple(int(name[i:i + 2], 16) for i in (1, 3, 5))
@@ -164,8 +171,10 @@ def render(conf: dict, theme: str = "default") -> bytes:
         if modern:
             # A rectangular bay, with the steps its floor climbs drawn across
             # it: the brush swipes from the near end to the far one, rising as
-            # it goes, so the steps are the thing worth seeing.
-            hw, hh = max(cup_w * scale / 2, 3), max(cup_h * scale / 2, 3)
+            # it goes, so the steps are the thing worth seeing. The water bay is
+            # the wide one — the holder gives it 39.2 mm against the colours'
+            # 29.2 — and drawing them all alike hid which cup that was.
+            hw, hh = max(bay_w(name) * scale / 2, 3), max(cup_h * scale / 2, 3)
             d.rectangle([cx - hw, cy - hh, cx + hw, cy + hh],
                         fill=(*fill, alpha), outline=(*CANVAS, alpha), width=1)
             for i in range(1, MODERN_STEPS):

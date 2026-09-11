@@ -610,11 +610,14 @@ so a coloured mark always stands for paint in a cup. The themes restyle every
 surface and every annotation, and leave the paint alone.
 
 Black is the one paint that cannot be left alone. On the three dark papers it is
-the paper — `#1b1f26` on `#1d2120` is a contrast ratio of 1.02, which is to say
-invisible — so it comes off the stylesheet as `--preview-key`, the way the cup
-marks come off `--preview-cup`, and each theme says what its darkest ink looks
-like. That keeps the rule the rule: the exception exists so black still reads as
-paint rather than as nothing at all.
+the paper — `#23282f` on `#1d2120` is a contrast ratio of 1.08, which is to say
+invisible — and that is not only the preview: the same colour draws the tray
+dot, the left edge of the artwork card and the bay in the plan view, so a black
+cup had no mark anywhere in three of the five themes. `--k` is therefore a
+per-theme colour like the rest of the surface, the plan's palettes carry a
+`key` beside their `accent`, and the preview reads `--k` rather than holding a
+black of its own. The rule survives with one exception, and the exception is what lets
+black read as paint at all rather than as nothing.
 
 Coconut declares `color-scheme: light` although its ground is dark, because
 every panel is pale and the form controls sit on those; under a dark scheme the
@@ -760,10 +763,19 @@ middle and lifts.
 
 **Modern** is the printed CMYK holder, a 192 × 46.5 × 4 mm plate with five bays
 labelled W C M Y K. Slicing the model at mid-height shows six 1 mm ribs at X
-−24, 20, 54, 88, 122 and 156, and the bays are the gaps between them: water
-39.1 mm across, the four colour bays 29.1 mm, about 30 mm deep along Y.
-`cup_width` and `cup_depth` default to those. Its floor is a staircase, so
-loading is one swipe from the deep end to the shallow one, rising as it goes:
+−24, 20, 54, 88, 122 and 156, and the bays are the gaps between them. Bisecting
+to each wall gives the design figures exactly: the water bay **39.2 mm** across,
+the four colour bays **29.2 mm**, centres at −2, 37, 71, 105 and 139, and every
+bay opening **35.1 mm** deep in Y, out through the back edge of the plate.
+
+The water bay is the wide one, by 10 mm, so that the brush has room to be
+rinsed. That is `cup_width_water`, separate from `cup_width`, and the plan view
+draws each bay at its own — drawn alike, the one cup that is a different size
+was the one you could not pick out. `cup_depth` stays at 30 rather than the
+measured 35.1, which keeps the swipe inside the opening.
+
+Its floor is a staircase, so loading is one swipe from the deep end to the
+shallow one, rising as it goes:
 
     G00 X53 Y-4      ; deep end, in front
     G00 Z-4          ; down into the paint, at dip_depth
@@ -797,6 +809,20 @@ since the original project, and the form, the pipeline and the preview are all
 built from `color_order`, so a fourth colour flows through them on its own. What
 was missing was everything that had only ever been written for three.
 
+The first thing missing was the cup itself. The form is built from the config,
+so a machine file written before the black bay existed has no `kroma` tray, no
+`K` in `color_order`, and therefore no card to upload a black picture to and no
+row to put its position in — with no way to gain either, which is the same
+reason `ALWAYS_OFFERED` exists for settings. `with_defaults` now offers the
+black cup the same way. Where it *is* remains a measurement, so the offered
+position is a guess: one more step along the row the other cups are in, the gap
+between the last two of them. On a holder-spaced config that lands it exactly
+right; on a config still using round cups 45 mm apart it lands at 188 on a
+151 mm bed, which the plan view flags as off the bed. A wrong number in front of
+you beats a missing one. Nothing is painted from the cup until a picture is
+uploaded for it — a tray in `color_order` with no image is skipped — so an
+unused black cup costs one row in the setup and nothing else.
+
 The bay spacing is not a machine measurement, because the holder is one piece:
 its five bays are 34 mm apart centre to centre, the first colour 39 mm from the
 water, and only where the whole thing sits is anyone's to decide. Those offsets
@@ -813,7 +839,13 @@ Three things had been written for CMY alone and are not any more:
 
 - **The tray dot** was styled for `[data-tray="black"]` and `[data-tray="key"]`,
   neither of which is the key this project uses. The K cup is keyed `kroma`
-  everywhere, so its dot fell through to the default grey.
+  everywhere, so its dot fell through to the default grey. Underneath that, the
+  colour of black was written once, for white paper, in three separate places —
+  `--k` in the stylesheet, `TRAY_FILL` in the plan view, `TRAY_COLOURS` in the
+  preview. At `#23282f` on the dark themes' `#1d2120` that is a ratio of 1.04,
+  so the dot, the card's left edge, the bay in the plan and the painted stroke
+  were all simply the background. Each of the three now takes black from its
+  own theme, and the preview reads `--k` rather than keeping a fourth copy.
 - **Tray numbering** counted `additionals`, which sits in the `trays` dict but
   is a group of colours rather than a cup. With four trays declared before it
   nothing showed; the fifth came out as "Tray 5". Colour trays are now named

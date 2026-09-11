@@ -488,7 +488,7 @@ function themeInk() {
     travel: pick("--line-soft", "#e6e9ee"),
     marker: pick("--bad", "#c0392b"),
     cup: pick("--preview-cup", CUP_COLOUR),
-    key: pick("--preview-key", TRAY_COLOURS.kroma),
+    key: pick("--k", TRAY_COLOURS.kroma),
   };
 }
 
@@ -536,8 +536,9 @@ function parseGcode(text) {
 function trayColour(name, index) {
   const key = name && name.toLowerCase();
   // Black is the one paint whose own colour will not do in every theme: on the
-  // dark papers it *is* the paper. So it comes off the stylesheet the way the
-  // cup marks do, each theme saying what its darkest ink looks like.
+  // dark papers it *is* the paper. So it comes off --k, the same swatch the
+  // tray dot and the card's edge use, and each theme says what black looks
+  // like on its paper rather than the preview deciding that on its own.
   if (key === "kroma" || key === "black" || key === "key") return themeInk().key;
   if (key && TRAY_COLOURS[key]) return TRAY_COLOURS[key];
   if (key && /^#[0-9a-f]{6}$/i.test(key)) return key;

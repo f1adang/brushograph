@@ -25,7 +25,6 @@
   --warn: #8a5a12;
   --c: #00aeef; --m: #ec008c; --y: #ffd400; --k: #23282f; --water: #96c8eb;
   --preview-cup: #8b3e2f;    /* trips into the cups: present, never louder than paint */
-  --preview-key: #1b1f26;    /* black paint: the one paint needing a dark-paper value too */
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
   --step: 34px;
@@ -41,7 +40,7 @@
     --black: #f2f4f3;
     --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
     --preview-cup: #b8735c;
-    --preview-key: #dfe4e2;
+    --k: #dfe4e2;  /* black paint on a dark paper has to be light */
   }
 }
 
@@ -54,7 +53,7 @@
   --black: #f2f4f3;
   --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
   --preview-cup: #b8735c;
-  --preview-key: #dfe4e2;
+  --k: #dfe4e2;  /* black paint on a dark paper has to be light */
 }
 
 /* ----------------------------------------------------------- coconut mode */
@@ -81,7 +80,6 @@
   --neon: #6bff3d;
   --husk: #4a2c18;
   --preview-cup: #6b4a2a;
-  --preview-key: #1b1f26;
 }
 :root[data-theme="coconut"] body {
   background:
@@ -144,7 +142,7 @@
   --neon-cold: #00F5FF;
   --strip: #22064A;
   --preview-cup: #39FF14;   /* the theme's own green; no tray holds green */
-  --preview-key: #e8d6f5;
+  --k: #e8d6f5;  /* black paint on a dark paper has to be light */
 }
 :root[data-theme="pinkograph"] body {
   background-color: var(--ground);
@@ -341,7 +339,7 @@
   --glow: 0 0 6px rgba(255,45,149,.95), 0 0 20px rgba(255,45,149,.7);
   --pride: linear-gradient(90deg, #ff2d95, #ff6b3d, #ffd400, #4ade80, #22d3ee, #a855f7, #ff2d95);
   --preview-cup: #a855f7;   /* violet: nothing in the trays is violet */
-  --preview-key: #ffdcf0;
+  --k: #ffdcf0;  /* black paint on a dark paper has to be light */
 }
 :root[data-theme="uwu"] body {
   background:
