@@ -583,6 +583,18 @@ request asked for: its override sets `mask: none` as well as `background:
 none`, because a mask left active would have clipped the coconut emoji to
 the brush-and-gear silhouette instead of leaving it whole.
 
+At 56px (was 32) it reads as a mark rather than a favicon-sized dot; Coconut's
+emoji scales with it via its own `font-size`, kept at the same ratio.
+
+The favicon and `apple-touch-icon` are a separate pair of files
+(`favicon.png`/`.ico`, `apple-touch-icon.png`) rather than the same
+`logo-mark.png` the header uses, because a favicon is drawn wherever the OS
+puts it — a light tab, a dark one, a bookmarks bar — with no theme and no
+`--ink` to read from. Solid black ink is the one choice that reads on
+everything a browser or a phone's home screen might put behind it; the mask
+technique above only works because the header always knows its own
+background.
+
 **Pinkograph** is a port of the machine's own theme rather than an impression of
 one. `theme-Pinkograph.gz` sits on the controller's flash and is served over
 HTTP, so its values are read from the source rather than sampled from a

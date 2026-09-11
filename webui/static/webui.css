@@ -109,7 +109,7 @@
      silhouette instead of leaving it whole. */
   background: none; box-shadow: none; border-radius: 0;
   -webkit-mask: none; mask: none;
-  display: grid; place-items: center; font-size: 27px; line-height: 1;
+  display: grid; place-items: center; font-size: 46px; line-height: 1;
 }
 :root[data-theme="coconut"] .mark::before { content: "🥥"; }
 :root[data-theme="coconut"] .primary { background: var(--neon); color: #10240c; border-color: var(--neon); }
@@ -458,7 +458,7 @@ h1, h2, h3, h4 { letter-spacing: -.015em; }
    `--ink` here, not a fixed brand navy — the badge is drawn in whatever this
    theme already calls its ink, the same rule the rest of the page follows. */
 .mark {
-  width: 32px; height: 32px; flex: none;
+  width: 56px; height: 56px; flex: none;
   background: var(--ink);
   -webkit-mask: url("logo-mark.png") center / contain no-repeat;
           mask: url("logo-mark.png") center / contain no-repeat;
