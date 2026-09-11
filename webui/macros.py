@@ -1,24 +1,25 @@
-"""Five small utility routines. Four are built from the same config the
-pipeline reads; zero.g is not.
+"""Five small utility routines.
 
 home.g parks the brush, paper.g positions it over the paper for a placement
-check, clean.g washes the brush the way a real job does, and calibrate.g
-washes then touches the canvas once, mirroring the opening `calibrate=True`
-gives a job run through copicograf directly. The wash in clean.g and
-calibrate.g follows whichever container shape `brushograph.cup_shape` names,
-classic or modern.
+check, and clean.g washes the brush the way a real job does before parking
+too. The wash in clean.g follows whichever container shape
+`brushograph.cup_shape` names, classic or modern. All three, plus zero.g's
+own last line, end the same way — parked at X0 Y0, Z = Dip Depth + 1 — via
+the shared `_park_at_origin()`.
 
 zero.g is the machine's own self-zero dance — a fixed sequence tuned on the
-actual hardware, reproduced here verbatim rather than derived from any config
-field.
+actual hardware, reproduced here verbatim, with the config read for nothing
+but that final park.
+
+calibrate.g is the odd one out on purpose: no wash, no lift first, just the
+dot and a park over it, at two literal heights that are neither
+`canvas_height` nor `go_in_tray_lift`.
 
 None of the five carries an M-code or a G28, so none needs the controller
 dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
 G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
-
-import math
 
 from configspec import with_defaults
 
@@ -61,38 +62,26 @@ def _preamble(bg: dict, feed_group: str = "normal") -> list[str]:
     return ["G90 ; absolute positioning", "G21 ; millimetres", _feed(bg, feed_group)]
 
 
-def _wipe_axis(conf: dict, tray_x: float, tray_y: float) -> tuple[float, float]:
-    """Unit vector along the row of cups, from the nearest other cup.
+def _park_at_origin(park_z: float) -> list[str]:
+    """Park at X0 Y0, Z = Dip Depth + 1.
 
-    Mirrors copicograf's own wipe_axis(): direction from the nearest other cup
-    rather than assumed to be X, so a machine that arranges its cups along Y
-    still wipes along its own row instead of off the front edge of the bed.
+    How home.g, clean.g and zero.g all finish once whatever they were doing is
+    done and the brush is already lifted clear — a shared ending rather than
+    three copies of the same two lines.
     """
-    trays = conf.get("trays", {})
-    best, best_d2 = None, None
-    for name, t in trays.items():
-        if name == "additionals" or not isinstance(t, dict) or "x" not in t:
-            continue
-        tx, ty = float(t["x"]), float(t["y"])
-        if tx == tray_x and ty == tray_y:
-            continue
-        d2 = (tx - tray_x) ** 2 + (ty - tray_y) ** 2
-        if best_d2 is None or d2 < best_d2:
-            best, best_d2 = (tx, ty), d2
-    if best is None:
-        return 1.0, 0.0
-    dx, dy = best[0] - tray_x, best[1] - tray_y
-    dist = math.hypot(dx, dy) or 1.0
-    return dx / dist, dy / dist
+    return [
+        "G00 X0 Y0",
+        f"G00 Z{_fmt(park_z)} ; Dip Depth + 1",
+    ]
 
 
-def _container_motion(bg: dict, conf: dict, tray_x: float, tray_y: float,
-                       reps: int, wipe: bool) -> list[str]:
+def _container_motion(bg: dict, tray_x: float, tray_y: float, reps: int) -> list[str]:
     """`reps` dips or swipes at (tray_x, tray_y), classic or modern.
 
-    A modern bay wipes itself on the way up the stairs — see copicograf's
-    append_go_in_tray(), which skips the rim wipe there for the same reason —
-    so `wipe` only has an effect for a classic, round container.
+    No rim wipe: the only caller is clean.g's wash, which — like copicograf's
+    own wash_the_brush() — passes remove_drop=False, because a brush being
+    rinsed has nothing to shed on the way out. A modern bay's swipe wipes
+    itself regardless, on the way up the stairs.
     """
     shape = str(bg.get("cup_shape", "classic")).strip().lower()
     dip = _num(bg, "dip_depth", -4)
@@ -128,17 +117,6 @@ def _container_motion(bg: dict, conf: dict, tray_x: float, tray_y: float,
             f"G00 X{_fmt(tray_x)} Y{_fmt(tray_y)}",
             f"G00 Z{_fmt(lift)}",
         ]
-    if wipe:
-        ax, ay = _wipe_axis(conf, tray_x, tray_y)
-        rr = _num(bg, "remove_drops_radius", 20)
-        wlift = _num(bg, "remove_drops_lift", lift)
-        lines.append(f"G00 Z{_fmt(wlift)}")
-        for side in (1, -1):
-            lines += [
-                f"G01 X{_fmt(tray_x + ax * rr * side)} Y{_fmt(tray_y + ay * rr * side)}",
-                f"G00 X{_fmt(tray_x)} Y{_fmt(tray_y)}",
-            ]
-        lines.append(f"G00 Z{_fmt(lift)}")
     return lines
 
 
@@ -155,12 +133,12 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # height, so a macro's travel Z is always the one the config names for it.
     go_lift = _num(bg, "go_in_tray_lift", 8)
     dip = _num(bg, "dip_depth", -4)
+    park_z = dip + 1  # Dip Depth + 1 — where home.g, clean.g and zero.g all end
     # A config need not carry a travel limit distinct from the painted size —
     # sketch.py falls back the same way for the same reason.
     max_w = _num(bg, "max_width", _num(bg, "width", 200))
     max_h = _num(bg, "max_height", _num(bg, "height", 200))
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
-    canvas_z = _num(bg, "canvas_height", 0)
 
     out: dict[str, str] = {}
 
@@ -168,8 +146,9 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # 0,0,0, sweep to the far corner and back to confirm nothing is fouled,
     # re-zero at a travel height, then a short jog sequence that ends by
     # declaring the offset X10 Y0 Z10 point. A fixed routine tuned on the
-    # actual hardware, not derived from the config — nothing here reads
-    # go_in_tray_lift or any other setting.
+    # actual hardware, not derived from the config, except for its very last
+    # line: it finishes the same way home.g and clean.g do, parked at X0 Y0,
+    # Z = Dip Depth + 1 — the one figure here that does read the config.
     out["zero.g"] = "\n".join([
         "G10 P0 L20 X0 Y0 Z0;",
         "G0 Z10 F1000;",
@@ -182,16 +161,15 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "G0 X-10 Y-10 F1200;",
         "G0 X+2 Y-8 F2100;",
         "G10 P0 L20 X10 Y0 Z10;",
+        f"G0 X0 Y0 Z{_fmt(park_z)} F2100;",
     ]) + "\n"
 
     # home.g — park at X0 Y0, Z = Dip Depth + 1.
-    park_z = dip + 1
     lines = [
         "; home.g — park over the origin, just above dipping depth",
         *_preamble(bg, "normal"),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
-        "G00 X0 Y0",
-        f"G00 Z{_fmt(park_z)} ; Dip Depth + 1",
+        *_park_at_origin(park_z),
     ]
     out["home.g"] = "\n".join(lines) + "\n"
 
@@ -205,38 +183,32 @@ def generate_macros(conf: dict) -> dict[str, str]:
     ]
     out["paper.g"] = "\n".join(lines) + "\n"
 
-    # clean.g — wash the brush at the water container. Three dips, no
-    # rim wipe, matching copicograf's own wash_the_brush().
+    # clean.g — wash the brush at the water container, then park. Three dips,
+    # no rim wipe, matching copicograf's own wash_the_brush(); the park at the
+    # end matches home.g's, so a clean brush is also a homed one.
     lines = [
-        "; clean.g — wash the brush in the water container",
+        "; clean.g — wash the brush in the water container, then park",
         f"; containers: {shape}",
         *_preamble(bg, "fast"),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
-        *_container_motion(bg, conf, wx, wy, reps=_WASH_REPS, wipe=False),
+        *_container_motion(bg, wx, wy, reps=_WASH_REPS),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
+        *_park_at_origin(park_z),
     ]
     out["clean.g"] = "\n".join(lines) + "\n"
 
-    # calibrate.g — a wash, then one touch on the canvas. Mirrors the opening
-    # copicograf's own prepare_path() gives a job run with calibrate=True: a
-    # trip that ends by touching the paper at the origin rather than at a
-    # colour, since this checks the wash and the canvas height, not a mix.
-    # That opening leaves three such dots — mixing the first colour, washing,
-    # then loading paint again, each ending on the paper — because it is
-    # meant to happen once per real job. calibrate.g is meant to be run on its
-    # own, so it takes only the wash and leaves the one dot that names it.
+    # calibrate.g — place the dot and park over it. Nothing before it: no
+    # wash, no lift to Go In Tray Lift first, unlike every other macro here —
+    # this one is meant to do only the dot. Z0 and Z10 are given as literal
+    # heights for this macro specifically, not canvas_height or
+    # go_in_tray_lift, so neither is read from the config.
     lines = [
-        "; calibrate.g — wash the brush, then touch the canvas once",
-        f"; containers: {shape}",
-        *_preamble(bg, "fast"),
-        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
-        f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
-        *_container_motion(bg, conf, wx, wy, reps=_WASH_REPS, wipe=False),
-        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — before crossing to the canvas",
+        "; calibrate.g — place the dot, then park over it",
+        *_preamble(bg, "normal"),
         f"G00 X{_fmt(ox)} Y{_fmt(oy)} ; the canvas origin",
-        f"G00 Z{_fmt(canvas_z)} ; touch down — the single dot",
-        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
+        "G00 Z0 ; touch down — the single dot",
+        "G00 Z10 ; park over the dot",
     ]
     out["calibrate.g"] = "\n".join(lines) + "\n"
 

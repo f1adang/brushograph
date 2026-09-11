@@ -981,15 +981,13 @@ a tray image, so generating them needs none of the pictures a G-code run
 refuses to proceed without. Four of the five are built from the config;
 `zero.g` is not (see below).
 
-- **zero.g** is not derived from the config at all — every other macro reads
-  the settings above it; this one is the same eleven lines regardless of what
-  they say. It is the machine's own self-zero dance, reproduced verbatim: zero
+- **zero.g** is the machine's own self-zero dance, reproduced verbatim: zero
   the near corner, lift, sweep out to the far corner and back to confirm
   nothing is fouled along the way, re-zero at a travel height, jog down and
-  back up, jog to two more points, and finish by declaring the offset `X10 Y0
-  Z10` point. Tuned on the actual hardware; nothing here reads
-  `go_in_tray_lift` or any other setting, which is also why it is the one
-  macro two different machine configs can never disagree about.
+  back up, jog to two more points, and declare the offset `X10 Y0 Z10` point.
+  Fixed and tuned on the actual hardware, except its very last line, which is
+  not: it ends the same way `home.g` and `clean.g` do, parked at X0 Y0,
+  Z = Dip Depth + 1 — the one figure in this file that reads the config.
 - **home.g** parks at X0 Y0, Z at `dip_depth + 1` — a literal reading of that
   spec, so it lands just above dipping depth rather than at travel height. It
   still lifts to `go_in_tray_lift` *before* crossing the bed, and only
@@ -1002,39 +1000,36 @@ refuses to proceed without. Four of the five are built from the config;
   need not carry a travel limit distinct from what it paints.
 - **clean.g** washes the brush at the water container, three dips or swipes
   with no rim wipe — matching the `3` and the `False` hardcoded into
-  copicograf's own `wash_the_brush()`.
-- **calibrate.g** washes the same way, then touches the canvas origin once —
-  down to `canvas_height`, straight back up — leaving a single dot. It mirrors
-  the opening `Copicograf.prepare_path()` gives a job run with `calibrate=True`:
-  a trip that ends on the paper at the origin rather than at a colour, so what
-  gets checked is the wash and the canvas height, not a colour mix. That
-  opening leaves *three* dots — mixing the first colour, washing, loading paint
-  again, each ending on the paper — because it is written to run once at the
-  start of a real job. calibrate.g is meant to run on its own, so it keeps only
-  the wash and the one dot that names it.
+  copicograf's own `wash_the_brush()` — then parks the same way `home.g` does,
+  so a clean brush is also a homed one.
+- **calibrate.g** does only one thing: touch the canvas origin down to `Z0`
+  and park at `Z10`, both literal heights rather than `canvas_height` or
+  `go_in_tray_lift`. Unlike the other four it does not lift to
+  `go_in_tray_lift` before its first move either — no wash, no travel-safety
+  lift, just the dot and a park over it.
 
-In the four config-driven macros, every move to somewhere new — a tray, the
-canvas, the origin — is preceded by a lift to `go_in_tray_lift`, and only
-that: never the larger of it and `move_to_other_shape_lift + canvas_height`,
-the way copicograf's own travel height for a real job is computed. A macro's
-travel Z is always the one figure the config names for it, so raising
-`move_to_other_shape_lift` does not quietly raise how high these clear the
-bed. zero.g's own heights (`Z10`, `Z32`, `Z15`) are none of the config's:
-they are part of the fixed routine above.
+`home.g`, `paper.g` and `clean.g` share one rule: every move to somewhere
+new — a tray, the canvas, the origin — is preceded by a lift to
+`go_in_tray_lift`, and only that: never the larger of it and
+`move_to_other_shape_lift + canvas_height`, the way copicograf's own travel
+height for a real job is computed. A macro's travel Z is always the one
+figure the config names for it, so raising `move_to_other_shape_lift` does
+not quietly raise how high these clear the bed. `zero.g`'s own heights
+(`Z10`, `Z32`, `Z15`) are none of the config's — they are part of the fixed
+routine — and `calibrate.g` follows no lift-first rule at all, on purpose.
 
-clean.g and calibrate.g's wash follow whichever shape `cup_shape` names, and
-are meant to read as a real pickup's motion, not merely approximate it: a
-modern container gets the same swipe up the stairs `append_go_in_tray()` emits
-for a real job, margin and all, and a classic one gets the same down-sweep-up
-dance. The one deliberate difference is that the classic dip's quadrant is no
-longer random. copicograf spreads wear across the cup by picking one of four
-quadrants at random on every real pickup; a macro generated once and kept is
-more useful being reproducible, so it cycles the same four quadrants by
-repetition index instead — the same coverage, without two downloads of the
-same config ever differing. The classic wipe direction is still computed the
-way copicograf's own `wipe_axis()` computes it — from the nearest other
-container, not assumed to be X — so a machine whose containers run along Y
-still wipes along its own row here too.
+`clean.g`'s wash follows whichever shape `cup_shape` names, and is meant to
+read as a real pickup's motion, not merely approximate it: a modern container
+gets the same swipe up the stairs `append_go_in_tray()` emits for a real job,
+margin and all, and a classic one gets the same down-sweep-up dance, with no
+rim wipe afterward — matching the `False` copicograf's own `wash_the_brush()`
+passes, since a brush being rinsed has nothing to shed on the way out. The
+one deliberate difference from copicograf is that the classic dip's quadrant
+is no longer random: it spreads wear across a real cup by picking one of four
+quadrants at random on every pickup, which suits hundreds of pickups but not
+a macro generated once and kept, so `_container_motion()` cycles the same
+four quadrants by repetition index instead — the same coverage, without two
+downloads of the same config ever differing.
 
 None of the five macros carries an M-code or a `G28`: no `sanitize_for_controller`
 pass is needed, because `G90`/`G21`/`G0`/`G1`/`G10`/`G92` mean the same thing to
