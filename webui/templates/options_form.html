@@ -143,55 +143,6 @@
     {% endfor %}{% endif %}
   </section>
 
-  <!-- ---------------------------------------------------------------- run -->
-  <section class="step" id="step-run">
-    <div class="step-head">
-      <h2>Run</h2>
-      <p>Check the path, then send it to the machine.</p>
-    </div>
-    <div class="panel">
-    {% set fill = (schema | selectattr('key', 'equalto', 'slicer') | list | first) %}
-    {% if fill %}
-    <section class="group" id="fill-options">
-      <h3>{{ fill.title }}</h3>
-      <p class="note">How the brush covers a shape: the gap between strokes, the
-        pattern it lays them in, and how many times it goes round the outline.
-        Zero for the line distance leaves the shapes unfilled.</p>
-      <div class="grid">{% for f in fill.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
-      {% for g in fill.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
-    </section>
-    {% endif %}
-    <div class="actions">
-      <button type="submit" class="primary" id="options-form-gcode">Generate G-code</button>
-      <span class="note" id="form-status" hidden></span>
-    </div>
-    <p class="error" id="form-error" hidden></p>
-
-    <div id="preview-card" hidden>
-      <div class="canvas-wrap">
-        <canvas id="gcode-canvas" width="900" height="700"></canvas>
-      </div>
-      <div class="row">
-        <button type="button" class="ghost" id="sim-play">▶ Play</button>
-        <input type="range" id="sim-scrub" min="0" max="1000" value="1000">
-        <span class="note" id="sim-at"></span>
-      </div>
-      <div class="sim-stats" id="sim-stats"></div>
-      <div class="row">
-        <button type="button" class="primary" id="gcode-download" hidden></button>
-        <button type="button" class="primary" id="gcode-send" hidden>Send to machine</button>
-        <button type="button" class="primary" id="gcode-run" hidden>Upload &amp; start</button>
-        <span class="note" id="gcode-note" hidden></span>
-      </div>
-      <p class="note" id="machine-note" hidden></p>
-      <p class="error" id="machine-error" hidden></p>
-    </div>
-    <p class="note">Already have a file?
-      <label class="inline-file">Open a .gcode<input type="file" id="sim-open" accept=".gcode,.nc,.txt" hidden></label>
-    </p>
-    </div>
-  </section>
-
   <!-- -------------------------------------------------------------- setup -->
   <details class="setup" id="machine-setup">
     <summary><span>Machine setup</span><i>Containers, brush heights, speeds — set once per machine</i></summary>
@@ -248,4 +199,75 @@
 
     </div>
   </details>
+
+  <!-- ------------------------------------------------------------- macros -->
+  <details class="setup" id="macro-generator">
+    <summary><span>Macro generator</span><i>zero, home, paper, clean, prime — one set per machine</i></summary>
+    <div class="setup-body">
+      <p class="note">Five small routines built from the settings above:
+        zeroing the controller, parking the brush, checking paper placement,
+        and washing and priming the brush the way a real job does — clean and
+        prime follow whichever container shape is set under Containers.</p>
+
+      <div class="actions">
+        <button type="button" class="primary" id="macros-generate">Generate macros</button>
+        <button type="button" class="primary" id="macros-download" hidden>Download macros</button>
+        <button type="button" class="primary" id="macros-upload" hidden>Upload to machine</button>
+        <span class="note" id="macros-status" hidden></span>
+      </div>
+      <p class="error" id="macros-error" hidden></p>
+      <ul class="macro-list" id="macro-list" hidden></ul>
+      <p class="note" id="macros-machine-note" hidden></p>
+      <p class="error" id="macros-machine-error" hidden></p>
+    </div>
+  </details>
+
+  <!-- ---------------------------------------------------------------- run -->
+  <section class="step" id="step-run">
+    <div class="step-head">
+      <h2>Run</h2>
+      <p>Check the path, then send it to the machine.</p>
+    </div>
+    <div class="panel">
+    {% set fill = (schema | selectattr('key', 'equalto', 'slicer') | list | first) %}
+    {% if fill %}
+    <section class="group" id="fill-options">
+      <h3>{{ fill.title }}</h3>
+      <p class="note">How the brush covers a shape: the gap between strokes, the
+        pattern it lays them in, and how many times it goes round the outline.
+        Zero for the line distance leaves the shapes unfilled.</p>
+      <div class="grid">{% for f in fill.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+      {% for g in fill.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
+    </section>
+    {% endif %}
+    <div class="actions">
+      <button type="submit" class="primary" id="options-form-gcode">Generate G-code</button>
+      <span class="note" id="form-status" hidden></span>
+    </div>
+    <p class="error" id="form-error" hidden></p>
+
+    <div id="preview-card" hidden>
+      <div class="canvas-wrap">
+        <canvas id="gcode-canvas" width="900" height="700"></canvas>
+      </div>
+      <div class="row">
+        <button type="button" class="ghost" id="sim-play">▶ Play</button>
+        <input type="range" id="sim-scrub" min="0" max="1000" value="1000">
+        <span class="note" id="sim-at"></span>
+      </div>
+      <div class="sim-stats" id="sim-stats"></div>
+      <div class="row">
+        <button type="button" class="primary" id="gcode-download" hidden></button>
+        <button type="button" class="primary" id="gcode-send" hidden>Send to machine</button>
+        <button type="button" class="primary" id="gcode-run" hidden>Upload &amp; start</button>
+        <span class="note" id="gcode-note" hidden></span>
+      </div>
+      <p class="note" id="machine-note" hidden></p>
+      <p class="error" id="machine-error" hidden></p>
+    </div>
+    <p class="note">Already have a file?
+      <label class="inline-file">Open a .gcode<input type="file" id="sim-open" accept=".gcode,.nc,.txt" hidden></label>
+    </p>
+    </div>
+  </section>
 </form>

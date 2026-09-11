@@ -23,6 +23,7 @@ import gcode_pipeline
 import subject
 import woodcut
 from configspec import MODERN_BAY_OFFSETS, apply_form, build_schema, tray_entries
+from macros import generate_macros
 from sketch import PALETTES, render as render_sketch
 
 WEBUI_DIR = Path(__file__).resolve().parent
@@ -442,6 +443,33 @@ def options_form_post():
         data, mimetype="text/plain",
         headers={"Content-Disposition": f'attachment; filename="{download_name}"'},
     )
+
+
+@app.post("/macros")
+def macros_post():
+    """zero.g, home.g, paper.g, clean.g, prime.g — built from the form as it
+    currently stands, the same way Download Machine Config reads it, and
+    needing none of the tray images that endpoint would refuse to run without.
+    """
+    sid = session_id()
+    name = request.form.get("machine_config_name", "")
+    mode = request.form.get("machine_config_mode", "preset")
+    try:
+        base = load_config(name, mode, sid)
+    except (ValueError, json.JSONDecodeError) as exc:
+        return jsonify(error=str(exc)), 400
+
+    conf, problems = apply_form(base, request.form)
+    if problems:
+        return jsonify(error="; ".join(problems[:4])), 400
+
+    try:
+        macros = generate_macros(conf)
+    except Exception as exc:  # noqa: BLE001 - report, do not 500 silently
+        app.logger.error("macro generation crashed:\n%s", traceback.format_exc())
+        return jsonify(error=f"{type(exc).__name__}: {exc}"), 500
+
+    return jsonify(macros=macros)
 
 
 def main():

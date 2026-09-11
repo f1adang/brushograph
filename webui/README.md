@@ -39,15 +39,19 @@ machine and left alone.
   mapped onto width x height regardless of aspect, so a mismatch stretches the
   painting rather than fitting it; it warns when the uploaded images disagree on
   ratio, or when the result exceeds `max_height`.
+- **Machine setup**, collapsed — containers, their positions, where the
+  artwork sits on the bed, brush heights, loading the brush, backlash, the
+  `moves` speed groups and the controller type, and at the end **Download
+  Machine Config**, which writes all of it back out as a `.conf`. A config
+  carrying keys this map has never heard of still shows them, under **Other
+  settings**. It sits above Run, not below it, because it and Macro generator
+  are the two panels someone opens once per machine rather than once per job.
+- **Macro generator**, collapsed — `zero.g`, `home.g`, `paper.g`, `clean.g` and
+  `prime.g`, built from the settings in Machine setup (see below).
 - **Run** — the fill settings, then Generate G-code, then the path preview. The
   fill settings sit here rather than in machine setup because the stroke
   spacing, the pattern and the wall count are decided per picture about as often
   as per machine, and they belong beside the button that consumes them.
-- **Machine setup**, collapsed — tray positions, where the artwork sits on the
-  bed, brush heights, loading the brush, backlash, the `moves` speed groups and
-  the controller type, and at the end **Download Machine Config**, which writes
-  all of it back out as a `.conf`. A config carrying keys this map has never heard of
-  still shows them, under **Other settings**.
 
 The two submit buttons report where they are: each has its own status and error
 line, because a "Downloaded pinkograph.conf" written into the Run step would be
@@ -964,6 +968,69 @@ drawn.
 The hostname lives in the config under **Connection**, defaulting to
 `fluidnc.local`. A config written before that section existed gains it, like
 every other always-offered setting.
+
+## Macro generator
+
+Below Machine setup — moved above Run so the two collapsed panels sit
+together — a second `<details>`, **Macro generator**, builds five small
+routines from the same settings: `zero.g`, `home.g`, `paper.g`, `clean.g` and
+`prime.g`. All five come from `webui/macros.py`, a module the pipeline never
+imports and that never touches a tray image, so generating them needs none of
+the pictures a G-code run refuses to proceed without.
+
+- **zero.g** declares wherever the brush is physically parked as the
+  controller's origin — `G10 L20 P0 X0 Y0 Z0` on GRBL and FluidNC, `G92 X0 Y0
+  Z0` on Marlin. It moves nothing; it is meant to be run with the brush already
+  in position, the same idiom the README already documented for FluidNC's own
+  `startup_line0: G10 P0 L20 …`.
+- **home.g** parks at X0 Y0, Z at `dip_depth + 1` — a literal reading of that
+  spec, not `canvas_height` or `go_in_tray_lift`, so it lands just above
+  dipping depth rather than at a travel-safe height. It still lifts to the
+  travel-safe height *before* crossing the bed, the same `_safe_z()` copicograf
+  itself would use, and only descends to the park height once it is over X0 Y0.
+- **paper.g** moves to half of `max_width` on X and all of `max_height` on Y,
+  at the travel-safe height — a placement check, not a touch: it does not
+  descend to `canvas_height`. Absent `max_width`/`max_height`, it falls back to
+  `width`/`height`, the always-present painted size — the same fallback
+  `sketch.py` already uses for the plan view, for the same reason: a config
+  need not carry a travel limit distinct from what it paints.
+- **clean.g** washes the brush at the water container, three dips or swipes
+  with no rim wipe — matching the `3` and the `False` hardcoded into
+  copicograf's own `wash_the_brush()`.
+- **prime.g** charges every colour container named in `color_order`,
+  `prepare_paint_count` dips or swipes each — matching `prepare_paint()`. Which
+  trays to prime is not specified by the request that asked for this feature;
+  priming every configured colour, not just the first, is the reading applied
+  here, on the theory that a "prime everything" macro is more useful before a
+  job than one that only charges whichever tray happens to be first.
+
+clean.g and prime.g follow whichever shape `cup_shape` names, and are meant to
+read as a real pickup's motion, not merely approximate it: a modern container
+gets the same swipe up the stairs `append_go_in_tray()` emits for a real job,
+margin and all, and a classic one gets the same down-sweep-up dance. The one
+deliberate difference is that the classic dip's quadrant is no longer random.
+copicograf spreads wear across the cup by picking one of four quadrants at
+random on every real pickup; a macro generated once and kept is more useful
+being reproducible, so it cycles the same four quadrants by repetition index
+instead — the same coverage, without two downloads of the same config ever
+differing. The classic wipe direction is still computed the way copicograf's
+own `wipe_axis()` computes it — from the nearest other container, not assumed
+to be X — so a machine whose containers run along Y still wipes along its own
+row here too.
+
+None of the five macros carries an M-code or a `G28`: no `sanitize_for_controller`
+pass is needed, because `G90`/`G21`/`G0`/`G1`/`G10`/`G92` mean the same thing to
+Marlin, GRBL and FluidNC.
+
+**Generate macros** posts the form to `/macros` — the same `apply_form()` a
+config download goes through, so a macro reflects whatever is currently typed
+into the form, saved or not, the way Download Machine Config already does.
+**Download macros** saves the five as separate files rather than a zip; five
+small text files did not seem worth a new dependency. **Upload to machine**
+sends them the way `gcode-send` sends a job — one `POST <host>/upload` per
+file, `mode: "no-cors"`, opaque reply — except there is no `$SD/Run` here:
+these are routines an operator runs by hand from the controller's own
+interface, not a job meant to start the moment it lands.
 
 ## Sessions outlive a restart
 

@@ -311,6 +311,7 @@ function wireForm() {
   }
 
   wireSimulator();
+  wireMacros();
 
   /* ---- is there a person or prominent object worth isolating? ---- */
   let lastDetected = null;
@@ -689,6 +690,84 @@ function renderSimStats() {
   box.appendChild(legend);
 }
 
+/* ------------------------------------------------------------ macros ---- */
+/* zero.g, home.g, paper.g, clean.g, prime.g — one round trip to /macros, held
+ * here as {name: text} so Download and Upload need no second request. Same
+ * shape as the config download, minus the tray images that one refuses to
+ * run without: /macros only reads the text fields. */
+let pendingMacros = null;
+
+function wireMacros() {
+  const form = $("options-form");
+  const genBtn = $("macros-generate");
+  const dlBtn = $("macros-download");
+  const upBtn = $("macros-upload");
+  const status = $("macros-status");
+  const errBox = $("macros-error");
+  const list = $("macro-list");
+  if (!genBtn || !form) return;
+
+  function say(text, bad) {
+    if (bad) {
+      errBox.textContent = text;
+      errBox.hidden = false;
+      status.hidden = true;
+    } else {
+      status.textContent = text;
+      status.hidden = false;
+      errBox.hidden = true;
+    }
+  }
+
+  genBtn.addEventListener("click", async () => {
+    errBox.hidden = true;
+    status.hidden = true;
+    const label = genBtn.textContent;
+    genBtn.textContent = "Generating…";
+    genBtn.disabled = true;
+    try {
+      const fd = new FormData(form);
+      // The images are for a paint job; the macros never touch them, and
+      // sending them anyway would be the whole tray upload for nothing.
+      form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
+      const res = await fetch("macros", { method: "POST", body: fd });
+      if (!res.ok) {
+        let msg = `Server returned ${res.status}`;
+        try { msg = (await res.json()).error || msg; } catch (e) { /* not json */ }
+        throw new Error(msg);
+      }
+      const { macros } = await res.json();
+      pendingMacros = macros;
+      list.innerHTML = "";
+      for (const [name, text] of Object.entries(macros)) {
+        const li = el("li");
+        li.textContent = `${name} (${new Blob([text]).size} B)`;
+        list.appendChild(li);
+      }
+      list.hidden = false;
+      dlBtn.hidden = false;
+      upBtn.hidden = false;
+      say(`Generated ${Object.keys(macros).length} macros from the settings above.`);
+    } catch (err) {
+      say(String(err.message || err), true);
+    } finally {
+      genBtn.textContent = label;
+      genBtn.disabled = false;
+    }
+  });
+
+  dlBtn.addEventListener("click", () => {
+    if (!pendingMacros) return;
+    // One save per file rather than a zip: no new dependency for five small
+    // text files, and each already has the name it should land under.
+    for (const [name, text] of Object.entries(pendingMacros)) {
+      saveBlob(new Blob([text], { type: "text/plain" }), name);
+    }
+  });
+
+  upBtn.addEventListener("click", () => uploadMacrosToMachine());
+}
+
 function showGcode(text) {
   const card = $("preview-card");
   if (!card) return;
@@ -923,6 +1002,59 @@ async function sendToMachine(start) {
   } finally {
     if (ws) { try { ws.close(); } catch (e) { /* already gone */ } }
     buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; });
+  }
+}
+
+/* Same upload as sendToMachine(), one request per macro rather than one file
+ * — the machine's /upload takes a single file per POST, and there is no
+ * $SD/Run here: these are routines an operator runs by hand, not a job to
+ * start the moment it lands. */
+async function uploadMacrosToMachine() {
+  if (!pendingMacros) return;
+  const note = $("macros-machine-note");
+  const err = $("macros-machine-error");
+  function say(text, bad) {
+    if (note) note.hidden = true;
+    if (err) err.hidden = true;
+    const box = bad ? err : note;
+    if (box) { box.textContent = text; box.hidden = false; }
+  }
+
+  const base = await machineBase();
+  if (!base) {
+    say("Set a hostname under Machine setup, Connection.", true);
+    return;
+  }
+  if (location.protocol === "https:" && base.startsWith("http:")) {
+    say(`This page is on https and ${base} is not, so the browser will block `
+      + "the connection. Open the WebUI over http on the same network as the "
+      + "machine, or download the macros and upload them yourself.", true);
+    return;
+  }
+
+  const upBtn = $("macros-upload");
+  const label = upBtn.textContent;
+  upBtn.disabled = true;
+  const names = Object.keys(pendingMacros);
+  let sent = 0;
+  try {
+    for (const name of names) {
+      say(`Sending ${name} to ${base}… (${sent}/${names.length})`);
+      const fd = new FormData();
+      fd.append("path", "/");
+      fd.append("myfile", new Blob([pendingMacros[name]], { type: "text/plain" }), name);
+      await fetch(`${base}/upload`, { method: "POST", body: fd, mode: "no-cors" });
+      sent += 1;
+    }
+    say(`Sent ${sent} macro${sent === 1 ? "" : "s"} to ${base}. The reply is opaque, `
+      + "so check the machine's own file list to be sure.");
+  } catch (e) {
+    say(`Could not reach ${base}: ${e.message || e}. Sent ${sent}/${names.length} `
+      + "before that. Check the hostname under Machine setup, Connection, and "
+      + "that this page and the machine are on the same network.", true);
+  } finally {
+    upBtn.disabled = false;
+    upBtn.textContent = label;
   }
 }
 })();
