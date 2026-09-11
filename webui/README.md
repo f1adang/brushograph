@@ -560,6 +560,29 @@ mark in the corner is a coconut. **UwU** is a neon sign with all the lights up:
 the ground glows, every edge is lit, and the rules under the headings and the
 Generate button run the rainbow.
 
+### The mark in the corner
+
+`.mark` is the crossed-brushes-and-gear logo (`webui/static/logo-mark.png`,
+cut from `brušograf_logo.png`: luminance thresholded to alpha, cropped tight
+to the ink, ink itself recoloured white so the same file reads correctly
+whichever masking convention a browser uses — some older WebKit builds treat
+a raster mask source by luminance rather than alpha, and white ink stays
+opaque under either). It is applied as a CSS `mask-image`, not an `<img>`:
+`background` paints it, so every theme below recolours the same silhouette
+rather than swapping pictures.
+
+Default and Dark mode fill it with `--ink` — whatever this theme already
+calls its own ink colour, the same rule the rest of the page follows, rather
+than a fixed brand navy that would need its own contrast check against every
+future theme. Pinkograph and UwU fill it with the gradient their old colour
+wheel already used, so the swap from a plain wheel to the actual logo cost
+those two themes nothing — the pink-to-cyan and the rainbow both still read,
+now shaped like the mark instead of a circle, and UwU's slow spin now turns
+an actual gear. **Coconut alone keeps its own mark**, the 🥥 an earlier
+request asked for: its override sets `mask: none` as well as `background:
+none`, because a mask left active would have clipped the coconut emoji to
+the brush-and-gear silhouette instead of leaving it whole.
+
 **Pinkograph** is a port of the machine's own theme rather than an impression of
 one. `theme-Pinkograph.gz` sits on the controller's flash and is served over
 HTTP, so its values are read from the source rather than sampled from a
@@ -1080,6 +1103,13 @@ every response is sent `no-store`. Editing a script and reloading is otherwise
 not enough — the page keeps the copy it already parsed, and a stale copy is
 indistinguishable from a bug in the new one. Changing a file changes its URL, so
 the browser has to fetch it.
+
+The favicon is the one asset also served from a second, unversioned place:
+`GET /favicon.ico` returns `static/favicon.ico` directly, because some
+browsers and crawlers request that exact path regardless of what `<link
+rel="icon">` says. Both pages still carry the `<link>` tags too — a PNG for
+anything that reads them, the `.ico` again for anything that only trusts a
+literal `favicon.ico`, and an `apple-touch-icon` for a phone's home screen.
 
 ## Limits
 

@@ -296,6 +296,13 @@ def machine_resolve():
     return jsonify(host=host, ip=ip)
 
 
+@app.get("/favicon.ico")
+def favicon():
+    # Some browsers and crawlers ask for this path directly, ignoring the
+    # <link rel="icon"> tags entirely.
+    return send_file(Path(app.static_folder) / "favicon.ico")
+
+
 @app.get("/about")
 def about():
     return render_template("about.html")
