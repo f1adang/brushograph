@@ -24,55 +24,161 @@ const showCfgError = (msg) => {
   if (msg) box.textContent = msg;
 };
 
+const isKongress = () => document.documentElement.dataset.theme === "kongress";
+
 /* ------------------------------------------------------------ config picker */
 
-$("cfg-download").addEventListener("click", () => {
-  const name = machineConfigName || configSelect.value;
-  if (!name) return showCfgError("Choose a config to download first");
-  const mode = machineConfigName ? machineConfigMode : "preset";
-  const a = document.createElement("a");
-  a.href = `machine_config/get?name=${encodeURIComponent(name)}&mode=${mode}`;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-});
+const cfgDlBtn = $("cfg-download");
+if (cfgDlBtn) {
+  cfgDlBtn.addEventListener("click", () => {
+    const name = machineConfigName || (configSelect ? configSelect.value : null);
+    if (!name) return showCfgError(document.documentElement.dataset.theme === "kongress" ? "Wählen Sie zuerst eine Konfiguration aus" : "Choose a config to download first");
+    const mode = machineConfigName ? machineConfigMode : "preset";
+    const a = document.createElement("a");
+    a.href = `machine_config/get?name=${encodeURIComponent(name)}&mode=${mode}`;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+  });
+}
 
-configSelect.addEventListener("change", () => {
-  if (!configSelect.value) return;
-  configFile.value = "";
-  machineConfigName = configSelect.value;
-  machineConfigMode = "preset";
-  loadOptionsForm();
-});
-
-configFile.addEventListener("change", async () => {
-  if (!configFile.files.length) return;
-  showCfgError(null);
-  const fd = new FormData();
-  fd.append("config_file", configFile.files[0]);
-  try {
-    const res = await fetch("machine_config/upload", { method: "POST", body: fd });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Upload failed");
-    configSelect.selectedIndex = 0;
-    machineConfigName = data.name;
-    machineConfigMode = "uploaded";
+if (configSelect) {
+  configSelect.addEventListener("change", () => {
+    if (!configSelect.value) return;
+    if (configFile) configFile.value = "";
+    machineConfigName = configSelect.value;
+    machineConfigMode = "preset";
     loadOptionsForm();
-  } catch (err) {
-    configSelect.selectedIndex = 0;
-    configFile.value = "";
-    showCfgError(String(err.message || err));
+  });
+}
+
+if (configFile) {
+  configFile.addEventListener("change", async () => {
+    if (!configFile.files.length) return;
+    showCfgError(null);
+    const fd = new FormData();
+    fd.append("config_file", configFile.files[0]);
+    try {
+      const res = await fetch("machine_config/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      if (configSelect) configSelect.selectedIndex = 0;
+      machineConfigName = data.name;
+      machineConfigMode = "uploaded";
+      loadOptionsForm();
+    } catch (err) {
+      if (configSelect) configSelect.selectedIndex = 0;
+      configFile.value = "";
+      showCfgError(String(err.message || err));
+    }
+  });
+}
+
+/* ------------------------------------------------------ kongress translations */
+/* Replaces English UI text with German after the form is injected. Each entry
+   is [searchText, replacement]; text matching is on trimmed textContent of
+   Text nodes so it is safe against child-element spans inside labels. */
+
+const KONGRESS_TEXT = [
+  /* ---- step-machine ---- */
+  ["The machine",                               "Die Maschine"],
+  ["Bed, canvas and trays drawn to scale, redrawn as you edit.",
+                                                "Arbeitsfläche, Druckbereich und Behälter maßstabsgerecht, wird bei jeder Änderung neu gezeichnet."],
+  ["Machine setup",                             "Maschineneinrichtung"],
+  ["Containers, brush heights, speeds — set once per machine",
+                                                "Behälter, Pinselhöhen, Geschwindigkeiten — einmalig je Maschine"],
+  ["Container positions",                       "Behälterpositionen"],
+  ["Save these settings",                       "Einstellungen speichern"],
+  ["Writes everything above, and the fill settings, back out as a",
+                                                "Schreibt alle obigen Einstellungen sowie die Fülloptionen in eine"],
+  ["you can keep or hand to another machine.",  "die Sie aufbewahren oder einer anderen Maschine übergeben können."],
+  ["Download Machine Config",                   "Maschinenkonfiguration herunterladen"],
+  ["Macro generator",                           "Makrogenerator"],
+  ["zero, home, paper, clean, calibrate — one set per machine",
+                                                "Nullpunkt, Heimfahrt, Papier, Reinigung, Kalibrierung — ein Satz je Maschine"],
+  ["Generate macros",                           "Steuermakros erzeugen"],
+  ["Download macros",                           "Makros herunterladen"],
+  ["Upload to machine",                         "Auf Maschine übertragen"],
+  ["Auto-space containers for modern holder",   "Behälter für modernen Halter automatisch anordnen"],
+  /* ---- step-artwork ---- */
+  ["Artwork",                                   "Bildvorlage"],
+  ["One picture per colour, painted in the order below",
+                                                "Ein Bild je Farbe, in der unten angezeigten Reihenfolge bemalt"],
+  ["or a single colour photograph, split into CMYK and thresholded into those same plates. Ink is anything not white.",
+                                                "oder eine einzelne Farbfotografie, in CMYK getrennt und auf dieselben Druckplatten geschwellwertet. Tinte ist alles, was nicht weiß ist."],
+  ["Colour photograph",                         "Farbfotografie"],
+  ["Picture",                                   "Bild"],
+  ["What it is",                                "Bildart"],
+  ["Already black and white",                   "Bereits schwarzweiß"],
+  ["A photo — cut it for me",                   "Ein Foto — bitte umwandeln"],
+  ["Turning the photo into a cut",              "Foto in Druckvorlage umwandeln"],
+  ["Detail",                                    "Detailgrad"],
+  ["Hatching",                                  "Schraffur"],
+  ["Darkness",                                  "Schwärzung"],
+  ["Edge roughness",                            "Kantenrauheit"],
+  ["Contour lines",                             "Konturen"],
+  ["Keep the dark edges in the picture as knife lines.",
+                                                "Dunkle Bildkanten als Schnittlinien beibehalten."],
+  ["Isolate the subject",                       "Motiv freistellen"],
+  ["Insta face filter",                         "Gesichtsretusche"],
+  ["Evens the light on the face and smooths the skin, keeping eyes, brows and lips sharp.",
+                                                "Gleicht das Gesichtslicht aus und glättet die Haut; Augen, Brauen und Lippen bleiben scharf."],
+  ["Show me the cut",                           "Druckvorlage anzeigen"],
+  ["Show the plates",                           "Druckplatten anzeigen"],
+  ["Match image",                               "Bildverhältnis übernehmen"],
+  ["The picture is scaled to fit this. Match image takes the height from the aspect ratio of the first picture you loaded.",
+                                                "Das Bild wird auf dieses Maß skaliert. 'Bildverhältnis übernehmen' berechnet die Höhe aus dem Seitenverhältnis des ersten geladenen Bildes."],
+  /* ---- step-run ---- */
+  ["Run",                                       "Ausführen"],
+  ["Check the path, then send it to the machine.",
+                                                "Bahn prüfen, dann an die Maschine senden."],
+  ["Generate G-code",                           "Maschinensteuerbefehle berechnen"],
+  ["Send to machine",                           "An Maschine senden"],
+  ["Upload & start",                            "Übertragen & starten"],
+  ["Already have a file?",                      "Bereits eine Datei?"],
+  ["Open a .gcode",                             "Maschinensteuerbefehle öffnen"],
+  /* ---- fill / slicer ---- */
+  ["How the brush covers a shape: the gap between strokes, the pattern it lays them in, and how many times it goes round the outline. Zero for the line distance leaves the shapes unfilled.",
+                                                "Wie der Pinsel eine Form abdeckt: Abstand zwischen den Bahnen, Muster und Anzahl der Umrundungen. Null beim Linienabstand lässt die Formen ungefüllt."],
+];
+
+/* Walk all text nodes inside root and replace matched strings. */
+function applyKongressTranslations(root) {
+  if (!root) return;
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
+  const replacements = [];
+  let node;
+  while ((node = walker.nextNode())) {
+    const t = node.textContent;
+    for (const [en, de] of KONGRESS_TEXT) {
+      if (t.includes(en)) {
+        replacements.push([node, t.split(en).join(de)]);
+        break;
+      }
+    }
   }
-});
+  for (const [node, text] of replacements) node.textContent = text;
+
+  /* Attribute strings */
+  for (const btn of root.querySelectorAll("#match-ratio")) {
+    if (btn.textContent.trim() === "Match image" || !isKongress()) {
+      if (isKongress()) btn.textContent = "Bildverhältnis übernehmen";
+    }
+  }
+}
 
 /* -------------------------------------------------------------- options form */
 
 async function loadOptionsForm() {
+  if (!container) return;
   showCfgError(null);
-  container.innerHTML = '<div class="placeholder"><p>Loading options…</p></div>';
+  const isDe = (document.documentElement.dataset.theme === "kongress");
+  container.innerHTML = isDe
+    ? '<div class="placeholder"><p>Optionen werden geladen…</p></div>'
+    : '<div class="placeholder"><p>Loading options…</p></div>';
   const params = new URLSearchParams({
-    session_id: SESSION_ID,
+    session_id: typeof SESSION_ID !== "undefined" ? SESSION_ID : "",
     machine_config_name: machineConfigName,
     machine_config_mode: machineConfigMode,
   });
@@ -80,6 +186,9 @@ async function loadOptionsForm() {
   const html = await res.text();
   container.innerHTML = html;
   if (!res.ok) return;
+  if (isDe) {
+    applyKongressTranslations(container, true);
+  }
   wireForm();
 }
 
@@ -480,17 +589,21 @@ function wireForm() {
     } else {
       const any = [...form.querySelectorAll('input[type="file"]')].some((i) => i.files.length);
       if (!any) {
-        errBox.textContent = "No images selected";
+        errBox.textContent = isKongress() ? "Keine Bilddateien ausgewählt" : "No images selected";
         errBox.hidden = false;
         return;
       }
     }
 
     const label = submitter.textContent;
-    submitter.textContent = wantsGcode ? "Generating…" : "Preparing…";
+    submitter.textContent = wantsGcode
+      ? (isKongress() ? "Maschinensteuerbefehle werden berechnet…" : "Generating…")
+      : (isKongress() ? "Vorbereitung läuft…" : "Preparing…");
     gcodeBtn.disabled = configBtn.disabled = true;
     if (wantsGcode) {
-      statusBox.textContent = "Tracing, slicing and planning brush strokes. This takes a few seconds per tray.";
+      statusBox.textContent = isKongress()
+        ? "Konturverfolgung, Schichtzerlegung und Pinselbahnplanung laufen. Dies beansprucht wenige Sekunden je Behälter."
+        : "Tracing, slicing and planning brush strokes. This takes a few seconds per tray.";
       statusBox.hidden = false;
     }
 
@@ -508,7 +621,9 @@ function wireForm() {
 
       if (!wantsGcode) {
         saveBlob(blob, filename);
-        statusBox.textContent = `Downloaded ${filename} (${(blob.size / 1024).toFixed(0)} KB).`;
+        statusBox.textContent = isKongress()
+          ? `Heruntergeladen: ${filename} (${(blob.size / 1024).toFixed(0)} KB).`
+          : `Downloaded ${filename} (${(blob.size / 1024).toFixed(0)} KB).`;
         statusBox.hidden = false;
         return;
       }
@@ -516,8 +631,9 @@ function wireForm() {
       // download when it is what you wanted.
       const text = await blob.text();
       offerDownload(blob, filename);
-      statusBox.textContent =
-        `Ready: ${filename} (${(blob.size / 1024).toFixed(0)} KB). Preview below.`;
+      statusBox.textContent = isKongress()
+        ? `Bereit: ${filename} (${(blob.size / 1024).toFixed(0)} KB). Vorschau der Maschinensteuerbefehle unten.`
+        : `Ready: ${filename} (${(blob.size / 1024).toFixed(0)} KB). Preview below.`;
       statusBox.hidden = false;
       try {
         showGcode(text);

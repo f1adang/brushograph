@@ -45,6 +45,13 @@ MODERN_STEPS = 4
 # The K tray is keyed "kroma" throughout this project. The holder has W C M Y K
 # stamped on it and nothing says kroma, so the drawing calls it black.
 TRAY_LABEL = {"kroma": "black"}
+TRAY_LABEL_DE = {
+    "kroma": "Schwarz",
+    "water": "Wasser",
+    "cyan": "Cyan",
+    "magenta": "Magenta",
+    "yellow": "Gelb",
+}
 
 TRAY_FILL = {
     "water": (150, 200, 235),
@@ -151,18 +158,22 @@ def render(conf: dict, theme: str = "default") -> bytes:
         d.line([(PAD - 8, y0), (W - PAD + 8, y0)], fill=GRID)
         g += step
 
+    is_de = (theme == "kongress")
+    tray_labels = TRAY_LABEL_DE if is_de else TRAY_LABEL
+
     # Bed limits
     d.rectangle([px(0, max_h), px(max_w, 0)], outline=BED, width=2)
     # Right-aligned: the bed and the image often share a top-left corner.
     bx, by = px(max_w, max_h)
-    txt = f"bed {max_w:g} × {max_h:g} mm"
+    txt = f"Arbeitsfläche {max_w:g} × {max_h:g} mm" if is_de else f"bed {max_w:g} × {max_h:g} mm"
     d.text((bx - d.textlength(txt, font=fs) - 5, by + 4), txt, font=fs, fill=MUTED)
 
     # Canvas / image area
     if cw and ch:
         d.rectangle([px(ox, oy + ch), px(ox + cw, oy)], fill=(*CANVAS, 18), outline=CANVAS, width=2)
         tx, ty = px(ox, oy + ch)
-        d.text((tx + 5, ty + 4), f"image {cw:g} × {ch:g} mm @ ({ox:g}, {oy:g})", font=fs, fill=TEXT)
+        img_txt = f"Druckbereich {cw:g} × {ch:g} mm bei ({ox:g}, {oy:g})" if is_de else f"image {cw:g} × {ch:g} mm @ ({ox:g}, {oy:g})"
+        d.text((tx + 5, ty + 4), img_txt, font=fs, fill=TEXT)
 
     offscreen = []
     for name, x, y in all_trays:
@@ -206,7 +217,8 @@ def render(conf: dict, theme: str = "default") -> bytes:
             d.ellipse([cx - r, cy - r, cx + r, cy + r],
                       fill=(*fill, alpha), outline=(*CANVAS, alpha))
         off_bed = not (0 <= x <= max_w and 0 <= y <= max_h)
-        tag = TRAY_LABEL.get(name, name) + (" (off bed)" if off_bed else "")
+        off_bed_suffix = " (außerhalb)" if is_de else " (off bed)"
+        tag = tray_labels.get(name, name) + (off_bed_suffix if off_bed else "")
         colour = ACCENT if off_bed else (TEXT if in_use else MUTED)
         if modern:
             # Under the bay: beside it would be on top of the next one along.
@@ -221,12 +233,17 @@ def render(conf: dict, theme: str = "default") -> bytes:
     d.ellipse([zx - 3, zy - 3, zx + 3, zy + 3], fill=ACCENT)
     d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
 
-    order = ", ".join(TRAY_LABEL.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
-        or "none in color_order"
-    d.text((PAD, 12), f"Painting order: {order}", font=f, fill=TEXT)
+    order_none = "keine in Auftragsreihenfolge" if is_de else "none in color_order"
+    order = ", ".join(tray_labels.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
+        or order_none
+    order_hdr = "Auftragsreihenfolge:" if is_de else "Painting order:"
+    d.text((PAD, 12), f"{order_hdr} {order}", font=f, fill=TEXT)
     if offscreen:
-        d.text((PAD, H - 24), f"not shown, parked far outside the bed: {', '.join(offscreen)}",
-               font=fs, fill=ACCENT)
+        offscreen_msg = (
+            f"nicht dargestellt, weit außerhalb der Arbeitsfläche: {', '.join(offscreen)}"
+            if is_de else f"not shown, parked far outside the bed: {', '.join(offscreen)}"
+        )
+        d.text((PAD, H - 24), offscreen_msg, font=fs, fill=ACCENT)
 
     buf = io.BytesIO()
     img.save(buf, "PNG")
