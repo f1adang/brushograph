@@ -18,11 +18,13 @@ from flask import (Flask, abort, jsonify, render_template, request, send_file,
 import numpy as np
 from PIL import Image
 
+import cmyk_sep
 import facefilter
 import gcode_pipeline
 import subject
 import woodcut
-from configspec import MODERN_BAY_OFFSETS, apply_form, build_schema, tray_entries
+from configspec import (CMYK_TO_TRAY, MODERN_BAY_OFFSETS, apply_form,
+                        build_schema, tray_entries)
 from macros import generate_macros
 from sketch import PALETTES, render as render_sketch
 
@@ -156,6 +158,17 @@ def _flag(form, name, default="true"):
     return str(raw).lower() in {"1", "true", "on", "yes"}
 
 
+class _NamedUpload:
+    """Enough of a Werkzeug file storage for `_gcode_name` to read a filename."""
+
+    def __init__(self, filename: str):
+        self.filename = filename
+
+
+def _cmyk_cutoff(form) -> float:
+    return _num(form, "cmyk_threshold", 40.0)
+
+
 def _woodcut_params(form) -> dict:
     return {
         "detail": _num(form, "woodcut_detail", 78.0),
@@ -248,6 +261,24 @@ def _on_theme_paper(cut: Image.Image, theme: str) -> Image.Image:
     out[ink] = pal["canvas"]
     out[~ink] = pal["bg"]
     return Image.fromarray(out, "RGB")
+
+
+@app.post("/cmyk_preview")
+def cmyk_preview():
+    """CMYK plates from one colour photograph, so they can be judged before a run."""
+    upload = request.files.get("image")
+    if not upload or not upload.filename:
+        return jsonify(error="No image supplied"), 400
+    try:
+        with Image.open(upload.stream) as im:
+            im.load()
+            plates = cmyk_sep.threshold_plates(im, _cmyk_cutoff(request.form))
+    except Exception as exc:  # noqa: BLE001 - shown to the user as-is
+        return jsonify(error=f"Could not separate that image: {exc}"), 400
+    pal = PALETTES.get(request.form.get("theme", "default"), PALETTES["default"])
+    buf = io.BytesIO()
+    cmyk_sep.contact_sheet(plates, paper=pal["bg"], ink=pal["text"]).save(buf, "PNG")
+    return app.response_class(buf.getvalue(), mimetype="image/png")
 
 
 @app.post("/woodcut_preview")
@@ -399,20 +430,39 @@ def options_form_post():
     images = {e["tray"]: request.files.get(f"trays-{e['tray']}-image")
               for e in entries if e["image"]}
     images = {k: v for k, v in images.items() if v and v.filename}
-    if not images:
+    cmyk_upload = request.files.get("cmyk_photo")
+    has_cmyk = bool(cmyk_upload and cmyk_upload.filename)
+    if not images and not has_cmyk:
         return jsonify(error="No images selected"), 400
 
     try:
         infill = float(conf.get("slicer", {}).get("infill_line_distance", 1)) > 0
     except (TypeError, ValueError):
         infill = True
-    download_name = _gcode_name(images, entries, conf, infill)
 
     with GENERATE_LOCK:
         work = Path(tempfile.mkdtemp(prefix="brushograph_", dir=session_dir(sid)))
         try:
             wc = _woodcut_params(request.form)
             saved = {}
+            if has_cmyk:
+                photo_path = work / f"cmyk_photo{Path(cmyk_upload.filename).suffix or '.png'}"
+                cmyk_upload.save(photo_path)
+                with Image.open(photo_path) as im:
+                    im.load()
+                    plates = cmyk_sep.plates_for_trays(im, _cmyk_cutoff(request.form))
+                wanted = {e["tray"] for e in entries if e["image"]}
+                for tray, plate in plates.items():
+                    if tray not in wanted or tray in images:
+                        continue
+                    share = cmyk_sep.ink_fraction(plate)
+                    if share <= 0:
+                        app.logger.info("[%s] CMYK plate empty — skipping", tray)
+                        continue
+                    p = work / f"cmyk_{tray}.png"
+                    plate.convert("L").save(p)
+                    saved[tray] = p
+                    app.logger.info("[%s] CMYK plate: %.1f%% ink", tray, share * 100)
             for tray, storage in images.items():
                 p = work / f"upload_{tray}{Path(storage.filename).suffix or '.png'}"
                 storage.save(p)
@@ -433,6 +483,13 @@ def options_form_post():
                     app.logger.info("[%s] woodcut: %.1f%% ink", tray,
                                     woodcut.ink_fraction(converted) * 100)
                 saved[tray] = p
+            if not saved:
+                return jsonify(error="No ink in any CMYK plate, and no tray pictures"), 400
+            named = {}
+            for tray in saved:
+                named[tray] = images.get(tray) or _NamedUpload(
+                    cmyk_upload.filename if has_cmyk else saved[tray].name)
+            download_name = _gcode_name(named, entries, conf, infill)
             log_lines: list[str] = []
             out = work / download_name
             gcode_pipeline.generate(conf, saved, work, out, log_lines.append)

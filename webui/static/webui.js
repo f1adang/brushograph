@@ -181,7 +181,9 @@ function wireForm() {
   };
 
   function measure(input) {
-    const tray = (input.name.match(/^trays-(.+)-image$/) || [])[1];
+    const tray = input.name === "cmyk_photo"
+      ? "photograph"
+      : (input.name.match(/^trays-(.+)-image$/) || [])[1];
     if (!tray) return;
     const file = input.files[0];
     if (!file) { shapes.delete(tray); refreshRatio(); return; }
@@ -308,6 +310,84 @@ function wireForm() {
     });
     refreshWoodcut();
     detectSubject();
+  }
+
+  /* ---- colour photograph -> CMYK plates ---- */
+  const cmykInput = $("cmyk-photo");
+  const cmykControls = $("cmyk-controls");
+  const cmykBtn = $("cmyk-preview-btn");
+  const cmykImg = $("cmyk-image");
+  const cmykNote = $("cmyk-note");
+  const cmykCutoff = $("cmyk-cutoff");
+  let cmykPreviewTimer = null;
+
+  function cmykFile() {
+    return cmykInput && cmykInput.files.length ? cmykInput.files[0] : null;
+  }
+
+  async function previewCmyk() {
+    const file = cmykFile();
+    if (!file || !cmykBtn) return;
+    const fd = new FormData();
+    fd.append("image", file);
+    if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
+    fd.append("theme", document.documentElement.dataset.theme || "default");
+
+    const label = cmykBtn.textContent;
+    cmykBtn.textContent = "Separating…";
+    cmykBtn.disabled = true;
+    if (cmykNote) cmykNote.hidden = true;
+    try {
+      const res = await fetch("cmyk_preview", { method: "POST", body: fd });
+      if (!res.ok) {
+        let msg = `Server returned ${res.status}`;
+        try { msg = (await res.json()).error || msg; } catch (_) { /* not json */ }
+        throw new Error(msg);
+      }
+      const blob = await res.blob();
+      if (cmykImg.dataset.url) URL.revokeObjectURL(cmykImg.dataset.url);
+      const url = URL.createObjectURL(blob);
+      cmykImg.dataset.url = url;
+      cmykImg.src = url;
+      cmykImg.hidden = false;
+      if (cmykNote) {
+        cmykNote.textContent = file.name;
+        cmykNote.classList.remove("warn");
+        cmykNote.hidden = false;
+      }
+    } catch (err) {
+      if (cmykNote) {
+        cmykNote.textContent = String(err.message || err);
+        cmykNote.classList.add("warn");
+        cmykNote.hidden = false;
+      }
+    } finally {
+      cmykBtn.textContent = label;
+      cmykBtn.disabled = false;
+    }
+  }
+
+  if (cmykInput && cmykControls) {
+    const cutoffOut = $("cmyk-cutoff-out");
+    if (cmykCutoff && cutoffOut) {
+      cmykCutoff.addEventListener("input", () => {
+        cutoffOut.value = cmykCutoff.value;
+        if (!cmykFile()) return;
+        clearTimeout(cmykPreviewTimer);
+        cmykPreviewTimer = setTimeout(previewCmyk, 180);
+      });
+    }
+    cmykInput.addEventListener("change", () => {
+      const on = !!cmykFile();
+      cmykControls.hidden = !on;
+      if (cmykImg) cmykImg.hidden = true;
+      if (cmykNote) cmykNote.hidden = true;
+      if (on) previewCmyk();
+    });
+    if (cmykBtn) cmykBtn.addEventListener("click", previewCmyk);
+    document.addEventListener("brushograph:theme", () => {
+      if (cmykImg && !cmykImg.hidden && cmykFile()) previewCmyk();
+    });
   }
 
   wireSimulator();

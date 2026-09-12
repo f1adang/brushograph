@@ -609,10 +609,13 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
 .sim-stat span { font-size: 12px; color: var(--ink-dim); }
 .sim-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 12.5px; color: var(--ink-dim); }
 .sim-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-#wc-image {
+#wc-image, #cmyk-image {
   display: block; max-width: 100%; margin-top: 16px;
   border: 1px solid var(--line); border-radius: 6px; background: var(--sheet);
 }
+#cmyk-panel .field { max-width: 420px; }
+#cmyk-controls { margin-top: 14px; display: grid; gap: 10px; }
+#cmyk-controls[hidden] { display: none !important; }
 .inline-file { color: var(--ink); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 
 /* ------------------------------------------------------------------- setup */

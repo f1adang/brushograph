@@ -41,10 +41,13 @@ machine and left alone.
     - **Macro generator** — `zero.g`, `home.g`, `paper.g`, `clean.g` and
       `calibrate.g`, built from the settings in Machine setup above it (see
       below).
-- **Artwork** — one card per colour in `color_order`, each taking a picture and
-  saying whether it is **already black and white** or a **photo**, in which case
-  it is cut first (see below) with the tuning controls appearing inline. Then the
-  painted size, with **Match image**: it sets Height, in whole millimetres, from
+- **Artwork** — a **colour photograph** that is converted to CMYK and thresholded
+  into the four process plates, and/or one card per colour in `color_order`, each
+  taking a picture and saying whether it is **already black and white** or a
+  **photo**, in which case it is cut first (see below) with the tuning controls
+  appearing inline. A per-tray picture replaces the plate that colour would have
+  received from the photograph. Then the painted size, with **Match image**: it
+  sets Height, in whole millimetres, from
   the configured Width and the uploaded image's aspect ratio. The pixel grid is
   mapped onto width x height regardless of aspect, so a mismatch stretches the
   painting rather than fitting it; it warns when the uploaded images disagree on
@@ -195,6 +198,24 @@ Notes on things that needed care:
   30%, and moved coverage by 0.1 points.
 - **`infill_line_distance` is the stroke width** — the gap between adjacent fill
   strokes, which for a brush is the same thing.
+
+### Colour photograph to CMYK
+
+Artwork also takes a single colour photograph. It is converted to CMYK with
+`SC_paper_eci.icc` (the same profile `i2gc` uses) and each channel is then
+**thresholded** into a two-tone plate: a tint below the ink cutoff stays paper,
+anything at or above becomes that tray's ink. Those four pictures are handed to
+the rest of the pipeline exactly as if they had been uploaded already
+thresholded onto Cyan, Magenta, Yellow and Black.
+
+The cutoff is not dithered. A Floyd–Steinberg plate is thousands of specks, and
+the brush cannot lay those down. 0% keeps any non-zero tint (`i2gc` with one
+level); 100% keeps only a channel that is already solid. Empty plates are
+skipped rather than failing the run.
+
+A picture on a tray card still wins for that colour, so a photograph can supply
+three plates and a hand-thresholded black the fourth. The G-code file is named
+after the photograph.
 
 ### Photo to woodcut
 

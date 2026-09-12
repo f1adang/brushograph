@@ -370,7 +370,7 @@ def apply_form(conf: dict, form) -> tuple[dict, list[str]]:
     problems = []
     for name in form.keys():
         if name in {"session_id", "machine_config_name", "machine_config_mode",
-                    "config_only", "sketch_only"}:
+                    "config_only", "sketch_only", "cmyk_photo", "cmyk_threshold"}:
             continue
         parts = name.split("-")
         node = out

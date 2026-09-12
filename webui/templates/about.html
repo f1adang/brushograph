@@ -30,7 +30,8 @@ try { var t = localStorage.getItem("brushograph-theme");
   <h2>How a run works</h2>
   <ol>
     <li>A machine config (<code>.conf</code>) describes the machine. Every option below it is generated from that file.</li>
-    <li>You upload one thresholded image per tray, in the order given by <code>color_order</code>.</li>
+    <li>You upload one thresholded image per tray, in the order given by <code>color_order</code>
+    &mdash; or one colour photograph, which is split into CMYK and thresholded into those plates.</li>
     <li>Each image is turned into brush strokes directly. Every ink pixel is labelled with its distance to the nearest bare paper, and an outline inset by <i>d</i> is then simply the contour of &ldquo;at least <i>d</i> from the edge&rdquo;. A concentric fill is the same thing at half a stroke, one and a half, two and a half &hellip; so one distance transform yields the whole fill, and the rings are drawn in parallel because none depends on another.</li>
     <li><b>copicograf</b> turns those strokes into brush choreography: dipping in the paint tray, shedding the drip it comes up with, washing in water, and re-inking every few hundred millimetres.</li>
   </ol>
@@ -43,6 +44,11 @@ try { var t = localStorage.getItem("brushograph-theme");
     curving around a form the way a carved line does, rather than lying over it as straight
     stripes or a lattice. Hatch spacing follows the brush width, so every mark
     is one the machine can actually paint. Preview it before running.</li>
+    <li>A <b>colour photograph</b> in Artwork is converted to CMYK with the same paper profile
+    the rest of the repo uses, then each channel is cut at an ink cutoff into a two-tone plate.
+    Those plates are traced exactly as already-thresholded uploads would be. A picture on a
+    colour's card replaces that plate. Tints below the cutoff stay paper, so the brush is not
+    asked to paint a wash it cannot lay down.</li>
     <li>If a person, animal or prominent object is detected in the photo, an <b>Isolate</b> option appears.
     It cuts the subject out with a small segmentation network (U&sup2;-Net, 4.4&nbsp;MB, downloaded
     once on first start and run through OpenCV), leaving the background as bare paper. Without the

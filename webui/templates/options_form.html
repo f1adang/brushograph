@@ -144,8 +144,34 @@
   <section class="step" id="step-artwork">
     <div class="step-head">
       <h2>Artwork</h2>
-      <p>One picture per colour, painted in the order below. Ink is anything not white.</p>
+      <p>One picture per colour, painted in the order below &mdash; or a single colour
+        photograph, split into CMYK and thresholded into those same plates. Ink is
+        anything not white.</p>
     </div>
+
+    <section class="group" id="cmyk-panel">
+      <h3>Colour photograph
+        <button type="button" class="info-btn"
+                title="A colour photograph is converted to CMYK with a paper profile, then each channel is thresholded into a two-tone plate. Those plates are painted exactly as if you had uploaded already-thresholded pictures to Cyan, Magenta, Yellow and Black. A picture on a card below replaces that plate."
+                aria-label="About colour-photograph separation">ⓘ</button>
+      </h3>
+      <label class="field">
+        <span class="field-label">Picture</span>
+        <input type="file" name="cmyk_photo" id="cmyk-photo" accept="image/*">
+      </label>
+      <div id="cmyk-controls" hidden>
+        <label class="field"><span class="field-label">Ink cutoff <output id="cmyk-cutoff-out">40</output></span>
+          <input type="range" name="cmyk_threshold" id="cmyk-cutoff" min="0" max="100" value="40">
+        </label>
+        <p class="note">A tint below the cutoff is left as paper; at or above it becomes
+          that tray's ink. 0 keeps any non-zero tint.</p>
+        <div class="row">
+          <button type="button" class="ghost" id="cmyk-preview-btn">Show the plates</button>
+          <span class="note" id="cmyk-note" hidden></span>
+        </div>
+        <img id="cmyk-image" alt="CMYK plates from the photograph" hidden>
+      </div>
+    </section>
 
     {% if trays %}
     <div class="tray-list">
