@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import os
 
 from PIL import Image, ImageDraw, ImageFont
 
@@ -32,6 +33,9 @@ PALETTES = {
     "uwu": dict(bg=(43, 8, 36), grid=(69, 18, 58), bed=(255, 138, 212),
                        canvas=(255, 232, 246), text=(255, 212, 238), muted=(229, 140, 192),
                        accent=(255, 107, 107), key=(255, 220, 240)),
+    "kongress": dict(bg=(246, 245, 240), grid=(216, 214, 206), bed=(20, 20, 20),
+                     canvas=(10, 10, 10), text=(0, 0, 0), muted=(90, 90, 90),
+                     accent=(139, 0, 0), key=(0, 0, 0)),
 }
 
 # How many steps to draw across a modern cup. The holder's own floor is not in
@@ -52,7 +56,14 @@ TRAY_FILL = {
 }
 
 
-def _font(size=12):
+def _font(size=12, theme="default"):
+    if theme == "kongress":
+        local_font = os.path.join(os.path.dirname(__file__), "static", "UnifrakturMaguntia.ttf")
+        if os.path.exists(local_font):
+            try:
+                return ImageFont.truetype(local_font, size)
+            except OSError:
+                pass
     for path in (
         "/System/Library/Fonts/Supplemental/Arial.ttf",
         "/System/Library/Fonts/Helvetica.ttc",
@@ -126,7 +137,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
 
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img, "RGBA")
-    f, fs = _font(12), _font(10)
+    f, fs = _font(13 if theme == "kongress" else 12, theme=theme), _font(11 if theme == "kongress" else 10, theme=theme)
 
     step = 10 if span_x <= 220 else 50
     g = min_x - (min_x % step)

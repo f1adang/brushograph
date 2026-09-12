@@ -665,16 +665,18 @@ thing on the canvas: the dips shouted over the painting. Each theme now names a
 colour that is present but quieter than paint — Pinkograph names the theme's own
 green `#39FF14`, which no tray holds.
 
-One thing stays fixed across all five: **colour means pigment.** Cyan, magenta,
+One thing stays fixed across all six: **colour means pigment.** Cyan, magenta,
 yellow and water identify trays and nothing else in the interface is saturated,
 so a coloured mark always stands for paint in a cup. The themes restyle every
-surface and every annotation, and leave the paint alone.
+surface and every annotation, and leave the paint alone. **𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘**
+brings a stark black-and-white print aesthetic with sharp rectilinear frames, high
+monochrome contrast on aged paper, and UniFraktur typography across every control.
 
 Black is the one paint that cannot be left alone. On the three dark papers it is
 the paper — `#23282f` on `#1d2120` is a contrast ratio of 1.08, which is to say
 invisible — and that is not only the preview: the same colour draws the tray
 dot, the left edge of the artwork card and the bay in the plan view, so a black
-cup had no mark anywhere in three of the five themes. `--k` is therefore a
+cup had no mark anywhere in three of the six themes. `--k` is therefore a
 per-theme colour like the rest of the surface, the plan's palettes carry a
 `key` beside their `accent`, and the preview reads `--k` rather than holding a
 black of its own. The rule survives with one exception, and the exception is what lets
@@ -683,7 +685,8 @@ black read as paint at all rather than as nothing.
 Coconut declares `color-scheme: light` although its ground is dark, because
 every panel is pale and the form controls sit on those; under a dark scheme the
 browser drew unchecked boxes as filled dark squares on cream, which read as
-ticked. Pinkograph and UwU declare dark, because their panels are.
+ticked. Pinkograph and UwU declare dark, because their panels are. Kongress
+declares light with stark monochrome surfaces and zero corner radii.
 
 Everything that moves stops under `prefers-reduced-motion` — the machine's own
 theme says the same, in the same words: flashing signs are a migraine risk.
