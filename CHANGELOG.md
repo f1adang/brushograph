@@ -4,6 +4,19 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v3.0](https://github.com/f1adang/brushograph/releases/tag/v3.0) — 2026-09-17
+
+The 𝔐𝔦𝔨𝔯𝔬 release.
+
+- The 𝔐𝔦𝔨𝔯𝔬, the small openBrushograph of openBrushograph_hardware V6.0, is a
+  model alongside the Mini. Its painting area is 65 × 100 mm, as found on the
+  machine, above the colours along the bottom; its five-crucible CMYK holder,
+  tray lift and zero.g sweep come from the CAD.
+- The Model picker is the first thing in Machine setup, followed by the
+  connection and controller type, then the containers.
+- The Macro generator is part of Machine setup, below Save these settings,
+  instead of a panel of its own.
+
 ## [v2.7.1](https://github.com/f1adang/brushograph/releases/tag/v2.7.1) — 2026-09-17
 
 - The machine plan draws the bed from the origin to the canvas offset plus
