@@ -1302,6 +1302,22 @@ rel="icon">` says. Both pages still carry the `<link>` tags too — a PNG for
 anything that reads them, the `.ico` again for anything that only trusts a
 literal `favicon.ico`, and an `apple-touch-icon` for a phone's home screen.
 
+## Versions
+
+Every feature that lands on `autonomy` is tagged with an annotated
+`vMAJOR.MINOR` tag whose message says what that version brings. v1.0 is the
+first commit on `main`, the command-line converter this grew from; v2.0 is the
+Kongress edition (`938badf`). A new feature bumps the minor number; a change
+that reshapes the whole thing bumps the major.
+
+The header shows "Brušograf WebUI v2.4" under the slogan, linking to that tag on
+GitHub. The number comes from `git describe --tags --abbrev=0` when the server
+starts, so tagging is the only step — there is no version file to keep in step.
+It is the newest tag reachable from the checked-out commit, which means a
+server restarted on an untagged commit still names the version it builds on.
+With no git or no tag the line is left out. Tags only resolve on GitHub once
+pushed: `git push fork --tags`.
+
 ## Limits
 
 - **One generation at a time**, behind a lock: `copicograf` keeps state on the
