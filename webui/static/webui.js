@@ -439,7 +439,8 @@ function wireForm() {
   /* ---- space the cups the way the printed holder does ---- */
   /* Both holders are one piece, so their cups cannot be moved relative to each
      other: only where the whole thing sits is a machine measurement. Auto-space
-     puts the others off the water cup at the selected holder's own centres.
+     puts the others off the water cup at the selected holder's own centres,
+     in line with it.
      The petri dish fixes the radii and heights as well, so picking Classic
      applies the lot straight away; a config that opens already classic keeps
      its own figures. That holder has four places and no black, so the black
@@ -461,6 +462,7 @@ function wireForm() {
     ? classicOffsets
     : (currentModel() || {}).offsets;
   const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
+  const trayY = (name) => form.querySelector('[name="trays-' + name + '-y"]');
   const machineInput = (key) => form.querySelector('[name="brushograph-' + key + '"]');
   const setNumber = (input, value) => {
     input.value = String(Math.round(value * 100) / 100);
@@ -473,11 +475,15 @@ function wireForm() {
     const water = trayX("water");
     const base = parseFloat(water && water.value);
     if (!isFinite(base)) return 0;
+    // The holder is one straight row, so every cup shares the water cup's Y.
+    const row = parseFloat((trayY("water") || {}).value);
     let moved = 0;
     for (const [name, off] of Object.entries(offsetsFor(shapeSelect.value) || {})) {
       const input = trayX(name);
       if (!input) continue;
       setNumber(input, base + off);
+      const y = trayY(name);
+      if (y && isFinite(row)) setNumber(y, row);
       moved += 1;
     }
     return moved;
@@ -533,7 +539,7 @@ function wireForm() {
       ...Object.values(models).flatMap((m) => Object.keys(m.settings || {}))
         .map(machineInput),
       machineInput("width"), machineInput("height"), shapeSelect,
-      ...[...form.querySelectorAll('.tray-coords input[name$="-x"]')],
+      ...[...form.querySelectorAll('.tray-coords input[name$="-x"], .tray-coords input[name$="-y"]')],
     ].filter(Boolean);
     const opened = { model: modelSelect.value, values: new Map() };
     for (const input of touched()) opened.values.set(input, input.value);
