@@ -4,6 +4,14 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.7.1](https://github.com/f1adang/brushograph/releases/tag/v2.7.1) — 2026-09-17
+
+- The machine plan draws the bed from the origin to the canvas offset plus
+  Max Width and Max Height, so a full-size picture on a Mini sits inside the
+  bed instead of running past its top. The bed's label sits above its edge.
+- **Auto-space containers** lines every container up on the water
+  container's Y as well as spacing them along X.
+
 ## [v2.7](https://github.com/f1adang/brushograph/releases/tag/v2.7) — 2026-09-16
 
 - G-code generation is about three times faster: a four-tray job that took
