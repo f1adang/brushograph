@@ -929,10 +929,17 @@ the four colour bays **29.2 mm**, centres at −2, 37, 71, 105 and 139, and ever
 bay opening **35.1 mm** deep in Y, out through the back edge of the plate.
 
 The water bay is the wide one, by 10 mm, so that the brush has room to be
-rinsed. That is `cup_width_water`, separate from `cup_width`, and the plan view
-draws each bay at its own — drawn alike, the one cup that is a different size
-was the one you could not pick out. `cup_depth` stays at 30 rather than the
-measured 35.1, which keeps the swipe inside the opening.
+rinsed. The plan view draws each bay at its own width — drawn alike, the one cup
+that is a different size was the one you could not pick out. The swipe is 30 mm
+rather than the measured 35.1, which keeps it inside the opening.
+
+These sizes were once settings — `cup_width`, `cup_width_water`, `cup_depth` —
+and they are not any more: the print fixes them, so nobody had anything to tune.
+They are `MODERN_BAY_WIDTH`, `MODERN_WATER_BAY_WIDTH` and `MODERN_SWIPE_LENGTH`,
+and a config that still names them loses them on its next save (`RETIRED`).
+The round cups have theirs from the dish, `CLASSIC_DISH_RADIUS` and
+`CLASSIC_DISH_RIM_RADIUS`, and the plan view draws each dish's rim. The shape
+picker itself is labelled **Container setup**.
 
 Its floor is a staircase, so loading is one swipe from the deep end to the
 shallow one, rising as it goes:
@@ -986,17 +993,26 @@ unused black cup costs one row in the setup and nothing else.
 The bay spacing is not a machine measurement, because the holder is one piece:
 its five bays are 34 mm apart centre to centre, the first colour 39 mm from the
 water, and only where the whole thing sits is anyone's to decide. Those offsets
-are `MODERN_BAY_OFFSETS`, and **Auto-space containers for modern holder** under
-the container positions applies them from wherever the water cup has been put.
-It shows itself only when the modern holder is the one selected.
+are `MODERN_BAY_OFFSETS`, and **Auto-space containers** under the container
+positions applies them from wherever the water cup has been put — these, or the
+petri dish holder's below, whichever shape is selected.
 
 Round cups have a holder too: the low petri dishes of
 [openBrushograph_hardware](https://github.com/openBrushograph/openBrushograph_hardware/tree/main/Extras)
 sit in `4xPetri_rounded_new.stl`, a 188 mm plate with four holes labelled WASH,
 C 1, C 2 and C 3. Slicing it at mid-plate finds holes of 20.14 mm radius at
-45, 44 and 44 mm centres, with the end holes 28 and 27 mm in from the ends, so a
-second holder butted on for black puts that dish 55 mm past yellow. Those are
-`CLASSIC_DISH_OFFSETS`: 0, 45, 89, 133 and 188 from the water.
+45, 44 and 44 mm centres. Those are `CLASSIC_DISH_OFFSETS`: 0, 45, 89 and 133
+from the water.
+
+Four holes is water and three colours, so **a classic machine has no black**.
+The form is built once and the picker can change under it, so `with_defaults`
+still offers the black cup whatever the shape, and the form hides its position
+and its picture card — and disables them, so they are not posted — while Classic
+is selected. `fit_cups_to_shape` runs after the form is read and takes the
+`kroma` tray and `K` out of the config when the cups are classic, so the plan
+view, the G-code and a saved config all have three colours. A CMYK photograph
+still separates into four plates; with no black cup, the K plate is not painted.
+Switching back to Modern offers black again at its guessed position.
 
 The dish itself is in `Extras_openBrushograph.scad`: a cylinder of r 17 grown
 by a 2 mm sphere inside and r 18 grown by 2.1 outside, cut off 11.2 mm above
@@ -1014,8 +1030,8 @@ the dishes stand on (`CLASSIC_DISH_SETTINGS`):
 
 Choosing **Classic** in the form applies all of it at once — the settings, and
 the spacing from wherever the water cup is. A config that opens already classic
-keeps its own figures; **Set up for petri dishes** under the container
-positions applies them on demand.
+keeps its own figures; **Auto-space containers** respaces it, and switching the
+picker away and back applies the dish settings again.
 
 Five cups on 34 mm centres span 141 mm, which is why the `pinkograph.conf` preset
 started its water bay at X 8: the bed is 151 mm wide, so anything past 10 puts
@@ -1050,8 +1066,8 @@ machine. Round cups 45 mm apart still wipe, and still read that setting.
 
 The machine view draws whichever is configured — circles with their sweep, or
 rectangles with their treads and an arrow along the swipe — and redraws as soon
-as the picker changes. It draws every bay at `cup_width`, including the water
-one, which on the printed holder is the wider of the two.
+as the picker changes. It draws each bay at the holder's own width, the water
+one wider, and each round cup inside its dish's rim.
 
 ### Writing what copicograf expects
 

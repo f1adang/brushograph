@@ -7,7 +7,8 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-from configspec import tray_entries
+from configspec import (CLASSIC_DISH_RIM_RADIUS, MODERN_BAY_WIDTH, MODERN_SWIPE_LENGTH,
+                        MODERN_WATER_BAY_WIDTH, tray_entries)
 
 W, H = 760, 480
 PAD = 46
@@ -132,9 +133,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
     enter_r = _num(bg, "tray_enter_radius", _num(bg, "dip_entry_radius", 5))
     modern = str(bg.get("cup_shape", "classic")).strip().lower() == "modern"
-    cup_w = _num(bg, "cup_width", 29.2)
-    cup_w_water = _num(bg, "cup_width_water", 39.2)
-    cup_h = _num(bg, "cup_depth", 30.0)
+    cup_w, cup_w_water, cup_h = MODERN_BAY_WIDTH, MODERN_WATER_BAY_WIDTH, MODERN_SWIPE_LENGTH
 
     def bay_w(name):
         return cup_w_water if name == "water" else cup_w
@@ -157,7 +156,8 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # the scale would squash the part you care about into a corner.
     active = {e["tray"] for e in entries}
     framed = [(n, x, y) for n, x, y in all_trays if n in active]
-    pad_r = max(cup_w_water / 2, cup_w / 2, cup_h / 2) if modern else max(drops_r, enter_r)
+    pad_r = max(cup_w_water / 2, cup_w / 2, cup_h / 2) if modern \
+        else max(drops_r, enter_r, CLASSIC_DISH_RIM_RADIUS)
     xs = [0.0, max_w, ox, ox + cw] + [x + pad_r for _, x, _ in framed] + [x - pad_r for _, x, _ in framed]
     ys = [0.0, max_h, oy, oy + ch] + [y + pad_r for _, _, y in framed] + [y - pad_r for _, _, y in framed]
     min_x, max_x = min(xs), max(xs)
@@ -238,6 +238,10 @@ def render(conf: dict, theme: str = "default") -> bytes:
             # setting and nothing here answers to it.
             r = hw
         else:
+            # The dish, then how far the wipe reaches past its rim, then the
+            # sweep filled in with the paint's colour.
+            r = CLASSIC_DISH_RIM_RADIUS * scale
+            d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*CANVAS, alpha), width=2)
             if drops_r:
                 r = drops_r * scale
                 d.ellipse([cx - r, cy - r, cx + r, cy + r], outline=(*MUTED, alpha))
@@ -247,12 +251,10 @@ def render(conf: dict, theme: str = "default") -> bytes:
         off_bed = not (0 <= x <= max_w and 0 <= y <= max_h)
         tag = tray_labels.get(name, name) + (words["off_bed"] if off_bed else "")
         colour = ACCENT if off_bed else (TEXT if in_use else MUTED)
-        if modern:
-            # Under the bay: beside it would be on top of the next one along.
-            tw = d.textlength(tag, font=fs)
-            d.text((cx - tw / 2, cy + hh + 5), tag, font=fs, fill=colour)
-        else:
-            d.text((cx + r + 4, cy - 6), tag, font=fs, fill=colour)
+        # Under the cup: beside it would be on top of the next one along.
+        below = hh if modern else max(CLASSIC_DISH_RIM_RADIUS, drops_r) * scale
+        tw = d.textlength(tag, font=fs)
+        d.text((cx - tw / 2, cy + below + 5), tag, font=fs, fill=colour)
 
     d.line([px(min_x, 0), px(max_x, 0)], fill=ACCENT, width=1)
     d.line([px(0, min_y), px(0, max_y)], fill=ACCENT, width=1)

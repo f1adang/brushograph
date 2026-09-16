@@ -28,15 +28,22 @@ MODERN_BAY_OFFSETS = OrderedDict(
     [("water", 0.0), ("cyan", 39.0), ("magenta", 73.0), ("yellow", 107.0), ("kroma", 141.0)]
 )
 
+# The bays themselves, off the same STL. These are fixed by the print, not
+# tuned per machine, so they are constants rather than settings: the water bay
+# is the wide one so the brush has room to be rinsed, and the swipe runs 30 mm
+# of the 35.1 mm opening so it stays inside it.
+MODERN_BAY_WIDTH = 29.2
+MODERN_WATER_BAY_WIDTH = 39.2
+MODERN_SWIPE_LENGTH = 30.0
+
 # The classic cups: the low petri dishes in openBrushograph_hardware's
 # Extras_openBrushograph.scad, sitting in the 4xPetri_rounded_new.stl holder.
 # Slicing that STL at mid-plate finds four round holes of 20.14 mm radius
 # (20.2 in the SCAD, less the facets) at 45, 44 and 44 mm centres, WASH first,
-# then C 1, C 2, C 3. The holder is 188 mm long with its end holes 28 and 27 mm
-# in from the ends, so a second holder butted on for black puts that dish
-# 55 mm past yellow. Offsets from the water dish, like MODERN_BAY_OFFSETS.
+# then C 1, C 2, C 3 — four cups, so a classic machine paints CMY and has no
+# black. Offsets from the water dish, like MODERN_BAY_OFFSETS.
 CLASSIC_DISH_OFFSETS = OrderedDict(
-    [("water", 0.0), ("cyan", 45.0), ("magenta", 89.0), ("yellow", 133.0), ("kroma", 188.0)]
+    [("water", 0.0), ("cyan", 45.0), ("magenta", 89.0), ("yellow", 133.0)]
 )
 
 # What the dish itself fixes. From the SCAD: the wall is a cylinder of r 17
@@ -45,6 +52,8 @@ CLASSIC_DISH_OFFSETS = OrderedDict(
 # 10.1 mm of depth. The Z figures take Z 0 as the surface the dishes stand on,
 # the same one the paper lies on at canvas_height 0. copicograf reads all but
 # dip_depth as whole millimetres.
+CLASSIC_DISH_RADIUS = 19.0
+CLASSIC_DISH_RIM_RADIUS = 20.1
 CLASSIC_DISH_SETTINGS = OrderedDict([
     ("dip_depth", 1.0),             # onto the 1.1 mm floor, bristles flexing
     ("tray_enter_radius", 15),      # the sweep stays 4 mm off the 19 mm wall
@@ -66,15 +75,10 @@ ALWAYS_OFFERED = {
     # The cups. "classic" is the round petri dish the machine was built around;
     # "modern" is the rectangular CMYK holder, whose floor steps up towards the
     # back so the brush can be drawn out of the paint rather than lifted from
-    # it. Measured off CMYK_holder_big.stl by bisecting to the bay walls: the
-    # four colour bays are 29.2 mm across and the water bay 39.2, all of them
-    # opening 35.1 mm deep. The stepped floor is not in that file — it is a
-    # frame over the paint — so the two Z figures below have to be measured on
-    # the machine rather than derived, and the depth stays inside the opening.
+    # it. The bay sizes are fixed by the print (MODERN_BAY_WIDTH and friends);
+    # the stepped floor is not in its STL — it is a frame over the paint — so
+    # the exit Z below has to be measured on the machine rather than derived.
     ("brushograph", "cup_shape"): "classic",
-    ("brushograph", "cup_width"): 29.2,
-    ("brushograph", "cup_width_water"): 39.2,
-    ("brushograph", "cup_depth"): 30.0,
     ("brushograph", "cup_swipe_exit_z"): 1.0,
     ("brushograph", "backlash_compensation"): True,
     ("brushograph", "backlash_x"): 0.5,
@@ -102,8 +106,45 @@ def with_defaults(conf: dict) -> dict:
     out = json.loads(json.dumps(conf))
     for path, value in ALWAYS_OFFERED.items():
         _dig(out, path).setdefault(path[-1], value)
+    bg = out.get("brushograph")
+    if isinstance(bg, dict):
+        for key in RETIRED:
+            bg.pop(key, None)
     _offer_black(out)
     return out
+
+
+# Settings a config once carried and no longer should: the cup sizes, which the
+# printed holders fix. A config that still names them loses them on the next
+# save, and nothing reads them in the meantime.
+RETIRED = ("cup_width", "cup_width_water", "cup_depth")
+
+
+def is_classic(conf: dict) -> bool:
+    bg = conf.get("brushograph", {})
+    return isinstance(bg, dict) and \
+        str(bg.get("cup_shape", "classic")).strip().lower() != "modern"
+
+
+def fit_cups_to_shape(conf: dict) -> dict:
+    """Take the black cup away again if the cups are classic.
+
+    The petri dish holder has four holes — water and three colours — so a
+    classic machine paints CMY. with_defaults offers black whatever the shape,
+    because the form is built once and the shape can change under it; this is
+    the step after the form is read, so the config that is drawn, painted and
+    saved has no black cup unless the modern holder is the one selected.
+    """
+    if not is_classic(conf):
+        return conf
+    black = CMYK_TO_TRAY["K"]
+    trays = conf.get("trays")
+    if isinstance(trays, dict):
+        trays.pop(black, None)
+    order = conf.get("color_order")
+    if isinstance(order, list):
+        conf["color_order"] = [c for c in order if c != "K"]
+    return conf
 
 
 def _offer_black(conf: dict) -> None:
@@ -156,7 +197,7 @@ BRUSHOGRAPH_GROUPS = [
     ("Brush control",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
     ("Containers",
-     ["cup_shape", "cup_width", "cup_width_water", "cup_depth", "cup_swipe_exit_z"], False),
+     ["cup_shape", "cup_swipe_exit_z"], False),
     ("Paint management",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
@@ -208,9 +249,6 @@ HELP = {
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
     "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. Modern is the rectangular CMYK holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.",
-    "brushograph-cup_width": "How wide a colour cup is across X (mm). Modern cups only; a colour bay of the printed holder measures 29.2.",
-    "brushograph-cup_width_water": "How wide the water cup is across X (mm). Modern cups only. The holder gives the water its own, wider bay — 39.2 against the colours' 29.2 — so the brush has room to be rinsed.",
-    "brushograph-cup_depth": "How deep a cup is along Y (mm) — the length of the swipe. Modern cups only. The holder's bays open 35.1 mm deep; the default keeps the swipe inside that.",
     "brushograph-cup_swipe_exit_z": "Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Measure it on the machine: nothing in the holder's STL gives the step heights.",
     "brushograph-dip_depth": "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.",
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",
@@ -236,6 +274,11 @@ HELP = {
     "brushograph-z_safe_dip_raw": "Safe Z for dip moves (mm, before offset)",
 }
 
+# Where a key's own name is not what the form should call it.
+LABELS = {
+    "cup_shape": "Container setup",
+}
+
 _ACRONYMS = {"x": "X", "y": "Y", "z": "Z", "mm": "(mm)", "px": "(px)"}
 
 
@@ -249,7 +292,7 @@ def label_for(key: str) -> str:
 
 def _field(path: list[str], value) -> dict:
     name = "-".join(path)
-    f = {"name": name, "label": label_for(path[-1]), "help": HELP.get(name), "value": value}
+    f = {"name": name, "label": LABELS.get(path[-1]) or label_for(path[-1]), "help": HELP.get(name), "value": value}
     if name in ENUMS:
         f["type"] = "select"
         # Keep the config's own value even if it is not one of the known ones.
@@ -419,4 +462,4 @@ def apply_form(conf: dict, form) -> tuple[dict, list[str]]:
                 problems.append(f"{name}: '{raw}' is not a number")
                 continue
         node[leaf] = new
-    return out, problems
+    return fit_cups_to_shape(out), problems

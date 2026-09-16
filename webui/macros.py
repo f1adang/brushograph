@@ -21,7 +21,7 @@ G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
 
-from configspec import with_defaults
+from configspec import MODERN_SWIPE_LENGTH, with_defaults
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g"]
@@ -90,7 +90,7 @@ def _container_motion(bg: dict, tray_x: float, tray_y: float, reps: int) -> list
     lines: list[str] = []
 
     if shape == "modern":
-        depth = _num(bg, "cup_depth", 30.0)
+        depth = MODERN_SWIPE_LENGTH
         exit_z = _num(bg, "cup_swipe_exit_z", 1.0)
         margin = depth * 0.15
         near, far = tray_y - depth / 2 + margin, tray_y + depth / 2 - margin

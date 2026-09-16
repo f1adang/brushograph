@@ -26,8 +26,9 @@ class Copicograf:
         self.remove_drops_radius = int(self.conf["brushograph"]["remove_drops_radius"])
         bg = self.conf["brushograph"]
         self.cup_shape = str(bg.get("cup_shape", "classic")).strip().lower()
-        self.cup_width = float(bg.get("cup_width", 29.0))
-        self.cup_depth = float(bg.get("cup_depth", 30.0))
+        # The modern holder's bays are fixed by the print: the swipe runs 30 mm
+        # of their 35.1 mm opening. Not a setting, so not read from the config.
+        self.cup_depth = 30.0
         self.cup_swipe_exit_z = float(bg.get("cup_swipe_exit_z", 1.0))
 
         self.offset_y = float(self.conf["brushograph"]["offset_y"])
