@@ -94,18 +94,20 @@ parts each release zip carries:
 | racks X / Y | 183.9 / 183.9 mm | 121.0 / 146.9 mm |
 | Z travel | 18 mm | 12 mm |
 | CMYK holder | 39.2 mm water, 29.2 colour bays, 34 mm centres | 20.4 mm water, 11.4 colour crucibles, 16 mm centres |
-| travel limits (max width × height) | 151 × 156 | 88 × 125 |
+| painting area (max width × height) | 151 × 156 | 65 × 100 |
 | canvas offset Y | 25 | 19 |
 | go in tray lift | 11 | 10 |
 | zero.g far corner | X160 Y160 Z32 | X97 Y123 Z21 |
 | petri dish holder | yes | none |
 
-The 𝔐𝔦𝔨𝔯𝔬's travel is the Mini's less the difference in rack length, the
-carriages taking the same share of both. Its holder is the `mikro_container`
+The 𝔐𝔦𝔨𝔯𝔬's painting area is 65 × 100 mm, above the colours along the bottom,
+as found on the machine. Taking the Mini's travel less the difference in rack
+length had promised 88 × 125. Its holder is the `mikro_container`
 preset of `Extras/mini_petri.scad`, checked against `mikro_5x_petri.stl`; the
 swipe is 18 mm, the same proportion of its 21.4 mm crucible as the Mini's 30 mm
 is of 35.1. zero.g's sweep is shortened by the racks and scaled to the Z
-travel. All of these are derived, not measured on a built 𝔐𝔦𝔨𝔯𝔬.
+travel. Apart from the painting area, these are derived rather than measured on
+a built 𝔐𝔦𝔨𝔯𝔬.
 
 Choosing a model puts its travel limits, canvas offset and tray lift in the form,
 spaces the containers on its holder, and shrinks the painted size to fit the bed

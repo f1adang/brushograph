@@ -74,9 +74,11 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # Micro: 11 mm pinion with 8 teeth (module 1.375) on a 120 mm X rack and a
 # 145 mm Y rack, which the spreadsheet rounds up to whole teeth — 28 and 34,
 # 121.0 and 146.9 mm. The carriages eat the same share of a rack on both, so
-# the Micro's travel is the Mini's less the difference in rack length: 62.9 mm
-# off X, 37.0 off Y. The Z-mechanism's "mikro" preset has 12 mm of travel
-# against 18.
+# the Micro's travel was taken to be the Mini's less the difference in rack
+# length: 62.9 mm off X, 37.0 off Y, 88 × 125 mm to paint. On the machine the
+# area that can be painted is more like 65 × 100, with the colours along the
+# bottom, so that is what the limits say. The Z-mechanism's "mikro" preset has
+# 12 mm of travel against 18.
 #
 # Its holder is the `mikro_container` preset of Extras/mini_petri.scad, sliced
 # off mikro_5x_petri.stl to check: a 22 mm water crucible and four 13 mm colour
@@ -113,11 +115,11 @@ MODELS = OrderedDict([
             "swipe_length": 18.0,
         },
         "classic": False,
-        # 151 - 62.9 across; 25 + 156 - 37.0 along, less a canvas that starts
-        # 19 mm out — the 23 mm crucibles on the same Y 6 leave that much.
-        # The lift clears the 8 mm crucibles and stays inside 12 mm of Z.
+        # 65 × 100 as found on the machine, above a canvas that starts 19 mm
+        # out — the 23 mm crucibles on the same Y 6 leave that much. The lift
+        # clears the 8 mm crucibles and stays inside 12 mm of Z.
         "settings": OrderedDict([
-            ("max_width", 88), ("max_height", 125), ("offset_x", 0), ("offset_y", 19),
+            ("max_width", 65), ("max_height", 100), ("offset_x", 0), ("offset_y", 19),
             ("go_in_tray_lift", 10),
         ]),
         # The Mini's sweep, shortened by the racks and scaled to the Z travel.
