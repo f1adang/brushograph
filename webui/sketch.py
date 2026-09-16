@@ -126,10 +126,16 @@ def render(conf: dict, theme: str = "default") -> bytes:
     bg = conf.get("brushograph", {})
     trays = conf.get("trays", {})
 
-    max_w = _num(bg, "max_width", _num(bg, "width", 200))
-    max_h = _num(bg, "max_height", _num(bg, "height", 200))
     cw, ch = _num(bg, "width", 0), _num(bg, "height", 0)
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
+    # Max Width and Max Height are the largest painting, and a painting starts
+    # at the canvas offset — the form warns when Height passes Max Height, and a
+    # Mini config's Width is its Max Width. So the bed reaches from the origin,
+    # where the trays are, to the offset plus the limit. Drawn from the origin
+    # at the limit alone, a Mini's 25 mm offset put the top of every full-size
+    # picture past the edge of the bed.
+    max_w = ox + _num(bg, "max_width", _num(bg, "width", 200))
+    max_h = oy + _num(bg, "max_height", _num(bg, "height", 200))
     enter_r = _num(bg, "tray_enter_radius", _num(bg, "dip_entry_radius", 5))
     modern = str(bg.get("cup_shape", "classic")).strip().lower() == "modern"
     # The holder the model was printed with: a Micro's crucibles are a fraction
@@ -194,10 +200,13 @@ def render(conf: dict, theme: str = "default") -> bytes:
 
     # Bed limits
     d.rectangle([px(0, max_h), px(max_w, 0)], outline=BED, width=2)
-    # Right-aligned: the bed and the image often share a top-left corner.
-    bx, by = px(max_w, max_h)
+    # Right-aligned: the bed and the image often share a top-left corner. And
+    # above the line rather than under it, where a picture a few millimetres
+    # short of the top of the bed would run its edge through the words — or
+    # above the picture, when one taller than the machine's limit passes it.
+    bx, by = px(max_w, max(max_h, oy + ch))
     txt = words["bed"].format(w=max_w, h=max_h)
-    d.text((bx - d.textlength(txt, font=fs) - 5, by + 4), txt, font=fs, fill=MUTED)
+    d.text((bx - d.textlength(txt, font=fs) - 5, by - 16), txt, font=fs, fill=MUTED)
 
     # Canvas / image area
     if cw and ch:
