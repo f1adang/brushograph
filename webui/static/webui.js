@@ -65,7 +65,8 @@ function t(english, vars) {
 const WAS_TEXT = new WeakMap();      // text node -> its English
 const WAS_HTML = new WeakMap();      // [data-i18n] element -> its English markup
 const WAS_ATTR = new WeakMap();      // element -> {attribute: English}
-const I18N_ATTRS = ["title", "aria-label", "alt", "placeholder"];
+const I18N_ATTRS = ["title", "aria-label", "alt", "placeholder", "label"];
+const I18N_ATTR_SELECTOR = I18N_ATTRS.map((attr) => `[${attr}]`).join(",");
 
 /* Every text node under root, skipping the blocks that carry their own
    translation and the tags whose contents are not prose. */
@@ -100,7 +101,7 @@ function toGerman(root) {
     // sentence between it is ours to change.
     node.nodeValue = node.nodeValue.match(/^\s*/)[0] + text + node.nodeValue.match(/\s*$/)[0];
   });
-  for (const node of root.querySelectorAll("[title],[aria-label],[alt],[placeholder]")) {
+  for (const node of root.querySelectorAll(I18N_ATTR_SELECTOR)) {
     if (WAS_ATTR.has(node)) continue;
     let saved = null;
     for (const attr of I18N_ATTRS) {
@@ -125,7 +126,7 @@ function toEnglish(root) {
     node.nodeValue = WAS_TEXT.get(node);
     WAS_TEXT.delete(node);
   });
-  for (const node of root.querySelectorAll("[title],[aria-label],[alt],[placeholder]")) {
+  for (const node of root.querySelectorAll(I18N_ATTR_SELECTOR)) {
     const saved = WAS_ATTR.get(node);
     if (!saved) continue;
     for (const attr of Object.keys(saved)) node.setAttribute(attr, saved[attr]);
@@ -261,12 +262,64 @@ async function serverError(res) {
 
 /* ------------------------------------------------------------ config picker */
 
+const configKeep = $("machine-config-keep");
+
+/* Which directory a pulldown entry lives in rides on the option itself, so a
+   preset and a kept config are each read from the right place. */
+const selectedMode = () => {
+  const option = configSelect && configSelect.selectedOptions[0];
+  return (option && option.dataset.mode) || "preset";
+};
+
+/* Emptying a file input from script fires nothing, and the Kongress theme's
+   own file control only hears `change` — so it would go on naming a file that
+   is no longer chosen. Say it changed. The upload handler below ignores an
+   empty input, so this never uploads anything. */
+function clearFile(input) {
+  if (!input || !input.value) return;
+  input.value = "";
+  input.dispatchEvent(new Event("change"));
+}
+
+function showCfgNote(english, vars) {
+  const box = $("cfg-note");
+  if (!box) return;
+  box.hidden = !english;
+  if (english) say(box, english, vars);
+}
+
+/* A kept config joins the pulldown straight away, in the group the page would
+   have put it in had it been there at load. The group is only rendered when it
+   has entries, so the first one kept makes it. */
+function addSavedOption(name) {
+  let group = $("saved-configs");
+  if (!group) {
+    group = document.createElement("optgroup");
+    group.id = "saved-configs";
+    group.label = "Kept on this server";
+    configSelect.appendChild(group);
+  }
+  let option = [...group.children].find((o) => o.value === name);
+  if (!option) {
+    option = el("option", null, name);
+    option.value = name;
+    option.dataset.mode = "saved";
+    // In name order, as the server lists them.
+    const next = [...group.children].find((o) => o.value.toLowerCase() > name.toLowerCase());
+    group.insertBefore(option, next || null);
+  }
+  // Written in English like the markup it joins, then brought into the
+  // language that is on, and recorded so a change of theme can undo it.
+  applyLanguage(configSelect);
+  return option;
+}
+
 const cfgDlBtn = $("cfg-download");
 if (cfgDlBtn) {
   cfgDlBtn.addEventListener("click", () => {
     const name = machineConfigName || (configSelect ? configSelect.value : null);
     if (!name) return showCfgError("Choose a config to download first");
-    const mode = machineConfigName ? machineConfigMode : "preset";
+    const mode = machineConfigName ? machineConfigMode : selectedMode();
     const a = document.createElement("a");
     a.href = `machine_config/get?name=${encodeURIComponent(name)}&mode=${mode}`;
     a.download = name;
@@ -279,9 +332,10 @@ if (cfgDlBtn) {
 if (configSelect) {
   configSelect.addEventListener("change", () => {
     if (!configSelect.value) return;
-    if (configFile) configFile.value = "";
+    clearFile(configFile);
+    showCfgNote(null);
     machineConfigName = configSelect.value;
-    machineConfigMode = "preset";
+    machineConfigMode = selectedMode();
     loadOptionsForm();
   });
 }
@@ -290,19 +344,36 @@ if (configFile) {
   configFile.addEventListener("change", async () => {
     if (!configFile.files.length) return;
     showCfgError(null);
+    showCfgNote(null);
+    const file = configFile.files[0];
+    const keep = !!(configKeep && configKeep.checked);
     const fd = new FormData();
-    fd.append("config_file", configFile.files[0]);
+    fd.append("config_file", file);
+    if (keep) fd.append("keep", "true");
     try {
       const res = await fetch("machine_config/upload", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Upload failed");
-      if (configSelect) configSelect.selectedIndex = 0;
       machineConfigName = data.name;
-      machineConfigMode = "uploaded";
+      machineConfigMode = data.mode || "uploaded";
+      if (machineConfigMode === "saved" && configSelect) {
+        // It is a machine in the list now, so the list is what shows it — not
+        // a file input still holding what was picked from the disk.
+        addSavedOption(data.name).selected = true;
+        clearFile(configFile);
+        if (data.name === file.name) {
+          showCfgNote("Kept on the server, and in the machine list from now on.");
+        } else {
+          showCfgNote("Kept on the server as {name}: {original} was already taken by another machine.",
+                      { name: data.name, original: file.name });
+        }
+      } else if (configSelect) {
+        configSelect.selectedIndex = 0;
+      }
       loadOptionsForm();
     } catch (err) {
       if (configSelect) configSelect.selectedIndex = 0;
-      configFile.value = "";
+      clearFile(configFile);
       showCfgError(String(err.message || err));
     }
   });

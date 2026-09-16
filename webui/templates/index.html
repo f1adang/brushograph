@@ -32,18 +32,33 @@ try { var t = localStorage.getItem("brushograph-theme");
         <span class="with-btn">
           <select name="machine-config" id="machine-config">
             <option selected disabled value="">Choose a machine…</option>
-            {% for p in presets %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+            <optgroup label="Presets">
+              {% for p in presets %}<option value="{{ p }}" data-mode="preset">{{ p }}</option>{% endfor %}
+            </optgroup>
+            {% if saved %}<optgroup label="Kept on this server" id="saved-configs">
+              {% for c in saved %}<option value="{{ c }}" data-mode="saved">{{ c }}</option>{% endfor %}
+            </optgroup>{% endif %}
           </select>
           <button type="button" class="icon" id="cfg-download" title="Download this config" aria-label="Download this config">↓</button>
         </span>
       </label>
-      <label class="field">
-        <span class="field-label">Or use your own</span>
-        <input type="file" name="machine-config-file" id="machine-config-file" accept=".conf">
-      </label>
+      <div class="own-config">
+        <label class="field">
+          <span class="field-label">Or use your own</span>
+          <input type="file" name="machine-config-file" id="machine-config-file" accept=".conf">
+        </label>
+        <label class="field is-check">
+          <span class="field-label">Keep it on this server, for everyone
+            <button type="button" class="info-btn"
+                    title="A kept config is added to the machine list above for anyone who opens this page, and stays after the server restarts. Without this, an upload is only yours, and only for as long as your session lasts."
+                    aria-label="About keeping a config on the server">ⓘ</button></span>
+          <input type="checkbox" id="machine-config-keep">
+        </label>
+      </div>
     </div>
   </div>
   <p class="error topbar-error" id="cfg-error" hidden></p>
+  <p class="note topbar-note" id="cfg-note" hidden></p>
 </header>
 
 <main class="wrap">

@@ -1208,7 +1208,49 @@ there, which sends you looking in entirely the wrong place. A missing upload now
 says that it is a missing upload, and what to do about it.
 
 Presets are unaffected either way: they are read from the repo root and have
-nothing to do with the session.
+nothing to do with the session. Neither are kept configs, below.
+
+## Keeping a config on the server
+
+An upload is normally yours alone and lasts as long as your session. Tick **Keep
+it on this server, for everyone** before choosing the file and it goes into
+`webui_configs/` instead: it joins the machine pulldown under **Kept on this
+server** straight away, for anyone who opens the page afterwards, and stays
+through restarts. The directory is gitignored beside `webui_sessions/`, so
+updating the code never touches it.
+
+Every config has a mode that says where it lives — `preset` (the repo root),
+`uploaded` (the session) or `saved` (`webui_configs/`) — carried on each
+pulldown option as `data-mode` and on every request after that. `config_path()`
+is the one place a name and a mode become a file. The name is checked against
+`SAFE_NAME` before it is joined to anything, so no mode can be talked out of its
+directory, and an unknown mode is refused. The two places that used to do this
+each did `session if mode == "uploaded" else repo root`, which would have read
+any mode it did not recognise — `saved` included — as a preset.
+
+**A kept config is never overwritten.** This is a shared server, and a name
+already taken is somebody else's machine, so a second `workshop.conf` is kept as
+`workshop-2.conf` and the page says which name it got. A preset's name counts as
+taken too, or the pulldown would offer two machines called the same thing.
+Uploading the very same bytes again finds the copy already kept rather than
+adding another beside it, so pressing it twice does not fill the list.
+
+The file is written whole under a name the pulldown ignores and then hard-linked
+into place. A link fails if the name exists, so two uploads racing for one name
+cannot overwrite each other, and nobody is ever offered a half-written config.
+
+Anything kept is kept for good and offered to everyone, so it gets limits of its
+own rather than the photograph-sized upload limit: **256 KB** a file (a real
+config is a couple of kilobytes) and **200** files. Past either, keeping is
+refused with a message saying so, and the same file can still be used for the
+session without keeping it. Re-keeping a config already there still works at the
+limit, since it adds nothing.
+
+There is **no way to delete a kept config from the page**, and **no
+authentication** on keeping one — like everything else here, anyone who can
+reach the page can do it. Clearing one out means removing the file from
+`webui_configs/` on the server. A list that other people's uploads join only
+refreshes on a page load; the one you just kept appears at once.
 
 ## Assets are never cached
 

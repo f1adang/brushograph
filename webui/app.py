@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import secrets
 import socket
@@ -31,11 +32,22 @@ from sketch import PALETTES, render as render_sketch
 WEBUI_DIR = Path(__file__).resolve().parent
 REPO_ROOT = WEBUI_DIR.parent
 SESSIONS_DIR = REPO_ROOT / "webui_sessions"
+# Configs people chose to keep. Beside the sessions rather than in them: a kept
+# config belongs to the server and everyone who uses it, not to the browser
+# that happened to upload it, so it must not expire with a cookie. Gitignored,
+# like the sessions, so an update to the code never touches it.
+SAVED_CONFIGS_DIR = REPO_ROOT / "webui_configs"
 MAX_UPLOAD_MB = 64
+# A machine config is a couple of kilobytes of JSON. The general upload limit
+# is sized for photographs, and anything kept is kept for good and offered to
+# everyone, so the two are not the same number.
+MAX_SAVED_CONFIG_KB = 256
+MAX_SAVED_CONFIGS = 200
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 SESSIONS_DIR.mkdir(exist_ok=True)
+SAVED_CONFIGS_DIR.mkdir(exist_ok=True)
 
 
 def _secret_key() -> bytes:
@@ -112,11 +124,36 @@ def preset_paths() -> list[Path]:
     return sorted(REPO_ROOT.glob("*.conf"))
 
 
-def load_config(name: str, mode: str, sid: str) -> dict:
-    """Presets live in the repo root; uploads live in the caller's session."""
+def saved_paths() -> list[Path]:
+    return sorted(SAVED_CONFIGS_DIR.glob("*.conf"), key=lambda p: p.name.lower())
+
+
+# Where a config of each kind lives. Presets ship with the repo, a plain upload
+# lives in the uploader's session, and a kept one lives on the server for all.
+CONFIG_MODES = ("preset", "uploaded", "saved")
+
+
+def config_path(name: str, mode: str, sid: str) -> Path:
+    """The file a config name and mode refer to, whether or not it exists.
+
+    The one place a name from the browser becomes a path. The name is checked
+    against SAFE_NAME before it is joined to anything, so no mode can be talked
+    out of its own directory; and an unknown mode is refused rather than read as
+    a preset, which is what the old two-way branch would have done with it.
+    """
     if not name or not SAFE_NAME.match(name) or not name.endswith(".conf"):
         raise ValueError("bad config name")
-    path = session_dir(sid) / name if mode == "uploaded" else REPO_ROOT / name
+    if mode == "preset":
+        return REPO_ROOT / name
+    if mode == "uploaded":
+        return session_dir(sid) / name
+    if mode == "saved":
+        return SAVED_CONFIGS_DIR / name
+    raise ValueError("bad config mode")
+
+
+def load_config(name: str, mode: str, sid: str) -> dict:
+    path = config_path(name, mode, sid)
     if not path.is_file():
         if mode == "uploaded":
             raise ValueError(
@@ -134,6 +171,7 @@ def index():
     return render_template(
         "index.html", session_id=session_id(),
         presets=[p.name for p in preset_paths()],
+        saved=[p.name for p in saved_paths()],
     )
 
 
@@ -348,9 +386,7 @@ def machine_config_get():
     name = request.args.get("name", "")
     mode = request.args.get("mode", "preset")
     try:
-        if not SAFE_NAME.match(name) or not name.endswith(".conf"):
-            raise ValueError("bad config name")
-        path = session_dir(session_id()) / name if mode == "uploaded" else REPO_ROOT / name
+        path = config_path(name, mode, session_id())
         if not path.is_file():
             raise ValueError("config not found")
     except ValueError as exc:
@@ -375,8 +411,58 @@ def machine_config_upload():
         return jsonify(error=f"Not valid JSON: {exc}"), 400
     if not isinstance(conf, dict) or "brushograph" not in conf:
         return jsonify(error="That JSON has no 'brushograph' section — not a machine config"), 400
+    if _flag(request.form, "keep", "false"):
+        try:
+            return jsonify(name=keep_config(name, raw), mode="saved")
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
     (session_dir(session_id()) / name).write_bytes(raw)
-    return jsonify(name=name)
+    return jsonify(name=name, mode="uploaded")
+
+
+def keep_config(name: str, raw: bytes) -> str:
+    """Put an uploaded config on the server for good, and return its name there.
+
+    A name already taken is never overwritten: this is a shared server, and the
+    config under that name is somebody else's machine. The upload goes in under
+    the first free `stem-2.conf`, `stem-3.conf` … instead, and the page says so. A
+    preset's name counts as taken as well, or the pulldown would offer two
+    machines called the same thing. Uploading the very same file again finds the
+    copy already kept rather than adding another beside it.
+    """
+    if len(raw) > MAX_SAVED_CONFIG_KB * 1024:
+        raise ValueError(
+            f"A machine config is a few kilobytes; this one is {len(raw) // 1024} KB, over the "
+            f"{MAX_SAVED_CONFIG_KB} KB the server will keep.")
+    stem = name[: -len(".conf")]
+    for n in range(1, MAX_SAVED_CONFIGS + 2):
+        candidate = name if n == 1 else f"{stem}-{n}.conf"
+        if (REPO_ROOT / candidate).exists():
+            continue
+        path = SAVED_CONFIGS_DIR / candidate
+        if path.exists():
+            if path.read_bytes() == raw:
+                return candidate
+            continue
+        if len(saved_paths()) >= MAX_SAVED_CONFIGS:
+            raise ValueError(
+                f"The server already keeps {MAX_SAVED_CONFIGS} machine configs, which is all it "
+                "will hold. Use this one without keeping it, or ask whoever runs the server to "
+                "clear some out.")
+        # Written whole under a name the pulldown ignores, then linked into place.
+        # A link fails if the name is taken, so two uploads racing for the same
+        # name cannot overwrite each other, and nobody is ever offered a config
+        # that is still half written.
+        part = SAVED_CONFIGS_DIR / f".upload-{secrets.token_hex(6)}.part"
+        part.write_bytes(raw)
+        try:
+            os.link(part, path)
+        except FileExistsError:
+            continue
+        finally:
+            part.unlink()
+        return candidate
+    raise ValueError(f"No free name for {name} on the server.")
 
 
 # ----------------------------------------------------------------- the form

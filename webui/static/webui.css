@@ -968,9 +968,14 @@ dialog::backdrop { background: rgba(0,0,0,.3); }
 
 /* ------------------------------------------- machine picker in the chrome */
 .brand-name { flex: 1; min-width: 160px; }
-.picker { display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; }
+/* Top-aligned rather than bottom: the upload now carries its keep option
+   underneath it, and aligning on the bottom would line the machine pulldown up
+   with that checkbox instead of with the file input beside it. */
+.picker { display: flex; gap: 14px; align-items: flex-start; flex-wrap: wrap; }
 .picker .field { min-width: 190px; }
-.topbar-error { max-width: 1000px; margin: 0 auto 12px; padding: 0 28px; }
+.own-config { display: flex; flex-direction: column; gap: 7px; }
+.own-config .field.is-check .field-label { font-size: 12.5px; color: var(--ink-dim); }
+.topbar-error, .topbar-note { max-width: 1000px; margin: 0 auto 12px; padding: 0 28px; }
 
 /* number fields are three digits, not half a page */
 .group.tight .grid { grid-template-columns: repeat(auto-fit, minmax(150px, 200px)); }

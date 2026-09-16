@@ -36,6 +36,16 @@ text: {
 "Or use your own": "Oder eigene verwenden",
 "Choose file": "Datei auswählen",
 "No file selected": "Keine Datei ausgewählt",
+"Presets": "Voreinstellungen",
+"Kept on this server": "Auf diesem Server hinterlegt",
+"Keep it on this server, for everyone": "Auf diesem Server für alle hinterlegen",
+"About keeping a config on the server": "Über das Hinterlegen einer Konfiguration auf dem Server",
+"A kept config is added to the machine list above for anyone who opens this page, and stays after the server restarts. Without this, an upload is only yours, and only for as long as your session lasts.":
+  "Eine hinterlegte Konfiguration erscheint in der Maschinenliste oben für jeden, der diese Seite öffnet, und bleibt auch nach einem Neustart des Servers erhalten. Ohne dies gehört eine hochgeladene Datei nur Ihnen, und nur so lange, wie Ihre Sitzung währt.",
+"Kept on the server, and in the machine list from now on.":
+  "Auf dem Server hinterlegt und fortan in der Maschinenliste.",
+"Kept on the server as {name}: {original} was already taken by another machine.":
+  "Auf dem Server als {name} hinterlegt: {original} war bereits von einer anderen Maschine belegt.",
 "Download this config": "Diese Konfiguration herunterladen",
 "Choose a machine to begin. Its config sets the trays, the canvas and how the brush behaves.":
   "Wählen Sie zunächst eine Maschine. Ihre Konfiguration bestimmt die Behälter, den Druckbereich und das Verhalten des Pinsels.",
@@ -379,6 +389,7 @@ text: {
 "bad config name": "ungültiger Name der Konfiguration",
 "config not found": "Konfiguration nicht gefunden",
 "bad host": "ungültiger Rechnername",
+"bad config mode": "ungültige Art der Konfiguration",
 
 },
 
@@ -446,6 +457,13 @@ patterns: [
   ["^(.*) did not resolve: (.*)$", "$1 ließ sich nicht auflösen: $2"],
   ["^(.+): '(.*)' is not a number$", "$1: „$2“ ist keine Zahl"],
   ["^Tray (\\d+)$", "Behälter $1"],
+  ["^A machine config is a few kilobytes; this one is (\\d+) KB, over the (\\d+) KB the server will keep\\.$",
+   "Eine Maschinenkonfiguration umfasst wenige Kilobyte; diese hat $1 KB und liegt damit über den $2 KB, die der Server hinterlegt."],
+  ["^The server already keeps (\\d+) machine configs, which is all it will hold\\. Use this one without keeping it, or ask whoever runs the server to clear some out\\.$",
+   "Der Server hält bereits $1 Maschinenkonfigurationen, mehr fasst er nicht. Verwenden Sie diese, ohne sie zu hinterlegen, oder bitten Sie den Betreiber des Servers, einige zu entfernen."],
+  ["^No free name for (.+) on the server\\.$", "Für $1 ist auf dem Server kein freier Name mehr."],
+  ["^(.+) is no longer on the server\\. Uploaded configs are kept with your session and this one has expired — upload the file again, or pick a preset\\.$",
+   "$1 ist nicht mehr auf dem Server. Hochgeladene Konfigurationen gehören zu Ihrer Sitzung, und diese ist abgelaufen — laden Sie die Datei erneut hoch oder wählen Sie eine Voreinstellung."],
 ],
 
 };

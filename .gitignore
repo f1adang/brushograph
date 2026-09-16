@@ -3,6 +3,7 @@ venv/
 env/
 .DS_Store
 webui_sessions/
+webui_configs/
 webui/models/
 
 # Terraform: state names live infrastructure and carries secrets, and the
