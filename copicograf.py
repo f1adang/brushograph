@@ -44,6 +44,17 @@ def _read_plain_move(line_text):
     return text, xy
 
 
+def _mm(v):
+    """A container coordinate, kept to a hundredth of a millimetre.
+
+    These were cut to whole millimetres with int(), which on a holder with
+    half-millimetre centres — the Micro's colours sit 20.5 mm from the water —
+    put every colour 0.5 mm off where the holder has it, and on the Micro's
+    11.4 mm crucibles that is felt.
+    """
+    return round(float(v), 2)
+
+
 def _linear_xy(x, y):
     """str(GCodeLinearMove(X=x, Y=y)), without building one per stroke point."""
     return f"G01 X{round(float(x), 3):g} Y{round(float(y), 3):g}"
@@ -55,8 +66,8 @@ class Copicograf:
 
         self.gcodes = gcodes
 
-        self.water_tray_x = int(self.conf["trays"]["water"]["x"])
-        self.water_tray_y = int(self.conf["trays"]["water"]["y"])
+        self.water_tray_x = _mm(self.conf["trays"]["water"]["x"])
+        self.water_tray_y = _mm(self.conf["trays"]["water"]["y"])
 
         self.canvas_height = int(self.conf["brushograph"]["canvas_height"])
         self.go_in_tray_lift = int(self.conf["brushograph"]["go_in_tray_lift"])
@@ -163,23 +174,23 @@ class Copicograf:
 
             # 1. quadrant
             if quadrant == 0:
-                first_coords = (int(tray_x + delta_x), int(tray_y + delta_y))
-                second_coords = (int(tray_x - delta_x), int(tray_y - delta_y))
+                first_coords = (_mm(tray_x + delta_x), _mm(tray_y + delta_y))
+                second_coords = (_mm(tray_x - delta_x), _mm(tray_y - delta_y))
 
             # 2. quadrant
             if quadrant == 1:
-                first_coords = (int(tray_x - delta_x), int(tray_y + delta_y))
-                second_coords = (int(tray_x + delta_x), int(tray_y - delta_y))
+                first_coords = (_mm(tray_x - delta_x), _mm(tray_y + delta_y))
+                second_coords = (_mm(tray_x + delta_x), _mm(tray_y - delta_y))
 
             # 3. quadrant
             if quadrant == 2:
-                first_coords = (int(tray_x - delta_x), int(tray_y - delta_y))
-                second_coords = (int(tray_x + delta_x), int(tray_y + delta_y))
+                first_coords = (_mm(tray_x - delta_x), _mm(tray_y - delta_y))
+                second_coords = (_mm(tray_x + delta_x), _mm(tray_y + delta_y))
 
             # 4. quadrant
             if quadrant == 3:
-                first_coords = (int(tray_x + delta_x), int(tray_y - delta_y))
-                second_coords = (int(tray_x - delta_x), int(tray_y + delta_y))
+                first_coords = (_mm(tray_x + delta_x), _mm(tray_y - delta_y))
+                second_coords = (_mm(tray_x - delta_x), _mm(tray_y + delta_y))
 
             if first_coords[1] > 1000 or second_coords[1] > 1000:
                 print("big second")
@@ -220,7 +231,7 @@ class Copicograf:
             for name, t in (self.conf.get("trays", {}) or {}).items():
                 if name == "additionals" or not isinstance(t, dict):
                     continue
-                tx, ty = int(t.get("x", 0)), int(t.get("y", 0))
+                tx, ty = _mm(t.get("x", 0)), _mm(t.get("y", 0))
                 d = calculate_dist(tray_x, tray_y, tx, ty)
                 if d > 1 and (nearest is None or d < nearest):
                     nearest, ux, uy = d, (tx - tray_x) / d, (ty - tray_y) / d
@@ -241,13 +252,13 @@ class Copicograf:
 
             for side in (1, -1):
                 self.gcodes.append(GCodeLinearMove(
-                    X=int(round(tray_x + ux * inner * side)),
-                    Y=int(round(tray_y + uy * inner * side))))
+                    X=_mm(tray_x + ux * inner * side),
+                    Y=_mm(tray_y + uy * inner * side)))
                 self.gcodes.append(GCodeLinearMove(Z=self.remove_drops_lift))
                 set_remove_drops_speed()
                 self.gcodes.append(GCodeLinearMove(
-                    X=int(round(tray_x + ux * outer * side)),
-                    Y=int(round(tray_y + uy * outer * side))))
+                    X=_mm(tray_x + ux * outer * side),
+                    Y=_mm(tray_y + uy * outer * side)))
                 self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
                 set_fast_speed()
 
@@ -284,10 +295,10 @@ class Copicograf:
                     margin = self.cup_depth * 0.15
                     near = tray_y - self.cup_depth / 2 + margin
                     far = tray_y + self.cup_depth / 2 - margin
-                    self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(round(near))))
+                    self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(near)))
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
                     self.gcodes.append(GCodeLinearMove(
-                        X=int(tray_x), Y=int(round(far)), Z=self.cup_swipe_exit_z))
+                        X=_mm(tray_x), Y=_mm(far), Z=self.cup_swipe_exit_z))
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
                 else:
                     ###########################################################
@@ -298,11 +309,11 @@ class Copicograf:
                     # The loading sweep still runs the full chord, but it     #
                     # happens down in the paint where the brush is inside.    #
                     ###########################################################
-                    self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
+                    self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(tray_y)))
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
                     self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
                     self.gcodes.append(GCodeRapidMove(X=second_coords[0], Y=second_coords[1]))
-                    self.gcodes.append(GCodeRapidMove(X=int(tray_x), Y=int(tray_y)))
+                    self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(tray_y)))
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
 
             # The rim wipe is for a round cup, where the brush comes straight
