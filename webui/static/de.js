@@ -70,8 +70,8 @@ text: {
 "Machine sketch (form has errors)": "Maschinenriss (das Formular enthält Fehler)",
 "Machine sketch (could not be drawn)": "Maschinenriss (konnte nicht gezeichnet werden)",
 "Machine setup": "Maschineneinrichtung",
-"Containers, brush heights, speeds — set once per machine":
-  "Behälter, Pinselhöhen, Geschwindigkeiten — einmalig je Maschine",
+"Connection, model, containers, brush heights, speeds, macros — set once per machine":
+  "Verbindung, Modell, Behälter, Pinselhöhen, Geschwindigkeiten, Makros — einmalig je Maschine",
 "Container positions": "Behälterpositionen",
 "Auto-space containers": "Behälter anordnen",
 "Set the water cup where the holder actually sits and auto-space the rest based on that.":
@@ -91,8 +91,6 @@ text: {
 "Only a config kept on the server can be updated there.":
   "Nur eine auf dem Server hinterlegte Konfiguration kann dort aktualisiert werden.",
 "Macro generator": "Makrogenerator",
-"zero, home, paper, clean, calibrate — one set per machine":
-  "Nullpunkt, Heimfahrt, Papier, Reinigung, Kalibrierung — ein Satz je Maschine",
 "Five small routines: zeroing the controller through a mostly fixed sequence, parking the brush, checking paper placement, washing the brush then parking it, and placing a single reference dot on the canvas. Clean follows whichever container shape is set under Containers; calibrate does neither that nor any lift first — just the dot, and a park over it.":
   "Fünf kleine Abläufe: die Steuerung über eine weitgehend feste Folge auf Null setzen, den Pinsel abstellen, die Papierlage prüfen, den Pinsel waschen und abstellen sowie einen einzelnen Bezugspunkt auf den Druckbereich setzen. Die Reinigung richtet sich nach der unter „Behälter“ eingestellten Behälterform; die Kalibrierung tut weder das eine noch hebt sie zuvor an — nur der Punkt und eine Ruhestellung darüber.",
 "Generate macros": "Steuermakros erzeugen",

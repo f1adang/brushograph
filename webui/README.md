@@ -30,18 +30,16 @@ machine and left alone.
 
 - **The machine** — a to-scale plan of bed, image area and trays with their
   entry and drip radii, redrawn as you edit. Trays parked outside the bed are
-  called out rather than quietly cropped. Two collapsed panels sit under the
-  plan, because both are about the machine rather than about a picture:
-    - **Machine setup** — containers, their positions, **Canvas** (where the
-      artwork sits on the bed), **Brush control**, **Paint management**,
-      backlash, the `moves`
-      speed groups and the controller type, and at the end **Download Machine
-      Config**, which writes all of it back out as a `.conf`. A config
-      carrying keys this map has never heard of still shows them, under
-      **Other settings**.
-    - **Macro generator** — `zero.g`, `home.g`, `paper.g`, `clean.g` and
-      `calibrate.g`, built from the settings in Machine setup above it (see
-      below).
+  called out rather than quietly cropped. One collapsed panel sits under the
+  plan, **Machine setup**, because all of it is about the machine rather than
+  about a picture: the connection and controller type first, then the
+  **Model**, containers, their positions, **Canvas** (where the artwork sits
+  on the bed), **Brush control**, **Paint management**, backlash and the
+  `moves` speed groups. Then **Download Machine Config**, which writes all of
+  it back out as a `.conf`, and last the **Macro generator** — `zero.g`,
+  `home.g`, `paper.g`, `clean.g` and `calibrate.g`, built from the settings
+  above it (see below). A config carrying keys this map has never heard of
+  still shows them, under **Other settings**.
 - **Artwork** — a **colour photograph** that is converted to CMYK and thresholded
   into the four process plates, and/or one card per colour in `color_order`, each
   taking a picture and saying whether it is **already black and white** or a
@@ -84,7 +82,7 @@ does.
 
 openBrushograph_hardware V6.0 builds two machines from one parametric gantry:
 the **Mini**, which every config so far was written for, and the **𝔐𝔦𝔨𝔯𝔬**. The
-Model picker sits at the top of The machine, above the plan, and a config that
+Model picker sits in Machine setup, under the connection and controller, and a config that
 names no `brushograph.model` is a Mini.
 
 What differs, from the `params` spreadsheet in `brushograf_V6.FCStd` and the
@@ -1200,9 +1198,9 @@ every other always-offered setting.
 
 ## Macro generator
 
-Under Machine setup, in The machine — both are about the machine rather than
-about a picture, so both live with its plan drawing rather than down by Run —
-a second `<details>`, **Macro generator**, builds five small routines:
+At the end of Machine setup, below Save these settings — it is about the
+machine rather than about a picture, so it lives with its plan drawing rather
+than down by Run — the **Macro generator** builds five small routines:
 `zero.g`, `home.g`, `paper.g`, `clean.g` and `calibrate.g`. All five come from
 `webui/macros.py`, a module the pipeline never imports and that never touches
 a tray image, so generating them needs none of the pictures a G-code run

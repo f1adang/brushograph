@@ -46,21 +46,35 @@
       <h2>The machine</h2>
       <p>Bed, canvas and trays drawn to scale, redrawn as you edit{% if generator != 'copicograf' %}. Running the {{ generator }} generator{% endif %}.</p>
     </div>
-    {% set model = (machine.fields | selectattr('group', 'equalto', 'Model') | list | first) if machine else none %}
-    {% if model %}
-    <div class="grid" id="machine-model">{% for f in model.fields %}{{ field(f) }}{% endfor %}</div>
-    <p class="note" id="model-note" hidden></p>
-    {% endif %}
     <figure class="plan">
       <img id="machine-sketch" alt="Plan view of the machine bed and its trays" src="">
     </figure>
 
     <!-- -------------------------------------------------------------- setup -->
     <details class="setup" id="machine-setup">
-      <summary><span>Machine setup</span><i>Containers, brush heights, speeds — set once per machine</i></summary>
+      <summary><span>Machine setup</span><i>Connection, model, containers, brush heights, speeds, macros — set once per machine</i></summary>
       <div class="setup-body">
 
-        {# Containers first: what the cups are shapes what their positions mean. #}
+        {# Connection and controller first: which machine this is, and how it is
+           reached, before anything about what it holds. #}
+        {% for section in schema if section.key not in ('trays', 'brushograph', 'slicer') %}
+        <section class="group">
+          <h3>{{ section.title }}</h3>
+          <div class="grid">{% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+          {% for g in section.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
+        </section>
+        {% endfor %}
+
+        {% set model = (machine.fields | selectattr('group', 'equalto', 'Model') | list | first) if machine else none %}
+        {% if model %}
+        <section class="group">
+          <h3>Model</h3>
+          <div class="grid" id="machine-model">{% for f in model.fields %}{{ field(f) }}{% endfor %}</div>
+          <p class="note" id="model-note" hidden></p>
+        </section>
+        {% endif %}
+
+        {# Then containers: what the cups are shapes what their positions mean. #}
         {% set cups = (machine.fields | selectattr('group', 'equalto', 'Containers') | list | first) if machine else none %}
         {% if cups %}{{ group(cups) }}{% endif %}
 
@@ -89,14 +103,6 @@
 
         {% if machine %}{% for g in machine.fields if g.group and not g.job and g.group not in ('Containers', 'Model') %}{{ group(g) }}{% endfor %}{% endif %}
 
-        {% for section in schema if section.key not in ('trays', 'brushograph', 'slicer') %}
-        <section class="group">
-          <h3>{{ section.title }}</h3>
-          <div class="grid">{% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
-          {% for g in section.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
-        </section>
-        {% endfor %}
-
         <section class="group" id="setup-download">
           <h3>Save these settings</h3>
           <p class="note" data-i18n="setup-download-note">Writes everything above, and the fill settings, back out as a
@@ -115,30 +121,27 @@
           <p class="error" id="setup-error" hidden></p>
         </section>
 
-      </div>
-    </details>
+        <section class="group" id="macro-generator">
+          <h3>Macro generator</h3>
+          <p class="note">Five small routines: zeroing the controller through a
+            mostly fixed sequence, parking the brush, checking paper placement,
+            washing the brush then parking it, and placing a single reference
+            dot on the canvas. Clean follows whichever container shape is set
+            under Containers; calibrate does neither that nor any lift first —
+            just the dot, and a park over it.</p>
 
-    <!-- ------------------------------------------------------------- macros -->
-    <details class="setup" id="macro-generator">
-      <summary><span>Macro generator</span><i>zero, home, paper, clean, calibrate — one set per machine</i></summary>
-      <div class="setup-body">
-        <p class="note">Five small routines: zeroing the controller through a
-          mostly fixed sequence, parking the brush, checking paper placement,
-          washing the brush then parking it, and placing a single reference
-          dot on the canvas. Clean follows whichever container shape is set
-          under Containers; calibrate does neither that nor any lift first —
-          just the dot, and a park over it.</p>
+          <div class="actions">
+            <button type="button" class="primary" id="macros-generate">Generate macros</button>
+            <button type="button" class="primary" id="macros-download" hidden>Download macros</button>
+            <button type="button" class="primary" id="macros-upload" hidden>Upload to machine</button>
+            <span class="note" id="macros-status" hidden></span>
+          </div>
+          <p class="error" id="macros-error" hidden></p>
+          <ul class="macro-list" id="macro-list" hidden></ul>
+          <p class="note" id="macros-machine-note" hidden></p>
+          <p class="error" id="macros-machine-error" hidden></p>
+        </section>
 
-        <div class="actions">
-          <button type="button" class="primary" id="macros-generate">Generate macros</button>
-          <button type="button" class="primary" id="macros-download" hidden>Download macros</button>
-          <button type="button" class="primary" id="macros-upload" hidden>Upload to machine</button>
-          <span class="note" id="macros-status" hidden></span>
-        </div>
-        <p class="error" id="macros-error" hidden></p>
-        <ul class="macro-list" id="macro-list" hidden></ul>
-        <p class="note" id="macros-machine-note" hidden></p>
-        <p class="error" id="macros-machine-error" hidden></p>
       </div>
     </details>
 
