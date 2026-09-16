@@ -10,7 +10,6 @@ import re
 import secrets
 import socket
 import shutil
-import subprocess
 import tempfile
 import threading
 import traceback
@@ -30,35 +29,11 @@ from configspec import (CMYK_TO_TRAY, MODERN_BAY_OFFSETS, apply_form,
                         build_schema, tray_entries)
 from macros import generate_macros
 from sketch import PALETTES, render as render_sketch
+from version import REPO_URL, VERSION
 
 WEBUI_DIR = Path(__file__).resolve().parent
 REPO_ROOT = WEBUI_DIR.parent
 SESSIONS_DIR = REPO_ROOT / "webui_sessions"
-# Where the version tags are published: autonomy is pushed to the fork.
-REPO_URL = "https://github.com/f1adang/brushograph"
-
-
-def _version() -> str | None:
-    """The newest version tag reachable from the checked-out commit.
-
-    Every feature merged into autonomy is tagged vMAJOR.MINOR, so the tag is
-    the version and there is no file to keep in step with it. Read once at
-    start: the code a running server executes does not change under it. None
-    when there is no git or no tag, and the header then says nothing.
-    """
-    try:
-        out = subprocess.run(
-            ["git", "describe", "--tags", "--abbrev=0", "--match", "v[0-9]*"],
-            cwd=REPO_ROOT, capture_output=True, text=True, timeout=5,
-        )
-    except (OSError, subprocess.SubprocessError):
-        return None
-    if out.returncode != 0:
-        return None
-    return out.stdout.strip() or None
-
-
-VERSION = _version()
 # Configs people chose to keep. Beside the sessions rather than in them: a kept
 # config belongs to the server and everyone who uses it, not to the browser
 # that happened to upload it, so it must not expire with a cookie. Gitignored,

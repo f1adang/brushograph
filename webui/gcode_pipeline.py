@@ -21,6 +21,7 @@ from PIL import Image
 from images import flatten
 
 import planar
+from version import gcode_note
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
@@ -553,7 +554,7 @@ def sanitize_for_controller(lines: list[str], controller: str) -> tuple[list[str
             # Not rewritten to `$H`: that needs limit switches, and a machine
             # without them is zeroed where it stands (FluidNC's startup_line0
             # `G10 P0 L20 …` idiom). Homing is left to the operator.
-            kept.append("; homing removed for " + controller + " — home or zero the machine first")
+            kept.append("; homing removed for " + controller + " - home or zero the machine first")
             dropped += 1
             continue
         kept.append(ln)
@@ -774,10 +775,9 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         log(f"backlash compensation: +{len(lines) - before} corrective moves")
 
     header = [
-        "; Brushograph WebUI",
-        f"; controller: {controller}",
-        f"; trays: {', '.join(t['tray'] for t in stats['trays'])}",
-        f"; image area: {width_mm:g} x {height_mm:g} mm",
+        gcode_note(),
+        f"; Trays: {', '.join(t['tray'] for t in stats['trays'])}",
+        f"; Image area: {width_mm:g} x {height_mm:g} mm",
     ]
     out_path.write_text("\n".join(header + start_sequence(conf) + lines) + "\n")
     stats["infill"] = infill

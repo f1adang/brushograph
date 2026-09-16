@@ -22,6 +22,7 @@ G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 from __future__ import annotations
 
 from configspec import with_defaults
+from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g"]
 
@@ -212,4 +213,5 @@ def generate_macros(conf: dict) -> dict[str, str]:
     ]
     out["calibrate.g"] = "\n".join(lines) + "\n"
 
-    return out
+    # Every macro, zero.g's fixed routine included, says what made it.
+    return {name: gcode_note() + "\n" + text for name, text in out.items()}

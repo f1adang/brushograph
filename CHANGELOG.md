@@ -1,0 +1,98 @@
+# Changelog
+
+Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
+tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
+message describes that version.
+
+## [v2.4](https://github.com/f1adang/brushograph/releases/tag/v2.4) — 2026-09-16
+
+- The page header shows the WebUI version at the end of the tagline, linked to
+  its tag.
+- Every generated G-code file and macro opens with the WebUI version and a link
+  to the Brušograf site. The G-code header drops its bare "Brushograph WebUI"
+  and controller lines, and its remaining comments start with a capital letter.
+- This changelog.
+
+## [v2.3](https://github.com/f1adang/brushograph/releases/tag/v2.3) — 2026-09-16
+
+- Machine setup sections renamed to Canvas, Brush control and Paint management.
+
+## [v2.2](https://github.com/f1adang/brushograph/releases/tag/v2.2) — 2026-09-16
+
+- A portrait colour photograph is turned on its side so it fills the painted
+  width.
+- The painted height follows the picture's aspect ratio automatically; the
+  Match image button is gone.
+
+## [v2.1](https://github.com/f1adang/brushograph/releases/tag/v2.1) — 2026-09-16
+
+- Machine configs can be kept on the server for everyone, picked from the
+  machine list, and updated in place.
+
+## [v2.0](https://github.com/f1adang/brushograph/releases/tag/v2.0) — 2026-09-16 — 𝖅𝖜𝖊𝖎𝖙𝖊𝖗 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘 Sonderedition
+
+- The Kongress theme, set in UniFraktur, with the whole interface in German.
+
+## [v1.10](https://github.com/f1adang/brushograph/releases/tag/v1.10) — 2026-09-12
+
+- A single colour photograph is converted to CMYK and thresholded into four
+  plates, with a preview of the plates.
+
+## [v1.9](https://github.com/f1adang/brushograph/releases/tag/v1.9) — 2026-09-11
+
+- Macro generator: `zero.g`, `home.g`, `paper.g`, `clean.g` and `calibrate.g`
+  are built from the machine setup and uploaded to the controller.
+- Machine setup and macros are grouped under The machine; the real logo and a
+  favicon.
+
+## [v1.8](https://github.com/f1adang/brushograph/releases/tag/v1.8) — 2026-09-11
+
+- CMYK painting: rectangular containers loaded with one swipe up the stairs, a
+  bay for black, and a measured water bay.
+
+## [v1.7](https://github.com/f1adang/brushograph/releases/tag/v1.7) — 2026-09-09
+
+- A finished job can be sent to the machine and started from the page.
+
+## [v1.6](https://github.com/f1adang/brushograph/releases/tag/v1.6) — 2026-09-08
+
+- The interface is regrouped around the job, not the config file.
+- Themes chosen in the footer: Pinkograph, Coconut and UwU, with the plan and
+  preview drawn in the theme's colours.
+- Sessions survive a server restart, transparency is laid over paper, and the
+  config is saved with Download Machine Config.
+
+## [v1.5](https://github.com/f1adang/brushograph/releases/tag/v1.5) — 2026-09-05
+
+- The brush is loaded before the first stroke and for every colour, lifts
+  before travelling, and stays off the paper after a wash.
+
+## [v1.4](https://github.com/f1adang/brushograph/releases/tag/v1.4) — 2026-09-02
+
+- A planar geometry engine draws the fill from a distance transform, replacing
+  OpenSCAD and PrusaSlicer.
+- Trays are prepared in parallel; faces are found with a DNN; Insta face
+  filter for portraits.
+
+## [v1.3](https://github.com/f1adang/brushograph/releases/tag/v1.3) — 2026-09-01
+
+- Configurable dip depth and backlash compensation.
+- Shapes too thin to outline are painted as a centreline.
+
+## [v1.2](https://github.com/f1adang/brushograph/releases/tag/v1.2) — 2026-08-30
+
+- Photos are cut into two-tone woodcuts, with hatching that follows the form
+  and optional subject isolation.
+- G-code preview, files named after the picture and colours, and a calibration
+  macro.
+
+## [v1.1](https://github.com/f1adang/brushograph/releases/tag/v1.1) — 2026-08-30
+
+- The Brushograph WebUI: load a machine config, upload pictures per tray, and
+  download brush G-code.
+- Honours `controller_type` (no Marlin-only codes for GRBL/FluidNC), chains
+  brush strokes, and matches the painted height to the picture.
+
+## [v1.0](https://github.com/f1adang/brushograph/releases/tag/v1.0) — 2025-04-27
+
+- The command-line converter on `main` this fork builds on.
