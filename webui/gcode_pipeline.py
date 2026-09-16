@@ -27,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from configspec import CMYK_TO_TRAY, tray_entries  # noqa: E402
+from configspec import CMYK_TO_TRAY, holder_of, tray_entries  # noqa: E402
 
 FALLBACK_PATTERN = "concentric"
 
@@ -686,6 +686,8 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # gcodes=[] on purpose: Copicograf's default argument is a shared mutable
     # list, so leaving it out would append this run onto the previous one.
     copicograf = Copicograf(conf=conf, gcodes=[])
+    # copicograf knows the Mini's holder only; the swipe fits the model's.
+    copicograf.cup_depth = holder_of(conf)["swipe_length"]
     stats = {"trays": [], "strokes": 0}
 
     def prepare(entry):

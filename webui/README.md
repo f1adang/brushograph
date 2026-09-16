@@ -80,6 +80,47 @@ or says nothing, and unticked when the config says not to. The defaults exist so
 a setting the config never mentions still has a control, not to overrule one it
 does.
 
+### Model: Mini or Micro
+
+openBrushograph_hardware V6.0 builds two machines from one parametric gantry:
+the **Mini**, which every config so far was written for, and the **Micro**. The
+Model picker sits at the top of The machine, above the plan, and a config that
+names no `brushograph.model` is a Mini.
+
+What differs, from the `params` spreadsheet in `brushograf_V6.FCStd` and the
+parts each release zip carries:
+
+| | Mini | Micro |
+|---|---|---|
+| pinion | 14 mm, 11 teeth | 11 mm, 8 teeth |
+| racks X / Y | 183.9 / 183.9 mm | 121.0 / 146.9 mm |
+| Z travel | 18 mm | 12 mm |
+| CMYK holder | 39.2 mm water, 29.2 colour bays, 34 mm centres | 20.4 mm water, 11.4 colour crucibles, 16 mm centres |
+| travel limits (max width × height) | 151 × 156 | 88 × 125 |
+| canvas offset Y | 25 | 19 |
+| go in tray lift | 11 | 10 |
+| zero.g far corner | X160 Y160 Z32 | X97 Y123 Z21 |
+| petri dish holder | yes | none |
+
+The Micro's travel is the Mini's less the difference in rack length, the
+carriages taking the same share of both. Its holder is the `mikro_container`
+preset of `Extras/mini_petri.scad`, checked against `mikro_5x_petri.stl`; the
+swipe is 18 mm, the same proportion of its 21.4 mm crucible as the Mini's 30 mm
+is of 35.1. zero.g's sweep is shortened by the racks and scaled to the Z
+travel. All of these are derived, not measured on a built Micro.
+
+Choosing a model puts its travel limits, canvas offset and tray lift in the form,
+spaces the containers on its holder, and shrinks the painted size to fit the bed
+keeping its proportions. Going back to the model the config opened as puts back
+what the config said. The Micro has no petri dish holder — the classic dishes
+span 173 mm, twice its X travel — so Classic is disabled for it and the server
+treats a Micro as CMYK whatever the config says. The plan, clean.g and the job's
+swipes use the model's holder.
+
+Steps per millimetre live in the controller, not here: the Micro's smaller
+pinion moves 34.6 mm per revolution against the Mini's 44.0, so its firmware
+needs about 1.27 times the Mini's steps/mm.
+
 ### Dip depth
 
 How far the brush descends into a cup was fixed at Z −4 in `copicograf`, which

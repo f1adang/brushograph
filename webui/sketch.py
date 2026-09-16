@@ -7,8 +7,7 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-from configspec import (CLASSIC_DISH_RIM_RADIUS, MODERN_BAY_WIDTH, MODERN_SWIPE_LENGTH,
-                        MODERN_WATER_BAY_WIDTH, tray_entries)
+from configspec import CLASSIC_DISH_RIM_RADIUS, holder_of, tray_entries
 
 W, H = 760, 480
 PAD = 46
@@ -133,7 +132,11 @@ def render(conf: dict, theme: str = "default") -> bytes:
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
     enter_r = _num(bg, "tray_enter_radius", _num(bg, "dip_entry_radius", 5))
     modern = str(bg.get("cup_shape", "classic")).strip().lower() == "modern"
-    cup_w, cup_w_water, cup_h = MODERN_BAY_WIDTH, MODERN_WATER_BAY_WIDTH, MODERN_SWIPE_LENGTH
+    # The holder the model was printed with: a Micro's crucibles are a fraction
+    # of the Mini's bays.
+    holder = holder_of(conf)
+    cup_w, cup_w_water = holder["bay_width"], holder["water_bay_width"]
+    cup_h = holder["swipe_length"]
 
     def bay_w(name):
         return cup_w_water if name == "water" else cup_w
@@ -221,8 +224,8 @@ def render(conf: dict, theme: str = "default") -> bytes:
             # A rectangular bay, with the steps its floor climbs drawn across
             # it: the brush swipes from the near end to the far one, rising as
             # it goes, so the steps are the thing worth seeing. The water bay is
-            # the wide one — the holder gives it 39.2 mm against the colours'
-            # 29.2 — and drawing them all alike hid which cup that was.
+            # the wide one — the Mini's holder gives it 39.2 mm against the
+            # colours' 29.2 — and drawing them all alike hid which cup that was.
             hw, hh = max(bay_w(name) * scale / 2, 3), max(cup_h * scale / 2, 3)
             d.rectangle([cx - hw, cy - hh, cx + hw, cy + hh],
                         fill=(*fill, alpha), outline=(*CANVAS, alpha), width=1)

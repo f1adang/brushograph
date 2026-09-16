@@ -760,6 +760,9 @@ footer a { color: var(--ink-dim); font-size: 13px; }
 .step-head p { margin: 3px 0 0; font-size: 13.5px; color: var(--ink-dim); max-width: 66ch; }
 
 /* the machine plan: the one element given room to be looked at */
+/* One picker, not a row of them: at the grid's full width it read as a banner. */
+#machine-model { max-width: 260px; margin-bottom: 14px; }
+#model-note { margin: -4px 0 14px; }
 .plan { margin: 0; background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 14px; }
 .plan img { display: block; width: 100%; height: auto; max-height: 380px; object-fit: contain; }
 .plan figcaption { margin-top: 10px; font-size: 12.5px; color: var(--ink-faint); }

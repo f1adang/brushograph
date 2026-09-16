@@ -444,68 +444,153 @@ function wireForm() {
      applies the lot straight away; a config that opens already classic keeps
      its own figures. That holder has four places and no black, so the black
      cup's position and picture are put away while Classic is selected — and
-     disabled, so they are not posted either. */
+     disabled, so they are not posted either.
+
+     Which CMYK holder it is depends on the model: the Micro has its own, a
+     fraction of the Mini's, and no petri dish holder at all. */
   const spaceBtn = $("space-cups");
   const spaceNote = $("space-note");
   const shapeSelect = form.querySelector('[name="brushograph-cup_shape"]');
-  if (spaceBtn && shapeSelect) {
-    const offsetsFor = {
-      modern: JSON.parse(spaceBtn.dataset.modern || "{}"),
-      classic: JSON.parse(spaceBtn.dataset.classic || "{}"),
-    };
-    const dishSettings = JSON.parse(spaceBtn.dataset.dishSettings || "{}");
-    const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
-    const setNumber = (input, value) => {
-      input.value = String(Math.round(value * 100) / 100);
-    };
-    const spaceCups = () => {
-      const water = trayX("water");
-      const base = parseFloat(water && water.value);
-      if (!isFinite(base)) return 0;
-      let moved = 0;
-      for (const [name, off] of Object.entries(offsetsFor[shapeSelect.value] || {})) {
-        const input = trayX(name);
-        if (!input) continue;
-        setNumber(input, base + off);
-        moved += 1;
-      }
-      return moved;
-    };
-    // One event for the lot: the sketch redraws off the form, not per field.
-    const redraw = () => form.dispatchEvent(new Event("input", { bubbles: true }));
+  const modelSelect = form.querySelector('[name="brushograph-model"]');
+  const modelNote = $("model-note");
+  const models = JSON.parse((spaceBtn && spaceBtn.dataset.models) || "{}");
+  const classicOffsets = JSON.parse((spaceBtn && spaceBtn.dataset.classic) || "{}");
+  const dishSettings = JSON.parse((spaceBtn && spaceBtn.dataset.dishSettings) || "{}");
+  const currentModel = () => models[modelSelect ? modelSelect.value : "mini"] || null;
+  const offsetsFor = (shape) => shape === "classic"
+    ? classicOffsets
+    : (currentModel() || {}).offsets;
+  const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
+  const machineInput = (key) => form.querySelector('[name="brushograph-' + key + '"]');
+  const setNumber = (input, value) => {
+    input.value = String(Math.round(value * 100) / 100);
+  };
+  // One event for the lot: the sketch redraws off the form, not per field.
+  const redraw = () => form.dispatchEvent(new Event("input", { bubbles: true }));
 
-    const showForShape = () => {
-      const classic = shapeSelect.value === "classic";
-      const water = !!trayX("water");
-      spaceBtn.hidden = !water || !offsetsFor[shapeSelect.value];
+  const spaceCups = () => {
+    if (!shapeSelect) return 0;
+    const water = trayX("water");
+    const base = parseFloat(water && water.value);
+    if (!isFinite(base)) return 0;
+    let moved = 0;
+    for (const [name, off] of Object.entries(offsetsFor(shapeSelect.value) || {})) {
+      const input = trayX(name);
+      if (!input) continue;
+      setNumber(input, base + off);
+      moved += 1;
+    }
+    return moved;
+  };
+
+  const showForShape = () => {
+    if (!shapeSelect) return;
+    const classic = shapeSelect.value === "classic";
+    if (spaceBtn) {
+      spaceBtn.hidden = !trayX("water") || !offsetsFor(shapeSelect.value);
       if (spaceNote) spaceNote.hidden = spaceBtn.hidden;
-      for (const el of form.querySelectorAll('.coord[data-tray="kroma"], article.tray[data-tray="kroma"]')) {
-        el.hidden = classic;
-        for (const input of el.querySelectorAll("input, select")) input.disabled = classic;
-      }
-    };
+    }
+    for (const el of form.querySelectorAll('.coord[data-tray="kroma"], article.tray[data-tray="kroma"]')) {
+      el.hidden = classic;
+      for (const input of el.querySelectorAll("input, select")) input.disabled = classic;
+    }
+  };
 
-    const setUpDishes = () => {
-      let changed = spaceCups();
-      for (const [key, value] of Object.entries(dishSettings)) {
-        // A config without the setting has no control for it, and no need.
-        const input = form.querySelector('[name="brushograph-' + key + '"]');
-        if (!input) continue;
-        setNumber(input, value);
-        changed += 1;
-      }
-      return changed;
-    };
+  const setUpDishes = () => {
+    let changed = spaceCups();
+    for (const [key, value] of Object.entries(dishSettings)) {
+      // A config without the setting has no control for it, and no need.
+      const input = machineInput(key);
+      if (!input) continue;
+      setNumber(input, value);
+      changed += 1;
+    }
+    return changed;
+  };
 
+  if (shapeSelect) {
     shapeSelect.addEventListener("change", () => {
       showForShape();
       if (shapeSelect.value === "classic") setUpDishes();
       redraw();
     });
     showForShape();
+  }
+  if (spaceBtn) {
     spaceBtn.addEventListener("click", () => {
       if (spaceCups()) redraw();
     });
+  }
+
+  /* ---- the model: Mini or Micro ---- */
+  /* Choosing a model puts its travel limits, canvas offset and tray lift in the
+     form and spaces the containers on its holder. Going back to the model the
+     config opened as puts back what the config said instead, so trying Micro
+     on a tuned Mini config and changing your mind costs nothing. The painted
+     width is brought inside the new travel, and the height follows it. */
+  if (modelSelect) {
+    const touched = () => [
+      ...Object.values(models).flatMap((m) => Object.keys(m.settings || {}))
+        .map(machineInput),
+      machineInput("width"), machineInput("height"), shapeSelect,
+      ...[...form.querySelectorAll('.tray-coords input[name$="-x"]')],
+    ].filter(Boolean);
+    const opened = { model: modelSelect.value, values: new Map() };
+    for (const input of touched()) opened.values.set(input, input.value);
+
+    const fitClassic = () => {
+      const m = currentModel();
+      const option = shapeSelect && shapeSelect.querySelector('option[value="classic"]');
+      if (!m || !option) return;
+      option.disabled = !m.classic;
+      if (!m.classic && shapeSelect.value === "classic") shapeSelect.value = "modern";
+    };
+
+    modelSelect.addEventListener("change", () => {
+      const m = currentModel();
+      if (!m) return;
+      const label = modelSelect.selectedOptions[0].textContent;
+      if (modelSelect.value === opened.model) {
+        for (const [input, value] of opened.values) input.value = value;
+        fitClassic();
+      } else {
+        for (const [key, value] of Object.entries(m.settings || {})) {
+          const input = machineInput(key);
+          if (input) setNumber(input, value);
+        }
+        fitClassic();
+        if (shapeSelect && shapeSelect.value === "classic") setUpDishes(); else spaceCups();
+      }
+      // The painted size shrinks to fit the new bed, keeping its proportions:
+      // a picture loaded later sets the height from the width anyway. Not on
+      // the way back, which puts back whatever the config said.
+      const width = machineInput("width");
+      const height = machineInput("height");
+      const maxW = parseFloat((machineInput("max_width") || {}).value);
+      const maxH = parseFloat((machineInput("max_height") || {}).value);
+      const w = parseFloat(width && width.value);
+      const h = parseFloat(height && height.value);
+      if (modelSelect.value !== opened.model && width && height && w > 0 && h > 0) {
+        const fit = Math.min(1, isFinite(maxW) ? maxW / w : 1, isFinite(maxH) ? maxH / h : 1);
+        if (fit < 1) {
+          width.value = String(Math.floor(w * fit));
+          height.value = String(Math.floor(h * fit));
+        }
+      }
+      showForShape();
+      if (modelNote) {
+        say(modelNote, modelSelect.value === opened.model
+          ? "Back to the {model} settings this config opened with."
+          : "Set up for the {model}: travel limits, canvas offset, tray lift and container spacing. Check them against the machine.",
+          { model: label });
+        modelNote.hidden = false;
+      }
+      // Through the width, so the height is matched to the picture again.
+      if (width) width.dispatchEvent(new Event("input", { bubbles: true }));
+      else redraw();
+    });
+    fitClassic();
+    showForShape();
   }
 
   /* ---- height follows the width and the uploaded image's aspect ratio ---- */

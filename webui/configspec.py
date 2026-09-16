@@ -62,6 +62,81 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
     ("go_in_tray_lift", 14),        # clears the 11.2 mm rim
 ])
 
+# The two machines openBrushograph_hardware V6.0 builds, from the `params`
+# spreadsheet in brushograf_V6.FCStd and the parts its release zips put beside
+# each gantry. Mini is the one every config so far was written for, so a config
+# that names no model is a Mini.
+#
+# Mini: 14 mm pinion with 11 teeth (module 1.27) on 183 mm racks — 46 teeth,
+# 183.9 mm — with the 18 mm Z-mechanism and the big CMYK holder above. Its
+# travel figures are the ones the kept configs were tuned to on the machine.
+#
+# Micro: 11 mm pinion with 8 teeth (module 1.375) on a 120 mm X rack and a
+# 145 mm Y rack, which the spreadsheet rounds up to whole teeth — 28 and 34,
+# 121.0 and 146.9 mm. The carriages eat the same share of a rack on both, so
+# the Micro's travel is the Mini's less the difference in rack length: 62.9 mm
+# off X, 37.0 off Y. The Z-mechanism's "mikro" preset has 12 mm of travel
+# against 18.
+#
+# Its holder is the `mikro_container` preset of Extras/mini_petri.scad, sliced
+# off mikro_5x_petri.stl to check: a 22 mm water crucible and four 13 mm colour
+# ones on 16 mm centres, the first colour 20.5 mm from the water, walls 0.8 so
+# 20.4 and 11.4 mm inside, and 23 mm long, 21.4 inside. The crucibles carry the
+# same stairs as the big holder, so a Micro swipes rather than dips; the swipe
+# keeps the big holder's proportion of its opening (30 of 35.1). There is no
+# petri dish holder for it — the classic dishes span 173 mm, twice its X travel.
+MODELS = OrderedDict([
+    ("mini", {
+        "label": "Mini",
+        "holder": {
+            "offsets": MODERN_BAY_OFFSETS,
+            "bay_width": MODERN_BAY_WIDTH,
+            "water_bay_width": MODERN_WATER_BAY_WIDTH,
+            "swipe_length": MODERN_SWIPE_LENGTH,
+        },
+        "classic": True,
+        # What choosing the model puts in the form.
+        "settings": OrderedDict([
+            ("max_width", 151), ("max_height", 156), ("offset_x", 0), ("offset_y", 25),
+            ("go_in_tray_lift", 11),
+        ]),
+        # zero.g's sweep to the far corner and back: X, Y, Z.
+        "zero_sweep": (160, 160, 32),
+    }),
+    ("micro", {
+        "label": "Micro",
+        "holder": {
+            "offsets": OrderedDict([("water", 0.0), ("cyan", 20.5), ("magenta", 36.5),
+                                    ("yellow", 52.5), ("kroma", 68.5)]),
+            "bay_width": 11.4,
+            "water_bay_width": 20.4,
+            "swipe_length": 18.0,
+        },
+        "classic": False,
+        # 151 - 62.9 across; 25 + 156 - 37.0 along, less a canvas that starts
+        # 19 mm out — the 23 mm crucibles on the same Y 6 leave that much.
+        # The lift clears the 8 mm crucibles and stays inside 12 mm of Z.
+        "settings": OrderedDict([
+            ("max_width", 88), ("max_height", 125), ("offset_x", 0), ("offset_y", 19),
+            ("go_in_tray_lift", 10),
+        ]),
+        # The Mini's sweep, shortened by the racks and scaled to the Z travel.
+        "zero_sweep": (97, 123, 21),
+    }),
+])
+
+
+def model_of(conf: dict) -> str:
+    bg = conf.get("brushograph", {})
+    name = str(bg.get("model", "mini")).strip().lower() if isinstance(bg, dict) else "mini"
+    return name if name in MODELS else "mini"
+
+
+def holder_of(conf: dict) -> dict:
+    """The CMYK holder of the machine this config is for."""
+    return MODELS[model_of(conf)]["holder"]
+
+
 # Settings the form always offers, whatever the config happens to carry. The
 # form is otherwise built from the config's own keys, so a machine file written
 # before one of these existed — or by hand, or by an older version — simply has
@@ -71,6 +146,7 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # deeper than the old fixed one, and a backlash figure small enough to be worth
 # tuning rather than large enough to matter if ignored.
 ALWAYS_OFFERED = {
+    ("brushograph", "model"): "mini",
     ("brushograph", "dip_depth"): -4.0,
     # The cups. "classic" is the round petri dish the machine was built around;
     # "modern" is the rectangular CMYK holder, whose floor steps up towards the
@@ -134,7 +210,13 @@ def fit_cups_to_shape(conf: dict) -> dict:
     because the form is built once and the shape can change under it; this is
     the step after the form is read, so the config that is drawn, painted and
     saved has no black cup unless the modern holder is the one selected.
+
+    A model with no petri dish holder is given its CMYK one instead, whatever
+    the config says: the form does not offer Classic for it.
     """
+    bg = conf.get("brushograph")
+    if isinstance(bg, dict) and not MODELS[model_of(conf)]["classic"]:
+        bg["cup_shape"] = "modern"
     if not is_classic(conf):
         return conf
     black = CMYK_TO_TRAY["K"]
@@ -191,6 +273,7 @@ def _offer_black(conf: dict) -> None:
 # group is marked `job` because it is the only one that changes from one run to
 # the next, and the form shows it with the artwork rather than the machine.
 BRUSHOGRAPH_GROUPS = [
+    ("Model", ["model"], False),
     ("Painted size", ["width", "height"], True),
     ("Canvas",
      ["offset_x", "offset_y", "max_width", "max_height", "canvas_height"], False),
@@ -216,6 +299,7 @@ SECTIONS = [
 # stored, which suits the slicer patterns and controller names: those are spelled
 # the way the slicer and the firmware spell them.
 ENUM_LABELS = {
+    **{name: m["label"] for name, m in MODELS.items()},
     "classic": "Classic",
     "modern": "CMYK",
 }
@@ -228,6 +312,7 @@ ENUMS = {
     ],
     "controller-controller_type": ["GRBL", "Marlin", "FluidNC"],
     "brushograph-cup_shape": ["classic", "modern"],
+    "brushograph-model": list(MODELS),
 }
 
 # Keys that describe the machine rather than a run, kept out of the generated
@@ -235,6 +320,10 @@ ENUMS = {
 TRAY_SKIP = {"additionals"}
 
 HELP = {
+    "brushograph-model": "Which openBrushograph this is. Mini is the standard machine; Micro is the small "
+                         "one, with shorter racks, 12 mm of Z and its own five-crucible CMYK holder. "
+                         "Choosing one sets the travel limits, the canvas offset, the tray lift and the "
+                         "container spacing to suit it.",
     "connection-hostname": "Where the machine answers on the network — the name or address of its "
                            "FluidNC controller, without http://. Used by Send to machine and "
                            "Upload & start.",

@@ -9,7 +9,7 @@ the shared `_park_at_origin()`.
 
 zero.g is the machine's own self-zero dance — a fixed sequence tuned on the
 actual hardware, reproduced here verbatim, with the config read for nothing
-but that final park.
+but the model's far corner and that final park.
 
 calibrate.g is the odd one out on purpose: no wash, no lift first, just the
 dot and a park over it, at two literal heights that are neither
@@ -21,7 +21,7 @@ G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
 
-from configspec import MODERN_SWIPE_LENGTH, with_defaults
+from configspec import MODELS, holder_of, model_of, with_defaults
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g"]
@@ -76,7 +76,7 @@ def _park_at_origin(park_z: float) -> list[str]:
     ]
 
 
-def _container_motion(bg: dict, tray_x: float, tray_y: float, reps: int) -> list[str]:
+def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> list[str]:
     """`reps` dips or swipes at (tray_x, tray_y), classic or modern.
 
     No rim wipe: the only caller is clean.g's wash, which — like copicograf's
@@ -84,13 +84,14 @@ def _container_motion(bg: dict, tray_x: float, tray_y: float, reps: int) -> list
     rinsed has nothing to shed on the way out. A modern bay's swipe wipes
     itself regardless, on the way up the stairs.
     """
+    bg = conf.get("brushograph", {})
     shape = str(bg.get("cup_shape", "classic")).strip().lower()
     dip = _num(bg, "dip_depth", -4)
     lift = _num(bg, "go_in_tray_lift", 8)
     lines: list[str] = []
 
     if shape == "modern":
-        depth = MODERN_SWIPE_LENGTH
+        depth = holder_of(conf)["swipe_length"]
         exit_z = _num(bg, "cup_swipe_exit_z", 1.0)
         margin = depth * 0.15
         near, far = tray_y - depth / 2 + margin, tray_y + depth / 2 - margin
@@ -147,15 +148,17 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # 0,0,0, sweep to the far corner and back to confirm nothing is fouled,
     # re-zero at a travel height, then a short jog sequence that ends by
     # declaring the offset X10 Y0 Z10 point. A fixed routine tuned on the
-    # actual hardware, not derived from the config, except for its very last
-    # line: it finishes the same way home.g and clean.g do, parked at X0 Y0,
-    # Z = Dip Depth + 1 — the one figure here that does read the config.
+    # actual hardware, not derived from the config, except for two things: the
+    # far corner is the model's — a Micro's racks end well short of the Mini's
+    # 160 — and its very last line finishes the same way home.g and clean.g
+    # do, parked at X0 Y0, Z = Dip Depth + 1.
+    sweep_x, sweep_y, sweep_z = MODELS[model_of(conf)]["zero_sweep"]
     out["zero.g"] = "\n".join([
         "G10 P0 L20 X0 Y0 Z0;",
         "G0 Z10 F1000;",
         "G90;",
-        "G0 X160 Y160 Z32 F2100;",
-        "G0 X0 Y0 Z32 F2100;",
+        f"G0 X{sweep_x} Y{sweep_y} Z{sweep_z} F2100;",
+        f"G0 X0 Y0 Z{sweep_z} F2100;",
         "G10 P0 L20 X0 Y0 Z10;",
         "G1 Z15 F1000;",
         "G1 Z10 F1000;",
@@ -193,7 +196,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         *_preamble(bg, "fast"),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
-        *_container_motion(bg, wx, wy, reps=_WASH_REPS),
+        *_container_motion(conf, wx, wy, reps=_WASH_REPS),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         *_park_at_origin(park_z),
     ]

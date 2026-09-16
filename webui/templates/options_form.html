@@ -46,6 +46,11 @@
       <h2>The machine</h2>
       <p>Bed, canvas and trays drawn to scale, redrawn as you edit{% if generator != 'copicograf' %}. Running the {{ generator }} generator{% endif %}.</p>
     </div>
+    {% set model = (machine.fields | selectattr('group', 'equalto', 'Model') | list | first) if machine else none %}
+    {% if model %}
+    <div class="grid" id="machine-model">{% for f in model.fields %}{{ field(f) }}{% endfor %}</div>
+    <p class="note" id="model-note" hidden></p>
+    {% endif %}
     <figure class="plan">
       <img id="machine-sketch" alt="Plan view of the machine bed and its trays" src="">
     </figure>
@@ -77,12 +82,12 @@
           <p class="note" id="space-note" hidden>Set the water cup where the holder actually sits and
             auto-space the rest based on that.</p>
           <button type="button" class="ghost" id="space-cups" hidden
-                  data-modern='{{ bay_offsets }}' data-classic='{{ dish_offsets }}'
+                  data-models='{{ models }}' data-classic='{{ dish_offsets }}'
                   data-dish-settings='{{ dish_settings }}'>Auto-space containers</button>
         </section>
         {% endif %}
 
-        {% if machine %}{% for g in machine.fields if g.group and not g.job and g.group != 'Containers' %}{{ group(g) }}{% endfor %}{% endif %}
+        {% if machine %}{% for g in machine.fields if g.group and not g.job and g.group not in ('Containers', 'Model') %}{{ group(g) }}{% endfor %}{% endif %}
 
         {% for section in schema if section.key not in ('trays', 'brushograph', 'slicer') %}
         <section class="group">
