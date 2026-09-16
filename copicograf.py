@@ -2,6 +2,51 @@
 from pygcode import Line, GCodeLinearMove, GCodeRapidMove
 import math
 import random
+import re
+from collections import namedtuple
+
+# A bare G0/G1 made only of X Y Z E F words, the form the WebUI's adapted
+# paths are written in. Parsing each of those with pygcode was most of the
+# time a job took, so they are read here and anything else still goes to
+# pygcode.
+_PLAIN_MOVE = re.compile(r"G0*([01])((?: [XYZEF]-?(?:\d+\.?\d*|\.\d+))*)")
+_PLAIN_WORD = re.compile(r" ([XYZEF])(\S+)")
+_XY = namedtuple("_XY", "X Y")
+
+
+def _read_plain_move(line_text):
+    """(text, xy) for a plain move, as the pygcode path would have seen it.
+
+    text is what the pen-up / pen-down checks compare against, which pygcode
+    normalises to "G01 Z6 F600" whatever the word order or spelling of the
+    numbers; for any other move it only has to match neither. xy carries X
+    and Y when the line has both, and is None otherwise. A blank line gives
+    (None, None). None means the line is not plain and needs pygcode.
+    """
+    body = line_text.strip()
+    if not body:
+        return None, None
+    m = _PLAIN_MOVE.fullmatch(body)
+    if m is None:
+        return None
+    words = {}
+    for letter, value in _PLAIN_WORD.findall(m.group(2)):
+        if letter in words:
+            return None
+        words[letter] = float(value)
+    text = ""
+    if m.group(1) == "1" and words.keys() == {"Z", "F"} and words["F"] == 600:
+        if words["Z"] == 6:
+            text = "G01 Z6 F600"
+        elif words["Z"] == 1:
+            text = "G01 Z1 F600"
+    xy = _XY(words["X"], words["Y"]) if "X" in words and "Y" in words else None
+    return text, xy
+
+
+def _linear_xy(x, y):
+    """str(GCodeLinearMove(X=x, Y=y)), without building one per stroke point."""
+    return f"G01 X{round(float(x), 3):g} Y{round(float(y), 3):g}"
 
 
 class Copicograf:
@@ -438,12 +483,18 @@ class Copicograf:
         self.gcodes.append(self.brush_above_canvas_gcode)
         with open(gcode_path) as fh:
             for line_text in fh.readlines():
-                line = None
-                try:
-                    line = Line(line_text)
-                except AssertionError:
-                    continue
-                text = str(line)
+                fast = _read_plain_move(line_text)
+                if fast is not None:
+                    text, xy = fast
+                    if text is None:
+                        continue
+                    line = None
+                else:
+                    try:
+                        line = Line(line_text)
+                    except AssertionError:
+                        continue
+                    text = str(line)
                 # print("text: ",text)
 
                 if text.strip() == "G1 F600 Z6" or text.strip() == "G01 Z6 F600":  # G01 Z6 F600
@@ -466,7 +517,10 @@ class Copicograf:
                     set_fast_speed()
                     continue
 
-                gcode, params = get_coords(line)
+                if line is None:
+                    gcode, params = xy, None
+                else:
+                    gcode, params = get_coords(line)
                 if gcode is None:
                     continue
 
@@ -488,7 +542,7 @@ class Copicograf:
                         self.move_to_other_shape = False
                         self.last_draw_params = params
                         self.last_draw_gcode = gcode
-                        self.gcodes.append(GCodeLinearMove(X=float(x + self.offset_x), Y=float(y + self.offset_y)))
+                        self.gcodes.append(_linear_xy(x + self.offset_x, y + self.offset_y))
                         self.gcodes.append(self.brush_on_canvas_gcode)
                         set_normal_speed()
                         continue
@@ -498,7 +552,7 @@ class Copicograf:
                         self.extruding = False
                         self.last_draw_params = params
                         self.last_draw_gcode = gcode
-                        self.gcodes.append(GCodeLinearMove(X=float(x + self.offset_x), Y=float(y + self.offset_y)))
+                        self.gcodes.append(_linear_xy(x + self.offset_x, y + self.offset_y))
                         self.gcodes.append(self.brush_on_canvas_gcode)
                         set_normal_speed()
                         continue
@@ -517,7 +571,7 @@ class Copicograf:
                         dist = append_intermediate_points(dist, prev_x, prev_y, x, y)
                         self.randomize_paint_per_run()
                     else:
-                        self.gcodes.append(GCodeLinearMove(X=float(x + self.offset_x), Y=float(y + self.offset_y)))
+                        self.gcodes.append(_linear_xy(x + self.offset_x, y + self.offset_y))
 
                     append_dist_painted(dist)
 
@@ -530,7 +584,7 @@ class Copicograf:
                     self.last_draw_params = params
 
                 if self.brush_on_canvas == False:
-                    self.gcodes.append(GCodeLinearMove(X=float(x + self.offset_x), Y=float(y + self.offset_y)))
+                    self.gcodes.append(_linear_xy(x + self.offset_x, y + self.offset_y))
                     # print("continue")
                     continue
 
