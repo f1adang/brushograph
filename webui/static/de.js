@@ -294,8 +294,8 @@ text: {
 "Starting…": "Wird gestartet …",
 "No images selected": "Keine Bilder ausgewählt",
 "set a width first": "setzen Sie zuerst eine Breite",
-"Tracing, slicing and planning brush strokes. This takes a few seconds per tray.":
-  "Konturen werden verfolgt, zerlegt und zu Pinselstrichen geplant. Das dauert wenige Sekunden je Behälter.",
+"Tracing, slicing and planning brush strokes.":
+  "Konturen werden verfolgt, zerlegt und zu Pinselstrichen geplant.",
 "Downloaded {file} ({size} KB).": "Heruntergeladen: {file} ({size} KB).",
 "Ready: {file} ({size} KB). Preview below.": "Fertig: {file} ({size} KB). Vorschau unten.",
 "The file is ready, but the preview could not be drawn: {error}":

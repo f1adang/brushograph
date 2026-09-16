@@ -332,8 +332,11 @@ def cmyk_preview():
             plates = cmyk_sep.threshold_plates(im, _cmyk_cutoff(request.form))
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not separate that image: {exc}"), 400
+    # White paper and the light theme's lettering in every theme: the plates
+    # are paint colours, and on a dark sheet yellow glares and black is lost.
+    # The theme still picks the captions' language and typeface.
     theme = request.form.get("theme", "default")
-    pal = PALETTES.get(theme, PALETTES["default"])
+    pal = PALETTES["default"]
     buf = io.BytesIO()
     cmyk_sep.contact_sheet(plates, paper=pal["bg"], ink=pal["text"],
                            theme=theme).save(buf, "PNG")

@@ -42,7 +42,6 @@
   --good: #1c7a4e;
   --warn: #8a5a12;
   --c: #00aeef; --m: #ec008c; --y: #ffd400; --k: #23282f; --water: #96c8eb;
-  --preview-cup: #8b3e2f;    /* trips into the cups: present, never louder than paint */
   --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
   --step: 34px;
@@ -57,7 +56,6 @@
     --ink: #e6e9e8; --ink-dim: #9aa3a1; --ink-faint: #868f8d;
     --black: #f2f4f3;
     --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
-    --preview-cup: #b8735c;
     --k: #dfe4e2;  /* black paint on a dark paper has to be light */
   }
 }
@@ -70,7 +68,6 @@
   --ink: #e6e9e8; --ink-dim: #9aa3a1; --ink-faint: #868f8d;
   --black: #f2f4f3;
   --bad: #e08a7a; --good: #6cc094; --warn: #d4a256;
-  --preview-cup: #b8735c;
   --k: #dfe4e2;  /* black paint on a dark paper has to be light */
 }
 
@@ -97,7 +94,6 @@
   --warn: #8a5a12;
   --neon: #6bff3d;
   --husk: #4a2c18;
-  --preview-cup: #6b4a2a;
 }
 :root[data-theme="coconut"] body {
   background:
@@ -163,7 +159,6 @@
   --neon: #FF6BB5;
   --neon-cold: #00F5FF;
   --strip: #22064A;
-  --preview-cup: #39FF14;   /* the theme's own green; no tray holds green */
   --k: #e8d6f5;  /* black paint on a dark paper has to be light */
 }
 :root[data-theme="pinkograph"] body {
@@ -360,7 +355,6 @@
   --neon-2: #ff8ad4;
   --glow: 0 0 6px rgba(255,45,149,.95), 0 0 20px rgba(255,45,149,.7);
   --pride: linear-gradient(90deg, #ff2d95, #ff6b3d, #ffd400, #4ade80, #22d3ee, #a855f7, #ff2d95);
-  --preview-cup: #a855f7;   /* violet: nothing in the trays is violet */
   --k: #ffdcf0;  /* black paint on a dark paper has to be light */
 }
 :root[data-theme="uwu"] body {
@@ -459,7 +453,6 @@
   --good: #1b4d24;
   --warn: #6e4600;
   --k: #000000;
-  --preview-cup: #8b0000;
 }
 
 :root[data-theme="kongress"],
@@ -884,6 +877,10 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
   padding: 10px; margin-top: 18px;
 }
 #gcode-canvas { display: block; width: 100%; height: auto; }
+/* The preview and the plates are pictures of paint on paper, and paint colours
+ * only read true on light paper, so these stay white in every theme. The id
+ * outranks the themes' own .canvas-wrap backgrounds. */
+#preview-card .canvas-wrap { background: #ffffff; }
 .sim-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .sim-stat {
   background: var(--sheet); border: 1px solid var(--line); border-radius: 5px;
@@ -897,6 +894,7 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
   display: block; max-width: 100%; margin-top: 16px;
   border: 1px solid var(--line); border-radius: 6px; background: var(--sheet);
 }
+#cmyk-image { background: #ffffff; }
 #cmyk-panel .field { max-width: 420px; }
 #cmyk-controls { margin-top: 14px; display: grid; gap: 10px; }
 #cmyk-controls[hidden] { display: none !important; }

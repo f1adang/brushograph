@@ -861,7 +861,7 @@ function wireForm() {
     submitter.textContent = t(wantsGcode ? "Generating…" : "Preparing…");
     gcodeBtn.disabled = configBtn.disabled = true;
     if (wantsGcode) {
-      say(statusBox, "Tracing, slicing and planning brush strokes. This takes a few seconds per tray.");
+      say(statusBox, "Tracing, slicing and planning brush strokes.");
       statusBox.hidden = false;
     }
 
@@ -925,22 +925,17 @@ const FALLBACK_COLOURS = ["#2f7fd0", "#c85a2b", "#3f9c6d", "#8a5bd6", "#c0392b"]
 // strokes and the legend — and they must not drift apart.
 const CUP_COLOUR = "#8b3e2f";
 
-/* The preview sits on the page, so it takes its paper, its travel lines and its
- * marker from whatever theme is on. The paint colours are not in here: a stroke
- * is the colour of the paint that draws it. Black is the exception, and only
- * because it has to be — on the dark papers it is the paper, so each theme
- * says what its darkest ink looks like. */
-function themeInk() {
-  const cs = getComputedStyle(document.documentElement);
-  const pick = (name, fallback) => (cs.getPropertyValue(name) || "").trim() || fallback;
-  return {
-    paper: pick("--sheet", "#ffffff"),
-    travel: pick("--line-soft", "#e6e9ee"),
-    marker: pick("--bad", "#c0392b"),
-    cup: pick("--preview-cup", CUP_COLOUR),
-    key: pick("--k", TRAY_COLOURS.kroma),
-  };
-}
+/* The preview is drawn on white paper whatever the theme. It stands for the
+ * painting, and paint colours only read true against paper: on a dark theme's
+ * sheet yellow glared and black vanished into it. The paint colours are not in
+ * here: a stroke is the colour of the paint that draws it. */
+const PREVIEW_INK = {
+  paper: "#ffffff",
+  travel: "#e6e9e8",
+  marker: "#a8321f",
+  cup: CUP_COLOUR,
+  key: TRAY_COLOURS.kroma,
+};
 
 function parseGcode(text) {
   const moves = [];
@@ -985,17 +980,14 @@ function parseGcode(text) {
 
 function trayColour(name, index) {
   const key = name && name.toLowerCase();
-  // Black is the one paint whose own colour will not do in every theme: on the
-  // dark papers it *is* the paper. So it comes off --k, the same swatch the
-  // tray dot and the card's edge use, and each theme says what black looks
-  // like on its paper rather than the preview deciding that on its own.
-  if (key === "kroma" || key === "black" || key === "key") return themeInk().key;
+  if (key === "key") return PREVIEW_INK.key;
   if (key && TRAY_COLOURS[key]) return TRAY_COLOURS[key];
   if (key && /^#[0-9a-f]{6}$/i.test(key)) return key;
   return FALLBACK_COLOURS[(index < 0 ? 0 : index) % FALLBACK_COLOURS.length];
 }
 
-const sim = { data: null, upto: 1 };
+// view and drawn are the preview's caches (see drawGcode); null means redo.
+const sim = { data: null, upto: 1, view: null, drawn: null };
 
 function saveBlob(blob, filename) {
   const url = URL.createObjectURL(blob);
@@ -1026,17 +1018,14 @@ function offerDownload(blob, filename) {
   }
 }
 
-function drawGcode() {
-  const canvas = $("gcode-canvas");
-  if (!canvas || !sim.data) return;
+/* What a draw needs that does not change from frame to frame: the scale and
+ * each tray's colour. Worked out once per file rather than per frame. */
+function simView(canvas) {
   const { moves, trays } = sim.data;
-  const ctx = canvas.getContext("2d");
-
   // Swept in a loop rather than with Math.min(...xs). The spread passes one
   // argument per coordinate, and a real job has hundreds of thousands of them:
   // past roughly a hundred thousand the call stack gives out and the preview
   // dies with "Maximum call stack size exceeded".
-  if (!moves.length) return;
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   for (const m of moves) {
     if (m.x1 < minX) minX = m.x1;
@@ -1051,45 +1040,84 @@ function drawGcode() {
   const pad = 16;
   const scale = Math.min((canvas.width - 2 * pad) / Math.max(maxX - minX, 1),
                          (canvas.height - 2 * pad) / Math.max(maxY - minY, 1));
-  // Machine Y grows away from the origin; the canvas grows downward.
-  const px = (x) => pad + (x - minX) * scale;
-  const py = (y) => canvas.height - pad - (y - minY) * scale;
+  const skin = PREVIEW_INK;
+  const colours = new Map();
+  for (let i = -1; i < trays.length; i++) colours.set(i, trayColour(trays[i], i));
+  return {
+    skin, colours,
+    // Machine Y grows away from the origin; the canvas grows downward.
+    px: (x) => pad + (x - minX) * scale,
+    py: (y) => canvas.height - pad - (y - minY) * scale,
+  };
+}
 
-  const skin = themeInk();
-  ctx.fillStyle = skin.paper;
-  ctx.fillRect(0, 0, canvas.width, canvas.height);
+function simLayer(canvas) {
+  const layer = document.createElement("canvas");
+  layer.width = canvas.width;
+  layer.height = canvas.height;
+  const ctx = layer.getContext("2d");
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
+  return { layer, ctx };
+}
 
+function drawGcode() {
+  const canvas = $("gcode-canvas");
+  if (!canvas || !sim.data || !sim.data.moves.length) return;
+  const { moves } = sim.data;
   const cut = Math.floor(moves.length * sim.upto);
-  // Travel first, so painting is never hidden under it.
-  ctx.strokeStyle = skin.travel;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let i = 0; i < cut; i++) {
-    const m = moves[i];
-    if (m.down || m.cup) continue;
-    ctx.moveTo(px(m.x1), py(m.y1));
-    ctx.lineTo(px(m.x2), py(m.y2));
-  }
-  ctx.stroke();
 
-  let current = null;
-  ctx.lineWidth = 1.8;
-  for (let i = 0; i < cut; i++) {
-    const m = moves[i];
-    if (!m.down) continue;
-    const colour = m.cup ? skin.cup : trayColour(trays[m.tray], m.tray);
-    if (colour !== current) {
-      if (current !== null) ctx.stroke();
-      ctx.strokeStyle = colour;
-      ctx.beginPath();
-      current = colour;
-    }
-    ctx.moveTo(px(m.x1), py(m.y1));
-    ctx.lineTo(px(m.x2), py(m.y2));
+  // Travel and painting are kept on layers of their own, so painting stays on
+  // top of travel however the moves arrive. Playing forward only adds the
+  // moves since the last frame to them; going back starts the layers again.
+  if (!sim.view) {
+    sim.view = simView(canvas);
+    sim.drawn = null;
   }
-  if (current !== null) ctx.stroke();
+  const { skin, colours, px, py } = sim.view;
+  if (!sim.drawn || cut < sim.drawn.upto) {
+    sim.drawn = { upto: 0, travel: simLayer(canvas), paint: simLayer(canvas) };
+  }
+  const { travel, paint } = sim.drawn;
+
+  if (cut > sim.drawn.upto) {
+    const from = sim.drawn.upto;
+    travel.ctx.strokeStyle = skin.travel;
+    travel.ctx.lineWidth = 1;
+    travel.ctx.beginPath();
+    for (let i = from; i < cut; i++) {
+      const m = moves[i];
+      if (m.down || m.cup) continue;
+      travel.ctx.moveTo(px(m.x1), py(m.y1));
+      travel.ctx.lineTo(px(m.x2), py(m.y2));
+    }
+    travel.ctx.stroke();
+
+    const p = paint.ctx;
+    let current = null;
+    p.lineWidth = 1.8;
+    for (let i = from; i < cut; i++) {
+      const m = moves[i];
+      if (!m.down) continue;
+      const colour = m.cup ? skin.cup : colours.get(m.tray);
+      if (colour !== current) {
+        if (current !== null) p.stroke();
+        p.strokeStyle = colour;
+        p.beginPath();
+        current = colour;
+      }
+      p.moveTo(px(m.x1), py(m.y1));
+      p.lineTo(px(m.x2), py(m.y2));
+    }
+    if (current !== null) p.stroke();
+    sim.drawn.upto = cut;
+  }
+
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = skin.paper;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(travel.layer, 0, 0);
+  ctx.drawImage(paint.layer, 0, 0);
 
   // Where the brush is right now.
   if (cut > 0 && cut < moves.length) {
@@ -1129,7 +1157,7 @@ function renderSimStats() {
   const entries = trays.length
     ? trays.map((name, i) => [trayColour(name, i), trayName(name)])
     : [["#2f7fd0", t("painting")]];
-  const skin = themeInk();
+  const skin = PREVIEW_INK;
   entries.push([skin.cup, t("in the cups")], [skin.travel, t("travel")]);
   for (const [colour, label] of entries) {
     const item = el("span");
@@ -1220,7 +1248,9 @@ function wireMacros() {
 function showGcode(text) {
   const card = $("preview-card");
   if (!card) return;
+  stopSim();
   sim.data = parseGcode(text);
+  sim.view = sim.drawn = null;
   // With no moves the bounds come out infinite, the scale NaN, and every draw
   // call is quietly ignored — an empty box and no complaint. Say so instead.
   if (!sim.data.moves.length) {
@@ -1247,31 +1277,57 @@ function updateSimAt() {
   }
 }
 
-let simTimer = null;
+// How long Play takes from start to finish, whatever the size of the job.
+const SIM_PLAY_MS = 4000;
+let simFrame = null;
+
+function stopSim() {
+  if (simFrame === null) return;
+  cancelAnimationFrame(simFrame);
+  simFrame = null;
+  const play = $("sim-play");
+  if (play) say(play, "▶ Play");
+}
+
 function wireSimulator() {
   document.addEventListener("brushograph:theme", () => {
-    if (sim.data) { drawGcode(); renderSimStats(); }
+    // The drawing keeps its white paper; only the words under it follow the
+    // theme, which can change their language.
+    if (sim.data) renderSimStats();
   });
   const scrub = $("sim-scrub"), play = $("sim-play"), open = $("sim-open");
   if (!scrub) return;
+  // A drag fires input faster than the screen refreshes; draw once per frame.
+  let scrubFrame = null;
   scrub.addEventListener("input", () => {
+    stopSim();
     sim.upto = Number(scrub.value) / 1000;
-    drawGcode();
-    updateSimAt();
+    if (scrubFrame !== null) return;
+    scrubFrame = requestAnimationFrame(() => {
+      scrubFrame = null;
+      drawGcode();
+      updateSimAt();
+    });
   });
   play.addEventListener("click", () => {
-    if (simTimer) {
-      clearInterval(simTimer); simTimer = null; say(play, "▶ Play"); return;
-    }
+    if (simFrame !== null) { stopSim(); return; }
+    if (!sim.data) return;
     if (sim.upto >= 1) sim.upto = 0;
     say(play, "❚❚ Pause");
-    simTimer = setInterval(() => {
-      sim.upto = Math.min(1, sim.upto + 0.01);
+    // Paced by the clock, not by a fixed step per tick: a frame that takes
+    // longer than it should moves the preview on further instead of letting
+    // ticks queue up behind it.
+    let last = performance.now();
+    const step = (now) => {
+      sim.upto = Math.min(1, sim.upto + (now - last) / SIM_PLAY_MS);
+      last = now;
       scrub.value = Math.round(sim.upto * 1000);
       drawGcode();
       updateSimAt();
-      if (sim.upto >= 1) { clearInterval(simTimer); simTimer = null; say(play, "▶ Play"); }
-    }, 40);
+      if (sim.upto >= 1) { simFrame = null; say(play, "▶ Play"); return; }
+      simFrame = requestAnimationFrame(step);
+    };
+    simFrame = requestAnimationFrame(step);
   });
   const download = $("gcode-download");
   if (download) {
