@@ -4,6 +4,11 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.7](https://github.com/f1adang/brushograph/releases/tag/v2.7) — 2026-09-16
+
+- G-code generation is about three times faster: a four-tray job that took
+  8 s takes under 3 s. The G-code produced is unchanged.
+
 ## [v2.6](https://github.com/f1adang/brushograph/releases/tag/v2.6) — 2026-09-16
 
 - The CMYK container setup is called CMYK instead of Modern in the picker.
