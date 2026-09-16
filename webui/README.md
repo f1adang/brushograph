@@ -32,8 +32,9 @@ machine and left alone.
   entry and drip radii, redrawn as you edit. Trays parked outside the bed are
   called out rather than quietly cropped. Two collapsed panels sit under the
   plan, because both are about the machine rather than about a picture:
-    - **Machine setup** — containers, their positions, where the artwork sits
-      on the bed, brush heights, loading the brush, backlash, the `moves`
+    - **Machine setup** — containers, their positions, **Canvas** (where the
+      artwork sits on the bed), **Brush control**, **Paint management**,
+      backlash, the `moves`
       speed groups and the controller type, and at the end **Download Machine
       Config**, which writes all of it back out as a `.conf`. A config
       carrying keys this map has never heard of still shows them, under

@@ -126,13 +126,13 @@ def _offer_black(conf: dict) -> None:
 # the next, and the form shows it with the artwork rather than the machine.
 BRUSHOGRAPH_GROUPS = [
     ("Painted size", ["width", "height"], True),
-    ("Where it sits on the bed",
+    ("Canvas",
      ["offset_x", "offset_y", "max_width", "max_height", "canvas_height"], False),
-    ("Brush heights",
+    ("Brush control",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
     ("Containers",
      ["cup_shape", "cup_width", "cup_width_water", "cup_depth", "cup_swipe_exit_z"], False),
-    ("Loading the brush",
+    ("Paint management",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
     ("Backlash", ["backlash_compensation", "backlash_x", "backlash_y"], False),
