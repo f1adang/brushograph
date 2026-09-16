@@ -4,6 +4,12 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.6](https://github.com/f1adang/brushograph/releases/tag/v2.6) — 2026-09-16
+
+- The CMYK container setup is called CMYK instead of Modern in the picker.
+- With a colour photograph loaded, the note under the painted size says the
+  picture is auto-rotated and scaled as needed to maximize the printing area.
+
 ## [v2.5](https://github.com/f1adang/brushograph/releases/tag/v2.5) — 2026-09-16
 
 - Choosing Classic containers sets the machine up for the low petri dishes of
