@@ -554,7 +554,7 @@ def options_form():
         machine_config_version=config_version(raw) if mode == "saved" else "",
         generator=conf.get("brushograph", {}).get("generator", "copicograf"),
         models=json.dumps({name: {"offsets": m["holder"]["offsets"], "classic": m["classic"],
-                                  "settings": m["settings"]} for name, m in MODELS.items()}),
+                                  "settings": m["settings"], "water": m["water"]} for name, m in MODELS.items()}),
         dish_offsets=json.dumps(CLASSIC_DISH_OFFSETS),
         dish_settings=json.dumps(CLASSIC_DISH_SETTINGS),
     )

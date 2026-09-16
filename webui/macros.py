@@ -1,7 +1,7 @@
 """Five small utility routines.
 
-home.g parks the brush, paper.g positions it over the paper for a placement
-check, and clean.g washes the brush the way a real job does before parking
+home.g parks the brush, paper.g moves it out of the way for replacing the
+paper, and clean.g washes the brush the way a real job does before parking
 too. The wash in clean.g follows whichever container shape
 `brushograph.cup_shape` names, classic or modern. All three, plus zero.g's
 own last line, end the same way — parked at X0 Y0, Z = Dip Depth + 1 — via
@@ -180,7 +180,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # paper.g — half of Max Width on X, all of Max Height on Y.
     px, py = max_w / 2, max_h
     lines = [
-        "; paper.g — position over the paper for a placement check",
+        "; paper.g — move the brush out of the way for replacing paper",
         *_preamble(bg, "normal"),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
         f"G00 X{_fmt(px)} Y{_fmt(py)} ; half of Max Width, all of Max Height",

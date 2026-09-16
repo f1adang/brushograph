@@ -80,8 +80,8 @@ text: {
 "Model": "Modell",
 "Back to the {model} settings this config opened with.":
   "Wieder die Einstellungen für den {model}, mit denen diese Konfiguration geöffnet wurde.",
-"Set up for the {model}: travel limits, canvas offset, tray lift and container spacing. Check them against the machine.":
-  "Für den {model} eingerichtet: Verfahrgrenzen, Versatz des Druckbereichs, Hub zum Behälter und Behälterabstände. Prüfen Sie sie an der Maschine.",
+"Set up for the {model}: travel limits, canvas offset, tray lift and container positions. Check them against the machine.":
+  "Für den {model} eingerichtet: Verfahrgrenzen, Versatz des Druckbereichs, Hub zum Behälter und Behälterpositionen. Prüfen Sie sie an der Maschine.",
 "Save these settings": "Einstellungen speichern",
 "Download Machine Config": "Maschinenkonfiguration herunterladen",
 "Update writes them over the copy kept on this server instead, for everyone who picks it from the machine list.":
@@ -91,8 +91,8 @@ text: {
 "Only a config kept on the server can be updated there.":
   "Nur eine auf dem Server hinterlegte Konfiguration kann dort aktualisiert werden.",
 "Macro generator": "Makrogenerator",
-"Five small routines: zeroing the controller through a mostly fixed sequence, parking the brush, checking paper placement, washing the brush then parking it, and placing a single reference dot on the canvas. Clean follows whichever container shape is set under Containers; calibrate does neither that nor any lift first — just the dot, and a park over it.":
-  "Fünf kleine Abläufe: die Steuerung über eine weitgehend feste Folge auf Null setzen, den Pinsel abstellen, die Papierlage prüfen, den Pinsel waschen und abstellen sowie einen einzelnen Bezugspunkt auf den Druckbereich setzen. Die Reinigung richtet sich nach der unter „Behälter“ eingestellten Behälterform; die Kalibrierung tut weder das eine noch hebt sie zuvor an — nur der Punkt und eine Ruhestellung darüber.",
+"Five small routines: zeroing the controller through a mostly fixed sequence, parking the brush, replacing paper, washing the brush then parking it, and placing a single reference dot on the canvas. Clean follows whichever container shape is set under Containers; calibrate does neither that nor any lift first — just the dot, and a park over it.":
+  "Fünf kleine Abläufe: die Steuerung über eine weitgehend feste Folge auf Null setzen, den Pinsel abstellen, das Papier wechseln, den Pinsel waschen und abstellen sowie einen einzelnen Bezugspunkt auf den Druckbereich setzen. Die Reinigung richtet sich nach der unter „Behälter“ eingestellten Behälterform; die Kalibrierung tut weder das eine noch hebt sie zuvor an — nur der Punkt und eine Ruhestellung darüber.",
 "Generate macros": "Steuermakros erzeugen",
 "Download macros": "Makros herunterladen",
 "Upload to machine": "Auf Maschine übertragen",

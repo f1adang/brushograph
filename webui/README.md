@@ -85,35 +85,41 @@ the **Mini**, which every config so far was written for, and the **𝔐𝔦𝔨�
 Model picker sits at the top of Machine setup, and a config that
 names no `brushograph.model` is a Mini.
 
-What differs, from the `params` spreadsheet in `brushograf_V6.FCStd` and the
-parts each release zip carries:
+What differs, from the parts in the release's `Standard_STLs.zip` and
+`Mikro_STLs.zip`, and the `params` spreadsheet in `brushograf_V6.FCStd`:
 
 | | Mini | 𝔐𝔦𝔨𝔯𝔬 |
 |---|---|---|
 | pinion | 14 mm, 11 teeth | 11 mm, 8 teeth |
-| racks X / Y | 183.9 / 183.9 mm | 121.0 / 146.9 mm |
+| racks X / Y | 46 / 46 teeth, 183.9 / 183.9 mm | 23 / 34 teeth, 99.3 / 146.9 mm |
 | Z travel | 18 mm | 12 mm |
 | CMYK holder | 39.2 mm water, 29.2 colour bays, 34 mm centres | 20.4 mm water, 11.4 colour crucibles, 16 mm centres |
 | painting area (max width × height) | 151 × 156 | 65 × 100 |
 | canvas offset Y | 25 | 19 |
+| water container at | X12 Y6 | X2 Y6 |
 | go in tray lift | 11 | 10 |
-| zero.g far corner | X160 Y160 Z32 | X97 Y123 Z21 |
+| zero.g far corner | X160 Y160 Z32 | X75 Y123 Z21 |
 | petri dish holder | yes | none |
 
 The 𝔐𝔦𝔨𝔯𝔬's painting area is 65 × 100 mm, above the colours along the bottom,
-as found on the machine. Taking the Mini's travel less the difference in rack
-length had promised 88 × 125. Its holder is the `mikro_container`
+as found on the machine; the racks agree. They are counted off the STLs in
+`Mikro_STLs.zip`, because the spreadsheet's 𝔐𝔦𝔨𝔯𝔬 column still gives 120 mm for
+the X rack that was printed at 99.3 — taking it at its word promised 88 mm
+across. Its holder is the `mikro_container`
 preset of `Extras/mini_petri.scad`, checked against `mikro_5x_petri.stl`; the
 swipe is 18 mm, the same proportion of its 21.4 mm crucible as the Mini's 30 mm
-is of 35.1. zero.g's sweep is shortened by the racks and scaled to the Z
+is of 35.1. Water and black are 68.5 mm apart on a machine with about 66 mm
+of X, so the water starts at X 2 rather than the Mini's 12, where black came
+out at 80.5, out of reach. zero.g's sweep is shortened by the racks and scaled to the Z
 travel. Apart from the painting area, these are derived rather than measured on
 a built 𝔐𝔦𝔨𝔯𝔬.
 
 Choosing a model puts its travel limits, canvas offset and tray lift in the form,
-spaces the containers on its holder, and shrinks the painted size to fit the bed
+puts the water container where the model has room for its holder and spaces
+the others along from it, and shrinks the painted size to fit the bed
 keeping its proportions. Going back to the model the config opened as puts back
 what the config said. The 𝔐𝔦𝔨𝔯𝔬 has no petri dish holder — the classic dishes
-span 173 mm, twice its X travel — so Classic is disabled for it and the server
+span 173 mm, more than twice its X travel — so Classic is disabled for it and the server
 treats a 𝔐𝔦𝔨𝔯𝔬 as CMYK whatever the config says. The plan, clean.g and the job's
 swipes use the model's holder.
 
@@ -1221,7 +1227,7 @@ refuses to proceed without. Four of the five are built from the config;
   still lifts to `go_in_tray_lift` *before* crossing the bed, and only
   descends to the park height once it is over X0 Y0.
 - **paper.g** moves to half of `max_width` on X and all of `max_height` on Y,
-  at `go_in_tray_lift` — a placement check, not a touch: it does not descend to
+  at `go_in_tray_lift`, out of the way for replacing paper — not a touch: it does not descend to
   `canvas_height`. Absent `max_width`/`max_height`, it falls back to
   `width`/`height`, the always-present painted size — the same fallback
   `sketch.py` already uses for the plan view, for the same reason: a config

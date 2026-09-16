@@ -71,12 +71,13 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # 183.9 mm — with the 18 mm Z-mechanism and the big CMYK holder above. Its
 # travel figures are the ones the kept configs were tuned to on the machine.
 #
-# Micro: 11 mm pinion with 8 teeth (module 1.375) on a 120 mm X rack and a
-# 145 mm Y rack, which the spreadsheet rounds up to whole teeth — 28 and 34,
-# 121.0 and 146.9 mm. The carriages eat the same share of a rack on both, so
-# the Micro's travel was taken to be the Mini's less the difference in rack
-# length: 62.9 mm off X, 37.0 off Y, 88 × 125 mm to paint. On the machine the
-# area that can be painted is more like 65 × 100, with the colours along the
+# Micro: 11 mm pinion with 8 teeth (module 1.375). The racks are counted off
+# the STLs in the release's Mikro_STLs.zip rather than read from the
+# spreadsheet, whose Micro column still says 120 mm for X: the X rack printed
+# has 23 teeth, 99.3 mm, and the Y rack 34, 146.9 mm — against 46 and 46,
+# 183.9 mm, on the Mini. The carriages take the same share of a rack on both,
+# so the Micro loses 84.6 mm of X and 37.0 of Y: about 66 mm across. On the
+# machine the area that can be painted is 65 × 100, with the colours along the
 # bottom, so that is what the limits say. The Z-mechanism's "mikro" preset has
 # 12 mm of travel against 18.
 #
@@ -85,8 +86,11 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # ones on 16 mm centres, the first colour 20.5 mm from the water, walls 0.8 so
 # 20.4 and 11.4 mm inside, and 23 mm long, 21.4 inside. The crucibles carry the
 # same stairs as the big holder, so a Micro swipes rather than dips; the swipe
-# keeps the big holder's proportion of its opening (30 of 35.1). There is no
-# petri dish holder for it — the classic dishes span 173 mm, twice its X travel.
+# keeps the big holder's proportion of its opening (30 of 35.1). Its water and
+# black crucibles are 68.5 mm apart, all but the whole of the X travel, so the
+# water starts at X 2 rather than the Mini's 12: from 12, auto-spacing put
+# black at 80.5, out of reach. There is no petri dish holder for it — the
+# classic dishes span 173 mm, more than twice its X travel.
 MODELS = OrderedDict([
     ("mini", {
         "label": "Mini",
@@ -102,6 +106,9 @@ MODELS = OrderedDict([
             ("max_width", 151), ("max_height", 156), ("offset_x", 0), ("offset_y", 25),
             ("go_in_tray_lift", 11),
         ]),
+        # Where choosing the model puts the water container; the others are
+        # auto-spaced from it.
+        "water": (12, 6),
         # zero.g's sweep to the far corner and back: X, Y, Z.
         "zero_sweep": (160, 160, 32),
     }),
@@ -122,8 +129,9 @@ MODELS = OrderedDict([
             ("max_width", 65), ("max_height", 100), ("offset_x", 0), ("offset_y", 19),
             ("go_in_tray_lift", 10),
         ]),
+        "water": (2, 6),
         # The Mini's sweep, shortened by the racks and scaled to the Z travel.
-        "zero_sweep": (97, 123, 21),
+        "zero_sweep": (75, 123, 21),
     }),
 ])
 

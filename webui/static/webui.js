@@ -565,6 +565,11 @@ function wireForm() {
           if (input) setNumber(input, value);
         }
         fitClassic();
+        // The holder goes where this model has room for it, and the rest
+        // are spaced along from there.
+        const [wx, wy] = m.water || [];
+        if (trayX("water") && isFinite(wx)) setNumber(trayX("water"), wx);
+        if (trayY("water") && isFinite(wy)) setNumber(trayY("water"), wy);
         if (shapeSelect && shapeSelect.value === "classic") setUpDishes(); else spaceCups();
       }
       // The painted size shrinks to fit the new bed, keeping its proportions:
@@ -587,7 +592,7 @@ function wireForm() {
       if (modelNote) {
         say(modelNote, modelSelect.value === opened.model
           ? "Back to the {model} settings this config opened with."
-          : "Set up for the {model}: travel limits, canvas offset, tray lift and container spacing. Check them against the machine.",
+          : "Set up for the {model}: travel limits, canvas offset, tray lift and container positions. Check them against the machine.",
           { model: label });
         modelNote.hidden = false;
       }
