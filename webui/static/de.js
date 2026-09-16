@@ -74,6 +74,8 @@ text: {
   "Behälter, Pinselhöhen, Geschwindigkeiten — einmalig je Maschine",
 "Container positions": "Behälterpositionen",
 "Auto-space containers": "Behälter anordnen",
+"Set the water cup where the holder actually sits and auto-space the rest based on that.":
+  "Setzen Sie den Wasserbehälter dorthin, wo der Halter tatsächlich sitzt, und ordnen Sie die übrigen von ihm aus an.",
 "Container setup": "Behältereinrichtung",
 "Save these settings": "Einstellungen speichern",
 "Download Machine Config": "Maschinenkonfiguration herunterladen",
@@ -400,20 +402,6 @@ html: {
   '<span class="edition-note"> – Ausgabe\n' +
   '        <a href="https://wiki.sgmk-ssam.ch/wiki/Brushograph#Zweiter_Bruschologischer_Kongress,_Dresden,_7._-_12._September_2026"\n' +
   '           class="edition" aria-label="Zweiter Bruschologischer Kongress">𝖅𝖜𝖊𝖎𝖙𝖊𝖗 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘</a></span>',
-
-"holder-note":
-  "Der gedruckte Halter legt die Abstände fest: Seine fünf Kammern setzen die Farben auf " +
-  "34&nbsp;mm Mitte zu Mitte, die erste 39&nbsp;mm vom Wasser entfernt. Setzen Sie den " +
-  "Wasserbehälter dorthin, wo der Halter tatsächlich sitzt, und ordnen Sie die übrigen von " +
-  "ihm aus an.",
-
-"dish-note":
-  "Mit „Klassisch“ werden die Behälter für die niedrigen Petrischalen in ihrem gedruckten " +
-  "Halter eingerichtet: Eintauchtiefe, Schwenk- und Abstreifradius sowie Hubhöhen passend zu " +
-  "einer Schale von 19&nbsp;mm Radius und 11&nbsp;mm Höhe, mit Z&nbsp;0 dort, wo die Schalen " +
-  "stehen. Der Halter hat vier Plätze, also gibt es kein Schwarz, und er setzt die Farben 45, 89 " +
-  "und 133&nbsp;mm vom Wasser entfernt. Setzen Sie den Wasserbehälter dorthin, wo der Halter tatsächlich sitzt, " +
-  "und ordnen Sie die übrigen von ihm aus an.",
 
 "setup-download-note":
   "Schreibt alles Obige samt den Fülleinstellungen wieder in eine <code>.conf</code> hinaus, " +

@@ -62,16 +62,6 @@
         {% if trays %}
         <section class="group">
           <h3>Container positions</h3>
-          <p class="note" id="holder-note" data-i18n="holder-note" hidden>The printed holder fixes the spacing:
-            its five bays put the colours on 34&nbsp;mm centres, with the first 39&nbsp;mm
-            from the water. Set the water cup where the holder actually sits and space
-            the rest from it.</p>
-          <p class="note" id="dish-note" data-i18n="dish-note" hidden>Choosing Classic sets the cups up
-            for the low petri dishes in their printed holder: dip depth, sweep and wipe radii and
-            lifts to suit a dish 19&nbsp;mm in radius and 11&nbsp;mm tall, with Z&nbsp;0 where the
-            dishes stand. The holder has four places, so there is no black, and it puts the colours
-            45, 89 and 133&nbsp;mm from the water. Set the water cup where the holder actually sits
-            and space the rest from it.</p>
           <div class="tray-coords">
             {% for t in trays.trays %}
             <div class="coord" data-tray="{{ t.tray }}">
@@ -84,6 +74,8 @@
             </div>
             {% endfor %}
           </div>
+          <p class="note" id="space-note" hidden>Set the water cup where the holder actually sits and
+            auto-space the rest based on that.</p>
           <button type="button" class="ghost" id="space-cups" hidden
                   data-modern='{{ bay_offsets }}' data-classic='{{ dish_offsets }}'
                   data-dish-settings='{{ dish_settings }}'>Auto-space containers</button>

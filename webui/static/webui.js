@@ -446,8 +446,7 @@ function wireForm() {
      cup's position and picture are put away while Classic is selected — and
      disabled, so they are not posted either. */
   const spaceBtn = $("space-cups");
-  const holderNote = $("holder-note");
-  const dishNote = $("dish-note");
+  const spaceNote = $("space-note");
   const shapeSelect = form.querySelector('[name="brushograph-cup_shape"]');
   if (spaceBtn && shapeSelect) {
     const offsetsFor = {
@@ -479,8 +478,7 @@ function wireForm() {
       const classic = shapeSelect.value === "classic";
       const water = !!trayX("water");
       spaceBtn.hidden = !water || !offsetsFor[shapeSelect.value];
-      if (holderNote) holderNote.hidden = !water || classic;
-      if (dishNote) dishNote.hidden = !water || !classic;
+      if (spaceNote) spaceNote.hidden = spaceBtn.hidden;
       for (const el of form.querySelectorAll('.coord[data-tray="kroma"], article.tray[data-tray="kroma"]')) {
         el.hidden = classic;
         for (const input of el.querySelectorAll("input, select")) input.disabled = classic;

@@ -4,6 +4,12 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.7](https://github.com/f1adang/brushograph/releases/tag/v2.7) — 2026-09-16
+
+- The container positions carry one short note for both holders, just above
+  **Auto-space containers**: set the water cup where the holder sits and
+  auto-space the rest from it.
+
 ## [v2.6](https://github.com/f1adang/brushograph/releases/tag/v2.6) — 2026-09-16
 
 - Classic containers have four cups, so no black: its position and picture are
