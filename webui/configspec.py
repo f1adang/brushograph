@@ -104,7 +104,7 @@ MODELS = OrderedDict([
         "zero_sweep": (160, 160, 32),
     }),
     ("micro", {
-        "label": "Micro",
+        "label": "𝔐𝔦𝔨𝔯𝔬",
         "holder": {
             "offsets": OrderedDict([("water", 0.0), ("cyan", 20.5), ("magenta", 36.5),
                                     ("yellow", 52.5), ("kroma", 68.5)]),
@@ -320,7 +320,7 @@ ENUMS = {
 TRAY_SKIP = {"additionals"}
 
 HELP = {
-    "brushograph-model": "Which openBrushograph this is. Mini is the standard machine; Micro is the small "
+    "brushograph-model": "Which openBrushograph this is. Mini is the standard machine; 𝔐𝔦𝔨𝔯𝔬 is the small "
                          "one, with shorter racks, 12 mm of Z and its own five-crucible CMYK holder. "
                          "Choosing one sets the travel limits, the canvas offset, the tray lift and the "
                          "container spacing to suit it.",

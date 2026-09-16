@@ -446,7 +446,7 @@ function wireForm() {
      cup's position and picture are put away while Classic is selected — and
      disabled, so they are not posted either.
 
-     Which CMYK holder it is depends on the model: the Micro has its own, a
+     Which CMYK holder it is depends on the model: the 𝔐𝔦𝔨𝔯𝔬 has its own, a
      fraction of the Mini's, and no petri dish holder at all. */
   const spaceBtn = $("space-cups");
   const spaceNote = $("space-note");
@@ -522,10 +522,10 @@ function wireForm() {
     });
   }
 
-  /* ---- the model: Mini or Micro ---- */
+  /* ---- the model: Mini or 𝔐𝔦𝔨𝔯𝔬 ---- */
   /* Choosing a model puts its travel limits, canvas offset and tray lift in the
      form and spaces the containers on its holder. Going back to the model the
-     config opened as puts back what the config said instead, so trying Micro
+     config opened as puts back what the config said instead, so trying 𝔐𝔦𝔨𝔯𝔬
      on a tuned Mini config and changing your mind costs nothing. The painted
      width is brought inside the new travel, and the height follows it. */
   if (modelSelect) {

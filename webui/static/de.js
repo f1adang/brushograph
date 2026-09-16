@@ -175,7 +175,6 @@ text: {
 "Black": "Schwarz",
 "Kroma": "Schwarz",
 "Classic": "Klassisch",
-"Micro": "Mikro",
 /* The fill patterns are named as the slicer names them; the picker reads them
    as words, so the words are translated and the stored value is not. */
 "concentric": "konzentrisch",
@@ -244,8 +243,8 @@ text: {
   "Längste Bahnlänge (mm) zum Malen. Zum Plotten setzen Sie diese Zahl sehr hoch (z. B. 1000000), damit kein Farbholen stattfindet",
 "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)":
   "Höhe der Unterlage (mm), für dickere Untergründe (z. B. eine Keramikfliese)",
-"Which openBrushograph this is. Mini is the standard machine; Micro is the small one, with shorter racks, 12 mm of Z and its own five-crucible CMYK holder. Choosing one sets the travel limits, the canvas offset, the tray lift and the container spacing to suit it.":
-  "Welcher openBrushograph dies ist. Der Mini ist die Standardmaschine, der Mikro die kleine, mit kürzeren Zahnstangen, 12 mm Z-Hub und einem eigenen CMYK-Halter mit fünf Näpfen. Die Wahl stellt Verfahrgrenzen, Versatz des Druckbereichs, Hub zum Behälter und Behälterabstände passend ein.",
+"Which openBrushograph this is. Mini is the standard machine; 𝔐𝔦𝔨𝔯𝔬 is the small one, with shorter racks, 12 mm of Z and its own five-crucible CMYK holder. Choosing one sets the travel limits, the canvas offset, the tray lift and the container spacing to suit it.":
+  "Welcher openBrushograph dies ist. Der Mini ist die Standardmaschine, der 𝔐𝔦𝔨𝔯𝔬 die kleine, mit kürzeren Zahnstangen, 12 mm Z-Hub und einem eigenen CMYK-Halter mit fünf Näpfen. Die Wahl stellt Verfahrgrenzen, Versatz des Druckbereichs, Hub zum Behälter und Behälterabstände passend ein.",
 "Lift on Z-axis when going into a container for color":
   "Hub der Z-Achse beim Anfahren eines Behälters zum Farbholen",
 "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.":

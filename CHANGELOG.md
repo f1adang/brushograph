@@ -14,6 +14,12 @@ message describes that version.
   in every theme, so the paint colours read true.
 - The status line while generating no longer says it takes a few seconds per
   tray.
+- A Model picker at the top of The machine chooses between the Mini and the
+  𝔐𝔦𝔨𝔯𝔬 of openBrushograph_hardware V6.0. Choosing one sets the travel limits,
+  canvas offset, tray lift and container spacing, and shrinks the painted size
+  to fit; going back restores what the config said. The 𝔐𝔦𝔨𝔯𝔬 uses its own
+  five-crucible CMYK holder and has no Classic containers. The plan, clean.g,
+  zero.g's far corner and the swipes in a job follow the model.
 
 ## [v2.6](https://github.com/f1adang/brushograph/releases/tag/v2.6) — 2026-09-16
 
