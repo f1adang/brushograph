@@ -4,28 +4,22 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
-## [v2.7](https://github.com/f1adang/brushograph/releases/tag/v2.7) — 2026-09-16
-
-- The container positions carry one short note for both holders, just above
-  **Auto-space containers**: set the water cup where the holder sits and
-  auto-space the rest from it.
-
-## [v2.6](https://github.com/f1adang/brushograph/releases/tag/v2.6) — 2026-09-16
-
-- Classic containers have four cups, so no black: its position and picture are
-  hidden while Classic is selected, and the plan view, G-code and saved config
-  leave it out.
-- Cup Width, Cup Width Water and Cup Depth are gone from the form and the config;
-  the holders' CAD sizes are used instead. The plan view draws each petri dish.
-- Cup Shape is now called Container setup.
-- **Auto-space containers** spaces the cups for whichever holder is selected.
-
 ## [v2.5](https://github.com/f1adang/brushograph/releases/tag/v2.5) — 2026-09-16
 
 - Choosing Classic containers sets the machine up for the low petri dishes of
   openBrushograph_hardware: dip depth, sweep and wipe radii and lifts from the
-  dish, and the cups spaced 45, 89, 133 and 188 mm from the water as the
-  4-dish holder puts them. **Set up for petri dishes** does the same on demand.
+  dish, with Z 0 where the dishes stand.
+- Classic containers have four cups, so no black: its position and picture are
+  hidden while Classic is selected, and the plan view, G-code and saved config
+  leave it out. The plan view draws each petri dish.
+- **Auto-space containers** spaces the cups off the water cup at the CAD
+  positions of whichever holder is selected: 45, 89 and 133 mm for the petri
+  dish holder, 39, 73, 107 and 141 mm for the modern one. One short note above
+  it replaces the holder descriptions.
+- Cup Width, Cup Width Water and Cup Depth are gone from the form and the config;
+  the holders' CAD sizes are used instead. Cup Shape is now called Container
+  setup.
+- The checkbox for keeping an uploaded config reads "Persist config on server".
 
 ## [v2.4](https://github.com/f1adang/brushograph/releases/tag/v2.4) — 2026-09-16
 
