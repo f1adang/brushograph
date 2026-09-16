@@ -984,8 +984,12 @@ An earlier, bigger holder, `CMYK_holder_big.stl`, had 39.2 and 29.2 mm bays on
 the design.
 
 The water crucible is the wide one so that the brush has room to be rinsed.
-The plan view draws each at its own width — drawn alike, the one cup that is a
-different size was the one you could not pick out. The swipe is 23.5 mm, which
+The plan view draws each at its own outside size — 30 × 30 and 18.6 × 30 mm on
+the Mini, 22 × 23 and 13 × 23 on the 𝔐𝔦𝔨𝔯𝔬 — with its five stairs across the back
+and the swipe as an arrow at its own length. Drawn at the inside size and only
+as long as the swipe, the crucibles came out well short of what sits on the
+bed; drawn alike, the one cup that is a different size was the one you could
+not pick out. The swipe is 23.5 mm, which
 keeps it inside the 27.6 mm crucible.
 
 These sizes were once settings — `cup_width`, `cup_width_water`, `cup_depth` —

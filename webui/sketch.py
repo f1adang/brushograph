@@ -38,9 +38,9 @@ PALETTES = {
                      accent=(139, 0, 0), key=(0, 0, 0)),
 }
 
-# How many steps to draw across a modern cup. The holder's own floor is not in
-# its STL, so this is a drawing convention rather than a measurement.
-MODERN_STEPS = 4
+# How many stairs a CMYK crucible has — five, in both of mini_petri.scad's
+# presets.
+MODERN_STEPS = 5
 
 # The K tray is keyed "kroma" throughout this project. The holder has W C M Y K
 # stamped on it and nothing says kroma, so the drawing calls it black.
@@ -141,8 +141,11 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # The holder the model was printed with: a Micro's crucibles are a fraction
     # of the Mini's bays.
     holder = holder_of(conf)
-    cup_w, cup_w_water = holder["bay_width"], holder["water_bay_width"]
-    cup_h = holder["swipe_length"]
+    # Drawn at their outside size, which is what you see on the bed: the inside
+    # was a good deal smaller — 16.2 against 18.6 across, and only the swipe's
+    # 23.5 of the 30 mm length — and the holder looked like a row of gaps.
+    cup_w_water, cup_w, cup_h = holder["outside"]
+    swipe = holder["swipe_length"]
 
     def bay_w(name):
         return cup_w_water if name == "water" else cup_w
@@ -230,20 +233,24 @@ def render(conf: dict, theme: str = "default") -> bytes:
                 pass
         alpha = 255 if in_use else 70
         if modern:
-            # A rectangular bay, with the steps its floor climbs drawn across
-            # it: the brush swipes from the near end to the far one, rising as
-            # it goes, so the steps are the thing worth seeing. The water bay is
-            # the wide one — the Mini's holder gives it 27.6 mm against the
-            # colours' 16.2 — and drawing them all alike hid which cup that was.
+            # A rectangular crucible, with the stairs its floor climbs drawn
+            # across the back of it: the brush swipes from the deep end up
+            # them, rising as it goes, so the stairs are the thing worth
+            # seeing. The water crucible is the wide one — 30 mm against the
+            # colours' 18.6 on the Mini — and drawing them all alike hid which
+            # cup that was.
             hw, hh = max(bay_w(name) * scale / 2, 3), max(cup_h * scale / 2, 3)
             d.rectangle([cx - hw, cy - hh, cx + hw, cy + hh],
                         fill=(*fill, alpha), outline=(*CANVAS, alpha), width=1)
-            for i in range(1, MODERN_STEPS):
-                sy = cy - hh + 2 * hh * i / MODERN_STEPS
+            # The stairs take the back 40%, away from the origin — up here.
+            stairs = 2 * hh * 0.4
+            for i in range(MODERN_STEPS):
+                sy = cy - hh + stairs * i / MODERN_STEPS
                 d.line([(cx - hw, sy), (cx + hw, sy)], fill=(*CANVAS, alpha))
-            # The swipe runs from the deep end to the shallow one.
-            d.line([(cx, cy + hh - 2), (cx, cy - hh + 2)], fill=(*CANVAS, alpha))
-            d.polygon([(cx, cy - hh + 1), (cx - 3, cy - hh + 7), (cx + 3, cy - hh + 7)],
+            # The swipe, at its own length, from the deep end up the stairs.
+            sh = max(swipe * scale / 2, 3)
+            d.line([(cx, cy + sh), (cx, cy - sh + 2)], fill=(*CANVAS, alpha))
+            d.polygon([(cx, cy - sh), (cx - 3, cy - sh + 6), (cx + 3, cy - sh + 6)],
                       fill=(*CANVAS, alpha))
             # No wipe reach to draw: a rectangular bay does its own wiping on
             # the way up the stairs, so remove_drops_radius is a round-cup

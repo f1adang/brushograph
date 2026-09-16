@@ -123,6 +123,9 @@ MODELS = OrderedDict([
             "bay_width": MODERN_BAY_WIDTH,
             "water_bay_width": MODERN_WATER_BAY_WIDTH,
             "swipe_length": MODERN_SWIPE_LENGTH,
+            # The crucibles as seen from above, outside their walls: water,
+            # colour, length. The plan draws these.
+            "outside": (30.0, 18.6, 30.0),
             # 9 mm crucibles with a 1.2 mm floor, 30 mm long.
             "settings": _crucible_settings(9, 1.2, 30, MODERN_SWIPE_LENGTH),
         },
@@ -145,6 +148,7 @@ MODELS = OrderedDict([
             "bay_width": 11.4,
             "water_bay_width": 20.4,
             "swipe_length": 18.0,
+            "outside": (22.0, 13.0, 23.0),
             # 8 mm crucibles with a 0.8 mm floor, 23 mm long.
             "settings": _crucible_settings(8, 0.8, 23, 18.0),
         },
