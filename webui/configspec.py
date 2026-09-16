@@ -19,22 +19,27 @@ CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 # and leaves "kroma" showing as the config key it is.
 CMYK_LABEL = {"C": "Cyan", "M": "Magenta", "Y": "Yellow", "K": "Black"}
 
-# The modern holder, measured off CMYK_holder_big.stl. Five bays: the water one
-# is 39.1 mm across and every colour bay 29.1, with the walls between them
-# putting the colour bays on 34 mm centres and the first colour 39 mm from the
-# water. The numbers here are centre-to-centre offsets from the water bay, so a
-# layout only needs to know where the holder's water end sits.
+# The Mini's CMYK holder: the `Standard_CMYK` preset of openBrushograph_hardware's
+# Extras/mini_petri.scad, which is the design, checked against the
+# Gandi_petri_holder.stl and Gandi_petri_steps.stl its release ships. Five
+# crucibles in a row: a 30 mm water one and four of 18.6, with 5 mm between
+# them, so the colours sit on 23.6 mm centres and the first 29.3 mm from the
+# water — slicing the holder finds its slots centred at 25.0, 54.3, 77.9, 101.5
+# and 125.1. (An earlier, bigger holder, CMYK_holder_big.stl, had 34 mm
+# centres; it is not the design.) The numbers here are centre-to-centre offsets
+# from the water crucible, so a layout only needs to know where the water sits.
 MODERN_BAY_OFFSETS = OrderedDict(
-    [("water", 0.0), ("cyan", 39.0), ("magenta", 73.0), ("yellow", 107.0), ("kroma", 141.0)]
+    [("water", 0.0), ("cyan", 29.3), ("magenta", 52.9), ("yellow", 76.5), ("kroma", 100.1)]
 )
 
-# The bays themselves, off the same STL. These are fixed by the print, not
-# tuned per machine, so they are constants rather than settings: the water bay
-# is the wide one so the brush has room to be rinsed, and the swipe runs 30 mm
-# of the 35.1 mm opening so it stays inside it.
-MODERN_BAY_WIDTH = 29.2
-MODERN_WATER_BAY_WIDTH = 39.2
-MODERN_SWIPE_LENGTH = 30.0
+# The crucibles themselves, inside their 1.2 mm walls: 27.6 mm for water and
+# 16.2 for a colour, 27.6 long. These are fixed by the print, not tuned per
+# machine, so they are constants rather than settings: the water crucible is
+# the wide one so the brush has room to be rinsed. The swipe keeps inside the
+# length the way the 30 mm swipe kept inside the old holder's 35.1 mm bays.
+MODERN_BAY_WIDTH = 16.2
+MODERN_WATER_BAY_WIDTH = 27.6
+MODERN_SWIPE_LENGTH = 23.5
 
 # The classic cups: the low petri dishes in openBrushograph_hardware's
 # Extras_openBrushograph.scad, sitting in the 4xPetri_rounded_new.stl holder.
@@ -86,7 +91,7 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # ones on 16 mm centres, the first colour 20.5 mm from the water, walls 0.8 so
 # 20.4 and 11.4 mm inside, and 23 mm long, 21.4 inside. The crucibles carry the
 # same stairs as the big holder, so a Micro swipes rather than dips; the swipe
-# keeps the big holder's proportion of its opening (30 of 35.1). Its water and
+# keeps the Mini's proportion of its crucible (23.5 of 27.6). Its water and
 # black crucibles are 68.5 mm apart, all but the whole of the X travel, so the
 # water starts at X 2 rather than the Mini's 12: from 12, auto-spacing put
 # black at 80.5, out of reach. There is no petri dish holder for it — the
@@ -250,7 +255,7 @@ def _offer_black(conf: dict) -> None:
 
     Where the cup is, is a measurement. The guess is one more step along the row
     the other cups are already in — the gap between the last two of them, or the
-    holder's own 34 mm if there are not two to learn from — which lands it about
+    Mini holder's own 23.6 mm if there are not two to learn from — which lands it about
     where a fifth cup goes and leaves a wrong number visible in the form and
     flagged in the plan view rather than a missing one that is not.
 

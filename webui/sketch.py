@@ -233,8 +233,8 @@ def render(conf: dict, theme: str = "default") -> bytes:
             # A rectangular bay, with the steps its floor climbs drawn across
             # it: the brush swipes from the near end to the far one, rising as
             # it goes, so the steps are the thing worth seeing. The water bay is
-            # the wide one — the Mini's holder gives it 39.2 mm against the
-            # colours' 29.2 — and drawing them all alike hid which cup that was.
+            # the wide one — the Mini's holder gives it 27.6 mm against the
+            # colours' 16.2 — and drawing them all alike hid which cup that was.
             hw, hh = max(bay_w(name) * scale / 2, 3), max(cup_h * scale / 2, 3)
             d.rectangle([cx - hw, cy - hh, cx + hw, cy + hh],
                         fill=(*fill, alpha), outline=(*CANVAS, alpha), width=1)

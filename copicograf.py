@@ -82,9 +82,10 @@ class Copicograf:
         self.remove_drops_radius = int(self.conf["brushograph"]["remove_drops_radius"])
         bg = self.conf["brushograph"]
         self.cup_shape = str(bg.get("cup_shape", "classic")).strip().lower()
-        # The modern holder's bays are fixed by the print: the swipe runs 30 mm
-        # of their 35.1 mm opening. Not a setting, so not read from the config.
-        self.cup_depth = 30.0
+        # The modern holder's crucibles are fixed by the print: the swipe runs
+        # 23.5 mm of the Mini's 27.6 mm crucible. Not a setting, so not read
+        # from the config; the WebUI sets it for the model it is painting on.
+        self.cup_depth = 23.5
         self.cup_swipe_exit_z = float(bg.get("cup_swipe_exit_z", 1.0))
 
         self.offset_y = float(self.conf["brushograph"]["offset_y"])
@@ -321,7 +322,7 @@ class Copicograf:
             # wiped it: the swipe climbs the stairs with the bristles dragging
             # along the floor, which is the same motion over a better edge, and
             # the two passes over the rim afterwards only put paint back on a
-            # brush that has just been drawn clean — and, on 34 mm centres,
+            # brush that has just been drawn clean — and, on 23.6 mm centres,
             # reach into the bay next door to do it.
             if remove_drop and self.cup_shape != "modern":
                 remove_drops(tray_x, tray_y, x, y)

@@ -93,10 +93,11 @@ What differs, from the parts in the release's `Standard_STLs.zip` and
 | pinion | 14 mm, 11 teeth | 11 mm, 8 teeth |
 | racks X / Y | 46 / 46 teeth, 183.9 / 183.9 mm | 23 / 34 teeth, 99.3 / 146.9 mm |
 | Z travel | 18 mm | 12 mm |
-| CMYK holder | 39.2 mm water, 29.2 colour bays, 34 mm centres | 20.4 mm water, 11.4 colour crucibles, 16 mm centres |
+| CMYK holder (`mini_petri.scad` preset) | `Standard_CMYK`: 27.6 mm water, 16.2 colour crucibles inside, 23.6 mm centres | `mikro_container`: 20.4 mm water, 11.4 colour crucibles inside, 16 mm centres |
 | painting area (max width × height) | 151 × 156 | 65 × 100 |
 | canvas offset Y | 25 | 19 |
 | water container at | X12 Y6 | X2 Y6 |
+| swipe | 23.5 mm | 18 mm |
 | go in tray lift | 11 | 10 |
 | zero.g far corner | X160 Y160 Z32 | X75 Y123 Z21 |
 | petri dish holder | yes | none |
@@ -107,8 +108,8 @@ as found on the machine; the racks agree. They are counted off the STLs in
 the X rack that was printed at 99.3 — taking it at its word promised 88 mm
 across. Its holder is the `mikro_container`
 preset of `Extras/mini_petri.scad`, checked against `mikro_5x_petri.stl`; the
-swipe is 18 mm, the same proportion of its 21.4 mm crucible as the Mini's 30 mm
-is of 35.1. Water and black are 68.5 mm apart on a machine with about 66 mm
+swipe is 18 mm, the same proportion of its 21.4 mm crucible as the Mini's 23.5 mm
+is of 27.6. Water and black are 68.5 mm apart on a machine with about 66 mm
 of X, so the water starts at X 2 rather than the Mini's 12, where black came
 out at 80.5, out of reach. zero.g's sweep is shortened by the racks and scaled to the Z
 travel. Apart from the painting area, these are derived rather than measured on
@@ -955,7 +956,7 @@ reason: it has already been wiped. The swipe up the stairs drags the bristles
 along the floor and out of the paint over the length of the bay, which is the
 rim wipe's own motion over a better edge. Two more passes over the rim
 afterwards put paint back on a brush that has just been drawn clean — and on
-34 mm centres they reach into the bay next door to do it. So `remove_drop` is
+23.6 mm centres they reach into the crucible next door to do it. So `remove_drop` is
 ignored when the containers are modern, and `remove_drops_radius` is a
 round-cup setting that nothing else reads.
 
@@ -968,17 +969,24 @@ the middle — the point furthest from the wall in every direction — sweeps a
 chord down in the paint where the bristles are inside the cup, returns to the
 middle and lifts.
 
-**CMYK** (`modern` in the config) is the printed CMYK holder, a 192 × 46.5 × 4 mm plate with five bays
-labelled W C M Y K. Slicing the model at mid-height shows six 1 mm ribs at X
-−24, 20, 54, 88, 122 and 156, and the bays are the gaps between them. Bisecting
-to each wall gives the design figures exactly: the water bay **39.2 mm** across,
-the four colour bays **29.2 mm**, centres at −2, 37, 71, 105 and 139, and every
-bay opening **35.1 mm** deep in Y, out through the back edge of the plate.
+**CMYK** (`modern` in the config) is the printed CMYK holder: five crucibles
+with stairs in their floors, in a holder labelled W C M Y K. The design is
+`Extras/mini_petri.scad` in openBrushograph_hardware, one preset per model —
+`Standard_CMYK` for the Mini, `mikro_container` for the 𝔐𝔦𝔨𝔯𝔬 (see **Model**
+above). For the Mini that is a **30 mm** water crucible and four of **18.6**,
+5 mm apart: centres 23.6 mm apart and the first colour 29.3 mm from the water.
+Slicing the released `Gandi_petri_holder.stl` finds its slots centred at 25.0,
+54.3, 77.9, 101.5 and 125.1, which is those figures exactly. Inside their
+1.2 mm walls the crucibles are **27.6** and **16.2 mm** across and 27.6 long.
 
-The water bay is the wide one, by 10 mm, so that the brush has room to be
-rinsed. The plan view draws each bay at its own width — drawn alike, the one cup
-that is a different size was the one you could not pick out. The swipe is 30 mm
-rather than the measured 35.1, which keeps it inside the opening.
+An earlier, bigger holder, `CMYK_holder_big.stl`, had 39.2 and 29.2 mm bays on
+34 mm centres, and the Mini used its figures until they were checked against
+the design.
+
+The water crucible is the wide one so that the brush has room to be rinsed.
+The plan view draws each at its own width — drawn alike, the one cup that is a
+different size was the one you could not pick out. The swipe is 23.5 mm, which
+keeps it inside the 27.6 mm crucible.
 
 These sizes were once settings — `cup_width`, `cup_width_water`, `cup_depth` —
 and they are not any more: the print fixes them, so nobody had anything to tune.
@@ -1037,9 +1045,10 @@ you beats a missing one. Nothing is painted from the cup until a picture is
 uploaded for it — a tray in `color_order` with no image is skipped — so an
 unused black cup costs one row in the setup and nothing else.
 
-The bay spacing is not a machine measurement, because the holder is one piece:
-its five bays are 34 mm apart centre to centre, the first colour 39 mm from the
-water, and only where the whole thing sits is anyone's to decide. Those offsets
+The spacing is not a machine measurement, because the holder is one piece:
+on the Mini its crucibles are 23.6 mm apart centre to centre, the first colour
+29.3 mm from the water, and only where the whole thing sits is anyone's to
+decide. Those offsets
 are `MODERN_BAY_OFFSETS`, and **Auto-space containers** under the container
 positions applies them from wherever the water cup has been put — these, or the
 petri dish holder's below, whichever shape is selected.
@@ -1080,9 +1089,10 @@ the spacing from wherever the water cup is. A config that opens already classic
 keeps its own figures; **Auto-space containers** respaces it, and switching the
 picker away and back applies the dish settings again.
 
-Five cups on 34 mm centres span 141 mm, which is why the `pinkograph.conf` preset
-started its water bay at X 8: the bed is 151 mm wide, so anything past 10 puts
-the black cup out of reach. (The presets have since gone — see **Keeping a
+Five cups on the old holder's 34 mm centres spanned 141 mm, which is why the
+`pinkograph.conf` preset started its water bay at X 8: the bed is 151 mm wide,
+so anything past 10 put the black cup out of reach. The design holder spans
+100.1 mm, so the Mini's water starts at X 12 with room to spare. (The presets have since gone — see **Keeping a
 config on the server** — but a Pinkograph config kept there wants the same.)
 
 Three things had been written for CMY alone and are not any more:
@@ -1105,8 +1115,8 @@ Three things had been written for CMY alone and are not any more:
   one stamped on the holder. It says `black`.
 
 Cups this close together are also why the rim wipe had to go for the modern
-holder, quite apart from being redundant after the stairs. At 34 mm centres a
-`remove_drops_radius` over 17 mm carries the wipe into the bay next door: the
+holder, quite apart from being redundant after the stairs. At the old holder's
+34 mm centres a `remove_drops_radius` over 17 mm carried the wipe into the bay next door: the
 20 mm that suited cups 45 mm apart put the wipe from the black bay at X 129,
 inside the yellow bay, and at X 169, which is 18 mm past the end of a 151 mm
 machine. Round cups 45 mm apart still wipe, and still read that setting.
