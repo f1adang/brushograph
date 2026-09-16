@@ -46,12 +46,12 @@ machine and left alone.
   taking a picture and saying whether it is **already black and white** or a
   **photo**, in which case it is cut first (see below) with the tuning controls
   appearing inline. A per-tray picture replaces the plate that colour would have
-  received from the photograph. Then the painted size, with **Match image**: it
-  sets Height, in whole millimetres, from
-  the configured Width and the uploaded image's aspect ratio. The pixel grid is
-  mapped onto width x height regardless of aspect, so a mismatch stretches the
-  painting rather than fitting it; it warns when the uploaded images disagree on
-  ratio, or when the result exceeds `max_height`.
+  received from the photograph. Then the painted size: Height follows, in whole
+  millimetres, from the configured Width and the aspect ratio of the first
+  picture loaded, recomputed whenever a picture is chosen or Width changes. The
+  pixel grid is mapped onto width x height regardless of aspect, so a mismatch
+  stretches the painting rather than fitting it; a note warns when the uploaded
+  images disagree on ratio, or when the result exceeds `max_height`.
 - **Run** — the fill settings, then Generate G-code, then the path preview. The
   fill settings sit here rather than in machine setup because the stroke
   spacing, the pattern and the wall count are decided per picture about as often
@@ -207,6 +207,12 @@ Artwork also takes a single colour photograph. It is converted to CMYK with
 anything at or above becomes that tray's ink. Those four pictures are handed to
 the rest of the pipeline exactly as if they had been uploaded already
 thresholded onto Cyan, Magenta, Yellow and Black.
+
+A photograph taller than it is wide is turned 90° onto its side first (after
+applying the camera's orientation tag). Width is fixed and Height follows the
+ratio, so lying a portrait down paints it across the whole width instead of in
+a narrow strip that may run past `max_height`. The painted size on the page
+measures the photograph already turned.
 
 The cutoff is not dithered. A Floyd–Steinberg plate is thousands of specks, and
 the brush cannot lay those down. 0% keeps any non-zero tint (`i2gc` with one

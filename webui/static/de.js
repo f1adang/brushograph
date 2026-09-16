@@ -124,10 +124,8 @@ text: {
   "Gleicht das Licht im Gesicht aus und glättet die Haut; Augen, Brauen und Lippen bleiben scharf.",
 "Show me the cut": "Druckvorlage anzeigen",
 "The photo as it will be painted": "Das Foto, so wie es gemalt wird",
-"Match image": "Bildverhältnis übernehmen",
-"Upload a tray image first": "Laden Sie zuerst ein Bild für einen Behälter hoch",
-"The picture is scaled to fit this. Match image takes the height from the aspect ratio of the first picture you loaded.":
-  "Das Bild wird auf dieses Maß skaliert. „Bildverhältnis übernehmen“ berechnet die Höhe aus dem Seitenverhältnis des zuerst geladenen Bildes.",
+"The picture is scaled to fit this. The height follows the width and the aspect ratio of the first picture you loaded; a portrait colour photograph is turned on its side first.":
+  "Das Bild wird auf dieses Maß skaliert. Die Höhe ergibt sich aus der Breite und dem Seitenverhältnis des zuerst geladenen Bildes; eine hochformatige Farbfotografie wird vorher quer gelegt.",
 
 /* -------------------------------------------------------------------- run */
 "Run": "Ausführen",
@@ -305,11 +303,8 @@ text: {
 "{size} KB": "{size} KB",
 "no G0/G1 movement was found in that file":
   "in dieser Datei wurde keine G0/G1-Bewegung gefunden",
-"Set height from the width and {tray}'s {w}x{h} px ratio":
-  "Höhe aus der Breite und dem Verhältnis {w}×{h} px von {tray} setzen",
 "images differ in aspect ratio — will use {tray} ({w}x{h})":
   "die Bilder haben verschiedene Seitenverhältnisse — es gilt {tray} ({w}×{h})",
-"{w}x{h} px · ratio {ratio}": "{w}×{h} px · Verhältnis {ratio}",
 "height {height} mm from {tray} — over the machine's {max} mm limit":
   "Höhe {height} mm nach {tray} — über der Grenze der Maschine von {max} mm",
 "height {height} mm, matching {tray}'s {w}x{h} px":

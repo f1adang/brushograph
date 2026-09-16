@@ -470,10 +470,9 @@ function wireForm() {
     });
   }
 
-  /* ---- match height to the uploaded image's aspect ratio ---- */
+  /* ---- height follows the width and the uploaded image's aspect ratio ---- */
   /* i2gc maps the pixel grid onto width x height regardless of aspect, so a
      mismatch stretches the painting rather than fitting it. */
-  const ratioBtn = $("match-ratio");
   const ratioNote = $("ratio-note");
   const widthInput = form.querySelector('[name="brushograph-width"]');
   const heightInput = form.querySelector('[name="brushograph-height"]');
@@ -492,38 +491,48 @@ function wireForm() {
       : (input.name.match(/^trays-(.+)-image$/) || [])[1];
     if (!tray) return;
     const file = input.files[0];
-    if (!file) { shapes.delete(tray); refreshRatio(); return; }
+    if (!file) { shapes.delete(tray); matchRatio(); return; }
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      shapes.set(tray, { w: img.naturalWidth, h: img.naturalHeight });
+      let w = img.naturalWidth, h = img.naturalHeight;
+      // The server lays a portrait photograph on its side (cmyk_sep.landscape).
+      if (tray === "photograph" && h > w) [w, h] = [h, w];
+      shapes.set(tray, { w, h });
       URL.revokeObjectURL(url);
-      refreshRatio();
+      matchRatio();
     };
-    img.onerror = () => { URL.revokeObjectURL(url); shapes.delete(tray); refreshRatio(); };
+    img.onerror = () => { URL.revokeObjectURL(url); shapes.delete(tray); matchRatio(); };
     img.src = url;
   }
 
-  function refreshRatio() {
-    if (!ratioBtn) return;
+  function matchRatio() {
+    if (!widthInput || !heightInput) return;
     const entries = [...shapes.entries()];
-    ratioBtn.disabled = entries.length === 0;
-    if (!entries.length) {
-      sayTitle(ratioBtn, "Upload a tray image first");
-      note(null);
-      return;
-    }
-    const ratios = entries.map(([, s]) => s.h / s.w);
-    const mixed = Math.max(...ratios) - Math.min(...ratios) > 0.005;
+    if (!entries.length) return note(null);
+    const width = parseFloat(widthInput.value);
+    if (!isFinite(width) || width <= 0) return note("set a width first", null, true);
+
     const [tray, shape] = entries[0];
-    sayTitle(ratioBtn, "Set height from the width and {tray}'s {w}x{h} px ratio",
-             { tray: trayName(tray), w: shape.w, h: shape.h });
-    if (mixed) {
+    // Whole millimetres: the ratio is a guide, not a tolerance.
+    const height = Math.max(1, Math.round(width * (shape.h / shape.w)));
+    if (heightInput.value !== String(height)) {
+      heightInput.value = height;
+      // Bubbles to the form listener, so the sketch redraws.
+      heightInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+
+    const ratios = entries.map(([, s]) => s.h / s.w);
+    const maxH = parseFloat((form.querySelector('[name="brushograph-max_height"]') || {}).value);
+    if (Math.max(...ratios) - Math.min(...ratios) > 0.005) {
       note("images differ in aspect ratio — will use {tray} ({w}x{h})",
            { tray: trayName(tray), w: shape.w, h: shape.h }, true);
+    } else if (isFinite(maxH) && height > maxH) {
+      note("height {height} mm from {tray} — over the machine's {max} mm limit",
+           { height, tray: trayName(tray), max: maxH }, true);
     } else {
-      note("{w}x{h} px · ratio {ratio}",
-           { w: shape.w, h: shape.h, ratio: (shape.w / shape.h).toFixed(3) });
+      note("height {height} mm, matching {tray}'s {w}x{h} px",
+           { height, tray: trayName(tray), w: shape.w, h: shape.h });
     }
   }
 
@@ -772,33 +781,9 @@ function wireForm() {
     }
   }
 
-  if (ratioBtn) {
-    form.querySelectorAll('input[type="file"]').forEach((i) =>
-      i.addEventListener("change", () => { measure(i); refreshWoodcut(); detectSubject(); }));
-
-    ratioBtn.addEventListener("click", () => {
-      const entries = [...shapes.entries()];
-      if (!entries.length) return;
-      const width = parseFloat(widthInput.value);
-      if (!isFinite(width) || width <= 0) return note("set a width first", null, true);
-
-      const [tray, shape] = entries[0];
-      // Whole millimetres: the ratio is a guide, not a tolerance.
-      const height = Math.max(1, Math.round(width * (shape.h / shape.w)));
-      heightInput.value = height;
-      // Bubbles to the form listener, so the sketch redraws.
-      heightInput.dispatchEvent(new Event("input", { bubbles: true }));
-
-      const maxH = parseFloat((form.querySelector('[name="brushograph-max_height"]') || {}).value);
-      if (isFinite(maxH) && height > maxH) {
-        note("height {height} mm from {tray} — over the machine's {max} mm limit",
-             { height, tray: trayName(tray), max: maxH }, true);
-      } else {
-        note("height {height} mm, matching {tray}'s {w}x{h} px",
-             { height, tray: trayName(tray), w: shape.w, h: shape.h });
-      }
-    });
-  }
+  form.querySelectorAll('input[type="file"]').forEach((i) =>
+    i.addEventListener("change", () => { measure(i); refreshWoodcut(); detectSubject(); }));
+  if (widthInput) widthInput.addEventListener("input", matchRatio);
 
   /* ---- submit ---- */
   form.addEventListener("submit", async (e) => {

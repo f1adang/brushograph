@@ -16,7 +16,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageCms, ImageDraw
+from PIL import Image, ImageCms, ImageDraw, ImageOps
 
 from configspec import CMYK_TO_TRAY
 from images import flatten
@@ -57,6 +57,22 @@ def _cutoff_level(cutoff: float) -> int:
     return int(np.clip(round(float(cutoff) / 100.0 * 255.0), 1, 255))
 
 
+def landscape(image: Image.Image) -> Image.Image:
+    """The photograph upright as taken, then turned on its side if it is taller than wide.
+
+    The painted width is fixed and the height follows the picture's ratio, so a
+    portrait photograph would be painted narrow — or run past the machine's
+    height limit. Lying it down fills the width instead. The camera's
+    orientation tag is applied first, because the browser measuring the picture
+    for the painted size applies it too, and the two must agree on which way is
+    tall.
+    """
+    image = ImageOps.exif_transpose(image)
+    if image.height > image.width:
+        image = image.transpose(Image.Transpose.ROTATE_90)
+    return image
+
+
 def to_cmyk(image: Image.Image) -> Image.Image:
     """An 8-bit CMYK image: 0 is no ink, 255 is a solid plate."""
     if image.mode == "CMYK":
@@ -75,8 +91,8 @@ def to_cmyk(image: Image.Image) -> Image.Image:
 
 
 def threshold_plates(image: Image.Image, cutoff: float = 40.0) -> dict[str, Image.Image]:
-    """1-bit images keyed C/M/Y/K, black where that ink should paint."""
-    cmyk = to_cmyk(image)
+    """1-bit images keyed C/M/Y/K, black where that ink should paint, lying landscape."""
+    cmyk = to_cmyk(landscape(image))
     level = _cutoff_level(cutoff)
     plates = {}
     for name, channel in zip(CHANNELS, cmyk.split()):
