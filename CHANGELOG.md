@@ -8,6 +8,12 @@ message describes that version.
 
 - G-code generation is about three times faster: a four-tray job that took
   8 s takes under 3 s. The G-code produced is unchanged.
+- Playing the G-code preview no longer bogs the browser down: a large job
+  plays smoothly in Firefox too.
+- The G-code preview and the colour photograph's plates are shown on white
+  in every theme, so the paint colours read true.
+- The status line while generating no longer says it takes a few seconds per
+  tray.
 
 ## [v2.6](https://github.com/f1adang/brushograph/releases/tag/v2.6) — 2026-09-16
 
