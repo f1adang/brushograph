@@ -70,8 +70,8 @@ text: {
 "Machine sketch (form has errors)": "Maschinenriss (das Formular enthält Fehler)",
 "Machine sketch (could not be drawn)": "Maschinenriss (konnte nicht gezeichnet werden)",
 "Machine setup": "Maschineneinrichtung",
-"Connection, model, containers, brush heights, speeds, macros — set once per machine":
-  "Verbindung, Modell, Behälter, Pinselhöhen, Geschwindigkeiten, Makros — einmalig je Maschine",
+"Model, connection, containers, brush heights, speeds, macros — set once per machine":
+  "Modell, Verbindung, Behälter, Pinselhöhen, Geschwindigkeiten, Makros — einmalig je Maschine",
 "Container positions": "Behälterpositionen",
 "Auto-space containers": "Behälter anordnen",
 "Set the water cup where the holder actually sits and auto-space the rest based on that.":

@@ -32,8 +32,8 @@ machine and left alone.
   entry and drip radii, redrawn as you edit. Trays parked outside the bed are
   called out rather than quietly cropped. One collapsed panel sits under the
   plan, **Machine setup**, because all of it is about the machine rather than
-  about a picture: the connection and controller type first, then the
-  **Model**, containers, their positions, **Canvas** (where the artwork sits
+  about a picture: the **Model** first, then the connection and controller
+  type, containers, their positions, **Canvas** (where the artwork sits
   on the bed), **Brush control**, **Paint management**, backlash and the
   `moves` speed groups. Then **Download Machine Config**, which writes all of
   it back out as a `.conf`, and last the **Macro generator** — `zero.g`,
@@ -82,7 +82,7 @@ does.
 
 openBrushograph_hardware V6.0 builds two machines from one parametric gantry:
 the **Mini**, which every config so far was written for, and the **𝔐𝔦𝔨𝔯𝔬**. The
-Model picker sits in Machine setup, under the connection and controller, and a config that
+Model picker sits at the top of Machine setup, and a config that
 names no `brushograph.model` is a Mini.
 
 What differs, from the `params` spreadsheet in `brushograf_V6.FCStd` and the

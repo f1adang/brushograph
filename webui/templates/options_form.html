@@ -52,19 +52,11 @@
 
     <!-- -------------------------------------------------------------- setup -->
     <details class="setup" id="machine-setup">
-      <summary><span>Machine setup</span><i>Connection, model, containers, brush heights, speeds, macros — set once per machine</i></summary>
+      <summary><span>Machine setup</span><i>Model, connection, containers, brush heights, speeds, macros — set once per machine</i></summary>
       <div class="setup-body">
 
-        {# Connection and controller first: which machine this is, and how it is
-           reached, before anything about what it holds. #}
-        {% for section in schema if section.key not in ('trays', 'brushograph', 'slicer') %}
-        <section class="group">
-          <h3>{{ section.title }}</h3>
-          <div class="grid">{% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
-          {% for g in section.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
-        </section>
-        {% endfor %}
-
+        {# The model first: it sets much of what follows. Then which controller
+           it is and how it is reached, before anything about what it holds. #}
         {% set model = (machine.fields | selectattr('group', 'equalto', 'Model') | list | first) if machine else none %}
         {% if model %}
         <section class="group">
@@ -73,6 +65,14 @@
           <p class="note" id="model-note" hidden></p>
         </section>
         {% endif %}
+
+        {% for section in schema if section.key not in ('trays', 'brushograph', 'slicer') %}
+        <section class="group">
+          <h3>{{ section.title }}</h3>
+          <div class="grid">{% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+          {% for g in section.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
+        </section>
+        {% endfor %}
 
         {# Then containers: what the cups are shapes what their positions mean. #}
         {% set cups = (machine.fields | selectattr('group', 'equalto', 'Containers') | list | first) if machine else none %}
