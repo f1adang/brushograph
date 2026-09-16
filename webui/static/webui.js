@@ -441,9 +441,11 @@ function wireForm() {
      other: only where the whole thing sits is a machine measurement. Auto-space
      puts the others off the water cup at the selected holder's own centres,
      in line with it.
-     The petri dish fixes the radii and heights as well, so picking Classic
-     applies the lot straight away; a config that opens already classic keeps
-     its own figures. That holder has four places and no black, so the black
+     Each holder fixes heights as well — the petri dish its radii and lifts,
+     the CMYK crucibles their lift, dip and where the swipe leaves the stairs —
+     so picking a holder, or pressing Auto-space, applies the lot for the
+     holder and model selected; a config that opens already set up keeps
+     its own figures. The petri dish holder has four places and no black, so the black
      cup's position and picture are put away while Classic is selected — and
      disabled, so they are not posted either.
 
@@ -502,9 +504,18 @@ function wireForm() {
     }
   };
 
-  const setUpDishes = () => {
+  // What the selected holder fixes besides positions: the dish's radii and
+  // heights, or the CMYK crucibles' lift, dip and swipe exit for this model.
+  const holderSettings = () => shapeSelect && shapeSelect.value === "classic"
+    ? dishSettings
+    : (currentModel() || {}).containers || {};
+
+  // Space the cups and set up everything their size decides, for whichever
+  // holder is selected — so going from the CMYK holder to the dishes and back,
+  // or from one model's crucibles to the other's, leaves nothing behind.
+  const setUpContainers = () => {
     let changed = spaceCups();
-    for (const [key, value] of Object.entries(dishSettings)) {
+    for (const [key, value] of Object.entries(holderSettings())) {
       // A config without the setting has no control for it, and no need.
       const input = machineInput(key);
       if (!input) continue;
@@ -517,14 +528,14 @@ function wireForm() {
   if (shapeSelect) {
     shapeSelect.addEventListener("change", () => {
       showForShape();
-      if (shapeSelect.value === "classic") setUpDishes();
+      setUpContainers();
       redraw();
     });
     showForShape();
   }
   if (spaceBtn) {
     spaceBtn.addEventListener("click", () => {
-      if (spaceCups()) redraw();
+      if (setUpContainers()) redraw();
     });
   }
 
@@ -536,8 +547,11 @@ function wireForm() {
      width is brought inside the new travel, and the height follows it. */
   if (modelSelect) {
     const touched = () => [
-      ...Object.values(models).flatMap((m) => Object.keys(m.settings || {}))
-        .map(machineInput),
+      ...[...new Set([
+        ...Object.values(models).flatMap((m) => [
+          ...Object.keys(m.settings || {}), ...Object.keys(m.containers || {})]),
+        ...Object.keys(dishSettings),
+      ])].map(machineInput),
       machineInput("width"), machineInput("height"), shapeSelect,
       ...[...form.querySelectorAll('.tray-coords input[name$="-x"], .tray-coords input[name$="-y"]')],
     ].filter(Boolean);
@@ -570,7 +584,7 @@ function wireForm() {
         const [wx, wy] = m.water || [];
         if (trayX("water") && isFinite(wx)) setNumber(trayX("water"), wx);
         if (trayY("water") && isFinite(wy)) setNumber(trayY("water"), wy);
-        if (shapeSelect && shapeSelect.value === "classic") setUpDishes(); else spaceCups();
+        setUpContainers();
       }
       // The painted size shrinks to fit the new bed, keeping its proportions:
       // a picture loaded later sets the height from the width anyway. Not on
@@ -592,7 +606,7 @@ function wireForm() {
       if (modelNote) {
         say(modelNote, modelSelect.value === opened.model
           ? "Back to the {model} settings this config opened with."
-          : "Set up for the {model}: travel limits, canvas offset, tray lift and container positions. Check them against the machine.",
+          : "Set up for the {model}: travel limits, canvas offset, container positions and heights. Check them against the machine.",
           { model: label });
         modelNote.hidden = false;
       }

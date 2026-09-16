@@ -98,7 +98,7 @@ What differs, from the parts in the release's `Standard_STLs.zip` and
 | canvas offset Y | 25 | 19 |
 | water container at | X12 Y6 | X2 Y6 |
 | swipe | 23.5 mm | 18 mm |
-| go in tray lift | 11 | 10 |
+| go in tray lift / dip depth / swipe exit Z | 11 / 1.0 / 5.9 | 10 / 0.6 / 5.1 |
 | zero.g far corner | X160 Y160 Z32 | X75 Y123 Z21 |
 | petri dish holder | yes | none |
 
@@ -115,8 +115,8 @@ out at 80.5, out of reach. zero.g's sweep is shortened by the racks and scaled t
 travel. Apart from the painting area, these are derived rather than measured on
 a built 𝔐𝔦𝔨𝔯𝔬.
 
-Choosing a model puts its travel limits, canvas offset and tray lift in the form,
-puts the water container where the model has room for its holder and spaces
+Choosing a model puts its travel limits and canvas offset in the form, sets up
+its holder's heights (below), puts the water container where the model has room for its holder and spaces
 the others along from it, and shrinks the painted size to fit the bed
 keeping its proportions. Going back to the model the config opened as puts back
 what the config said. The 𝔐𝔦𝔨𝔯𝔬 has no petri dish holder — the classic dishes
@@ -1006,11 +1006,16 @@ shallow one, rising as it goes:
 
 It is one interpolated move rather than a tread-by-tread staircase. The bristles
 flex over the steps, and a stepped path would need the step count and their
-heights — which **the STL does not carry**. Its bays are open through the plate:
-the model is a frame, the stepped floor is not part of it. So `cup_swipe_exit_z`
-is measured on the machine, not derived. It defaults to 1 mm rather than 0
-because 0 is `canvas_height` here, and a brush leaving the cup at paper level is
-both wrong physically and drawn as painting in the preview.
+heights — which the holder STL does not carry, since its slots are open through
+the plate. The crucibles' SCAD does: five steps over the back 40% of the
+crucible, rising to the rim. The swipe's far end, 35% of its length past the
+centre, is over the third step on both models, so **Auto-space containers** sets
+`cup_swipe_exit_z` to that step's top — 5.9 mm on the Mini, 5.1 on the 𝔐𝔦𝔨𝔯𝔬.
+With them it sets the tray lift 2 mm over the rim (11 and 10) and the dip just
+under the floor (1.0 and 0.6), bristles flexing, as the petri dish does. A config
+that names none of it still defaults the exit to 1 mm rather than 0, because 0
+is `canvas_height` here, and a brush leaving the cup at paper level is both wrong
+physically and drawn as painting in the preview.
 
 The swipe runs front to back, finishing on the canvas side, so the brush leaves
 the cup already pointed at the paper. With the stock config its near end is
@@ -1051,7 +1056,8 @@ on the Mini its crucibles are 23.6 mm apart centre to centre, the first colour
 decide. Those offsets
 are `MODERN_BAY_OFFSETS`, and **Auto-space containers** under the container
 positions applies them from wherever the water cup has been put — these, or the
-petri dish holder's below, whichever shape is selected.
+petri dish holder's below, whichever shape is selected — along with the heights
+that holder fixes, for the model selected.
 
 Round cups have a holder too: the low petri dishes of
 [openBrushograph_hardware](https://github.com/openBrushograph/openBrushograph_hardware/tree/main/Extras)
@@ -1085,9 +1091,10 @@ the dishes stand on (`CLASSIC_DISH_SETTINGS`):
 | `go_in_tray_lift`     | 14    | clears the 11.2 mm rim                    |
 
 Choosing **Classic** in the form applies all of it at once — the settings, and
-the spacing from wherever the water cup is. A config that opens already classic
-keeps its own figures; **Auto-space containers** respaces it, and switching the
-picker away and back applies the dish settings again.
+the spacing from wherever the water cup is — and choosing **CMYK** does the same
+for the crucibles, so switching either way leaves none of the other holder's
+figures behind. A config that opens already set up keeps its own figures;
+**Auto-space containers** applies the selected holder's again.
 
 Five cups on the old holder's 34 mm centres spanned 141 mm, which is why the
 `pinkograph.conf` preset started its water bay at X 8: the bed is 151 mm wide,

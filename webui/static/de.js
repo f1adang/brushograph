@@ -74,14 +74,14 @@ text: {
   "Modell, Verbindung, Behälter, Pinselhöhen, Geschwindigkeiten, Makros — einmalig je Maschine",
 "Container positions": "Behälterpositionen",
 "Auto-space containers": "Behälter anordnen",
-"Set the water cup where the holder actually sits and auto-space the rest based on that.":
-  "Setzen Sie den Wasserbehälter dorthin, wo der Halter tatsächlich sitzt, und ordnen Sie die übrigen von ihm aus an.",
+"Set the water cup where the holder actually sits and auto-space the rest based on that. That also sets the lift, dip and swipe for the holder.":
+  "Setzen Sie den Wasserbehälter dorthin, wo der Halter tatsächlich sitzt, und ordnen Sie die übrigen von ihm aus an. Dabei werden auch Hub, Eintauchtiefe und Streichzug für den Halter eingestellt.",
 "Container setup": "Behältereinrichtung",
 "Model": "Modell",
 "Back to the {model} settings this config opened with.":
   "Wieder die Einstellungen für den {model}, mit denen diese Konfiguration geöffnet wurde.",
-"Set up for the {model}: travel limits, canvas offset, tray lift and container positions. Check them against the machine.":
-  "Für den {model} eingerichtet: Verfahrgrenzen, Versatz des Druckbereichs, Hub zum Behälter und Behälterpositionen. Prüfen Sie sie an der Maschine.",
+"Set up for the {model}: travel limits, canvas offset, container positions and heights. Check them against the machine.":
+  "Für den {model} eingerichtet: Verfahrgrenzen, Versatz des Druckbereichs, Behälterpositionen und -höhen. Prüfen Sie sie an der Maschine.",
 "Save these settings": "Einstellungen speichern",
 "Download Machine Config": "Maschinenkonfiguration herunterladen",
 "Update writes them over the copy kept on this server instead, for everyone who picks it from the machine list.":

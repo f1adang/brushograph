@@ -96,6 +96,25 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # water starts at X 2 rather than the Mini's 12: from 12, auto-spacing put
 # black at 80.5, out of reach. There is no petri dish holder for it — the
 # classic dishes span 173 mm, more than twice its X travel.
+# What a CMYK holder fixes besides where its crucibles are, from the same SCAD
+# presets — Z 0 being the surface the crucibles stand on, as for the dishes.
+# The tray lift clears the rim by 2 mm. The dip goes just under the floor, the
+# bristles flexing, as the classic dish's does. The swipe ends over the stairs
+# (the back 40% of the crucible, five steps rising to the rim): its far end,
+# 35% of the swipe past the centre, is over the third step on both holders, so
+# that step's top is where the swipe finishes.
+def _crucible_settings(rim, floor, length, swipe):
+    stairs = length * 0.4
+    start = length / 2 - stairs           # where they begin, from the centre
+    far = swipe * 0.35
+    step = int((far - start) // (stairs / 5)) + 1 if far > start else 0
+    return OrderedDict([
+        ("go_in_tray_lift", int(rim + 2)),
+        ("dip_depth", round(floor - 0.2, 1)),
+        ("cup_swipe_exit_z", round(floor + step * (rim - floor) / 5, 1)),
+    ])
+
+
 MODELS = OrderedDict([
     ("mini", {
         "label": "Mini",
@@ -104,12 +123,13 @@ MODELS = OrderedDict([
             "bay_width": MODERN_BAY_WIDTH,
             "water_bay_width": MODERN_WATER_BAY_WIDTH,
             "swipe_length": MODERN_SWIPE_LENGTH,
+            # 9 mm crucibles with a 1.2 mm floor, 30 mm long.
+            "settings": _crucible_settings(9, 1.2, 30, MODERN_SWIPE_LENGTH),
         },
         "classic": True,
         # What choosing the model puts in the form.
         "settings": OrderedDict([
             ("max_width", 151), ("max_height", 156), ("offset_x", 0), ("offset_y", 25),
-            ("go_in_tray_lift", 11),
         ]),
         # Where choosing the model puts the water container; the others are
         # auto-spaced from it.
@@ -125,14 +145,14 @@ MODELS = OrderedDict([
             "bay_width": 11.4,
             "water_bay_width": 20.4,
             "swipe_length": 18.0,
+            # 8 mm crucibles with a 0.8 mm floor, 23 mm long.
+            "settings": _crucible_settings(8, 0.8, 23, 18.0),
         },
         "classic": False,
         # 65 × 100 as found on the machine, above a canvas that starts 19 mm
-        # out — the 23 mm crucibles on the same Y 6 leave that much. The lift
-        # clears the 8 mm crucibles and stays inside 12 mm of Z.
+        # out — the 23 mm crucibles on the same Y 6 leave that much.
         "settings": OrderedDict([
             ("max_width", 65), ("max_height", 100), ("offset_x", 0), ("offset_y", 19),
-            ("go_in_tray_lift", 10),
         ]),
         "water": (2, 6),
         # The Mini's sweep, shortened by the racks and scaled to the Z travel.
@@ -353,7 +373,7 @@ HELP = {
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
     "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.",
-    "brushograph-cup_swipe_exit_z": "Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Measure it on the machine: nothing in the holder's STL gives the step heights.",
+    "brushograph-cup_swipe_exit_z": "Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Auto-space containers sets it from the holder's design; adjust it on the machine if the brush does not drag up the stairs.",
     "brushograph-dip_depth": "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.",
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",
     "brushograph-move_to_other_shape_lift": "Lift on Z-axis when painting/drawing",
