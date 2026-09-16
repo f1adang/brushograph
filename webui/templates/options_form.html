@@ -244,9 +244,11 @@
     <section class="group tight">
       <h3>{{ g.group }}</h3>
       <div class="grid">{% for f in g.fields %}{{ field(f) }}{% endfor %}</div>
-      <p class="note">The picture is scaled to fit this. The height follows the width and the
+      <p class="note" id="size-note">The picture is scaled to fit this. The height follows the width and the
         aspect ratio of the first picture you loaded; a portrait colour photograph is
         turned on its side first.</p>
+      <p class="note" id="size-note-photo" hidden>Picture auto-rotated and scaled as needed to
+        maximize printing area</p>
       <p class="note" id="ratio-note" hidden></p>
     </section>
     {% endfor %}{% endif %}

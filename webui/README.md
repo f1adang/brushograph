@@ -921,7 +921,7 @@ the middle — the point furthest from the wall in every direction — sweeps a
 chord down in the paint where the bristles are inside the cup, returns to the
 middle and lifts.
 
-**Modern** is the printed CMYK holder, a 192 × 46.5 × 4 mm plate with five bays
+**CMYK** (`modern` in the config) is the printed CMYK holder, a 192 × 46.5 × 4 mm plate with five bays
 labelled W C M Y K. Slicing the model at mid-height shows six 1 mm ribs at X
 −24, 20, 54, 88, 122 and 156, and the bays are the gaps between them. Bisecting
 to each wall gives the design figures exactly: the water bay **39.2 mm** across,
@@ -1012,7 +1012,7 @@ is selected. `fit_cups_to_shape` runs after the form is read and takes the
 `kroma` tray and `K` out of the config when the cups are classic, so the plan
 view, the G-code and a saved config all have three colours. A CMYK photograph
 still separates into four plates; with no black cup, the K plate is not painted.
-Switching back to Modern offers black again at its guessed position.
+Switching back to CMYK offers black again at its guessed position.
 
 The dish itself is in `Extras_openBrushograph.scad`: a cylinder of r 17 grown
 by a 2 mm sphere inside and r 18 grown by 2.1 outside, cut off 11.2 mm above

@@ -217,7 +217,7 @@ SECTIONS = [
 # the way the slicer and the firmware spell them.
 ENUM_LABELS = {
     "classic": "Classic",
-    "modern": "Modern",
+    "modern": "CMYK",
 }
 
 ENUMS = {
@@ -248,7 +248,7 @@ HELP = {
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
-    "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. Modern is the rectangular CMYK holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.",
+    "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.",
     "brushograph-cup_swipe_exit_z": "Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Measure it on the machine: nothing in the holder's STL gives the step heights.",
     "brushograph-dip_depth": "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.",
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",

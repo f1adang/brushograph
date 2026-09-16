@@ -129,6 +129,8 @@ text: {
 "The photo as it will be painted": "Das Foto, so wie es gemalt wird",
 "The picture is scaled to fit this. The height follows the width and the aspect ratio of the first picture you loaded; a portrait colour photograph is turned on its side first.":
   "Das Bild wird auf dieses Maß skaliert. Die Höhe ergibt sich aus der Breite und dem Seitenverhältnis des zuerst geladenen Bildes; eine hochformatige Farbfotografie wird vorher quer gelegt.",
+"Picture auto-rotated and scaled as needed to maximize printing area":
+  "Bild wird bei Bedarf automatisch gedreht und skaliert, um die Druckfläche auszuschöpfen",
 
 /* -------------------------------------------------------------------- run */
 "Run": "Ausführen",
@@ -238,8 +240,8 @@ text: {
   "Höhe der Unterlage (mm), für dickere Untergründe (z. B. eine Keramikfliese)",
 "Lift on Z-axis when going into a container for color":
   "Hub der Z-Achse beim Anfahren eines Behälters zum Farbholen",
-"Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. Modern is the rectangular CMYK holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.":
-  "„Klassisch“ ist der runde Napf, um den herum die Maschine gebaut wurde: Der Pinsel fährt mittig hinab, streicht eine Sehne und kommt wieder herauf. „Modern“ ist der rechteckige CMYK-Halter, dessen Boden nach hinten ansteigt — dort führt der Pinsel einen einzigen Zug vom tiefen zum flachen Ende und steigt dabei an.",
+"Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.":
+  "„Klassisch“ ist der runde Napf, um den herum die Maschine gebaut wurde: Der Pinsel fährt mittig hinab, streicht eine Sehne und kommt wieder herauf. „CMYK“ ist der rechteckige Halter mit fünf Kammern, dessen Boden nach hinten ansteigt — dort führt der Pinsel einen einzigen Zug vom tiefen zum flachen Ende und steigt dabei an.",
 "How wide a colour cup is across X (mm). Modern cups only; a colour bay of the printed holder measures 29.2.":
   "Wie breit ein Farbbehälter in X ist (mm). Nur bei modernen Behältern; eine Farbkammer des gedruckten Halters misst 29,2.",
 "How wide the water cup is across X (mm). Modern cups only. The holder gives the water its own, wider bay — 39.2 against the colours' 29.2 — so the brush has room to be rinsed.":

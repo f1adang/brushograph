@@ -726,9 +726,17 @@ function wireForm() {
         cmykPreviewTimer = setTimeout(previewCmyk, 180);
       });
     }
+    const sizeNote = $("size-note");
+    const sizeNotePhoto = $("size-note-photo");
     cmykInput.addEventListener("change", () => {
       const on = !!cmykFile();
       cmykControls.hidden = !on;
+      // A colour photograph is laid on its side by the server when it is
+      // portrait, so the painted-size note says that instead.
+      if (sizeNote && sizeNotePhoto) {
+        sizeNote.hidden = on;
+        sizeNotePhoto.hidden = !on;
+      }
       if (cmykImg) cmykImg.hidden = true;
       if (cmykNote) cmykNote.hidden = true;
       if (on) previewCmyk();
