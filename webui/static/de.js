@@ -36,8 +36,7 @@ text: {
 "Or use your own": "Oder eigene verwenden",
 "Choose file": "Datei auswählen",
 "No file selected": "Keine Datei ausgewählt",
-"Presets": "Voreinstellungen",
-"Kept on this server": "Auf diesem Server hinterlegt",
+"No machines kept yet": "Noch keine Maschinen hinterlegt",
 "Keep it on this server, for everyone": "Auf diesem Server für alle hinterlegen",
 "About keeping a config on the server": "Über das Hinterlegen einer Konfiguration auf dem Server",
 "A kept config is added to the machine list above for anyone who opens this page, and stays after the server restarts. Without this, an upload is only yours, and only for as long as your session lasts.":
@@ -77,6 +76,12 @@ text: {
 "Auto-space containers for modern holder": "Behälter für modernen Halter anordnen",
 "Save these settings": "Einstellungen speichern",
 "Download Machine Config": "Maschinenkonfiguration herunterladen",
+"Update writes them over the copy kept on this server instead, for everyone who picks it from the machine list.":
+  "„Aktualisieren“ schreibt sie stattdessen über die auf diesem Server hinterlegte Fassung, für jeden, der sie aus der Maschinenliste wählt.",
+"Updating…": "Wird aktualisiert …",
+"Updated {name} on the server.": "{name} auf dem Server aktualisiert.",
+"Only a config kept on the server can be updated there.":
+  "Nur eine auf dem Server hinterlegte Konfiguration kann dort aktualisiert werden.",
 "Macro generator": "Makrogenerator",
 "zero, home, paper, clean, calibrate — one set per machine":
   "Nullpunkt, Heimfahrt, Papier, Reinigung, Kalibrierung — ein Satz je Maschine",
@@ -457,13 +462,18 @@ patterns: [
   ["^(.*) did not resolve: (.*)$", "$1 ließ sich nicht auflösen: $2"],
   ["^(.+): '(.*)' is not a number$", "$1: „$2“ ist keine Zahl"],
   ["^Tray (\\d+)$", "Behälter $1"],
+  ["^Update (\\S+\\.conf)$", "$1 aktualisieren"],
+  ["^(\\S+\\.conf) is no longer on the server, so there is nothing to update\\. Upload it again with “Keep it on this server” ticked to keep it anew\\.$",
+   "$1 ist nicht mehr auf dem Server, es gibt also nichts zu aktualisieren. Laden Sie sie mit angehaktem „Auf diesem Server für alle hinterlegen“ erneut hoch, um sie wieder zu hinterlegen."],
+  ["^(\\S+\\.conf) has been changed on the server since you loaded it\\. Pick it again from the machine list to see those changes; updating now would overwrite them\\.$",
+   "$1 wurde auf dem Server geändert, seit Sie sie geladen haben. Wählen Sie sie erneut aus der Maschinenliste, um diese Änderungen zu sehen; jetzt zu aktualisieren würde sie überschreiben."],
   ["^A machine config is a few kilobytes; this one is (\\d+) KB, over the (\\d+) KB the server will keep\\.$",
    "Eine Maschinenkonfiguration umfasst wenige Kilobyte; diese hat $1 KB und liegt damit über den $2 KB, die der Server hinterlegt."],
   ["^The server already keeps (\\d+) machine configs, which is all it will hold\\. Use this one without keeping it, or ask whoever runs the server to clear some out\\.$",
    "Der Server hält bereits $1 Maschinenkonfigurationen, mehr fasst er nicht. Verwenden Sie diese, ohne sie zu hinterlegen, oder bitten Sie den Betreiber des Servers, einige zu entfernen."],
   ["^No free name for (.+) on the server\\.$", "Für $1 ist auf dem Server kein freier Name mehr."],
-  ["^(.+) is no longer on the server\\. Uploaded configs are kept with your session and this one has expired — upload the file again, or pick a preset\\.$",
-   "$1 ist nicht mehr auf dem Server. Hochgeladene Konfigurationen gehören zu Ihrer Sitzung, und diese ist abgelaufen — laden Sie die Datei erneut hoch oder wählen Sie eine Voreinstellung."],
+  ["^(.+) is no longer on the server\\. Uploaded configs are kept with your session and this one has expired — upload the file again, or pick one from the machine list\\.$",
+   "$1 ist nicht mehr auf dem Server. Hochgeladene Konfigurationen gehören zu Ihrer Sitzung, und diese ist abgelaufen — laden Sie die Datei erneut hoch oder wählen Sie eine aus der Maschinenliste."],
 ],
 
 };

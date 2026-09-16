@@ -46,6 +46,7 @@
   <input type="hidden" name="session_id" value="{{ session_id }}">
   <input type="hidden" name="machine_config_name" value="{{ machine_config_name }}">
   <input type="hidden" name="machine_config_mode" value="{{ machine_config_mode }}">
+  <input type="hidden" name="machine_config_version" value="{{ machine_config_version }}">
 
   <!-- ------------------------------------------------------------ machine -->
   <section class="step" id="step-machine">
@@ -104,8 +105,15 @@
           <h3>Save these settings</h3>
           <p class="note" data-i18n="setup-download-note">Writes everything above, and the fill settings, back out as a
             <code>.conf</code> you can keep or hand to another machine.</p>
+          {% if machine_config_mode == 'saved' %}
+          <p class="note">Update writes them over the copy kept on this server instead, for
+            everyone who picks it from the machine list.</p>
+          {% endif %}
           <div class="actions">
             <button type="submit" class="primary" id="options-form-machine-config">Download Machine Config</button>
+            {% if machine_config_mode == 'saved' %}
+            <button type="button" class="primary" id="options-form-update-config">Update {{ machine_config_name }}</button>
+            {% endif %}
             <span class="note" id="setup-status" hidden></span>
           </div>
           <p class="error" id="setup-error" hidden></p>

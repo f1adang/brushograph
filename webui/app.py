@@ -2,6 +2,7 @@
 """Brushograph WebUI — machine config in, brush G-code out."""
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import os
@@ -43,6 +44,10 @@ MAX_UPLOAD_MB = 64
 # everyone, so the two are not the same number.
 MAX_SAVED_CONFIG_KB = 256
 MAX_SAVED_CONFIGS = 200
+# An update reads a kept config, compares it and writes it back. Kept configs are
+# shared, so that happens under one lock: two people pressing Update at the same
+# moment must not both pass the comparison.
+SAVED_CONFIGS_LOCK = threading.Lock()
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
@@ -120,31 +125,22 @@ def session_dir(sid: str) -> Path:
     return d
 
 
-def preset_paths() -> list[Path]:
-    return sorted(REPO_ROOT.glob("*.conf"))
-
-
 def saved_paths() -> list[Path]:
     return sorted(SAVED_CONFIGS_DIR.glob("*.conf"), key=lambda p: p.name.lower())
-
-
-# Where a config of each kind lives. Presets ship with the repo, a plain upload
-# lives in the uploader's session, and a kept one lives on the server for all.
-CONFIG_MODES = ("preset", "uploaded", "saved")
 
 
 def config_path(name: str, mode: str, sid: str) -> Path:
     """The file a config name and mode refer to, whether or not it exists.
 
-    The one place a name from the browser becomes a path. The name is checked
-    against SAFE_NAME before it is joined to anything, so no mode can be talked
-    out of its own directory; and an unknown mode is refused rather than read as
-    a preset, which is what the old two-way branch would have done with it.
+    A config lives in one of two places: a plain upload in the uploader's
+    session (`uploaded`), a kept one on the server for everyone (`saved`). No
+    configs ship with the repository — the machine list is only what people have
+    kept. This is the one place a name from the browser becomes a path. The name
+    is checked against SAFE_NAME before it is joined to anything, so no mode can
+    be talked out of its own directory, and an unknown mode is refused.
     """
     if not name or not SAFE_NAME.match(name) or not name.endswith(".conf"):
         raise ValueError("bad config name")
-    if mode == "preset":
-        return REPO_ROOT / name
     if mode == "uploaded":
         return session_dir(sid) / name
     if mode == "saved":
@@ -152,16 +148,38 @@ def config_path(name: str, mode: str, sid: str) -> Path:
     raise ValueError("bad config mode")
 
 
-def load_config(name: str, mode: str, sid: str) -> dict:
+def read_config(name: str, mode: str, sid: str) -> tuple[dict, bytes]:
+    """A config parsed, and the exact bytes it was parsed from.
+
+    The two come from one read. A kept config's version is taken off these same
+    bytes, so the version a form carries is always the version of the config
+    that form was built from — never of a newer file read a moment later.
+    """
     path = config_path(name, mode, sid)
     if not path.is_file():
         if mode == "uploaded":
             raise ValueError(
                 f"{name} is no longer on the server. Uploaded configs are kept with your "
-                "session and this one has expired — upload the file again, or pick a preset.")
+                "session and this one has expired — upload the file again, or pick one from the "
+                "machine list.")
         raise ValueError(f"config not found: {name}")
-    with path.open() as f:
-        return json.load(f)
+    raw = path.read_bytes()
+    return json.loads(raw), raw
+
+
+def load_config(name: str, mode: str, sid: str) -> dict:
+    return read_config(name, mode, sid)[0]
+
+
+def config_version(raw: bytes) -> str:
+    """A fingerprint of a kept config, carried by the form that was built from
+    it, so an update can tell whether the file has changed since."""
+    return hashlib.sha256(raw).hexdigest()[:16]
+
+
+def config_bytes(conf: dict) -> bytes:
+    """A config as it is written out — the same bytes for Download and Update."""
+    return json.dumps(conf, indent=4).encode()
 
 
 # ---------------------------------------------------------------------- pages
@@ -170,7 +188,6 @@ def load_config(name: str, mode: str, sid: str) -> dict:
 def index():
     return render_template(
         "index.html", session_id=session_id(),
-        presets=[p.name for p in preset_paths()],
         saved=[p.name for p in saved_paths()],
     )
 
@@ -384,7 +401,7 @@ def about():
 @app.get("/machine_config/get")
 def machine_config_get():
     name = request.args.get("name", "")
-    mode = request.args.get("mode", "preset")
+    mode = request.args.get("mode", "saved")
     try:
         path = config_path(name, mode, session_id())
         if not path.is_file():
@@ -420,25 +437,73 @@ def machine_config_upload():
     return jsonify(name=name, mode="uploaded")
 
 
+def _check_saved_size(raw: bytes) -> None:
+    if len(raw) > MAX_SAVED_CONFIG_KB * 1024:
+        raise ValueError(
+            f"A machine config is a few kilobytes; this one is {len(raw) // 1024} KB, over the "
+            f"{MAX_SAVED_CONFIG_KB} KB the server will keep.")
+
+
+@app.post("/machine_config/update")
+def machine_config_update():
+    """Write the form as it stands over the kept config it was loaded from.
+
+    Keeping never overwrites — an upload cannot know what is already under its
+    name. This is the deliberate way to change a kept config, and it still will
+    not overwrite blind: the form carries the version of the file it was built
+    from, and if somebody else has updated it since, the update is refused
+    rather than quietly throwing their changes away.
+    """
+    name = request.form.get("machine_config_name", "")
+    if request.form.get("machine_config_mode") != "saved":
+        return jsonify(error="Only a config kept on the server can be updated there."), 400
+    try:
+        path = config_path(name, "saved", session_id())
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    with SAVED_CONFIGS_LOCK:
+        if not path.is_file():
+            return jsonify(error=(
+                f"{name} is no longer on the server, so there is nothing to update. Upload it "
+                "again with “Keep it on this server” ticked to keep it anew.")), 404
+        try:
+            base, raw = read_config(name, "saved", session_id())
+        except (ValueError, json.JSONDecodeError) as exc:
+            return jsonify(error=f"Could not load that config: {exc}"), 400
+        if config_version(raw) != request.form.get("machine_config_version", ""):
+            return jsonify(error=(
+                f"{name} has been changed on the server since you loaded it. Pick it again "
+                "from the machine list to see those changes; updating now would overwrite "
+                "them.")), 409
+        conf, problems = apply_form(base, request.form)
+        if problems:
+            return jsonify(error="; ".join(problems[:4])), 400
+        out = config_bytes(conf)
+        try:
+            _check_saved_size(out)
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        # Written whole beside it, then swapped in: anyone loading the config
+        # meanwhile gets the old one or the new one, never half of each.
+        part = SAVED_CONFIGS_DIR / f".upload-{secrets.token_hex(6)}.part"
+        part.write_bytes(out)
+        os.replace(part, path)
+    return jsonify(name=name, version=config_version(out))
+
+
 def keep_config(name: str, raw: bytes) -> str:
     """Put an uploaded config on the server for good, and return its name there.
 
     A name already taken is never overwritten: this is a shared server, and the
     config under that name is somebody else's machine. The upload goes in under
-    the first free `stem-2.conf`, `stem-3.conf` … instead, and the page says so. A
-    preset's name counts as taken as well, or the pulldown would offer two
-    machines called the same thing. Uploading the very same file again finds the
-    copy already kept rather than adding another beside it.
+    the first free `stem-2.conf`, `stem-3.conf` … instead, and the page says so.
+    Uploading the very same file again finds the copy already kept rather than
+    adding another beside it.
     """
-    if len(raw) > MAX_SAVED_CONFIG_KB * 1024:
-        raise ValueError(
-            f"A machine config is a few kilobytes; this one is {len(raw) // 1024} KB, over the "
-            f"{MAX_SAVED_CONFIG_KB} KB the server will keep.")
+    _check_saved_size(raw)
     stem = name[: -len(".conf")]
     for n in range(1, MAX_SAVED_CONFIGS + 2):
         candidate = name if n == 1 else f"{stem}-{n}.conf"
-        if (REPO_ROOT / candidate).exists():
-            continue
         path = SAVED_CONFIGS_DIR / candidate
         if path.exists():
             if path.read_bytes() == raw:
@@ -470,9 +535,9 @@ def keep_config(name: str, raw: bytes) -> str:
 @app.get("/options_form")
 def options_form():
     name = request.args.get("machine_config_name", "")
-    mode = request.args.get("machine_config_mode", "preset")
+    mode = request.args.get("machine_config_mode", "saved")
     try:
-        conf = load_config(name, mode, session_id())
+        conf, raw = read_config(name, mode, session_id())
     except (ValueError, json.JSONDecodeError) as exc:
         return f'<p class="error">Could not load that config: {exc}</p>', 400
     return render_template(
@@ -481,6 +546,7 @@ def options_form():
         session_id=session_id(),
         machine_config_name=name,
         machine_config_mode=mode,
+        machine_config_version=config_version(raw) if mode == "saved" else "",
         generator=conf.get("brushograph", {}).get("generator", "copicograf"),
         bay_offsets=json.dumps(MODERN_BAY_OFFSETS),
     )
@@ -491,7 +557,7 @@ def options_form_post():
     """One endpoint, three jobs — the sketch, the edited config, the G-code."""
     sid = session_id()
     name = request.form.get("machine_config_name", "")
-    mode = request.form.get("machine_config_mode", "preset")
+    mode = request.form.get("machine_config_mode", "saved")
     try:
         base = load_config(name, mode, sid)
     except (ValueError, json.JSONDecodeError) as exc:
@@ -508,7 +574,7 @@ def options_form_post():
 
     stem = Path(name).stem
     if request.form.get("config_only") == "true":
-        buf = json.dumps(conf, indent=4).encode()
+        buf = config_bytes(conf)
         return app.response_class(
             buf, mimetype="application/json",
             headers={"Content-Disposition": f'attachment; filename="{stem}.conf"'},
@@ -605,7 +671,7 @@ def macros_post():
     """
     sid = session_id()
     name = request.form.get("machine_config_name", "")
-    mode = request.form.get("machine_config_mode", "preset")
+    mode = request.form.get("machine_config_mode", "saved")
     try:
         base = load_config(name, mode, sid)
     except (ValueError, json.JSONDecodeError) as exc:

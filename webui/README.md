@@ -17,9 +17,9 @@ installed on the machine — the G-code step is pure Python and OpenCV.
 
 ## How it works
 
-Everything is driven by a machine config (`.conf`, JSON). Pick a preset from the
-repo root or upload your own, and the whole options form is **generated from
-that file** — sections, fields, types and defaults all come from the config, so
+Everything is driven by a machine config (`.conf`, JSON). Pick one that someone
+has kept on the server, or upload your own, and the whole options form is
+**generated from that file** — sections, fields, types and defaults all come from the config, so
 a config carrying different keys brings its own fields with it.
 
 The form is organised by how often a setting changes, not by how the config
@@ -984,9 +984,10 @@ the container positions applies them from wherever the water cup has been put.
 It shows itself only when the modern holder is the one selected; there is no
 such thing as the holder's spacing for loose round cups.
 
-Five cups on 34 mm centres span 141 mm, which is why `pinkograph.conf` now
-starts its water bay at X 8: the bed is 151 mm wide, so anything past 10 puts
-the black cup out of reach. `small_machineM2.conf` was already far enough left.
+Five cups on 34 mm centres span 141 mm, which is why the `pinkograph.conf` preset
+started its water bay at X 8: the bed is 151 mm wide, so anything past 10 puts
+the black cup out of reach. (The presets have since gone — see **Keeping a
+config on the server** — but a Pinkograph config kept there wants the same.)
 
 Three things had been written for CMY alone and are not any more:
 
@@ -1207,32 +1208,36 @@ The error read `config not found: pinkograph.conf` while the config sat right
 there, which sends you looking in entirely the wrong place. A missing upload now
 says that it is a missing upload, and what to do about it.
 
-Presets are unaffected either way: they are read from the repo root and have
-nothing to do with the session. Neither are kept configs, below.
+Kept configs, below, are unaffected either way: they belong to the server, not
+to a session.
 
 ## Keeping a config on the server
 
 An upload is normally yours alone and lasts as long as your session. Tick **Keep
 it on this server, for everyone** before choosing the file and it goes into
-`webui_configs/` instead: it joins the machine pulldown under **Kept on this
-server** straight away, for anyone who opens the page afterwards, and stays
-through restarts. The directory is gitignored beside `webui_sessions/`, so
-updating the code never touches it.
+`webui_configs/` instead: it joins the machine pulldown straight away, for anyone
+who opens the page afterwards, and stays through restarts. The directory is
+gitignored beside `webui_sessions/`, so updating the code never touches it.
 
-Every config has a mode that says where it lives — `preset` (the repo root),
-`uploaded` (the session) or `saved` (`webui_configs/`) — carried on each
-pulldown option as `data-mode` and on every request after that. `config_path()`
-is the one place a name and a mode become a file. The name is checked against
-`SAFE_NAME` before it is joined to anything, so no mode can be talked out of its
-directory, and an unknown mode is refused. The two places that used to do this
-each did `session if mode == "uploaded" else repo root`, which would have read
-any mode it did not recognise — `saved` included — as a preset.
+**The pulldown lists kept configs and nothing else.** No configs ship with the
+repository: the two presets that used to sit in the repo root
+(`pinkograph.conf`, `small_machineM2.conf`) were removed, so a machine is in the
+list because somebody using this server put it there. A fresh server's list is
+empty, and its prompt reads *No machines kept yet* until the first one is kept.
+The old presets are still in git history for anyone who wants to keep one.
 
-**A kept config is never overwritten.** This is a shared server, and a name
-already taken is somebody else's machine, so a second `workshop.conf` is kept as
-`workshop-2.conf` and the page says which name it got. A preset's name counts as
-taken too, or the pulldown would offer two machines called the same thing.
-Uploading the very same bytes again finds the copy already kept rather than
+Every config has a mode that says where it lives — `uploaded` (the session) or
+`saved` (`webui_configs/`) — carried on every request after it is chosen.
+`config_path()` is the one place a name and a mode become a file. The name is
+checked against `SAFE_NAME` before it is joined to anything, so no mode can be
+talked out of its directory, and an unknown mode is refused. The two places that
+used to do this each did `session if mode == "uploaded" else repo root`, which
+read any mode it did not recognise as a preset.
+
+**Keeping never overwrites.** This is a shared server, and a name already
+taken is somebody else's machine, so a second `workshop.conf` is kept as
+`workshop-2.conf` and the page says which name it got. Changing a kept config
+is a different, deliberate act — **Update**, below. Uploading the very same bytes again finds the copy already kept rather than
 adding another beside it, so pressing it twice does not fill the list.
 
 The file is written whole under a name the pulldown ignores and then hard-linked
@@ -1246,9 +1251,32 @@ refused with a message saying so, and the same file can still be used for the
 session without keeping it. Re-keeping a config already there still works at the
 limit, since it adds nothing.
 
+### Updating a kept config
+
+When the form was loaded from a kept config, **Save these settings** in Machine
+setup offers **Update workshop.conf** beside Download. It writes the settings
+as they stand over the kept file — exactly the bytes Download would have given
+you — so everyone who picks that machine from the list gets them. A session
+upload has no copy on the server and is not offered one.
+
+**Update does not overwrite blind.** Two people can load `workshop.conf`, both
+tune it, and both press Update; the second would quietly throw away the first
+one's changes. So the form carries a version of the file it was built from — a
+hash of the very bytes it was parsed from, taken in the same read — and an
+update whose version no longer matches the file is refused with *changed on the
+server since you loaded it*, the file untouched. Picking the config from the list
+again loads the current one. A successful update hands back the new version, so
+the same page can update again without reloading.
+
+The compare and the write happen under one lock, so simultaneous updates from
+the same version cannot both pass: one wins and the rest are refused. The new
+file is written beside the old one and swapped in with `os.replace`, so anyone
+loading it meanwhile gets the old config or the new one, never half of each.
+Kept configs' size limit applies to what an update writes, too.
+
 There is **no way to delete a kept config from the page**, and **no
-authentication** on keeping one — like everything else here, anyone who can
-reach the page can do it. Clearing one out means removing the file from
+authentication** on keeping or updating one — like everything else here, anyone
+who can reach the page can do it. Clearing one out means removing the file from
 `webui_configs/` on the server. A list that other people's uploads join only
 refreshes on a page load; the one you just kept appears at once.
 

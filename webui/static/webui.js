@@ -41,12 +41,14 @@ const squash = (s) => s.replace(/\s+/g, " ").trim();
 
 /* The German for one English string, or null when there is none for it. */
 function german(english) {
-  const hit = DE.text[squash(english)];
+  const key = squash(english);
+  const hit = DE.text[key];
   if (hit) return hit;
-  // Messages the server builds with a detail interpolated into them, which no
-  // fixed key can match.
+  // Text with a detail in it — a message the server builds, a button named
+  // after a file — which no fixed key can match. Matched on the collapsed form
+  // like the fixed keys, or a template's indentation would defeat the anchors.
   for (const [pattern, out] of DE_PATTERNS) {
-    if (pattern.test(english)) return english.replace(pattern, out);
+    if (pattern.test(key)) return key.replace(pattern, out);
   }
   return null;
 }
@@ -65,7 +67,7 @@ function t(english, vars) {
 const WAS_TEXT = new WeakMap();      // text node -> its English
 const WAS_HTML = new WeakMap();      // [data-i18n] element -> its English markup
 const WAS_ATTR = new WeakMap();      // element -> {attribute: English}
-const I18N_ATTRS = ["title", "aria-label", "alt", "placeholder", "label"];
+const I18N_ATTRS = ["title", "aria-label", "alt", "placeholder"];
 const I18N_ATTR_SELECTOR = I18N_ATTRS.map((attr) => `[${attr}]`).join(",");
 
 /* Every text node under root, skipping the blocks that carry their own
@@ -264,13 +266,6 @@ async function serverError(res) {
 
 const configKeep = $("machine-config-keep");
 
-/* Which directory a pulldown entry lives in rides on the option itself, so a
-   preset and a kept config are each read from the right place. */
-const selectedMode = () => {
-  const option = configSelect && configSelect.selectedOptions[0];
-  return (option && option.dataset.mode) || "preset";
-};
-
 /* Emptying a file input from script fires nothing, and the Kongress theme's
    own file control only hears `change` — so it would go on naming a file that
    is no longer chosen. Say it changed. The upload handler below ignores an
@@ -288,29 +283,21 @@ function showCfgNote(english, vars) {
   if (english) say(box, english, vars);
 }
 
-/* A kept config joins the pulldown straight away, in the group the page would
-   have put it in had it been there at load. The group is only rendered when it
-   has entries, so the first one kept makes it. */
+/* A kept config joins the pulldown straight away, where the server would list
+   it on the next load. Every entry in the pulldown is a kept config — nothing
+   ships with the repository — so the list is empty until the first one is
+   kept, and its prompt says so until then. */
 function addSavedOption(name) {
-  let group = $("saved-configs");
-  if (!group) {
-    group = document.createElement("optgroup");
-    group.id = "saved-configs";
-    group.label = "Kept on this server";
-    configSelect.appendChild(group);
-  }
-  let option = [...group.children].find((o) => o.value === name);
+  const entries = [...configSelect.options].filter((o) => o.value);
+  let option = entries.find((o) => o.value === name);
   if (!option) {
     option = el("option", null, name);
     option.value = name;
-    option.dataset.mode = "saved";
     // In name order, as the server lists them.
-    const next = [...group.children].find((o) => o.value.toLowerCase() > name.toLowerCase());
-    group.insertBefore(option, next || null);
+    const next = entries.find((o) => o.value.toLowerCase() > name.toLowerCase());
+    configSelect.insertBefore(option, next || null);
   }
-  // Written in English like the markup it joins, then brought into the
-  // language that is on, and recorded so a change of theme can undo it.
-  applyLanguage(configSelect);
+  say($("machine-config-prompt"), "Choose a machine…");
   return option;
 }
 
@@ -319,7 +306,7 @@ if (cfgDlBtn) {
   cfgDlBtn.addEventListener("click", () => {
     const name = machineConfigName || (configSelect ? configSelect.value : null);
     if (!name) return showCfgError("Choose a config to download first");
-    const mode = machineConfigName ? machineConfigMode : selectedMode();
+    const mode = machineConfigName ? machineConfigMode : "saved";
     const a = document.createElement("a");
     a.href = `machine_config/get?name=${encodeURIComponent(name)}&mode=${mode}`;
     a.download = name;
@@ -335,7 +322,7 @@ if (configSelect) {
     clearFile(configFile);
     showCfgNote(null);
     machineConfigName = configSelect.value;
-    machineConfigMode = selectedMode();
+    machineConfigMode = "saved";
     loadOptionsForm();
   });
 }
@@ -702,6 +689,42 @@ function wireForm() {
     if (cmykBtn) cmykBtn.addEventListener("click", previewCmyk);
     document.addEventListener("brushograph:theme", () => {
       if (cmykImg && !cmykImg.hidden && cmykFile()) previewCmyk();
+    });
+  }
+
+  /* ---- write the settings back over the kept config they came from ---- */
+  /* Only offered for a kept config; the server refuses the update if somebody
+     else has changed that config since this form was loaded. */
+  const updateBtn = $("options-form-update-config");
+  const versionInput = form.querySelector('[name="machine_config_version"]');
+  if (updateBtn && versionInput) {
+    updateBtn.addEventListener("click", async () => {
+      const errBox = $("setup-error");
+      const statusBox = $("setup-status");
+      errBox.hidden = true;
+      statusBox.hidden = true;
+      // A type=button is not validated the way a submit is, so ask.
+      if (!form.reportValidity()) return;
+      const fd = new FormData(form);
+      form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
+      const label = labelOf(updateBtn);
+      updateBtn.textContent = t("Updating…");
+      updateBtn.disabled = gcodeBtn.disabled = configBtn.disabled = true;
+      try {
+        const res = await fetch("machine_config/update", { method: "POST", body: fd });
+        if (!res.ok) throw new Error(await serverError(res));
+        const data = await res.json();
+        // The next update from this form is compared against what this one wrote.
+        versionInput.value = data.version;
+        say(statusBox, "Updated {name} on the server.", { name: data.name });
+        statusBox.hidden = false;
+      } catch (err) {
+        say(errBox, String(err.message || err));
+        errBox.hidden = false;
+      } finally {
+        say(updateBtn, label);
+        updateBtn.disabled = gcodeBtn.disabled = configBtn.disabled = false;
+      }
     });
   }
 

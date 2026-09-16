@@ -31,13 +31,8 @@ try { var t = localStorage.getItem("brushograph-theme");
         <span class="field-label">Machine</span>
         <span class="with-btn">
           <select name="machine-config" id="machine-config">
-            <option selected disabled value="">Choose a machine…</option>
-            <optgroup label="Presets">
-              {% for p in presets %}<option value="{{ p }}" data-mode="preset">{{ p }}</option>{% endfor %}
-            </optgroup>
-            {% if saved %}<optgroup label="Kept on this server" id="saved-configs">
-              {% for c in saved %}<option value="{{ c }}" data-mode="saved">{{ c }}</option>{% endfor %}
-            </optgroup>{% endif %}
+            <option selected disabled value="" id="machine-config-prompt">{% if saved %}Choose a machine…{% else %}No machines kept yet{% endif %}</option>
+            {% for c in saved %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
           </select>
           <button type="button" class="icon" id="cfg-download" title="Download this config" aria-label="Download this config">↓</button>
         </span>
