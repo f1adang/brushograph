@@ -53,6 +53,32 @@ TRAY_LABEL_DE = {
     "yellow": "Gelb",
 }
 
+# Every word the plan writes on itself. 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘 is a
+# German-language theme, and this drawing is lettered on the server rather than
+# in the browser, so it is translated here rather than in static/de.js with the
+# rest of the interface. The vocabulary is the same one: bed → Arbeitsfläche,
+# the image area → Druckbereich, a tray → Behälter.
+WORDS = {
+    "default": {
+        "trays": TRAY_LABEL,
+        "bed": "bed {w:g} × {h:g} mm",
+        "image": "image {w:g} × {h:g} mm @ ({x:g}, {y:g})",
+        "off_bed": " (off bed)",
+        "order": "Painting order: {order}",
+        "order_none": "none in color_order",
+        "offscreen": "not shown, parked far outside the bed: {trays}",
+    },
+    "kongress": {
+        "trays": TRAY_LABEL_DE,
+        "bed": "Arbeitsfläche {w:g} × {h:g} mm",
+        "image": "Druckbereich {w:g} × {h:g} mm bei ({x:g}, {y:g})",
+        "off_bed": " (außerhalb)",
+        "order": "Auftragsreihenfolge: {order}",
+        "order_none": "keine in der Auftragsreihenfolge",
+        "offscreen": "nicht dargestellt, weit außerhalb der Arbeitsfläche: {trays}",
+    },
+}
+
 TRAY_FILL = {
     "water": (150, 200, 235),
     "cyan": (0, 174, 239),
@@ -63,7 +89,9 @@ TRAY_FILL = {
 }
 
 
-def _font(size=12, theme="default"):
+def font_for(size=12, theme="default"):
+    """The face this theme writes in. Shared with the CMYK contact sheet, so
+    both server-drawn pictures are lettered the way the page around them is."""
     if theme == "kongress":
         local_font = os.path.join(os.path.dirname(__file__), "static", "UnifrakturMaguntia.ttf")
         if os.path.exists(local_font):
@@ -144,7 +172,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
 
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img, "RGBA")
-    f, fs = _font(13 if theme == "kongress" else 12, theme=theme), _font(11 if theme == "kongress" else 10, theme=theme)
+    f, fs = font_for(13 if theme == "kongress" else 12, theme=theme), font_for(11 if theme == "kongress" else 10, theme=theme)
 
     step = 10 if span_x <= 220 else 50
     g = min_x - (min_x % step)
@@ -158,22 +186,22 @@ def render(conf: dict, theme: str = "default") -> bytes:
         d.line([(PAD - 8, y0), (W - PAD + 8, y0)], fill=GRID)
         g += step
 
-    is_de = (theme == "kongress")
-    tray_labels = TRAY_LABEL_DE if is_de else TRAY_LABEL
+    words = WORDS.get(theme, WORDS["default"])
+    tray_labels = words["trays"]
 
     # Bed limits
     d.rectangle([px(0, max_h), px(max_w, 0)], outline=BED, width=2)
     # Right-aligned: the bed and the image often share a top-left corner.
     bx, by = px(max_w, max_h)
-    txt = f"Arbeitsfläche {max_w:g} × {max_h:g} mm" if is_de else f"bed {max_w:g} × {max_h:g} mm"
+    txt = words["bed"].format(w=max_w, h=max_h)
     d.text((bx - d.textlength(txt, font=fs) - 5, by + 4), txt, font=fs, fill=MUTED)
 
     # Canvas / image area
     if cw and ch:
         d.rectangle([px(ox, oy + ch), px(ox + cw, oy)], fill=(*CANVAS, 18), outline=CANVAS, width=2)
         tx, ty = px(ox, oy + ch)
-        img_txt = f"Druckbereich {cw:g} × {ch:g} mm bei ({ox:g}, {oy:g})" if is_de else f"image {cw:g} × {ch:g} mm @ ({ox:g}, {oy:g})"
-        d.text((tx + 5, ty + 4), img_txt, font=fs, fill=TEXT)
+        d.text((tx + 5, ty + 4), words["image"].format(w=cw, h=ch, x=ox, y=oy),
+               font=fs, fill=TEXT)
 
     offscreen = []
     for name, x, y in all_trays:
@@ -217,8 +245,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
             d.ellipse([cx - r, cy - r, cx + r, cy + r],
                       fill=(*fill, alpha), outline=(*CANVAS, alpha))
         off_bed = not (0 <= x <= max_w and 0 <= y <= max_h)
-        off_bed_suffix = " (außerhalb)" if is_de else " (off bed)"
-        tag = tray_labels.get(name, name) + (off_bed_suffix if off_bed else "")
+        tag = tray_labels.get(name, name) + (words["off_bed"] if off_bed else "")
         colour = ACCENT if off_bed else (TEXT if in_use else MUTED)
         if modern:
             # Under the bay: beside it would be on top of the next one along.
@@ -233,17 +260,12 @@ def render(conf: dict, theme: str = "default") -> bytes:
     d.ellipse([zx - 3, zy - 3, zx + 3, zy + 3], fill=ACCENT)
     d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
 
-    order_none = "keine in Auftragsreihenfolge" if is_de else "none in color_order"
     order = ", ".join(tray_labels.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
-        or order_none
-    order_hdr = "Auftragsreihenfolge:" if is_de else "Painting order:"
-    d.text((PAD, 12), f"{order_hdr} {order}", font=f, fill=TEXT)
+        or words["order_none"]
+    d.text((PAD, 12), words["order"].format(order=order), font=f, fill=TEXT)
     if offscreen:
-        offscreen_msg = (
-            f"nicht dargestellt, weit außerhalb der Arbeitsfläche: {', '.join(offscreen)}"
-            if is_de else f"not shown, parked far outside the bed: {', '.join(offscreen)}"
-        )
-        d.text((PAD, H - 24), offscreen_msg, font=fs, fill=ACCENT)
+        d.text((PAD, H - 24), words["offscreen"].format(trays=", ".join(offscreen)),
+               font=fs, fill=ACCENT)
 
     buf = io.BytesIO()
     img.save(buf, "PNG")

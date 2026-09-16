@@ -275,9 +275,11 @@ def cmyk_preview():
             plates = cmyk_sep.threshold_plates(im, _cmyk_cutoff(request.form))
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not separate that image: {exc}"), 400
-    pal = PALETTES.get(request.form.get("theme", "default"), PALETTES["default"])
+    theme = request.form.get("theme", "default")
+    pal = PALETTES.get(theme, PALETTES["default"])
     buf = io.BytesIO()
-    cmyk_sep.contact_sheet(plates, paper=pal["bg"], ink=pal["text"]).save(buf, "PNG")
+    cmyk_sep.contact_sheet(plates, paper=pal["bg"], ink=pal["text"],
+                           theme=theme).save(buf, "PNG")
     return app.response_class(buf.getvalue(), mimetype="image/png")
 
 

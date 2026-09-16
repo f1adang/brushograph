@@ -18,13 +18,246 @@ let machineConfigMode = null;
 let sketchUrl = null;
 let sketchSeq = 0;
 
+/* ---------------------------------------------------------------- German */
+/* 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘 is a German-language theme, so the interface is
+ * translated while it is on and put back into English when it goes off. The
+ * words themselves all live in de.js; what is here is only the machinery that
+ * applies them, which knows nothing about German beyond the name of the theme.
+ *
+ * Two halves, because the page's text arrives two ways. Text that came from a
+ * template or from the server is already in the DOM, so it is walked and
+ * swapped in place, with the English kept beside it so the swap can be undone.
+ * Text this file writes itself never sits in the DOM as English at all, so it
+ * goes through t() at the point it is written — the English string is the key,
+ * so the call site still reads as the sentence it prints.
+ */
+const DE = window.KONGRESS_DE || { text: {}, html: {}, patterns: [] };
+const DE_PATTERNS = (DE.patterns || []).map(([source, out]) => [new RegExp(source), out]);
+const isKongress = () => document.documentElement.dataset.theme === "kongress";
+
+/* Templates wrap a sentence over several lines; the dictionary holds it as one.
+   Matching on the collapsed form is what lets a single entry cover both. */
+const squash = (s) => s.replace(/\s+/g, " ").trim();
+
+/* The German for one English string, or null when there is none for it. */
+function german(english) {
+  const hit = DE.text[squash(english)];
+  if (hit) return hit;
+  // Messages the server builds with a detail interpolated into them, which no
+  // fixed key can match.
+  for (const [pattern, out] of DE_PATTERNS) {
+    if (pattern.test(english)) return english.replace(pattern, out);
+  }
+  return null;
+}
+
+/* t("height {height} mm", {height}) — the English, translated if the theme is
+   on, with {placeholders} filled in either way. */
+function t(english, vars) {
+  const out = (isKongress() && german(english)) || english;
+  if (!vars) return out;
+  return out.replace(/\{(\w+)\}/g, (whole, key) => (key in vars ? vars[key] : whole));
+}
+
+// The English of everything that has been translated in place, so a theme
+// change can put it back. Keyed by node, so a form that is thrown away and
+// fetched again takes its entries with it.
+const WAS_TEXT = new WeakMap();      // text node -> its English
+const WAS_HTML = new WeakMap();      // [data-i18n] element -> its English markup
+const WAS_ATTR = new WeakMap();      // element -> {attribute: English}
+const I18N_ATTRS = ["title", "aria-label", "alt", "placeholder"];
+
+/* Every text node under root, skipping the blocks that carry their own
+   translation and the tags whose contents are not prose. */
+function eachTextNode(root, visit) {
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (node.nodeType === Node.TEXT_NODE) return NodeFilter.FILTER_ACCEPT;
+      if (node.dataset && node.dataset.i18n) return NodeFilter.FILTER_REJECT;
+      return node.tagName === "SCRIPT" || node.tagName === "STYLE"
+        ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_SKIP;
+    },
+  });
+  let node;
+  while ((node = walker.nextNode())) visit(node);
+}
+
+function toGerman(root) {
+  // Prose with tags inside it is replaced whole: German will not keep the
+  // English word order around an <i> or a <code>.
+  for (const node of root.querySelectorAll("[data-i18n]")) {
+    const markup = DE.html[node.dataset.i18n];
+    if (!markup || WAS_HTML.has(node)) continue;
+    WAS_HTML.set(node, node.innerHTML);
+    node.innerHTML = markup;
+  }
+  eachTextNode(root, (node) => {
+    if (WAS_TEXT.has(node)) return;
+    const text = german(node.nodeValue);
+    if (!text) return;
+    WAS_TEXT.set(node, node.nodeValue);
+    // The surrounding whitespace is the template's indentation; only the
+    // sentence between it is ours to change.
+    node.nodeValue = node.nodeValue.match(/^\s*/)[0] + text + node.nodeValue.match(/\s*$/)[0];
+  });
+  for (const node of root.querySelectorAll("[title],[aria-label],[alt],[placeholder]")) {
+    if (WAS_ATTR.has(node)) continue;
+    let saved = null;
+    for (const attr of I18N_ATTRS) {
+      if (!node.hasAttribute(attr)) continue;
+      const text = german(node.getAttribute(attr));
+      if (!text) continue;
+      (saved || (saved = {}))[attr] = node.getAttribute(attr);
+      node.setAttribute(attr, text);
+    }
+    if (saved) WAS_ATTR.set(node, saved);
+  }
+}
+
+function toEnglish(root) {
+  for (const node of root.querySelectorAll("[data-i18n]")) {
+    if (!WAS_HTML.has(node)) continue;
+    node.innerHTML = WAS_HTML.get(node);
+    WAS_HTML.delete(node);
+  }
+  eachTextNode(root, (node) => {
+    if (!WAS_TEXT.has(node)) return;
+    node.nodeValue = WAS_TEXT.get(node);
+    WAS_TEXT.delete(node);
+  });
+  for (const node of root.querySelectorAll("[title],[aria-label],[alt],[placeholder]")) {
+    const saved = WAS_ATTR.get(node);
+    if (!saved) continue;
+    for (const attr of Object.keys(saved)) node.setAttribute(attr, saved[attr]);
+    WAS_ATTR.delete(node);
+  }
+}
+
+const applyLanguage = (root) => { if (root) (isKongress() ? toGerman : toEnglish)(root); };
+
+/* Text this file writes, remembered as the English it was written from, so a
+   change of theme can write it again in the other language rather than leaving
+   a status line standing in the language it happened in. */
+const WRITTEN = new Set();
+
+function say(node, english, vars) {
+  if (!node) return;
+  node._i18n = [english, vars];
+  node.textContent = t(english, vars);
+  WRITTEN.add(node);
+}
+
+function sayTitle(node, english, vars) {
+  if (!node) return;
+  node._i18nTitle = [english, vars];
+  node.title = t(english, vars);
+  WRITTEN.add(node);
+}
+
+function rewriteWritten() {
+  for (const node of WRITTEN) {
+    if (!node.isConnected) { WRITTEN.delete(node); continue; }
+    if (node._i18n) node.textContent = t(node._i18n[0], node._i18n[1]);
+    if (node._i18nTitle) node.title = t(node._i18nTitle[0], node._i18nTitle[1]);
+  }
+}
+
+/* A file input is lettered by the browser, not by the page: the word on its
+   button and the "No file selected" beside it come from the browser's own
+   locale, and nothing the page can say reaches them — not the stylesheet, not
+   the document's language. So the theme that speaks German brings its own
+   control. The native input is left exactly where it is, listeners and all, and
+   only taken out of sight by the stylesheet; the proxy is its sibling inside
+   the same <label>, so clicking it opens the picker with no script involved.
+   Every other theme shows the browser's control and never this one. */
+function proxyFileInputs(root) {
+  for (const input of root.querySelectorAll('input[type="file"]')) {
+    // sim-open is hidden already and has a label of its own to say it.
+    if (input.hidden || input.dataset.proxy) continue;
+    const label = input.closest("label");
+    if (!label) continue;
+    input.dataset.proxy = "true";
+    const proxy = el("span", "file-proxy");
+    const button = el("b");
+    const chosen = el("i");
+    proxy.append(button, chosen);
+    input.after(proxy);
+    const show = () => {
+      say(button, "Choose file");
+      // A bare placeholder as the key: a filename is nobody's language, but it
+      // is written through say() like everything else so that a change of
+      // theme rewrites the line beside it rather than half of it.
+      if (input.files.length) say(chosen, "{file}", { file: input.files[0].name });
+      else say(chosen, "No file selected");
+    };
+    input.addEventListener("change", show);
+    show();
+  }
+}
+
+/* A button that says something else while it works has to be put back
+   afterwards, and the rendered text will not do it: assigning textContent drops
+   the text node the in-place translation was recorded against, and with it the
+   English to go back to. So the label is taken as English and put back through
+   say(), which lands it in whichever language is on by then. */
+function labelOf(button) {
+  if (button._i18n) return button._i18n[0];
+  for (const node of button.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE && WAS_TEXT.has(node)) return squash(WAS_TEXT.get(node));
+  }
+  return squash(button.textContent);
+}
+
+/* The tray keys are the config's own words, and the plan view and the G-code
+   both carry them; the legend is the one place they are read rather than
+   matched, so that is the one place they are translated. */
+const trayName = (name) => (name ? t(name[0].toUpperCase() + name.slice(1)) : name);
+
+/* How the subject was found, in the server's own words — "segmentation and 2
+   face(s)", a cascade's name, "saliency". subject.py builds those rather than a
+   template, so they are taken apart here rather than matched whole. */
+function detectorName(how) {
+  const text = String(how || "");
+  let m;
+  if ((m = text.match(/^segmentation and (\d+) face\(s\)$/))) {
+    return t("segmentation and {count} face(s)", { count: m[1] });
+  }
+  if ((m = text.match(/^segmentation, (\d+)% animal$/))) {
+    return t("segmentation, {percent}% animal", { percent: m[1] });
+  }
+  if ((m = text.match(/^(\d+) face\(s\)$/))) return t("{count} face(s)", { count: m[1] });
+  return t(text);
+}
+
+let pageTitle = null;
+
+function applyLanguageToPage() {
+  document.documentElement.lang = isKongress() ? "de" : "en";
+  if (pageTitle === null) pageTitle = document.title;
+  document.title = t(pageTitle);
+  proxyFileInputs(document.body);
+  applyLanguage(document.body);
+  rewriteWritten();
+}
+
 const showCfgError = (msg) => {
   const box = $("cfg-error");
+  if (!box) return;
   box.hidden = !msg;
-  if (msg) box.textContent = msg;
+  if (msg) say(box, msg);
 };
 
-const isKongress = () => document.documentElement.dataset.theme === "kongress";
+/* Whatever the server said went wrong, in the server's own English. It is
+   translated where it is shown rather than here, so it follows a change of
+   theme like the rest of the page — and a failure deep in the pipeline, which
+   carries its own detail and is in no dictionary, simply stays as it came. */
+async function serverError(res) {
+  try {
+    const sent = (await res.json()).error;
+    if (sent) return String(sent);
+  } catch (e) { /* not json */ }
+  return `Server returned ${res.status}`;
+}
 
 /* ------------------------------------------------------------ config picker */
 
@@ -32,7 +265,7 @@ const cfgDlBtn = $("cfg-download");
 if (cfgDlBtn) {
   cfgDlBtn.addEventListener("click", () => {
     const name = machineConfigName || (configSelect ? configSelect.value : null);
-    if (!name) return showCfgError(document.documentElement.dataset.theme === "kongress" ? "Wählen Sie zuerst eine Konfiguration aus" : "Choose a config to download first");
+    if (!name) return showCfgError("Choose a config to download first");
     const mode = machineConfigName ? machineConfigMode : "preset";
     const a = document.createElement("a");
     a.href = `machine_config/get?name=${encodeURIComponent(name)}&mode=${mode}`;
@@ -75,108 +308,13 @@ if (configFile) {
   });
 }
 
-/* ------------------------------------------------------ kongress translations */
-/* Replaces English UI text with German after the form is injected. Each entry
-   is [searchText, replacement]; text matching is on trimmed textContent of
-   Text nodes so it is safe against child-element spans inside labels. */
-
-const KONGRESS_TEXT = [
-  /* ---- step-machine ---- */
-  ["The machine",                               "Die Maschine"],
-  ["Bed, canvas and trays drawn to scale, redrawn as you edit.",
-                                                "Arbeitsfläche, Druckbereich und Behälter maßstabsgerecht, wird bei jeder Änderung neu gezeichnet."],
-  ["Machine setup",                             "Maschineneinrichtung"],
-  ["Containers, brush heights, speeds — set once per machine",
-                                                "Behälter, Pinselhöhen, Geschwindigkeiten — einmalig je Maschine"],
-  ["Container positions",                       "Behälterpositionen"],
-  ["Save these settings",                       "Einstellungen speichern"],
-  ["Writes everything above, and the fill settings, back out as a",
-                                                "Schreibt alle obigen Einstellungen sowie die Fülloptionen in eine"],
-  ["you can keep or hand to another machine.",  "die Sie aufbewahren oder einer anderen Maschine übergeben können."],
-  ["Download Machine Config",                   "Maschinenkonfiguration herunterladen"],
-  ["Macro generator",                           "Makrogenerator"],
-  ["zero, home, paper, clean, calibrate — one set per machine",
-                                                "Nullpunkt, Heimfahrt, Papier, Reinigung, Kalibrierung — ein Satz je Maschine"],
-  ["Generate macros",                           "Steuermakros erzeugen"],
-  ["Download macros",                           "Makros herunterladen"],
-  ["Upload to machine",                         "Auf Maschine übertragen"],
-  ["Auto-space containers for modern holder",   "Behälter für modernen Halter automatisch anordnen"],
-  /* ---- step-artwork ---- */
-  ["Artwork",                                   "Bildvorlage"],
-  ["One picture per colour, painted in the order below",
-                                                "Ein Bild je Farbe, in der unten angezeigten Reihenfolge bemalt"],
-  ["or a single colour photograph, split into CMYK and thresholded into those same plates. Ink is anything not white.",
-                                                "oder eine einzelne Farbfotografie, in CMYK getrennt und auf dieselben Druckplatten geschwellwertet. Tinte ist alles, was nicht weiß ist."],
-  ["Colour photograph",                         "Farbfotografie"],
-  ["Picture",                                   "Bild"],
-  ["What it is",                                "Bildart"],
-  ["Already black and white",                   "Bereits schwarzweiß"],
-  ["A photo — cut it for me",                   "Ein Foto — bitte umwandeln"],
-  ["Turning the photo into a cut",              "Foto in Druckvorlage umwandeln"],
-  ["Detail",                                    "Detailgrad"],
-  ["Hatching",                                  "Schraffur"],
-  ["Darkness",                                  "Schwärzung"],
-  ["Edge roughness",                            "Kantenrauheit"],
-  ["Contour lines",                             "Konturen"],
-  ["Keep the dark edges in the picture as knife lines.",
-                                                "Dunkle Bildkanten als Schnittlinien beibehalten."],
-  ["Isolate the subject",                       "Motiv freistellen"],
-  ["Insta face filter",                         "Gesichtsretusche"],
-  ["Evens the light on the face and smooths the skin, keeping eyes, brows and lips sharp.",
-                                                "Gleicht das Gesichtslicht aus und glättet die Haut; Augen, Brauen und Lippen bleiben scharf."],
-  ["Show me the cut",                           "Druckvorlage anzeigen"],
-  ["Show the plates",                           "Druckplatten anzeigen"],
-  ["Match image",                               "Bildverhältnis übernehmen"],
-  ["The picture is scaled to fit this. Match image takes the height from the aspect ratio of the first picture you loaded.",
-                                                "Das Bild wird auf dieses Maß skaliert. 'Bildverhältnis übernehmen' berechnet die Höhe aus dem Seitenverhältnis des ersten geladenen Bildes."],
-  /* ---- step-run ---- */
-  ["Run",                                       "Ausführen"],
-  ["Check the path, then send it to the machine.",
-                                                "Bahn prüfen, dann an die Maschine senden."],
-  ["Generate G-code",                           "Maschinensteuerbefehle berechnen"],
-  ["Send to machine",                           "An Maschine senden"],
-  ["Upload & start",                            "Übertragen & starten"],
-  ["Already have a file?",                      "Bereits eine Datei?"],
-  ["Open a .gcode",                             "Maschinensteuerbefehle öffnen"],
-  /* ---- fill / slicer ---- */
-  ["How the brush covers a shape: the gap between strokes, the pattern it lays them in, and how many times it goes round the outline. Zero for the line distance leaves the shapes unfilled.",
-                                                "Wie der Pinsel eine Form abdeckt: Abstand zwischen den Bahnen, Muster und Anzahl der Umrundungen. Null beim Linienabstand lässt die Formen ungefüllt."],
-];
-
-/* Walk all text nodes inside root and replace matched strings. */
-function applyKongressTranslations(root) {
-  if (!root) return;
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, null);
-  const replacements = [];
-  let node;
-  while ((node = walker.nextNode())) {
-    const t = node.textContent;
-    for (const [en, de] of KONGRESS_TEXT) {
-      if (t.includes(en)) {
-        replacements.push([node, t.split(en).join(de)]);
-        break;
-      }
-    }
-  }
-  for (const [node, text] of replacements) node.textContent = text;
-
-  /* Attribute strings */
-  for (const btn of root.querySelectorAll("#match-ratio")) {
-    if (btn.textContent.trim() === "Match image" || !isKongress()) {
-      if (isKongress()) btn.textContent = "Bildverhältnis übernehmen";
-    }
-  }
-}
-
 /* -------------------------------------------------------------- options form */
 
 async function loadOptionsForm() {
   if (!container) return;
   showCfgError(null);
-  const isDe = (document.documentElement.dataset.theme === "kongress");
-  container.innerHTML = isDe
-    ? '<div class="placeholder"><p>Optionen werden geladen…</p></div>'
-    : '<div class="placeholder"><p>Loading options…</p></div>';
+  container.innerHTML = '<div class="placeholder"><p></p></div>';
+  say(container.querySelector("p"), "Loading options…");
   const params = new URLSearchParams({
     session_id: typeof SESSION_ID !== "undefined" ? SESSION_ID : "",
     machine_config_name: machineConfigName,
@@ -185,10 +323,11 @@ async function loadOptionsForm() {
   const res = await fetch(`options_form?${params}`);
   const html = await res.text();
   container.innerHTML = html;
+  // The form is built from the config, so its labels and help arrive in
+  // English however long the theme has been on: translate what just landed.
+  proxyFileInputs(container);
+  applyLanguage(container);
   if (!res.ok) return;
-  if (isDe) {
-    applyKongressTranslations(container, true);
-  }
   wireForm();
 }
 
@@ -210,7 +349,7 @@ function wireForm() {
 
     if (!form.checkValidity()) {
       sketch.classList.add("greyed");
-      sketch.title = "Machine sketch (form has errors)";
+      sayTitle(sketch, "Machine sketch (form has errors)");
       return;
     }
     const seq = ++sketchSeq;
@@ -222,12 +361,12 @@ function wireForm() {
         sketchUrl = URL.createObjectURL(blob);
         sketch.src = sketchUrl;
         sketch.classList.remove("greyed");
-        sketch.title = "Machine sketch";
+        sayTitle(sketch, "Machine sketch");
       })
       .catch(() => {
         if (seq !== sketchSeq) return;
         sketch.classList.add("greyed");
-        sketch.title = "Machine sketch (could not be drawn)";
+        sayTitle(sketch, "Machine sketch (could not be drawn)");
       });
   }
 
@@ -282,10 +421,10 @@ function wireForm() {
   const heightInput = form.querySelector('[name="brushograph-height"]');
   const shapes = new Map();   // tray name -> {w, h}
 
-  const note = (text, warn) => {
+  const note = (english, vars, warn) => {
     if (!ratioNote) return;
-    ratioNote.textContent = text || "";
-    ratioNote.hidden = !text;
+    if (english) say(ratioNote, english, vars); else ratioNote.textContent = "";
+    ratioNote.hidden = !english;
     ratioNote.classList.toggle("warn", !!warn);
   };
 
@@ -312,18 +451,21 @@ function wireForm() {
     const entries = [...shapes.entries()];
     ratioBtn.disabled = entries.length === 0;
     if (!entries.length) {
-      ratioBtn.title = "Upload a tray image first";
+      sayTitle(ratioBtn, "Upload a tray image first");
       note(null);
       return;
     }
     const ratios = entries.map(([, s]) => s.h / s.w);
     const mixed = Math.max(...ratios) - Math.min(...ratios) > 0.005;
     const [tray, shape] = entries[0];
-    ratioBtn.title = `Set height from the width and ${tray}'s ${shape.w}x${shape.h} px ratio`;
+    sayTitle(ratioBtn, "Set height from the width and {tray}'s {w}x{h} px ratio",
+             { tray: trayName(tray), w: shape.w, h: shape.h });
     if (mixed) {
-      note(`images differ in aspect ratio — will use ${tray} (${shape.w}x${shape.h})`, true);
+      note("images differ in aspect ratio — will use {tray} ({w}x{h})",
+           { tray: trayName(tray), w: shape.w, h: shape.h }, true);
     } else {
-      note(`${shape.w}x${shape.h} px · ratio ${(shape.w / shape.h).toFixed(3)}`);
+      note("{w}x{h} px · ratio {ratio}",
+           { w: shape.w, h: shape.h, ratio: (shape.w / shape.h).toFixed(3) });
     }
   }
 
@@ -351,7 +493,8 @@ function wireForm() {
     const target = photoTray();
     if (wcBtn) {
       wcBtn.disabled = !target;
-      wcBtn.title = target ? `Convert ${target.tray}'s photo` : "Choose a photo for a tray first";
+      if (target) sayTitle(wcBtn, "Convert {tray}'s photo", { tray: trayName(target.tray) });
+      else sayTitle(wcBtn, "Choose a photo for a tray first");
     }
   }
 
@@ -388,32 +531,28 @@ function wireForm() {
                 $("wc-face-filter") && $("wc-face-filter").checked ? "true" : "false");
       fd.append("theme", document.documentElement.dataset.theme || "default");
 
-      const label = wcBtn.textContent;
-      wcBtn.textContent = "Converting…";
+      const label = labelOf(wcBtn);
+      wcBtn.textContent = t("Converting…");
       wcBtn.disabled = true;
       wcNote.hidden = true;
       try {
         const res = await fetch("woodcut_preview", { method: "POST", body: fd });
-        if (!res.ok) {
-          let msg = `Server returned ${res.status}`;
-          try { msg = (await res.json()).error || msg; } catch (_) { /* not json */ }
-          throw new Error(msg);
-        }
+        if (!res.ok) throw new Error(await serverError(res));
         const blob = await res.blob();
         if (wcImg.dataset.url) URL.revokeObjectURL(wcImg.dataset.url);
         const url = URL.createObjectURL(blob);
         wcImg.dataset.url = url;
         wcImg.src = url;
         wcImg.hidden = false;
-        wcNote.textContent = `${target.tray}: ${target.file.name}`;
+        say(wcNote, "{tray}: {file}", { tray: trayName(target.tray), file: target.file.name });
         wcNote.classList.remove("warn");
         wcNote.hidden = false;
       } catch (err) {
-        wcNote.textContent = String(err.message || err);
+        say(wcNote, String(err.message || err));
         wcNote.classList.add("warn");
         wcNote.hidden = false;
       } finally {
-        wcBtn.textContent = label;
+        say(wcBtn, label);
         wcBtn.disabled = false;
       }
     });
@@ -442,17 +581,13 @@ function wireForm() {
     if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
     fd.append("theme", document.documentElement.dataset.theme || "default");
 
-    const label = cmykBtn.textContent;
-    cmykBtn.textContent = "Separating…";
+    const label = labelOf(cmykBtn);
+    cmykBtn.textContent = t("Separating…");
     cmykBtn.disabled = true;
     if (cmykNote) cmykNote.hidden = true;
     try {
       const res = await fetch("cmyk_preview", { method: "POST", body: fd });
-      if (!res.ok) {
-        let msg = `Server returned ${res.status}`;
-        try { msg = (await res.json()).error || msg; } catch (_) { /* not json */ }
-        throw new Error(msg);
-      }
+      if (!res.ok) throw new Error(await serverError(res));
       const blob = await res.blob();
       if (cmykImg.dataset.url) URL.revokeObjectURL(cmykImg.dataset.url);
       const url = URL.createObjectURL(blob);
@@ -460,18 +595,18 @@ function wireForm() {
       cmykImg.src = url;
       cmykImg.hidden = false;
       if (cmykNote) {
-        cmykNote.textContent = file.name;
+        cmykNote.textContent = file.name;      // a filename is nobody's language
         cmykNote.classList.remove("warn");
         cmykNote.hidden = false;
       }
     } catch (err) {
       if (cmykNote) {
-        cmykNote.textContent = String(err.message || err);
+        say(cmykNote, String(err.message || err));
         cmykNote.classList.add("warn");
         cmykNote.hidden = false;
       }
     } finally {
-      cmykBtn.textContent = label;
+      say(cmykBtn, label);
       cmykBtn.disabled = false;
     }
   }
@@ -530,12 +665,12 @@ function wireForm() {
       if (faceRow) faceRow.hidden = !hasFace;
       if (!hasFace && $("wc-face-filter")) $("wc-face-filter").checked = false;
       const what = data.kind === "person"
-        ? (data.count > 1 ? `${data.count} people` : "a person")
-        : data.kind === "animal" ? "an animal" : "a prominent object";
-      $("wc-subject-label").textContent = `Isolate ${what}`;
-      $("wc-subject-note").textContent =
-        `found by ${data.how}, covering ${Math.round(data.coverage * 100)}% of the frame` +
-        " — the background becomes bare paper";
+        ? (data.count > 1 ? t("{count} people", { count: data.count }) : t("a person"))
+        : data.kind === "animal" ? t("an animal") : t("a prominent object");
+      say($("wc-subject-label"), "Isolate {what}", { what });
+      say($("wc-subject-note"),
+          "found by {how}, covering {percent}% of the frame — the background becomes bare paper",
+          { how: detectorName(data.how), percent: Math.round(data.coverage * 100) });
       row.hidden = false;
     } catch (err) {
       row.hidden = true;
@@ -551,7 +686,7 @@ function wireForm() {
       const entries = [...shapes.entries()];
       if (!entries.length) return;
       const width = parseFloat(widthInput.value);
-      if (!isFinite(width) || width <= 0) return note("set a width first", true);
+      if (!isFinite(width) || width <= 0) return note("set a width first", null, true);
 
       const [tray, shape] = entries[0];
       // Whole millimetres: the ratio is a guide, not a tolerance.
@@ -562,9 +697,11 @@ function wireForm() {
 
       const maxH = parseFloat((form.querySelector('[name="brushograph-max_height"]') || {}).value);
       if (isFinite(maxH) && height > maxH) {
-        note(`height ${height} mm from ${tray} — over the machine's ${maxH} mm limit`, true);
+        note("height {height} mm from {tray} — over the machine's {max} mm limit",
+             { height, tray: trayName(tray), max: maxH }, true);
       } else {
-        note(`height ${height} mm, matching ${tray}'s ${shape.w}x${shape.h} px`);
+        note("height {height} mm, matching {tray}'s {w}x{h} px",
+             { height, tray: trayName(tray), w: shape.w, h: shape.h });
       }
     });
   }
@@ -589,31 +726,23 @@ function wireForm() {
     } else {
       const any = [...form.querySelectorAll('input[type="file"]')].some((i) => i.files.length);
       if (!any) {
-        errBox.textContent = isKongress() ? "Keine Bilddateien ausgewählt" : "No images selected";
+        say(errBox, "No images selected");
         errBox.hidden = false;
         return;
       }
     }
 
-    const label = submitter.textContent;
-    submitter.textContent = wantsGcode
-      ? (isKongress() ? "Maschinensteuerbefehle werden berechnet…" : "Generating…")
-      : (isKongress() ? "Vorbereitung läuft…" : "Preparing…");
+    const label = labelOf(submitter);
+    submitter.textContent = t(wantsGcode ? "Generating…" : "Preparing…");
     gcodeBtn.disabled = configBtn.disabled = true;
     if (wantsGcode) {
-      statusBox.textContent = isKongress()
-        ? "Konturverfolgung, Schichtzerlegung und Pinselbahnplanung laufen. Dies beansprucht wenige Sekunden je Behälter."
-        : "Tracing, slicing and planning brush strokes. This takes a few seconds per tray.";
+      say(statusBox, "Tracing, slicing and planning brush strokes. This takes a few seconds per tray.");
       statusBox.hidden = false;
     }
 
     try {
       const res = await fetch(form.action, { method: form.method, body: fd });
-      if (!res.ok) {
-        let msg = `Server returned ${res.status}`;
-        try { msg = (await res.json()).error || msg; } catch (_) { /* not json */ }
-        throw new Error(msg);
-      }
+      if (!res.ok) throw new Error(await serverError(res));
       const blob = await res.blob();
       const disposition = res.headers.get("Content-Disposition") || "";
       const match = disposition.match(/filename="?([^";]+)"?/);
@@ -621,9 +750,8 @@ function wireForm() {
 
       if (!wantsGcode) {
         saveBlob(blob, filename);
-        statusBox.textContent = isKongress()
-          ? `Heruntergeladen: ${filename} (${(blob.size / 1024).toFixed(0)} KB).`
-          : `Downloaded ${filename} (${(blob.size / 1024).toFixed(0)} KB).`;
+        say(statusBox, "Downloaded {file} ({size} KB).",
+            { file: filename, size: (blob.size / 1024).toFixed(0) });
         statusBox.hidden = false;
         return;
       }
@@ -631,9 +759,8 @@ function wireForm() {
       // download when it is what you wanted.
       const text = await blob.text();
       offerDownload(blob, filename);
-      statusBox.textContent = isKongress()
-        ? `Bereit: ${filename} (${(blob.size / 1024).toFixed(0)} KB). Vorschau der Maschinensteuerbefehle unten.`
-        : `Ready: ${filename} (${(blob.size / 1024).toFixed(0)} KB). Preview below.`;
+      say(statusBox, "Ready: {file} ({size} KB). Preview below.",
+          { file: filename, size: (blob.size / 1024).toFixed(0) });
       statusBox.hidden = false;
       try {
         showGcode(text);
@@ -641,15 +768,16 @@ function wireForm() {
         // The file is already downloadable at this point, so a preview that
         // fails used to leave an empty box and no explanation.
         console.error("preview failed", err);
-        errBox.textContent = `The file is ready, but the preview could not be drawn: ${err.message || err}`;
+        say(errBox, "The file is ready, but the preview could not be drawn: {error}",
+            { error: t(String(err.message || err)) });
         errBox.hidden = false;
       }
     } catch (err) {
       statusBox.hidden = true;
-      errBox.textContent = String(err.message || err);
+      say(errBox, String(err.message || err));
       errBox.hidden = false;
     } finally {
-      submitter.textContent = label;
+      say(submitter, label);
       gcodeBtn.disabled = configBtn.disabled = false;
     }
   });
@@ -765,10 +893,10 @@ function offerDownload(blob, filename) {
     if (b) b.hidden = false;
   }
   if (!button) return;
-  button.textContent = `Download ${filename}`;
+  say(button, "Download {file}", { file: filename });
   button.hidden = false;
   if (note) {
-    note.textContent = `${(blob.size / 1024).toFixed(0)} KB`;
+    say(note, "{size} KB", { size: (blob.size / 1024).toFixed(0) });
     note.hidden = false;
   }
 }
@@ -854,27 +982,30 @@ function renderSimStats() {
   const { paintMM, travelMM, dips, strokes, trays, moves } = sim.data;
   // copicograf's feed rates: painting is the slow one, travel the fast one.
   const minutes = paintMM / 1000 + travelMM / 1500 + dips * 0.06;
+  const rough = minutes < 60
+    ? t("{n} min", { n: minutes.toFixed(0) })
+    : t("{n} h", { n: (minutes / 60).toFixed(1) });
   const stats = [
     [`${(paintMM / 1000).toFixed(1)} m`, "painted"],
     [`${(travelMM / 1000).toFixed(1)} m`, "travel"],
     [strokes.toLocaleString(), "brush downs"],
     [dips.toLocaleString(), "cup dips"],
     [moves.length.toLocaleString(), "moves"],
-    [`~${minutes < 60 ? minutes.toFixed(0) + " min" : (minutes / 60).toFixed(1) + " h"}`, "rough time"],
+    [`~${rough}`, "rough time"],
   ];
   box.innerHTML = "";
   for (const [value, label] of stats) {
     const d = el("div", "sim-stat");
     d.appendChild(el("b", null, value));
-    d.appendChild(el("span", null, label));
+    d.appendChild(el("span", null, t(label)));
     box.appendChild(d);
   }
   const legend = el("div", "sim-legend");
   const entries = trays.length
-    ? trays.map((t, i) => [trayColour(t, i), t])
-    : [["#2f7fd0", "painting"]];
+    ? trays.map((name, i) => [trayColour(name, i), trayName(name)])
+    : [["#2f7fd0", t("painting")]];
   const skin = themeInk();
-  entries.push([skin.cup, "in the cups"], [skin.travel, "travel"]);
+  entries.push([skin.cup, t("in the cups")], [skin.travel, t("travel")]);
   for (const [colour, label] of entries) {
     const item = el("span");
     const swatch = el("i");
@@ -903,13 +1034,13 @@ function wireMacros() {
   const list = $("macro-list");
   if (!genBtn || !form) return;
 
-  function say(text, bad) {
+  function report(english, vars, bad) {
     if (bad) {
-      errBox.textContent = text;
+      say(errBox, english, vars);
       errBox.hidden = false;
       status.hidden = true;
     } else {
-      status.textContent = text;
+      say(status, english, vars);
       status.hidden = false;
       errBox.hidden = true;
     }
@@ -918,8 +1049,8 @@ function wireMacros() {
   genBtn.addEventListener("click", async () => {
     errBox.hidden = true;
     status.hidden = true;
-    const label = genBtn.textContent;
-    genBtn.textContent = "Generating…";
+    const label = labelOf(genBtn);
+    genBtn.textContent = t("Generating…");
     genBtn.disabled = true;
     try {
       const fd = new FormData(form);
@@ -927,27 +1058,24 @@ function wireMacros() {
       // sending them anyway would be the whole tray upload for nothing.
       form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
       const res = await fetch("macros", { method: "POST", body: fd });
-      if (!res.ok) {
-        let msg = `Server returned ${res.status}`;
-        try { msg = (await res.json()).error || msg; } catch (e) { /* not json */ }
-        throw new Error(msg);
-      }
+      if (!res.ok) throw new Error(await serverError(res));
       const { macros } = await res.json();
       pendingMacros = macros;
       list.innerHTML = "";
       for (const [name, text] of Object.entries(macros)) {
         const li = el("li");
-        li.textContent = `${name} (${new Blob([text]).size} B)`;
+        say(li, "{name} ({bytes} B)", { name, bytes: new Blob([text]).size });
         list.appendChild(li);
       }
       list.hidden = false;
       dlBtn.hidden = false;
       upBtn.hidden = false;
-      say(`Generated ${Object.keys(macros).length} macros from the settings above.`);
+      report("Generated {count} macros from the settings above.",
+             { count: Object.keys(macros).length });
     } catch (err) {
-      say(String(err.message || err), true);
+      report(String(err.message || err), null, true);
     } finally {
-      genBtn.textContent = label;
+      say(genBtn, label);
       genBtn.disabled = false;
     }
   });
@@ -988,7 +1116,8 @@ function showGcode(text) {
 function updateSimAt() {
   const at = $("sim-at");
   if (at && sim.data) {
-    at.textContent = `${Math.round(sim.upto * 100)}% of ${sim.data.moves.length.toLocaleString()} moves`;
+    say(at, "{percent}% of {n} moves",
+        { percent: Math.round(sim.upto * 100), n: sim.data.moves.length.toLocaleString() });
     at.hidden = false;
   }
 }
@@ -1007,16 +1136,16 @@ function wireSimulator() {
   });
   play.addEventListener("click", () => {
     if (simTimer) {
-      clearInterval(simTimer); simTimer = null; play.textContent = "▶ Play"; return;
+      clearInterval(simTimer); simTimer = null; say(play, "▶ Play"); return;
     }
     if (sim.upto >= 1) sim.upto = 0;
-    play.textContent = "❚❚ Pause";
+    say(play, "❚❚ Pause");
     simTimer = setInterval(() => {
       sim.upto = Math.min(1, sim.upto + 0.01);
       scrub.value = Math.round(sim.upto * 1000);
       drawGcode();
       updateSimAt();
-      if (sim.upto >= 1) { clearInterval(simTimer); simTimer = null; play.textContent = "▶ Play"; }
+      if (sim.upto >= 1) { clearInterval(simTimer); simTimer = null; say(play, "▶ Play"); }
     }, 40);
   });
   const download = $("gcode-download");
@@ -1042,22 +1171,27 @@ function wireSimulator() {
 
 /* ------------------------------------------- tooltips as a dialog on mobile */
 
+/* The about page has no dialog and no tooltips to put in one. */
 const dialog = $("info-dialog");
-const closeDialog = () => dialog.close();
-dialog.addEventListener("click", closeDialog);
-dialog.addEventListener("close", () => window.removeEventListener("scroll", closeDialog));
-document.addEventListener("click", (e) => {
-  const btn = e.target.closest(".info-btn");
-  if (!btn) return;
-  e.preventDefault();
-  if (window.innerWidth > 768) return;   // desktop gets the native tooltip
-  e.stopPropagation();
-  const text = btn.getAttribute("title") || btn.getAttribute("aria-label");
-  if (!text) return;
-  dialog.textContent = text;
-  dialog.showModal();
-  setTimeout(() => window.addEventListener("scroll", closeDialog, { once: true, passive: true }), 100);
-});
+if (dialog) {
+  const closeDialog = () => dialog.close();
+  dialog.addEventListener("click", closeDialog);
+  dialog.addEventListener("close", () => window.removeEventListener("scroll", closeDialog));
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".info-btn");
+    if (!btn) return;
+    e.preventDefault();
+    if (window.innerWidth > 768) return;   // desktop gets the native tooltip
+    e.stopPropagation();
+    // Already translated in place, tooltip and label alike, so it is read off
+    // the button rather than translated a second time here.
+    const text = btn.getAttribute("title") || btn.getAttribute("aria-label");
+    if (!text) return;
+    dialog.textContent = text;
+    dialog.showModal();
+    setTimeout(() => window.addEventListener("scroll", closeDialog, { once: true, passive: true }), 100);
+  });
+}
 /* ----------------------------------------------------------- to the machine */
 /* Following openBatak-Assembler, which does this from the page rather than
  * through a server. FluidNC answers a cross-origin preflight without an
@@ -1129,14 +1263,14 @@ async function machineBase() {
   return "http://" + host;
 }
 
-function machineSay(text, bad) {
+function machineSay(english, vars, bad) {
   const note = $("machine-note");
   const err = $("machine-error");
   if (note) note.hidden = true;
   if (err) err.hidden = true;
   const box = bad ? err : note;
   if (box) {
-    box.textContent = text;
+    say(box, english, vars);
     box.hidden = false;
   }
 }
@@ -1145,40 +1279,41 @@ async function sendToMachine(start) {
   if (!pendingFile) return;
   const base = await machineBase();
   if (!base) {
-    machineSay("Set a hostname under Machine setup, Connection.", true);
+    machineSay("Set a hostname under Machine setup, Connection.", null, true);
     return;
   }
   // A page served over https may not talk to a machine over http, and no
   // amount of no-cors changes that: the browser blocks it as mixed content.
   if (location.protocol === "https:" && base.startsWith("http:")) {
-    machineSay(`This page is on https and ${base} is not, so the browser will `
-      + "block the connection. Open the WebUI over http on the same network as "
-      + "the machine, or download the file and upload it yourself.", true);
+    machineSay("This page is on https and {base} is not, so the browser will block the "
+      + "connection. Open the WebUI over http on the same network as the machine, or "
+      + "download the file and upload it yourself.", { base }, true);
     return;
   }
 
   const name = pendingFile.filename.replace(/[^A-Za-z0-9._-]/g, "_");
   const buttons = [$("gcode-send"), $("gcode-run")].filter(Boolean);
-  const labels = buttons.map((b) => b.textContent);
+  const labels = buttons.map(labelOf);
   buttons.forEach((b) => { b.disabled = true; });
   let ws = null;
 
   try {
-    machineSay(`Sending ${name} to ${base}…`);
+    machineSay("Sending {name} to {base}…", { name, base });
     const fd = new FormData();
     fd.append("path", "/");
     fd.append("myfile", pendingFile.blob, name);
     await fetch(`${base}/upload`, { method: "POST", body: fd, mode: "no-cors" });
 
     if (!start) {
-      machineSay(`${name} sent to ${base}. The reply is opaque, so check the `
-        + "machine's own file list to be sure.");
+      machineSay("{name} sent to {base}. The reply is opaque, so check the machine's own "
+        + "file list to be sure.", { name, base });
       return;
     }
     // The card needs a moment to commit the file before the controller can be
     // asked to run it.
-    machineSay(`${name} sent. Waiting ${SD_SYNC_MS / 1000}s for the card to catch up…`);
-    buttons[1].textContent = "Starting…";
+    machineSay("{name} sent. Waiting {seconds}s for the card to catch up…",
+               { name, seconds: SD_SYNC_MS / 1000 });
+    buttons[1].textContent = t("Starting…");
     await new Promise((r) => setTimeout(r, SD_SYNC_MS));
 
     const heard = [];
@@ -1188,16 +1323,15 @@ async function sendToMachine(start) {
     // Listen to the machine's own console rather than assuming.
     await new Promise((r) => setTimeout(r, WS_LISTEN_MS));
     const said = heard.filter((m) => m && !/^PING/i.test(m)).slice(-3).join(" · ");
-    machineSay(said
-      ? `${name}: $SD/Run sent. The machine says: ${said}`
-      : `${name}: $SD/Run sent, but the machine said nothing back. Check it.`);
+    if (said) machineSay("{name}: $SD/Run sent. The machine says: {said}", { name, said });
+    else machineSay("{name}: $SD/Run sent, but the machine said nothing back. Check it.", { name });
   } catch (e) {
-    machineSay(`Could not reach ${base}: ${e.message || e}. `
-      + "Check the hostname under Machine setup, Connection, and that this page "
-      + "and the machine are on the same network.", true);
+    machineSay("Could not reach {base}: {error}. Check the hostname under Machine setup, "
+      + "Connection, and that this page and the machine are on the same network.",
+      { base, error: t(String(e.message || e)) }, true);
   } finally {
     if (ws) { try { ws.close(); } catch (e) { /* already gone */ } }
-    buttons.forEach((b, i) => { b.disabled = false; b.textContent = labels[i]; });
+    buttons.forEach((b, i) => { b.disabled = false; say(b, labels[i]); });
   }
 }
 
@@ -1213,50 +1347,60 @@ async function uploadMacrosToMachine() {
   if (!pendingMacros) return;
   const note = $("macros-machine-note");
   const err = $("macros-machine-error");
-  function say(text, bad) {
+  function report(english, vars, bad) {
     if (note) note.hidden = true;
     if (err) err.hidden = true;
     const box = bad ? err : note;
-    if (box) { box.textContent = text; box.hidden = false; }
+    if (box) { say(box, english, vars); box.hidden = false; }
   }
 
   const base = await machineBase();
   if (!base) {
-    say("Set a hostname under Machine setup, Connection.", true);
+    report("Set a hostname under Machine setup, Connection.", null, true);
     return;
   }
   if (location.protocol === "https:" && base.startsWith("http:")) {
-    say(`This page is on https and ${base} is not, so the browser will block `
-      + "the connection. Open the WebUI over http on the same network as the "
-      + "machine, or download the macros and upload them yourself.", true);
+    report("This page is on https and {base} is not, so the browser will block the "
+      + "connection. Open the WebUI over http on the same network as the machine, or "
+      + "download the macros and upload them yourself.", { base }, true);
     return;
   }
 
   const upBtn = $("macros-upload");
-  const label = upBtn.textContent;
+  const label = labelOf(upBtn);
   upBtn.disabled = true;
   const names = Object.keys(pendingMacros);
   let sent = 0;
   try {
     for (const name of names) {
-      say(`Sending ${name} to ${base} (flash)… (${sent}/${names.length})`);
+      report("Sending {name} to {base} (flash)… ({sent}/{total})",
+             { name, base, sent, total: names.length });
       const fd = new FormData();
       fd.append("path", "/");
       fd.append("myfile", new Blob([pendingMacros[name]], { type: "text/plain" }), name);
       await fetch(`${base}/files`, { method: "POST", body: fd, mode: "no-cors" });
       sent += 1;
     }
-    say(`Sent ${sent} macro${sent === 1 ? "" : "s"} to ${base}'s flash filesystem. `
-      + "The reply is opaque, so check the machine's own file list to be sure.");
+    report("Sent {count} macros to {base}'s flash filesystem. The reply is opaque, so "
+      + "check the machine's own file list to be sure.", { count: sent, base });
   } catch (e) {
-    say(`Could not reach ${base}: ${e.message || e}. Sent ${sent}/${names.length} `
-      + "before that. Check the hostname under Machine setup, Connection, and "
-      + "that this page and the machine are on the same network.", true);
+    report("Could not reach {base}: {error}. Sent {sent}/{total} before that. Check the "
+      + "hostname under Machine setup, Connection, and that this page and the machine "
+      + "are on the same network.",
+      { base, error: t(String(e.message || e)), sent, total: names.length }, true);
   } finally {
     upBtn.disabled = false;
-    upBtn.textContent = label;
+    say(upBtn, label);
   }
 }
+
+/* ------------------------------------------------------- language, applied */
+/* The head script has already put the remembered theme on <html>, so this runs
+ * with the right language known and the page is translated on the way to the
+ * first paint rather than flashing English first. The form is not here yet —
+ * loadOptionsForm translates that as it arrives. */
+applyLanguageToPage();
+document.addEventListener("brushograph:theme", applyLanguageToPage);
 })();
 
 /* ------------------------------------------------------------------ themes */

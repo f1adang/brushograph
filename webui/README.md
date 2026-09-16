@@ -574,12 +574,13 @@ appeared to do nothing until it was fixed.
 
 ### Themes
 
-Five, chosen in the footer and remembered per browser. **Default** follows the
+Six, chosen in the footer and remembered per browser. **Default** follows the
 machine it is read on, light or dark. **Dark mode** holds dark whatever the room
 is doing. **Coconut mode** is husk, flesh and a palm lit from behind, and the
 mark in the corner is a coconut. **UwU** is a neon sign with all the lights up:
 the ground glows, every edge is lit, and the rules under the headings and the
-Generate button run the rainbow.
+Generate button run the rainbow. **𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘** is black
+print on aged paper, set in UniFraktur, and speaks German (see below).
 
 ### The mark in the corner
 
@@ -682,6 +683,14 @@ per-theme colour like the rest of the surface, the plan's palettes carry a
 black of its own. The rule survives with one exception, and the exception is what lets
 black read as paint at all rather than as nothing.
 
+**The edition in the slogan flies for one theme only.** The header reads
+"Brušograf GCode Generator" everywhere and adds "- Edition 𝖅𝖜𝖊𝖎𝖙𝖊𝖗
+𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘" under Kongress and nowhere else: it is that
+congress's edition, and a dark-mode header announcing it was announcing
+someone else's. It is a `.edition-note` span the stylesheet shows or hides,
+rather than markup the script adds and removes, so there is nothing to keep in
+step and nothing to restore.
+
 Coconut declares `color-scheme: light` although its ground is dark, because
 every panel is pale and the form controls sit on those; under a dark scheme the
 browser drew unchecked boxes as filled dark squares on cream, which read as
@@ -691,6 +700,75 @@ declares light with stark monochrome surfaces and zero corner radii.
 Everything that moves stops under `prefers-reduced-motion` — the machine's own
 theme says the same, in the same words: flashing signs are a migraine risk.
 Every text colour in every palette clears 4.5:1 against what it sits on.
+
+### The theme that speaks German
+
+𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘 is a language as well as a look: while it is on,
+every word of the interface is German, and when it goes off every word is
+English again. It is the only theme that does this, which is what makes the
+mechanism worth describing — nothing here is about German, only about there
+being a second language at all.
+
+**All of the German is in `static/de.js`**, so translating is reading a
+dictionary rather than hunting through markup and JavaScript. It holds three
+maps. `text` is an English string to its German, keyed by the English with its
+whitespace collapsed, so a sentence a template wraps over four lines is one
+entry. `html` is a `data-i18n` id to German markup, for the prose that has tags
+inside it. `patterns` is a regexp and a replacement, for the handful of
+messages the server builds with a detail interpolated into them.
+
+**The page's text arrives two ways, so it is translated two ways.** Text that
+came from a template or from the server is already in the DOM: `webui.js` walks
+it and swaps it in place, keeping the English in a `WeakMap` beside it so the
+swap can be undone. Text the script writes itself never sits in the DOM as
+English at all, so it goes through `t()` at the point it is written —
+`t("height {height} mm from {tray}", {height, tray})`, with the English as the
+key, so the call site still reads as the sentence it prints. Those are also
+remembered as the English they were written from, so a status line written in
+one language is rewritten rather than left standing when the theme changes.
+
+A `data-i18n` block is replaced whole, so **it must not contain anything the
+script listens on**: swapping the markup destroys the element the listener was
+attached to, and the control goes dead. "Already have a file? Open a .gcode"
+was written that way first and stopped opening files the moment the theme
+changed. It has no tags inside it worth keeping, so it went back to being two
+plain entries in `text` and the file input stayed where it was.
+
+Three things are deliberately **not** translated. The config's own keys — the
+`kroma` and `cyan` on the tray cards — are identifiers, and the About page
+explains them as such. An enum's stored value stays as the slicer and the
+firmware spell it; only the word the picker shows is translated. And an error
+that carries its own detail from deep in the pipeline stays in the words it
+arrived in: guessing at it would be worse than reading it in English.
+
+The mechanism is reversible by construction, which is the part worth keeping.
+A translation applied over the top of the page and never recorded would make
+the theme a one-way door — switch away and the interface is in German for the
+rest of the session, or until a reload throws the form and everything uploaded
+to it away.
+
+**The two server-drawn pictures translate themselves**, because they are drawn
+rather than marked up: the browser already posts its theme with both requests,
+so `sketch.py` and `cmyk_sep.py` carry their own small dictionaries and letter
+themselves in UniFraktur through the shared `sketch.font_for()`. That is also
+why the plan view's words are not in `de.js` with everything else — they are
+not the page's text, they are pixels in a PNG.
+
+Rendered German is longer than English and Fraktur is wider than the sans, so
+the theme lets out the two places a label sits in a fixed width — the button
+beside the height field, and the painted-size grid — rather than clipping them.
+
+**One control the page does not letter: the file input.** A browser draws
+"No file selected" and the word on the button beside it from its own locale,
+and nothing the page can say reaches them — not the stylesheet, not the
+document's `lang`. So under this theme the native control is taken out of sight
+and `proxyFileInputs()` shows one of ours in its place, which is a sibling of
+the input inside the same `<label>`: clicking it opens the picker through
+label activation, with no script involved. The input is moved out of sight
+rather than `display: none`, so it keeps its focus and its place in the
+accessibility tree, and the focus ring is drawn on the proxy instead. Every
+other theme keeps the browser's own control and never shows this one, which is
+also why this is not a general improvement quietly made everywhere.
 
 ### Why the 3D round trip went
 

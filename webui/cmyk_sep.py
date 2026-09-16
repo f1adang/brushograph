@@ -16,12 +16,23 @@ from __future__ import annotations
 from pathlib import Path
 
 import numpy as np
-from PIL import Image, ImageCms, ImageDraw, ImageFont
+from PIL import Image, ImageCms, ImageDraw
 
 from configspec import CMYK_TO_TRAY
 from images import flatten
+from sketch import font_for
 
 CHANNELS = ("C", "M", "Y", "K")
+
+# What the sheet calls its pictures. The Kongress theme speaks German, and this
+# sheet is printed by the server, so the words on it are chosen here rather than
+# translated in the browser like the rest of the page.
+CAPTIONS = {
+    "default": {"overprint": "Overprint", "C": "Cyan", "M": "Magenta",
+                "Y": "Yellow", "K": "Black"},
+    "kongress": {"overprint": "Übereinanderdruck", "C": "Cyan", "M": "Magenta",
+                 "Y": "Gelb", "K": "Schwarz"},
+}
 
 # Screen stand-ins for the four inks, matching the CSS pigment tokens, so a
 # plate preview is the colour of the paint that will draw it.
@@ -119,17 +130,16 @@ def _tint_plate(plate: Image.Image, pigment: tuple[int, int, int],
     return Image.fromarray(out, "RGB")
 
 
-def _caption(draw: ImageDraw.ImageDraw, xy, text: str, fill) -> None:
-    try:
-        font = ImageFont.truetype("Helvetica", 14)
-    except OSError:
-        font = ImageFont.load_default()
+def _caption(draw: ImageDraw.ImageDraw, xy, text: str, fill, font) -> None:
     draw.text(xy, text, fill=fill, font=font)
 
 
 def contact_sheet(plates: dict[str, Image.Image], paper=(255, 255, 255),
-                  ink=(34, 38, 37), width: int = 880) -> Image.Image:
+                  ink=(34, 38, 37), width: int = 880,
+                  theme: str = "default") -> Image.Image:
     """Composite on top, the four plates in a row underneath, labelled."""
+    words = CAPTIONS.get(theme, CAPTIONS["default"])
+    font = font_for(14, theme=theme)
     by_ch = {ch: plates[ch] if ch in plates else plates[CMYK_TO_TRAY[ch]]
              for ch in CHANNELS if ch in plates or CMYK_TO_TRAY[ch] in plates}
     proof = composite(by_ch, paper=paper)
@@ -150,9 +160,8 @@ def contact_sheet(plates: dict[str, Image.Image], paper=(255, 255, 255),
     draw = ImageDraw.Draw(sheet)
     x0, y0 = pad, pad
     sheet.paste(proof, (x0, y0))
-    _caption(draw, (x0, y0 + proof.size[1] + 4), "Overprint", ink)
+    _caption(draw, (x0, y0 + proof.size[1] + 4), words["overprint"], ink, font)
 
-    labels = {"C": "Cyan", "M": "Magenta", "Y": "Yellow", "K": "Black"}
     y_thumbs = y0 + proof.size[1] + label_h + gap
     for i, ch in enumerate(CHANNELS):
         if ch not in by_ch:
@@ -163,5 +172,5 @@ def contact_sheet(plates: dict[str, Image.Image], paper=(255, 255, 255),
         sheet.paste(thumb, (x, y_thumbs))
         share = ink_fraction(by_ch[ch]) * 100
         _caption(draw, (x, y_thumbs + thumb_h + 4),
-                 f"{labels[ch]}  {share:.0f}%", PIGMENT[ch] if ch != "Y" else ink)
+                 f"{words[ch]}  {share:.0f}%", PIGMENT[ch] if ch != "Y" else ink, font)
     return sheet

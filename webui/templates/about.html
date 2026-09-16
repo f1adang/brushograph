@@ -29,38 +29,38 @@ try { var t = localStorage.getItem("brushograph-theme");
 
   <h2>How a run works</h2>
   <ol>
-    <li>A machine config (<code>.conf</code>) describes the machine. Every option below it is generated from that file.</li>
-    <li>You upload one thresholded image per tray, in the order given by <code>color_order</code>
+    <li data-i18n="run-1">A machine config (<code>.conf</code>) describes the machine. Every option below it is generated from that file.</li>
+    <li data-i18n="run-2">You upload one thresholded image per tray, in the order given by <code>color_order</code>
     &mdash; or one colour photograph, which is split into CMYK and thresholded into those plates.</li>
-    <li>Each image is turned into brush strokes directly. Every ink pixel is labelled with its distance to the nearest bare paper, and an outline inset by <i>d</i> is then simply the contour of &ldquo;at least <i>d</i> from the edge&rdquo;. A concentric fill is the same thing at half a stroke, one and a half, two and a half &hellip; so one distance transform yields the whole fill, and the rings are drawn in parallel because none depends on another.</li>
-    <li><b>copicograf</b> turns those strokes into brush choreography: dipping in the paint tray, shedding the drip it comes up with, washing in water, and re-inking every few hundred millimetres.</li>
+    <li data-i18n="run-3">Each image is turned into brush strokes directly. Every ink pixel is labelled with its distance to the nearest bare paper, and an outline inset by <i>d</i> is then simply the contour of &ldquo;at least <i>d</i> from the edge&rdquo;. A concentric fill is the same thing at half a stroke, one and a half, two and a half &hellip; so one distance transform yields the whole fill, and the rings are drawn in parallel because none depends on another.</li>
+    <li data-i18n="run-4"><b>copicograf</b> turns those strokes into brush choreography: dipping in the paint tray, shedding the drip it comes up with, washing in water, and re-inking every few hundred millimetres.</li>
   </ol>
 
   <h2>Notes</h2>
   <ul>
-    <li>A tray's image can be <b>already thresholded</b> or a <b>photo</b>. A photo becomes a
+    <li data-i18n="note-kind">A tray's image can be <b>already thresholded</b> or a <b>photo</b>. A photo becomes a
     woodcut first: shadows go solid black, midtones are carried by hatching that thickens as the
     tone darkens, highlights stay as paper. The hatching follows the picture's own directions,
     curving around a form the way a carved line does, rather than lying over it as straight
     stripes or a lattice. Hatch spacing follows the brush width, so every mark
     is one the machine can actually paint. Preview it before running.</li>
-    <li>A <b>colour photograph</b> in Artwork is converted to CMYK with the same paper profile
+    <li data-i18n="note-cmyk">A <b>colour photograph</b> in Artwork is converted to CMYK with the same paper profile
     the rest of the repo uses, then each channel is cut at an ink cutoff into a two-tone plate.
     Those plates are traced exactly as already-thresholded uploads would be. A picture on a
     colour's card replaces that plate. Tints below the cutoff stay paper, so the brush is not
     asked to paint a wash it cannot lay down.</li>
-    <li>If a person, animal or prominent object is detected in the photo, an <b>Isolate</b> option appears.
+    <li data-i18n="note-isolate">If a person, animal or prominent object is detected in the photo, an <b>Isolate</b> option appears.
     It cuts the subject out with a small segmentation network (U&sup2;-Net, 4.4&nbsp;MB, downloaded
     once on first start and run through OpenCV), leaving the background as bare paper. Without the
     model it falls back to GrabCut, which is worse but keeps the feature working.</li>
-    <li>The opening sequence &mdash; mix, wash, load the brush &mdash; is not part of a job.
+    <li data-i18n="note-opening">The opening sequence &mdash; mix, wash, load the brush &mdash; is not part of a job.
     A job starts painting with whatever is already on the brush.</li>
-    <li><b>Dip Depth</b> sets how far the brush goes into a cup. It was fixed at
+    <li data-i18n="note-dip"><b>Dip Depth</b> sets how far the brush goes into a cup. It was fixed at
     Z&nbsp;&minus;4, which is deeper than a shallow dish needs. It is always offered, even by a
     config that does not mention it, as are the backlash settings, which are ticked unless the config says otherwise.</li>
-    <li>The preview shows the path without backlash compensation. Those corrective moves are for
+    <li data-i18n="note-backlash">The preview shows the path without backlash compensation. Those corrective moves are for
     the machine's slack, and drawing them would bury the artwork in strokes that are not in it.</li>
-    <li><b>Insta Face Filter</b>, offered when a face is found, evens the light across the face
+    <li data-i18n="note-face"><b>Insta Face Filter</b>, offered when a face is found, evens the light across the face
     and smooths the skin before the cut. A woodcut has two tones, so a face lit from one side
     lands mostly on the black side and fills in as a single solid shape. The lighting is
     estimated over the skin alone — at about an eighth of the width of the face, which is the
@@ -69,55 +69,57 @@ try { var t = localStorage.getItem("brushograph-theme");
     afterwards. Faces are found with a small neural detector, so a head turned or tilted down
     is still recognised, with OpenCV's bundled cascades as the fallback. Only skin is touched — hair, glasses, a collar and the background keep the tone
     they had.</li>
-    <li>A shape too thin to hold an outline gets its centreline painted instead, so
+    <li data-i18n="note-thin">A shape too thin to hold an outline gets its centreline painted instead, so
     every ribbon, hairline and rib is drawn rather than dropped.</li>
-    <li>An <b>infill line distance of 0</b> paints outlines only. A nominal 1&nbsp;mm stroke
+    <li data-i18n="note-zero-infill">An <b>infill line distance of 0</b> paints outlines only. A nominal 1&nbsp;mm stroke
     width stands in for the brush, since the config then states none.</li>
-    <li>Files are named after the picture and the trays used &mdash;
+    <li data-i18n="note-names">Files are named after the picture and the trays used &mdash;
     <code>vali_letten_c1_infill.gcode</code> &mdash; numbering the trays in the order the
     config declares them, with the water tray as 0.</li>
-    <li>The ink/paper split is found per image rather than fixed, so a print on cream paper is
+    <li data-i18n="note-threshold">The ink/paper split is found per image rather than fixed, so a print on cream paper is
     not read as one solid block of ink. It is taken on the darkest colour channel, so a light
     ink such as yellow still counts as ink.</li>
-    <li><b>Set <code>infill_line_distance</code> to roughly the width your brush lays down.</b>
+    <li data-i18n="note-spacing"><b>Set <code>infill_line_distance</code> to roughly the width your brush lays down.</b>
     It is the gap between fill lines; a pen-plotter value such as 0.5&nbsp;mm paints the same
     area ten times over. On one test image, going from 0.5&nbsp;mm to 5&nbsp;mm cut brush lifts
     from 598 to 103, tray dips from 318 to 74, and painted distance from 23.8&nbsp;m to 4.5&nbsp;m.</li>
-    <li>Strokes are chained back together, and ends within 1.5 line widths are
+    <li data-i18n="note-chaining">Strokes are chained back together, and ends within 1.5 line widths are
     bridged into one serpentine, so the brush stays down for as long as possible. Reaching
     further gains nothing: the brush must re-ink every <code>paint_per_run</code> anyway.</li>
-    <li>copicograf detects brush-up and brush-down from two exact Z lines that only
+    <li data-i18n="note-copicograf">copicograf detects brush-up and brush-down from two exact Z lines that only
     <code>cura-slicer</code> emits. Strokes are written out in that form, so
     <code>copicograf.py</code> itself is untouched.</li>
-    <li>Configs naming a generator other than <code>copicograf</code> render their options here,
+    <li data-i18n="note-generator">Configs naming a generator other than <code>copicograf</code> render their options here,
     but cannot be built — that generator is not part of this repository.</li>
-    <li><code>M204</code>, <code>M203</code> and <code>M400</code> come from the config's
+    <li data-i18n="note-marlin"><code>M204</code>, <code>M203</code> and <code>M400</code> come from the config's
     <code>moves</code> blocks and are Marlin-only. They are kept for
     <b>Controller Type: Marlin</b> and stripped for GRBL and FluidNC, which halt on an
     unknown M-code. A config with no controller section is treated as GRBL.</li>
-    <li>Every file opens with <code>G90</code>/<code>G21</code>, the normal feedrate and a lift
+    <li data-i18n="note-preamble">Every file opens with <code>G90</code>/<code>G21</code>, the normal feedrate and a lift
     to the config's safe Z, before anything moves sideways — where the last job left the brush
     is not known.</li>
-    <li>The brush is loaded before the first stroke of every colour. Each tray ends by washing
+    <li data-i18n="note-load">The brush is loaded before the first stroke of every colour. Each tray ends by washing
     the brush and parking it in the water — which is what a colour change wants — and re-inking
     otherwise only happens after <code>paint_per_run</code> has been painted, so each colour
     used to start by painting with water. The trip ends at the point that colour's painting
     starts from, so it leaves no mark of its own.</li>
-    <li>A colour change is: wash the brush three times in the water, lift clear, dip the next
+    <li data-i18n="note-change">A colour change is: wash the brush three times in the water, lift clear, dip the next
     colour, shed the drip, and go to the first stroke. The brush is left standing in the
     water at the end of the job, so it does not dry with paint in it, but not between colours —
     it is already over the water and the next thing it does is go for paint.</li>
-    <li><code>copicograf</code> emits <code>G28 X Y</code> once near the top. Marlin homes on it;
+    <li data-i18n="note-home"><code>copicograf</code> emits <code>G28 X Y</code> once near the top. Marlin homes on it;
     GRBL and FluidNC reject the bare axis words outright, so it is replaced with a comment.
     It is not rewritten to <code>$H</code>, which needs limit switches —
     <b>home or zero the machine yourself before streaming.</b></li>
   </ul>
   <h2>Themes</h2>
-  <p>Six, in the footer, remembered by your browser: <b>Default</b> follows your system,
+  <p data-i18n="themes">Six, in the footer, remembered by your browser: <b>Default</b> follows your system,
   <b>Dark mode</b> stays dark, <b>Coconut mode</b> is husk and palm, <b>Pinkograph</b> wears
   what the machine's own FluidNC dashboard wears, colours and all, with a sign that flickers
   like a neon tube, <b>UwU</b> is that sign with all the lights up, and <b>𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘</b>
-  delivers a stark black-and-white print aesthetic set entirely in UniFraktur. Neither neon sign moves if you
+  delivers a stark black-and-white print aesthetic set entirely in UniFraktur, and is the one
+  theme that speaks German: every word of the interface is translated while it is on, and put
+  back when it goes off. Neither neon sign moves if you
   have asked your system to reduce motion.
   The machine plan and the G-code preview follow the theme too. The tray colours never do:
   a coloured mark always means paint in a cup, whatever the interface is wearing. Black paint
@@ -141,6 +143,7 @@ try { var t = localStorage.getItem("brushograph-theme");
     </select>
   </label>
 </footer>
+<script src="{{ asset('de.js') }}"></script>
 <script src="{{ asset('webui.js') }}"></script>
 </body>
 </html>

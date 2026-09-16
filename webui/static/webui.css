@@ -652,6 +652,53 @@
   color: #000000;
 }
 
+/* A file input is lettered by the browser itself, in the browser's own
+ * language: "No file selected", and the word on the button beside it. Nothing
+ * the page says reaches those — not this stylesheet, not the document's lang —
+ * so the theme that speaks German takes the native control out of sight and
+ * shows the one webui.js builds in its place. The input keeps its place inside
+ * the label and keeps its focus, so clicking and tabbing still open the
+ * picker; every other theme shows the browser's own control and never this
+ * one. */
+.file-proxy { display: none; }
+
+:root[data-theme="kongress"] .field:has(> input[type="file"]) { position: relative; }
+:root[data-theme="kongress"] input[type="file"] {
+  position: absolute;
+  width: 1px; height: 1px; padding: 0; margin: -1px; border: 0;
+  overflow: hidden; clip-path: inset(50%);
+}
+:root[data-theme="kongress"] .file-proxy {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-width: 0;
+}
+:root[data-theme="kongress"] .file-proxy b {
+  flex: none;
+  padding: 6px 12px;
+  background: #ffffff; color: #000000;
+  border: 1.5px solid #000000; box-shadow: 1px 1px 0 #000000;
+  font-weight: 700;
+}
+:root[data-theme="kongress"] .file-proxy i {
+  font-style: normal; color: var(--ink-faint); overflow-wrap: anywhere;
+}
+:root[data-theme="kongress"] .field:hover .file-proxy b {
+  background: #000000; color: #ffffff;
+}
+/* The native control is out of sight, so its focus ring would be too. */
+:root[data-theme="kongress"] input[type="file"]:focus-visible + .file-proxy b {
+  outline: 2px solid #000000; outline-offset: 2px;
+}
+
+/* This theme speaks German, and German set in Fraktur is wider than English
+ * set in the sans: a compound noun such as "Bildverhältnis übernehmen" does
+ * not fit the column its English fitted. The two places a label sits in a
+ * fixed width are let out rather than clipped. */
+:root[data-theme="kongress"] .with-btn { flex-wrap: wrap; }
+:root[data-theme="kongress"] .with-btn .ghost { white-space: normal; }
+:root[data-theme="kongress"] .group.tight .grid {
+  grid-template-columns: repeat(auto-fit, minmax(190px, 240px));
+}
+
 * { box-sizing: border-box; }
 /* Several things here are shown and hidden by the `hidden` attribute, and a
  * display rule in this sheet would otherwise beat it — the woodcut options and
@@ -682,6 +729,10 @@ h1, h2, h3, h4 { letter-spacing: -.015em; }
 /* The edition's name breaks as a unit: wrapping between its words split the
    congress across two lines mid-title. */
 .brand p a.edition { white-space: nowrap; }
+/* And it is the congress's own edition, so only the congress's theme flies it.
+   Everywhere else the slogan stops at the generator's name. */
+.edition-note { display: none; }
+:root[data-theme="kongress"] .edition-note { display: inline; }
 /* The crossed brushes and gear are one navy shape on transparent, used as a
    mask rather than an <img>: `background` is what actually paints it, so
    every theme below recolours the same silhouette instead of swapping images.
