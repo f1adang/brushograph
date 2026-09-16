@@ -467,7 +467,7 @@ def machine_config_update():
         if not path.is_file():
             return jsonify(error=(
                 f"{name} is no longer on the server, so there is nothing to update. Upload it "
-                "again with “Keep it on this server” ticked to keep it anew.")), 404
+                "again with “Persist config on server” ticked to keep it anew.")), 404
         try:
             base, raw = read_config(name, "saved", session_id())
         except (ValueError, json.JSONDecodeError) as exc:
