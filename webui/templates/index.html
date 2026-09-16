@@ -22,10 +22,10 @@ try { var t = localStorage.getItem("brushograph-theme");
     <span class="mark" aria-hidden="true"></span>
     <div class="brand-name">
       <h1>Brušograf WebUI</h1>
-      <p data-i18n="brand-tagline"><a href="https://wiki.sgmk-ssam.ch/wiki/Brushograph">Brušograf</a> GCode Generator<span class="edition-note"> - Edition
+      <p><span data-i18n="brand-tagline"><a href="https://wiki.sgmk-ssam.ch/wiki/Brushograph">Brušograf</a> GCode Generator<span class="edition-note"> - Edition
         <a href="https://wiki.sgmk-ssam.ch/wiki/Brushograph#Zweiter_Bruschologischer_Kongress,_Dresden,_7._-_12._September_2026"
-           class="edition" aria-label="Zweiter Bruschologischer Kongress">𝖅𝖜𝖊𝖎𝖙𝖊𝖗 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘</a></span></p>
-      {% if version %}<p class="version"><a href="{{ repo_url }}/releases/tag/{{ version }}">Brušograf WebUI {{ version }}</a></p>{% endif %}
+           class="edition" aria-label="Zweiter Bruschologischer Kongress">𝖅𝖜𝖊𝖎𝖙𝖊𝖗 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘</a></span></span>{% if version %}
+        <a href="{{ repo_url }}/releases/tag/{{ version }}" class="version">{{ version }}</a>{% endif %}</p>
     </div>
     <div class="picker">
       <label class="field">

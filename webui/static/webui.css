@@ -729,7 +729,9 @@ h1, h2, h3, h4 { letter-spacing: -.015em; }
 /* The edition's name breaks as a unit: wrapping between its words split the
    congress across two lines mid-title. */
 .brand p a.edition { white-space: nowrap; }
-.brand p.version { font-size: 12px; }
+/* Outside the translated span: the German tagline replaces that span's markup
+   whole, and a version number is nobody's language. */
+.brand p a.version { white-space: nowrap; }
 /* And it is the congress's own edition, so only the congress's theme flies it.
    Everywhere else the slogan stops at the generator's name. */
 .edition-note { display: none; }
