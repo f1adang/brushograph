@@ -440,34 +440,70 @@ function wireForm() {
   /* The modern holder is one piece, so its five bays cannot be moved relative
      to each other: only where the whole thing sits is a machine measurement.
      This spaces the other four off the water cup using the holder's own
-     centres, and only offers itself when that holder is the one selected. */
+     centres, and only offers itself when that holder is the one selected.
+     The petri dish holder is the same idea for classic cups, and the dish
+     fixes the radii and heights as well, so picking Classic applies the lot
+     straight away; a config that opens already classic keeps its own figures
+     until the button is pressed. */
   const spaceBtn = $("space-cups");
+  const dishBtn = $("space-dishes");
   const holderNote = $("holder-note");
+  const dishNote = $("dish-note");
   const shapeSelect = form.querySelector('[name="brushograph-cup_shape"]');
   if (spaceBtn && shapeSelect) {
-    const offsets = JSON.parse(spaceBtn.dataset.offsets || "{}");
     const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
-    const showIfModern = () => {
-      const on = shapeSelect.value === "modern" && !!trayX("water");
-      spaceBtn.hidden = !on;
-      if (holderNote) holderNote.hidden = !on;
+    const setNumber = (input, value) => {
+      input.value = String(Math.round(value * 100) / 100);
     };
-    shapeSelect.addEventListener("change", showIfModern);
-    showIfModern();
-    spaceBtn.addEventListener("click", () => {
+    const spaceFrom = (offsets) => {
       const water = trayX("water");
       const base = parseFloat(water && water.value);
-      if (!isFinite(base)) return;
+      if (!isFinite(base)) return 0;
       let moved = 0;
       for (const [name, off] of Object.entries(offsets)) {
         const input = trayX(name);
         if (!input) continue;
-        input.value = String(Math.round((base + off) * 100) / 100);
+        setNumber(input, base + off);
         moved += 1;
       }
-      // One event for the lot: the sketch redraws off the form, not per field.
-      if (moved) form.dispatchEvent(new Event("input", { bubbles: true }));
+      return moved;
+    };
+    // One event for the lot: the sketch redraws off the form, not per field.
+    const redraw = () => form.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const showForShape = () => {
+      const water = !!trayX("water");
+      const modern = shapeSelect.value === "modern" && water;
+      const classic = shapeSelect.value === "classic" && water;
+      spaceBtn.hidden = !modern;
+      if (holderNote) holderNote.hidden = !modern;
+      if (dishBtn) dishBtn.hidden = !classic;
+      if (dishNote) dishNote.hidden = !classic;
+    };
+
+    const setUpDishes = () => {
+      if (!dishBtn) return;
+      const settings = JSON.parse(dishBtn.dataset.settings || "{}");
+      let changed = spaceFrom(JSON.parse(dishBtn.dataset.offsets || "{}"));
+      for (const [key, value] of Object.entries(settings)) {
+        // A config without the setting has no control for it, and no need.
+        const input = form.querySelector('[name="brushograph-' + key + '"]');
+        if (!input) continue;
+        setNumber(input, value);
+        changed += 1;
+      }
+      if (changed) redraw();
+    };
+
+    shapeSelect.addEventListener("change", () => {
+      showForShape();
+      if (shapeSelect.value === "classic") setUpDishes();
     });
+    showForShape();
+    spaceBtn.addEventListener("click", () => {
+      if (spaceFrom(JSON.parse(spaceBtn.dataset.offsets || "{}"))) redraw();
+    });
+    if (dishBtn) dishBtn.addEventListener("click", setUpDishes);
   }
 
   /* ---- height follows the width and the uploaded image's aspect ratio ---- */

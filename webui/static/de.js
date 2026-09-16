@@ -74,6 +74,7 @@ text: {
   "Behälter, Pinselhöhen, Geschwindigkeiten — einmalig je Maschine",
 "Container positions": "Behälterpositionen",
 "Auto-space containers for modern holder": "Behälter für modernen Halter anordnen",
+"Set up for petri dishes": "Für Petrischalen einrichten",
 "Save these settings": "Einstellungen speichern",
 "Download Machine Config": "Maschinenkonfiguration herunterladen",
 "Update writes them over the copy kept on this server instead, for everyone who picks it from the machine list.":
@@ -409,6 +410,14 @@ html: {
   "34&nbsp;mm Mitte zu Mitte, die erste 39&nbsp;mm vom Wasser entfernt. Setzen Sie den " +
   "Wasserbehälter dorthin, wo der Halter tatsächlich sitzt, und ordnen Sie die übrigen von " +
   "ihm aus an.",
+
+"dish-note":
+  "Mit „Klassisch“ werden die Behälter für die niedrigen Petrischalen in ihrem gedruckten " +
+  "Halter eingerichtet: Eintauchtiefe, Schwenk- und Abstreifradius sowie Hubhöhen passend zu " +
+  "einer Schale von 19&nbsp;mm Radius und 11&nbsp;mm Höhe, mit Z&nbsp;0 dort, wo die Schalen " +
+  "stehen, und die Farben 45, 89 und 133&nbsp;mm vom Wasser entfernt, Schwarz 188&nbsp;mm auf " +
+  "einem zweiten Halter. Setzen Sie den Wasserbehälter dorthin, wo der Halter tatsächlich sitzt, " +
+  "und ordnen Sie die übrigen von ihm aus an.",
 
 "setup-download-note":
   "Schreibt alles Obige samt den Fülleinstellungen wieder in eine <code>.conf</code> hinaus, " +

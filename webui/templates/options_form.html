@@ -66,6 +66,12 @@
             its five bays put the colours on 34&nbsp;mm centres, with the first 39&nbsp;mm
             from the water. Set the water cup where the holder actually sits and space
             the rest from it.</p>
+          <p class="note" id="dish-note" data-i18n="dish-note" hidden>Choosing Classic sets the cups up
+            for the low petri dishes in their printed holder: dip depth, sweep and wipe radii and
+            lifts to suit a dish 19&nbsp;mm in radius and 11&nbsp;mm tall, with Z&nbsp;0 where the dishes stand,
+            and the colours spaced 45, 89 and 133&nbsp;mm from the water, black 188&nbsp;mm on a
+            second holder. Set the water cup where the holder actually sits and space the rest
+            from it.</p>
           <div class="tray-coords">
             {% for t in trays.trays %}
             <div class="coord">
@@ -80,6 +86,8 @@
           </div>
           <button type="button" class="ghost" id="space-cups" hidden
                   data-offsets='{{ bay_offsets }}'>Auto-space containers for modern holder</button>
+          <button type="button" class="ghost" id="space-dishes" hidden
+                  data-offsets='{{ dish_offsets }}' data-settings='{{ dish_settings }}'>Set up for petri dishes</button>
         </section>
         {% endif %}
 

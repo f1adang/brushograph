@@ -28,6 +28,31 @@ MODERN_BAY_OFFSETS = OrderedDict(
     [("water", 0.0), ("cyan", 39.0), ("magenta", 73.0), ("yellow", 107.0), ("kroma", 141.0)]
 )
 
+# The classic cups: the low petri dishes in openBrushograph_hardware's
+# Extras_openBrushograph.scad, sitting in the 4xPetri_rounded_new.stl holder.
+# Slicing that STL at mid-plate finds four round holes of 20.14 mm radius
+# (20.2 in the SCAD, less the facets) at 45, 44 and 44 mm centres, WASH first,
+# then C 1, C 2, C 3. The holder is 188 mm long with its end holes 28 and 27 mm
+# in from the ends, so a second holder butted on for black puts that dish
+# 55 mm past yellow. Offsets from the water dish, like MODERN_BAY_OFFSETS.
+CLASSIC_DISH_OFFSETS = OrderedDict(
+    [("water", 0.0), ("cyan", 45.0), ("magenta", 89.0), ("yellow", 133.0), ("kroma", 188.0)]
+)
+
+# What the dish itself fixes. From the SCAD: the wall is a cylinder of r 17
+# grown by a 2 mm sphere inside and r 18 grown by 2.1 outside, cut off 11.2 mm
+# above its base — so 19 mm inside radius, 20.1 outside, a 1.1 mm floor and
+# 10.1 mm of depth. The Z figures take Z 0 as the surface the dishes stand on,
+# the same one the paper lies on at canvas_height 0. copicograf reads all but
+# dip_depth as whole millimetres.
+CLASSIC_DISH_SETTINGS = OrderedDict([
+    ("dip_depth", 1.0),             # onto the 1.1 mm floor, bristles flexing
+    ("tray_enter_radius", 15),      # the sweep stays 4 mm off the 19 mm wall
+    ("remove_drops_radius", 21),    # dragged clear past the 20.1 mm rim
+    ("remove_drops_lift", 9),       # tip 2 mm below the rim, so it catches
+    ("go_in_tray_lift", 14),        # clears the 11.2 mm rim
+])
+
 # Settings the form always offers, whatever the config happens to carry. The
 # form is otherwise built from the config's own keys, so a machine file written
 # before one of these existed — or by hand, or by an older version — simply has

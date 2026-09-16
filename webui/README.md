@@ -988,8 +988,34 @@ its five bays are 34 mm apart centre to centre, the first colour 39 mm from the
 water, and only where the whole thing sits is anyone's to decide. Those offsets
 are `MODERN_BAY_OFFSETS`, and **Auto-space containers for modern holder** under
 the container positions applies them from wherever the water cup has been put.
-It shows itself only when the modern holder is the one selected; there is no
-such thing as the holder's spacing for loose round cups.
+It shows itself only when the modern holder is the one selected.
+
+Round cups have a holder too: the low petri dishes of
+[openBrushograph_hardware](https://github.com/openBrushograph/openBrushograph_hardware/tree/main/Extras)
+sit in `4xPetri_rounded_new.stl`, a 188 mm plate with four holes labelled WASH,
+C 1, C 2 and C 3. Slicing it at mid-plate finds holes of 20.14 mm radius at
+45, 44 and 44 mm centres, with the end holes 28 and 27 mm in from the ends, so a
+second holder butted on for black puts that dish 55 mm past yellow. Those are
+`CLASSIC_DISH_OFFSETS`: 0, 45, 89, 133 and 188 from the water.
+
+The dish itself is in `Extras_openBrushograph.scad`: a cylinder of r 17 grown
+by a 2 mm sphere inside and r 18 grown by 2.1 outside, cut off 11.2 mm above
+its base — 19 mm inside radius, 20.1 outside, a 1.1 mm floor. Unlike the
+stepped bays, that is enough to derive the settings, taking Z 0 as the surface
+the dishes stand on (`CLASSIC_DISH_SETTINGS`):
+
+| Setting               | Value | Why                                       |
+|-----------------------|-------|-------------------------------------------|
+| `dip_depth`           | 1     | onto the 1.1 mm floor, bristles flexing   |
+| `tray_enter_radius`   | 15    | the sweep stays 4 mm off the wall         |
+| `remove_drops_radius` | 21    | dragged clear past the 20.1 mm rim        |
+| `remove_drops_lift`   | 9     | tip 2 mm below the rim, so it catches     |
+| `go_in_tray_lift`     | 14    | clears the 11.2 mm rim                    |
+
+Choosing **Classic** in the form applies all of it at once — the settings, and
+the spacing from wherever the water cup is. A config that opens already classic
+keeps its own figures; **Set up for petri dishes** under the container
+positions applies them on demand.
 
 Five cups on 34 mm centres span 141 mm, which is why the `pinkograph.conf` preset
 started its water bay at X 8: the bed is 151 mm wide, so anything past 10 puts

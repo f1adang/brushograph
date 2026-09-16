@@ -4,6 +4,13 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.5](https://github.com/f1adang/brushograph/releases/tag/v2.5) — 2026-09-16
+
+- Choosing Classic containers sets the machine up for the low petri dishes of
+  openBrushograph_hardware: dip depth, sweep and wipe radii and lifts from the
+  dish, and the cups spaced 45, 89, 133 and 188 mm from the water as the
+  4-dish holder puts them. **Set up for petri dishes** does the same on demand.
+
 ## [v2.4](https://github.com/f1adang/brushograph/releases/tag/v2.4) — 2026-09-16
 
 - The page header shows the WebUI version at the end of the tagline, linked to

@@ -25,7 +25,8 @@ import facefilter
 import gcode_pipeline
 import subject
 import woodcut
-from configspec import (CMYK_TO_TRAY, MODERN_BAY_OFFSETS, apply_form,
+from configspec import (CLASSIC_DISH_OFFSETS, CLASSIC_DISH_SETTINGS, CMYK_TO_TRAY,
+                        MODERN_BAY_OFFSETS, apply_form,
                         build_schema, tray_entries)
 from macros import generate_macros
 from sketch import PALETTES, render as render_sketch
@@ -550,6 +551,8 @@ def options_form():
         machine_config_version=config_version(raw) if mode == "saved" else "",
         generator=conf.get("brushograph", {}).get("generator", "copicograf"),
         bay_offsets=json.dumps(MODERN_BAY_OFFSETS),
+        dish_offsets=json.dumps(CLASSIC_DISH_OFFSETS),
+        dish_settings=json.dumps(CLASSIC_DISH_SETTINGS),
     )
 
 
