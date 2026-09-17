@@ -19,6 +19,19 @@ CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 # and leaves "kroma" showing as the config key it is.
 CMYK_LABEL = {"C": "Cyan", "M": "Magenta", "Y": "Yellow", "K": "Black"}
 
+# The order a multi-colour painting is laid down in, lightest first: yellow,
+# magenta, cyan, black. A light colour painted over a dark one barely shows, and
+# the key plate goes on last to sharpen everything under it. Colours that are
+# not process colours keep the order the config gives them, between cyan and
+# black.
+PAINT_ORDER = {"Y": 0, "M": 1, "C": 2, "K": 4}
+_OTHER_COLOURS = 3
+
+
+def paint_order(colors: list) -> list:
+    """color_order put into painting order, Y M C, anything else, then K."""
+    return sorted(colors, key=lambda c: PAINT_ORDER.get(c, _OTHER_COLOURS))
+
 # The Mini's CMYK holder: the `Standard_CMYK` preset of openBrushograph_hardware's
 # Extras/colourContainers.scad (once mini_petri.scad), which is the design,
 # checked against the parts in Extras/CMYK_ColourContainers,
@@ -289,6 +302,9 @@ def with_defaults(conf: dict) -> dict:
     for path, value in ALWAYS_OFFERED.items():
         _dig(out, path).setdefault(path[-1], value)
     _offer_black(out)
+    # Written back in painting order too, so a saved config says what happens.
+    if isinstance(out.get("color_order"), list):
+        out["color_order"] = paint_order(out["color_order"])
     return out
 
 
@@ -518,7 +534,11 @@ def _walk(path: list[str], value) -> list[dict]:
 
 
 def tray_entries(conf: dict) -> list[dict]:
-    """Water tray plus one entry per colour in color_order, in config order.
+    """Water tray plus one entry per colour in color_order, in painting order.
+
+    Painting order is Y M C K (PAINT_ORDER), whatever order the config lists
+    its colours in: the entries are what the job paints in sequence, and what
+    the tray cards and the plan's painting order are listed from.
 
     Tray numbering follows the position in the trays dict, which is why a config
     with a water tray starts its colours at 1 and one without starts at 0. A
@@ -531,7 +551,7 @@ def tray_entries(conf: dict) -> list[dict]:
     # for every tray declared after it — which is where a fifth cup lands.
     order = [k for k in trays if k not in TRAY_SKIP]
     wanted = []
-    for color in conf.get("color_order", []):
+    for color in paint_order(conf.get("color_order", [])):
         tray_name = CMYK_TO_TRAY.get(color, color)
         if tray_name in trays and tray_name not in TRAY_SKIP:
             wanted.append((tray_name, color))

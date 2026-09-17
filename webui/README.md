@@ -200,7 +200,12 @@ against 11.9 m filled.
 
 Per tray: threshold → distance transform → rings → chaining → `copicograf`, then
 all trays are concatenated and optionally backlash-compensated. Trays are
-prepared in parallel and painted in `color_order`.
+prepared in parallel and painted lightest first: **yellow, magenta, cyan, then
+black**, whatever order the config's `color_order` lists them in. A light colour
+over a dark one barely shows, and the key plate goes on last to sharpen what is
+under it. Colours that are not process colours keep the config's order, between
+cyan and black. The tray cards, the plan's painting order and the file name
+follow the same order, and a saved config's `color_order` is written in it.
 
 This used to run threshold → `potrace` → SVG → OpenSCAD → STL → PrusaSlicer →
 adapter, which meant three external programs, a 2D → 3D → 2D round trip, and

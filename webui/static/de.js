@@ -419,7 +419,7 @@ html: {
 
 /* --------------------------------------------------------- the about page */
 "run-1": "Eine Maschinenkonfiguration (<code>.conf</code>) beschreibt die Maschine. Jede Einstellung darunter wird aus dieser Datei erzeugt.",
-"run-2": "Sie laden je Behälter ein geschwelltes Bild hoch, in der Reihenfolge, die <code>color_order</code> angibt &mdash; oder eine einzelne Farbfotografie, die in CMYK zerlegt und zu ebendiesen Druckplatten geschwellt wird.",
+"run-2": "Sie laden je Behälter ein geschwelltes Bild hoch, gemalt in der Reihenfolge Gelb, Magenta, Cyan, dann Schwarz &mdash; oder eine einzelne Farbfotografie, die in CMYK zerlegt und zu ebendiesen Druckplatten geschwellt wird.",
 "run-3": "Jedes Bild wird unmittelbar in Pinselstriche verwandelt. Jeder Farbpunkt wird mit seinem Abstand zum nächsten blanken Papier beschriftet, und eine um <i>d</i> eingerückte Kontur ist dann schlicht die Höhenlinie von &bdquo;mindestens <i>d</i> vom Rand entfernt&ldquo;. Eine konzentrische Füllung ist dasselbe bei einem halben Strich, anderthalb, zweieinhalb &hellip; also liefert eine einzige Abstandstransformation die ganze Füllung, und die Ringe werden nebeneinander gezeichnet, weil keiner vom anderen abhängt.",
 "run-4": "<b>copicograf</b> verwandelt diese Striche in die Choreographie des Pinsels: Eintauchen in den Farbbehälter, Abstreifen des mitgeführten Tropfens, Auswaschen im Wasser und Nachtauchen alle paar hundert Millimeter.",
 
