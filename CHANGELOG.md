@@ -4,6 +4,13 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.8.1](https://github.com/f1adang/brushograph/releases/tag/v2.8.1) — 2026-09-17
+
+- Multi-colour jobs are painted yellow, magenta, cyan, then black, whatever
+  order the config lists its colours in; other colours go before black. The
+  tray cards, the plan's painting order, the G-code file name and a saved
+  config's `color_order` follow it.
+
 ## [v2.8](https://github.com/f1adang/brushograph/releases/tag/v2.8) — 2026-09-17
 
 The 𝔐𝔦𝔨𝔯𝔬 release.
