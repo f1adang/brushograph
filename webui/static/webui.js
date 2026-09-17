@@ -558,6 +558,21 @@ function wireForm() {
     });
   }
 
+  /* Each speed group's Acc (M204) and Feedrate 2 (M203) are Marlin commands,
+     stripped from the G-code for any other controller, so only Marlin shows
+     them. A config with no controller is treated as GRBL, as the pipeline does.
+     Hidden, not disabled, so the figures survive a switch to another controller. */
+  const controllerSelect = form.querySelector('[name="controller-controller_type"]');
+  const showForController = () => {
+    const marlin = !!controllerSelect && controllerSelect.value.trim().toLowerCase() === "marlin";
+    for (const input of form.querySelectorAll('[name^="brushograph-moves-"][name$="-acc"], [name^="brushograph-moves-"][name$="-feedrate_2"]')) {
+      const field = input.closest(".field");
+      if (field) field.hidden = !marlin;
+    }
+  };
+  if (controllerSelect) controllerSelect.addEventListener("change", showForController);
+  showForController();
+
   /* ---- the model: Mini or 𝔐𝔦𝔨𝔯𝔬 ---- */
   /* Choosing a model puts its travel limits, canvas offset and tray lift in the
      form and spaces the containers on its holder. Going back to the model the

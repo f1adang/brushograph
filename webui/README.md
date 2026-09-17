@@ -612,6 +612,10 @@ them stripped (about 1,400 lines in a one-tray run, since every speed change
 re-emits the pair). The `G0 F…` feedrate in each block is understood everywhere
 and survives either way, so motion speed is unaffected.
 
+The form follows suit: each speed group's Acc and Feedrate 2 are shown only
+while the controller is Marlin. They are hidden rather than disabled, so a
+config switched to another controller and back keeps its figures.
+
 A config with no `controller` section is treated as GRBL. That way round is
 safe: emitting Marlin-only codes to a GRBL board halts it, while dropping them
 costs a Marlin board only its acceleration tuning.
