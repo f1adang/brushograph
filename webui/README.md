@@ -1359,7 +1359,8 @@ An upload is normally yours alone and lasts as long as your session. Tick **Keep
 it on this server, for everyone** before choosing the file and it goes into
 `webui_configs/` instead: it joins the machine pulldown straight away, for anyone
 who opens the page afterwards, and stays through restarts. The directory is
-gitignored beside `webui_sessions/`, so updating the code never touches it.
+gitignored beside `webui_sessions/`, so updating the code never touches it, and
+it keeps a version history of its own (see **Version history** below).
 
 **The pulldown lists kept configs and nothing else.** No configs ship with the
 repository: the two presets that used to sit in the repo root
@@ -1392,6 +1393,32 @@ config is a couple of kilobytes) and **200** files. Past either, keeping is
 refused with a message saying so, and the same file can still be used for the
 session without keeping it. Re-keeping a config already there still works at the
 limit, since it adds nothing.
+
+### Version history
+
+`webui_configs/` is a git repository of its own, started the first time the
+server runs (the code's repository ignores the directory, so the two never
+meet). The configs already there go into a first commit, and from then on every
+write to a kept config is a commit naming the file, what was done and where the
+request came from:
+
+    Upload workshop-2.conf from 203.0.113.42
+    Update pinkograph.conf from 198.51.100.7
+
+so `git -C webui_configs log -p pinkograph.conf` shows who changed a shared
+machine when, and what it said before. Nothing is committed when a write
+changes nothing — the same bytes kept again, or an Update with nothing edited.
+The commits are authored by *Brushograph WebUI* whatever git is configured with
+on the server; the person is the address in the message.
+
+**The address.** Deployed, gunicorn listens on loopback behind nginx, so every
+request's peer is 127.0.0.1 and the client is in `X-Real-IP`, which nginx sets
+from its own `$remote_addr` and so cannot be supplied by the client. The header
+is believed only from a loopback peer: sent straight to the app, it could claim
+any address. Run without nginx, the peer is the client and is used as it is.
+
+**History never blocks a save.** If git is missing or a commit fails, the
+config is written all the same and the failure goes to the log.
 
 ### Updating a kept config
 

@@ -21,6 +21,7 @@ import numpy as np
 from PIL import Image
 
 import cmyk_sep
+import config_history
 import facefilter
 import gcode_pipeline
 import subject
@@ -38,7 +39,9 @@ SESSIONS_DIR = REPO_ROOT / "webui_sessions"
 # Configs people chose to keep. Beside the sessions rather than in them: a kept
 # config belongs to the server and everyone who uses it, not to the browser
 # that happened to upload it, so it must not expire with a cookie. Gitignored,
-# like the sessions, so an update to the code never touches it.
+# like the sessions, so an update to the code never touches it. It is a git
+# repository of its own, and every change to a kept config is a commit there
+# (config_history).
 SAVED_CONFIGS_DIR = REPO_ROOT / "webui_configs"
 MAX_UPLOAD_MB = 64
 # A machine config is a couple of kilobytes of JSON. The general upload limit
@@ -55,6 +58,7 @@ app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = MAX_UPLOAD_MB * 1024 * 1024
 SESSIONS_DIR.mkdir(exist_ok=True)
 SAVED_CONFIGS_DIR.mkdir(exist_ok=True)
+config_history.init(SAVED_CONFIGS_DIR, app.logger.warning)
 
 
 def _secret_key() -> bytes:
@@ -493,6 +497,8 @@ def machine_config_update():
         part = SAVED_CONFIGS_DIR / f".upload-{secrets.token_hex(6)}.part"
         part.write_bytes(out)
         os.replace(part, path)
+        config_history.commit(SAVED_CONFIGS_DIR, name, "Update",
+                              config_history.client_ip(request), app.logger.warning)
     return jsonify(name=name, version=config_version(out))
 
 
@@ -531,6 +537,11 @@ def keep_config(name: str, raw: bytes) -> str:
             continue
         finally:
             part.unlink()
+        # Under the lock an Update commits under, so the two never run git
+        # in the same repository at once.
+        with SAVED_CONFIGS_LOCK:
+            config_history.commit(SAVED_CONFIGS_DIR, candidate, "Upload",
+                                  config_history.client_ip(request), app.logger.warning)
         return candidate
     raise ValueError(f"No free name for {name} on the server.")
 
