@@ -94,11 +94,11 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # and floor 1.2 so 19.6 and 10.6 mm inside, and 23 mm long, 20.6 inside. The
 # crucibles carry the same stairs as the Mini's, so a Micro swipes rather than
 # dips; the swipe keeps the Mini's proportion of its crucible (23.5 of 27.6).
-# Its water and
-# black crucibles are 68.5 mm apart, all but the whole of the X travel, so the
-# water starts at X 2 rather than the Mini's 12: from 12, auto-spacing put
-# black at 80.5, out of reach. There is no petri dish holder for it — the
-# classic dishes span 173 mm, more than twice its X travel.
+# Its water and black crucibles are 68.5 mm apart, all but the whole of the X
+# travel, so the water starts at X 2 rather than the Mini's 12: from 12,
+# auto-spacing put black at 80.5, out of reach. There is no petri dish holder
+# for it — the classic dishes span 173 mm, more than twice its X travel.
+#
 # What a CMYK holder fixes besides where its crucibles are, from the same SCAD
 # presets — Z 0 being the surface the crucibles stand on, as for the dishes.
 # The tray lift clears the rim by 2 mm. The dip goes just under the floor, the
