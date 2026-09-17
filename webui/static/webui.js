@@ -1081,18 +1081,21 @@ const PREVIEW_INK = {
   key: TRAY_COLOURS.kroma,
 };
 
-// canvas and dip are the config's canvas_height and dip_depth. A dip is not
-// "below the canvas": the heights are measured from the surface the cups stand
-// on, so the dip sits at Z 1 over paper at Z 0 and was never counted. With no
-// dip depth to go by (a generator whose form has none), below the canvas it is.
+// A dip is read from the "; dip" marker copicograf writes before each descent
+// into a cup: from there until the brush first rises, the moves are in the
+// paint. Heights cannot tell, because a dip depth equal to the canvas height
+// puts both at the same Z. A file without markers (from before them) falls back
+// to the heights: canvas and dip are the config's canvas_height and dip_depth.
 function parseGcode(text, { canvas = 0, dip = null } = {}) {
   const near = (a, b) => Math.abs(a - b) < 0.001;
+  const marked = /^\s*;\s*dip\b/im.test(text);
   const moves = [];
   let x = 0, y = 0, z = 10, tray = null, trayIndex = -1;
   const trays = [];
-  let paintMM = 0, travelMM = 0, dips = 0, strokes = 0, wasDown = false;
+  let paintMM = 0, travelMM = 0, dips = 0, strokes = 0, wasDown = false, dipping = false;
 
   for (const rawLine of text.split("\n")) {
+    if (marked && /^\s*;\s*dip\b/i.test(rawLine)) { dipping = true; dips++; continue; }
     const marker = rawLine.match(/^\s*;\s*tray\s+(\S+)/i);
     if (marker) {
       tray = marker[1];
@@ -1112,17 +1115,23 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
       const v = parseFloat(value);
       if (axis === "X") nx = v; else if (axis === "Y") ny = v; else nz = v;
     }
-    // Z at the canvas is painting; at the dip depth the brush is in a cup,
-    // and the move that leaves from there (the swipe up the stairs) is too.
-    // A dip at the canvas height itself cannot be told apart from painting.
-    const inCup = dip === null ? nz < canvas - 0.001
-      : !near(dip, canvas) && (near(nz, dip) || near(z, dip));
-    const down = near(nz, canvas) || (nz < canvas && !inCup);
+    // Z at the canvas is painting; in a cup is not, however low it goes. The
+    // move that leaves the cup (the swipe up the stairs, or the lift) is in it.
+    let inCup;
+    if (marked) {
+      inCup = dipping;
+      if (dipping && nz > z + 0.001) dipping = false;
+    } else {
+      inCup = dip === null ? nz < canvas - 0.001
+        : !near(dip, canvas) && (near(nz, dip) || near(z, dip));
+    }
+    const down = !inCup && (near(nz, canvas) || nz < canvas);
     const d = Math.hypot(nx - x, ny - y);
-    if (down && wasDown && !inCup) paintMM += d; else travelMM += d;
+    if (down && wasDown) paintMM += d; else travelMM += d;
     if (down && !wasDown) strokes++;
-    // One per descent into the paint, not per move made while down there.
-    if (dip === null ? inCup && z >= canvas - 0.001 : inCup && near(nz, dip) && z > nz + 0.001) dips++;
+    // Unmarked: one per descent into the paint, not per move made down there.
+    if (!marked && (dip === null ? inCup && z >= canvas - 0.001
+      : inCup && near(nz, dip) && z > nz + 0.001)) dips++;
     moves.push({ x1: x, y1: y, x2: nx, y2: ny, down: down && wasDown, cup: inCup, tray: trayIndex });
     wasDown = down; x = nx; y = ny; z = nz;
   }

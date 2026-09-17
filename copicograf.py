@@ -13,6 +13,11 @@ _PLAIN_MOVE = re.compile(r"G0*([01])((?: [XYZEF]-?(?:\d+\.?\d*|\.\d+))*)")
 _PLAIN_WORD = re.compile(r" ([XYZEF])(\S+)")
 _XY = namedtuple("_XY", "X Y")
 
+# Written just before every descent into a cup, so the WebUI preview can count
+# dips and tell time in the paint from painting. Heights cannot: a dip depth
+# equal to the canvas height puts both at the same Z.
+DIP_MARKER = "; dip"
+
 
 def _read_plain_move(line_text):
     """(text, xy) for a plain move, as the pygcode path would have seen it.
@@ -297,6 +302,7 @@ class Copicograf:
                     near = tray_y - self.cup_depth / 2 + margin
                     far = tray_y + self.cup_depth / 2 - margin
                     self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(near)))
+                    self.gcodes.append(DIP_MARKER)
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
                     self.gcodes.append(GCodeLinearMove(
                         X=_mm(tray_x), Y=_mm(far), Z=self.cup_swipe_exit_z))
@@ -311,6 +317,7 @@ class Copicograf:
                     # happens down in the paint where the brush is inside.    #
                     ###########################################################
                     self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(tray_y)))
+                    self.gcodes.append(DIP_MARKER)
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
                     self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
                     self.gcodes.append(GCodeRapidMove(X=second_coords[0], Y=second_coords[1]))
