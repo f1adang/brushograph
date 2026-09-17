@@ -4,18 +4,33 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
-## [v3.0](https://github.com/f1adang/brushograph/releases/tag/v3.0) — 2026-09-17
+## [v2.8](https://github.com/f1adang/brushograph/releases/tag/v2.8) — 2026-09-17
 
 The 𝔐𝔦𝔨𝔯𝔬 release.
 
-- The 𝔐𝔦𝔨𝔯𝔬, the small openBrushograph of openBrushograph_hardware V6.0, is a
-  model alongside the Mini. Its painting area is 65 × 100 mm, as found on the
-  machine, above the colours along the bottom; its five-crucible CMYK holder,
-  tray lift and zero.g sweep come from the CAD.
+- The 𝔐𝔦𝔨𝔯𝔬, the small openBrushograph of openBrushograph_hardware, is a model
+  alongside the Mini. Its painting area is 65 × 100 mm, as found on the machine,
+  above the colours along the bottom. Its travel is counted off the racks the
+  hardware release actually ships, and zero.g sweeps to a far corner it can
+  reach.
+- Both models' CMYK holders and cups follow the settled design in
+  openBrushograph_hardware's `Extras/CMYK_ColourContainers` and
+  `colourContainers.scad`: the Mini's crucibles on 23.6 mm centres, the
+  𝔐𝔦𝔨𝔯𝔬's on 16 mm. The plan draws each crucible at its outside size, with its
+  stairs and swipe, in its holder plate.
+- **Auto-space containers**, the Container setup picker (either way) and the
+  Model picker set up the whole holder: positions in line with the water
+  container, and the lift, dip depth and swipe exit its design gives.
+- A **Custom** container setup takes cup widths, swipe depth and a new cup
+  spacing from the form, defaulting to Pinkograph's holder.
 - The Model picker is the first thing in Machine setup, followed by the
-  connection and controller type, then the containers.
-- The Macro generator is part of Machine setup, below Save these settings,
-  instead of a panel of its own.
+  connection and controller type, then the containers. The Macro generator is
+  part of Machine setup, below Save these settings, and calls paper.g the
+  routine for replacing paper.
+- Container positions reach the machine to a hundredth of a millimetre instead
+  of being cut to whole millimetres.
+- Configs kept on the server are under version control: every upload and update
+  is a commit in `webui_configs/`, naming the address it came from.
 
 ## [v2.7.1](https://github.com/f1adang/brushograph/releases/tag/v2.7.1) — 2026-09-17
 
