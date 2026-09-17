@@ -20,8 +20,9 @@ CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 CMYK_LABEL = {"C": "Cyan", "M": "Magenta", "Y": "Yellow", "K": "Black"}
 
 # The Mini's CMYK holder: the `Standard_CMYK` preset of openBrushograph_hardware's
-# Extras/mini_petri.scad, which is the design, checked against the
-# Gandi_petri_holder.stl and Gandi_petri_steps.stl its release ships. Five
+# Extras/colourContainers.scad (once mini_petri.scad), which is the design,
+# checked against the parts in Extras/CMYK_ColourContainers,
+# standard_CMYK_holder.stl and standard_colourContainters_steps.stl. Five
 # crucibles in a row: a 30 mm water one and four of 18.6, with 5 mm between
 # them, so the colours sit on 23.6 mm centres and the first 29.3 mm from the
 # water — slicing the holder finds its slots centred at 25.0, 54.3, 77.9, 101.5
@@ -86,12 +87,14 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # bottom, so that is what the limits say. The Z-mechanism's "mikro" preset has
 # 12 mm of travel against 18.
 #
-# Its holder is the `mikro_container` preset of Extras/mini_petri.scad, sliced
-# off mikro_5x_petri.stl to check: a 22 mm water crucible and four 13 mm colour
-# ones on 16 mm centres, the first colour 20.5 mm from the water, walls 0.8 so
-# 20.4 and 11.4 mm inside, and 23 mm long, 21.4 inside. The crucibles carry the
-# same stairs as the big holder, so a Micro swipes rather than dips; the swipe
-# keeps the Mini's proportion of its crucible (23.5 of 27.6). Its water and
+# Its holder is the `mikro_container` preset of Extras/colourContainers.scad,
+# sliced off Extras/CMYK_ColourContainers/mikro_CMYK_holder.stl and
+# mikro_containers_steps.stl to check: a 22 mm water crucible and four 13 mm
+# colour ones on 16 mm centres, the first colour 20.5 mm from the water, walls
+# and floor 1.2 so 19.6 and 10.6 mm inside, and 23 mm long, 20.6 inside. The
+# crucibles carry the same stairs as the Mini's, so a Micro swipes rather than
+# dips; the swipe keeps the Mini's proportion of its crucible (23.5 of 27.6).
+# Its water and
 # black crucibles are 68.5 mm apart, all but the whole of the X travel, so the
 # water starts at X 2 rather than the Mini's 12: from 12, auto-spacing put
 # black at 80.5, out of reach. There is no petri dish holder for it — the
@@ -126,6 +129,10 @@ MODELS = OrderedDict([
             # The crucibles as seen from above, outside their walls: water,
             # colour, length. The plan draws these.
             "outside": (30.0, 18.6, 30.0),
+            # The plate the crucibles stand in: width and depth, then where the
+            # water crucible's centre is from its left and front edges. Its
+            # slots open 9 mm back from the front, 30.4 mm deep.
+            "plate": (144.4, 39.2, 25.0, 24.2),
             # 9 mm crucibles with a 1.2 mm floor, 30 mm long.
             "settings": _crucible_settings(9, 1.2, 30, MODERN_SWIPE_LENGTH),
         },
@@ -145,12 +152,14 @@ MODELS = OrderedDict([
         "holder": {
             "offsets": OrderedDict([("water", 0.0), ("cyan", 20.5), ("magenta", 36.5),
                                     ("yellow", 52.5), ("kroma", 68.5)]),
-            "bay_width": 11.4,
-            "water_bay_width": 20.4,
-            "swipe_length": 18.0,
+            "bay_width": 10.6,
+            "water_bay_width": 19.6,
+            "swipe_length": 17.5,
             "outside": (22.0, 13.0, 23.0),
-            # 8 mm crucibles with a 0.8 mm floor, 23 mm long.
-            "settings": _crucible_settings(8, 0.8, 23, 18.0),
+            # Slots open 7 mm back from the front.
+            "plate": (96.0, 30.2, 16.0, 18.7),
+            # 8 mm crucibles with a 1.2 mm floor, 23 mm long.
+            "settings": _crucible_settings(8, 1.2, 23, 17.5),
         },
         "classic": False,
         # 65 × 100 as found on the machine, above a canvas that starts 19 mm

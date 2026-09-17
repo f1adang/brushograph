@@ -172,6 +172,17 @@ def render(conf: dict, theme: str = "default") -> bytes:
         else max(drops_r, enter_r, CLASSIC_DISH_RIM_RADIUS)
     xs = [0.0, max_w, ox, ox + cw] + [x + pad_r for _, x, _ in framed] + [x - pad_r for _, x, _ in framed]
     ys = [0.0, max_h, oy, oy + ch] + [y + pad_r for _, _, y in framed] + [y - pad_r for _, _, y in framed]
+    # The CMYK holder is a plate the crucibles stand in, a good deal bigger than
+    # the row of them: placed off the water crucible, since that is the one
+    # position the form takes as where the holder sits.
+    water = trays.get("water") if isinstance(trays, dict) else None
+    plate = None
+    if modern and isinstance(water, dict) and "x" in water:
+        pw, pd, wx_in, wy_in = holder["plate"]
+        left, front = _num(water, "x") - wx_in, _num(water, "y") - wy_in
+        plate = (left, front, left + pw, front + pd)
+        xs += [plate[0], plate[2]]
+        ys += [plate[1], plate[3]]
     min_x, max_x = min(xs), max(xs)
     min_y, max_y = min(ys), max(ys)
     span_x = max(max_x - min_x, 1e-6)
@@ -217,6 +228,10 @@ def render(conf: dict, theme: str = "default") -> bytes:
         tx, ty = px(ox, oy + ch)
         d.text((tx + 5, ty + 4), words["image"].format(w=cw, h=ch, x=ox, y=oy),
                font=fs, fill=TEXT)
+
+    if plate:
+        d.rectangle([px(plate[0], plate[3]), px(plate[2], plate[1])],
+                    fill=(*MUTED, 40), outline=(*MUTED, 200), width=1)
 
     offscreen = []
     for name, x, y in all_trays:

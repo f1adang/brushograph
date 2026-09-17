@@ -93,12 +93,12 @@ What differs, from the parts in the release's `Standard_STLs.zip` and
 | pinion | 14 mm, 11 teeth | 11 mm, 8 teeth |
 | racks X / Y | 46 / 46 teeth, 183.9 / 183.9 mm | 23 / 34 teeth, 99.3 / 146.9 mm |
 | Z travel | 18 mm | 12 mm |
-| CMYK holder (`mini_petri.scad` preset) | `Standard_CMYK`: 27.6 mm water, 16.2 colour crucibles inside, 23.6 mm centres | `mikro_container`: 20.4 mm water, 11.4 colour crucibles inside, 16 mm centres |
+| CMYK holder (`colourContainers.scad` preset) | `Standard_CMYK`: 30 / 18.6 mm crucibles (27.6 / 16.2 inside) on 23.6 mm centres, in a 144.4 × 39.2 mm plate | `mikro_container`: 22 / 13 mm crucibles (19.6 / 10.6 inside) on 16 mm centres, in a 96 × 30.2 mm plate |
 | painting area (max width × height) | 151 × 156 | 65 × 100 |
 | canvas offset Y | 25 | 19 |
 | water container at | X12 Y6 | X2 Y6 |
-| swipe | 23.5 mm | 18 mm |
-| go in tray lift / dip depth / swipe exit Z | 11 / 1.0 / 5.9 | 10 / 0.6 / 5.1 |
+| swipe | 23.5 mm | 17.5 mm |
+| go in tray lift / dip depth / swipe exit Z | 11 / 1.0 / 5.9 | 10 / 1.0 / 5.3 |
 | zero.g far corner | X160 Y160 Z32 | X75 Y123 Z21 |
 | petri dish holder | yes | none |
 
@@ -107,8 +107,9 @@ as found on the machine; the racks agree. They are counted off the STLs in
 `Mikro_STLs.zip`, because the spreadsheet's 𝔐𝔦𝔨𝔯𝔬 column still gives 120 mm for
 the X rack that was printed at 99.3 — taking it at its word promised 88 mm
 across. Its holder is the `mikro_container`
-preset of `Extras/mini_petri.scad`, checked against `mikro_5x_petri.stl`; the
-swipe is 18 mm, the same proportion of its 21.4 mm crucible as the Mini's 23.5 mm
+preset of `Extras/colourContainers.scad`, checked against
+`Extras/CMYK_ColourContainers/mikro_CMYK_holder.stl` and `mikro_containers_steps.stl`; the
+swipe is 17.5 mm, the same proportion of its 20.6 mm crucible as the Mini's 23.5 mm
 is of 27.6. Water and black are 68.5 mm apart on a machine with about 66 mm
 of X, so the water starts at X 2 rather than the Mini's 12, where black came
 out at 80.5, out of reach. zero.g's sweep is shortened by the racks and scaled to the Z
@@ -971,13 +972,20 @@ middle and lifts.
 
 **CMYK** (`modern` in the config) is the printed CMYK holder: five crucibles
 with stairs in their floors, in a holder labelled W C M Y K. The design is
-`Extras/mini_petri.scad` in openBrushograph_hardware, one preset per model —
+`Extras/colourContainers.scad` in openBrushograph_hardware (once
+`mini_petri.scad`), with its presets in `colourContainers.json`, one per model —
 `Standard_CMYK` for the Mini, `mikro_container` for the 𝔐𝔦𝔨𝔯𝔬 (see **Model**
 above). For the Mini that is a **30 mm** water crucible and four of **18.6**,
 5 mm apart: centres 23.6 mm apart and the first colour 29.3 mm from the water.
-Slicing the released `Gandi_petri_holder.stl` finds its slots centred at 25.0,
-54.3, 77.9, 101.5 and 125.1, which is those figures exactly. Inside their
-1.2 mm walls the crucibles are **27.6** and **16.2 mm** across and 27.6 long.
+Slicing `Extras/CMYK_ColourContainers/standard_CMYK_holder.stl` (once
+`Gandi_petri_holder.stl`) finds its slots centred at 25.0, 54.3, 77.9, 101.5 and
+125.1, which is those figures exactly. Inside their 1.2 mm walls the crucibles
+are **27.6** and **16.2 mm** across and 27.6 long. The 𝔐𝔦𝔨𝔯𝔬's are 22 and 13 mm
+on 16 mm centres, 19.6 and 10.6 inside, 23 long.
+
+The crucibles stand in a plate: 144.4 × 39.2 mm on the Mini, its slots opening
+9 mm back from the front edge, and 96 × 30.2 on the 𝔐𝔦𝔨𝔯𝔬, 7 mm back. The plan
+draws the plate under the crucibles, placed off the water container.
 
 An earlier, bigger holder, `CMYK_holder_big.stl`, had 39.2 and 29.2 mm bays on
 34 mm centres, and the Mini used its figures until they were checked against
@@ -1014,9 +1022,9 @@ heights — which the holder STL does not carry, since its slots are open throug
 the plate. The crucibles' SCAD does: five steps over the back 40% of the
 crucible, rising to the rim. The swipe's far end, 35% of its length past the
 centre, is over the third step on both models, so **Auto-space containers** sets
-`cup_swipe_exit_z` to that step's top — 5.9 mm on the Mini, 5.1 on the 𝔐𝔦𝔨𝔯𝔬.
+`cup_swipe_exit_z` to that step's top — 5.9 mm on the Mini, 5.3 on the 𝔐𝔦𝔨𝔯𝔬.
 With them it sets the tray lift 2 mm over the rim (11 and 10) and the dip just
-under the floor (1.0 and 0.6), bristles flexing, as the petri dish does. A config
+under the 1.2 mm floor (1.0 on both), bristles flexing, as the petri dish does. A config
 that names none of it still defaults the exit to 1 mm rather than 0, because 0
 is `canvas_height` here, and a brush leaving the cup at paper level is both wrong
 physically and drawn as painting in the preview.
