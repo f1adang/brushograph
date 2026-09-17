@@ -4,6 +4,16 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.8.2](https://github.com/f1adang/brushograph/releases/tag/v2.8.2) — 2026-09-17
+
+- Large uploads are shrunk before processing — to 2400 px on the long side for a
+  photograph, 4000 for a black-and-white picture — keeping their proportions, so
+  placement and orientation are the original's. An 8000 × 6000 photograph's CMYK
+  G-code takes 2.6 s instead of 31.9 s, and its preview 1.6 s instead of 7.9 s.
+- Pictures on the tray cards are turned upright from the camera's orientation
+  tag, as the browser already did when setting the painted height: a phone photo
+  stored sideways is no longer painted sideways and stretched.
+
 ## [v2.8.1](https://github.com/f1adang/brushograph/releases/tag/v2.8.1) — 2026-09-17
 
 - Multi-colour jobs are painted yellow, magenta, cyan, then black, whatever
