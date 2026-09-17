@@ -1288,7 +1288,9 @@ refuses to proceed without. Four of the five are built from the config;
 - **zero.g** is the machine's own self-zero dance, reproduced verbatim: zero
   the near corner, lift, sweep out to the far corner and back to confirm
   nothing is fouled along the way, re-zero at a travel height, jog down and
-  back up, jog to two more points, and declare the offset `X10 Y0 Z10` point.
+  back up, jog to two more points and 1 mm further on Y, and declare the offset
+  `X10 Y0 Z10` point. That last millimetre keeps later moves to Y0 off the
+  endstop, which they otherwise hit.
   Fixed and tuned on the actual hardware, except its very last line, which is
   not: it ends the same way `home.g` and `clean.g` do, parked at X0 Y0,
   Z = Dip Depth + 1 — the one figure in this file that reads the config.

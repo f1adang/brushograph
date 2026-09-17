@@ -147,7 +147,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # zero.g — the machine's own self-zero dance: touch the near corner off at
     # 0,0,0, sweep to the far corner and back to confirm nothing is fouled,
     # re-zero at a travel height, then a short jog sequence that ends by
-    # declaring the offset X10 Y0 Z10 point. A fixed routine tuned on the
+    # declaring the offset X10 Y0 Z10 point. The jog's last step is 1 mm more
+    # on Y, so later moves to Y0 stop short of the endstop instead of hitting it. A fixed routine tuned on the
     # actual hardware, not derived from the config, except for two things: the
     # far corner is the model's — a Micro's racks end well short of the Mini's
     # 160 — and its very last line finishes the same way home.g and clean.g
@@ -164,6 +165,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "G1 Z10 F1000;",
         "G0 X-10 Y-10 F1200;",
         "G0 X+2 Y-8 F2100;",
+        "G0 Y-7 F2100;",
         "G10 P0 L20 X10 Y0 Z10;",
         f"G0 X0 Y0 Z{_fmt(park_z)} F2100;",
     ]) + "\n"
