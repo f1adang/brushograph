@@ -24,6 +24,8 @@ import cmyk_sep
 import config_history
 import facefilter
 import gcode_pipeline
+# As `uploads`: `images` is what the G-code endpoint calls its tray pictures.
+import images as uploads
 import subject
 import woodcut
 from configspec import (CLASSIC_DISH_OFFSETS, CLASSIC_DISH_SETTINGS, CMYK_TO_TRAY,
@@ -300,8 +302,8 @@ def detect_subject():
         return jsonify(error="No image supplied"), 400
     try:
         with Image.open(upload.stream) as im:
-            im.load()
-            return jsonify(subject.detect(im, app.logger.info))
+            photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE)
+        return jsonify(subject.detect(photo, app.logger.info))
     except Exception as exc:  # noqa: BLE001
         return jsonify(error=f"Could not inspect that image: {exc}"), 400
 
@@ -332,8 +334,8 @@ def cmyk_preview():
         return jsonify(error="No image supplied"), 400
     try:
         with Image.open(upload.stream) as im:
-            im.load()
-            plates = cmyk_sep.threshold_plates(im, _cmyk_cutoff(request.form))
+            photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE)
+        plates = cmyk_sep.threshold_plates(photo, _cmyk_cutoff(request.form))
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not separate that image: {exc}"), 400
     # White paper and the light theme's lettering in every theme: the plates
@@ -355,16 +357,16 @@ def woodcut_preview():
         return jsonify(error="No image supplied"), 400
     try:
         with Image.open(upload.stream) as im:
-            im.load()
-            # The mask is read off the photograph as it came: isolation works
-            # on the real picture, not on a retouched one.
-            mask = _subject_mask(request.form, im)
-            converted = woodcut.convert(
-                _prettify_faces(request.form, im),
-                mask=mask,
-                **_scale_params(request.form),
-                **_woodcut_params(request.form),
-            )
+            photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE)
+        # The mask is read off the photograph as it came: isolation works
+        # on the real picture, not on a retouched one.
+        mask = _subject_mask(request.form, photo)
+        converted = woodcut.convert(
+            _prettify_faces(request.form, photo),
+            mask=mask,
+            **_scale_params(request.form),
+            **_woodcut_params(request.form),
+        )
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not convert that image: {exc}"), 400
     buf = io.BytesIO()
@@ -623,8 +625,9 @@ def options_form_post():
                 photo_path = work / f"cmyk_photo{Path(cmyk_upload.filename).suffix or '.png'}"
                 cmyk_upload.save(photo_path)
                 with Image.open(photo_path) as im:
-                    im.load()
-                    plates = cmyk_sep.plates_for_trays(im, _cmyk_cutoff(request.form))
+                    photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE, app.logger.info,
+                                            cmyk_upload.filename)
+                plates = cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form))
                 wanted = {e["tray"] for e in entries if e["image"]}
                 for tray, plate in plates.items():
                     if tray not in wanted or tray in images:
@@ -640,22 +643,29 @@ def options_form_post():
             for tray, storage in images.items():
                 p = work / f"upload_{tray}{Path(storage.filename).suffix or '.png'}"
                 storage.save(p)
+                is_photo = request.form.get(f"trays-{tray}-image_kind") == "photo"
+                with Image.open(p) as im:
+                    picture = uploads.prepare(
+                        im, uploads.PHOTO_MAX_SIDE if is_photo else uploads.DRAWING_MAX_SIDE,
+                        app.logger.info, f"[{tray}] {storage.filename}")
                 # A photo has to become bold black and white before the tracer
-                # sees it; an already-thresholded image is passed through.
-                if request.form.get(f"trays-{tray}-image_kind") == "photo":
-                    with Image.open(p) as im:
-                        im.load()
-                        mask = _subject_mask(request.form, im, app.logger.info)
-                        converted = woodcut.convert(
-                            _prettify_faces(request.form, im, app.logger.info),
-                            mask=mask,
-                            **_scale_params(request.form),
-                            **wc,
-                        )
+                # sees it; an already-thresholded image is passed through, upright
+                # and at a size worth working on.
+                if is_photo:
+                    mask = _subject_mask(request.form, picture, app.logger.info)
+                    converted = woodcut.convert(
+                        _prettify_faces(request.form, picture, app.logger.info),
+                        mask=mask,
+                        **_scale_params(request.form),
+                        **wc,
+                    )
                     p = work / f"woodcut_{tray}.png"
                     converted.convert("L").save(p)
                     app.logger.info("[%s] woodcut: %.1f%% ink", tray,
                                     woodcut.ink_fraction(converted) * 100)
+                else:
+                    p = work / f"picture_{tray}.png"
+                    picture.save(p)
                 saved[tray] = p
             if not saved:
                 return jsonify(error="No ink in any CMYK plate, and no tray pictures"), 400

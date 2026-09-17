@@ -230,6 +230,21 @@ Notes on things that needed care:
   its O and R disappeared into the letters they belong to. Every entry point
   flattens — the woodcut, the subject finder, the face filter and `to_pbm` —
   because a photo with an alpha channel reaches all four.
+- **Large pictures are shrunk before anything else sees them, and turned
+  upright first.** A phone photograph is 8000 px or more, and nothing downstream
+  uses that much: the woodcut never works finer than 2400 px on the long side,
+  and the stroke geometry stops enlarging at 4000. So every upload is turned the
+  right way up from the camera's orientation tag and then shrunk, keeping its
+  proportions to the pixel — to 2400 px for a photograph (the colour photograph,
+  a photo card, subject detection and both previews), to 4000 for a picture
+  already black and white (`images.prepare`). On an 8000 × 6000 photograph the
+  CMYK G-code went from 31.9 s to 2.6 s, its preview from 7.9 s to 1.6 s and
+  subject detection from 4.6 s to 1.8 s, with each plate's ink within 0.2 points
+  of full size. Upright before shrinking, because the browser measures the
+  picture the right way up to set the painted height: a tray card used to be
+  painted from the pixels as stored, so a phone photograph stored sideways was
+  painted sideways and stretched to the upright proportions. Placement and
+  orientation are the original's; only the detail it is worked from changes.
 - **Small pictures are enlarged before the geometry is worked out.** The
   distance transform, the contours and the rescue pass all resolve to whole
   pixels, so when a picture is small and the painting is large the brush is
