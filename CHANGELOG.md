@@ -4,6 +4,19 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.8.3](https://github.com/f1adang/brushograph/releases/tag/v2.8.3) — 2026-09-17
+
+- The G-code preview counts cup dips again. It took any Z below the canvas for
+  a dip, and the dip now sits at Z 1 over paper at Z 0, so every job showed 0
+  dips and its cup trips as travel. It reads Canvas Height and Dip Depth from
+  the form instead, and draws the moves made down in the cups in the cup colour.
+- zero.g sets its zero point 1 mm further from the Y endstop, so moves to Y0
+  no longer bang into it.
+- Machine setup shows each speed group's Acc and Feedrate 2 only when the
+  controller is Marlin. Other controllers have those lines stripped from the
+  G-code, so the fields changed nothing. Hidden, not cleared: switching back
+  to Marlin brings the figures back.
+
 ## [v2.8.2](https://github.com/f1adang/brushograph/releases/tag/v2.8.2) — 2026-09-17
 
 - Large uploads are shrunk before processing — to 2400 px on the long side for a
