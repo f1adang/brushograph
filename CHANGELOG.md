@@ -7,9 +7,12 @@ message describes that version.
 ## [v2.8.3](https://github.com/f1adang/brushograph/releases/tag/v2.8.3) — 2026-09-17
 
 - The G-code preview counts cup dips again. It took any Z below the canvas for
-  a dip, and the dip now sits at Z 1 over paper at Z 0, so every job showed 0
-  dips and its cup trips as travel. It reads Canvas Height and Dip Depth from
-  the form instead, and draws the moves made down in the cups in the cup colour.
+  a dip, and the dip now sits at or above the paper, so every job showed 0 dips
+  and its cup trips as travel or painting. The G-code now marks each dip with a
+  `; dip` comment, which the preview counts, drawing the moves made down in the
+  cups in the cup colour. That holds whatever the dip depth, including one equal
+  to the canvas height. Files generated before this are read by height, from
+  the form's Canvas Height and Dip Depth.
 - zero.g sets its zero point 1 mm further from the Y endstop, so moves to Y0
   no longer bang into it.
 - Machine setup shows each speed group's Acc and Feedrate 2 only when the
