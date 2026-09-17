@@ -136,9 +136,15 @@ is deeper than a shallow petri dish wants — the brush went in past its ferrule
 It is now `brushograph.dip_depth` in the config, so it appears in the form like
 any other setting. A config that does not mention it still gets −4.
 
-The preview reads a dip as *any* Z below the canvas rather than a fixed depth.
-Keyed to −4, a shallower dip would have been drawn as painting and left out of
-the dip count.
+The preview reads a dip from the form's own `dip_depth` and `canvas_height`
+rather than a fixed depth. It first read *any* Z below the canvas as a dip, which
+held while the dip was −4. Once the heights were measured from the surface the
+cups stand on, the dip became Z 1 over paper at Z 0, and a three-hour job showed
+0 cup dips. Now a dip is a descent to `dip_depth`, and the moves made at that
+depth, the swipe up the stairs included, are drawn as time in the cups. A dip
+depth equal to the canvas height cannot be told from painting, so it counts as
+painting. With no `dip_depth` field (another generator's form) it falls back to
+anything below the canvas.
 
 ### What the preview leaves out
 
