@@ -3,7 +3,7 @@
 home.g parks the brush, paper.g moves it out of the way for replacing the
 paper, and clean.g washes the brush the way a real job does before parking
 too. The wash in clean.g follows whichever container shape
-`brushograph.cup_shape` names, classic or modern. All three, plus zero.g's
+`brushograph.cup_shape` names, classic, modern or custom. All three, plus zero.g's
 own last line, end the same way — parked at X0 Y0, Z = Dip Depth + 1 — via
 the shared `_park_at_origin()`.
 
@@ -21,7 +21,7 @@ G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
 
-from configspec import MODELS, holder_of, model_of, with_defaults
+from configspec import MODELS, RECTANGULAR_SHAPES, holder_of, model_of, with_defaults
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g"]
@@ -90,7 +90,7 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
     lift = _num(bg, "go_in_tray_lift", 8)
     lines: list[str] = []
 
-    if shape == "modern":
+    if shape in RECTANGULAR_SHAPES:
         depth = holder_of(conf)["swipe_length"]
         exit_z = _num(bg, "cup_swipe_exit_z", 1.0)
         margin = depth * 0.15

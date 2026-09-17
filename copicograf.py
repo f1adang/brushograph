@@ -279,7 +279,7 @@ class Copicograf:
                 if first_coords[1] > 1000 or second_coords[1] > 1000:
                     print("napaka")
 
-                if self.cup_shape == "modern":
+                if self.cup_shape in ("modern", "custom"):
                     ###########################################################
                     # A rectangular cup whose floor climbs towards the back.  #
                     # One swipe: enter at the deep end, then draw the brush   #
@@ -324,7 +324,7 @@ class Copicograf:
             # the two passes over the rim afterwards only put paint back on a
             # brush that has just been drawn clean — and, on 23.6 mm centres,
             # reach into the bay next door to do it.
-            if remove_drop and self.cup_shape != "modern":
+            if remove_drop and self.cup_shape not in ("modern", "custom"):
                 remove_drops(tray_x, tray_y, x, y)
 
             ########################

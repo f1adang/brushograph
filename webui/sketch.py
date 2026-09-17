@@ -7,7 +7,8 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-from configspec import CLASSIC_DISH_RIM_RADIUS, holder_of, tray_entries
+from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, cup_shape_of, holder_of,
+                        tray_entries)
 
 W, H = 760, 480
 PAD = 46
@@ -137,7 +138,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     max_w = ox + _num(bg, "max_width", _num(bg, "width", 200))
     max_h = oy + _num(bg, "max_height", _num(bg, "height", 200))
     enter_r = _num(bg, "tray_enter_radius", _num(bg, "dip_entry_radius", 5))
-    modern = str(bg.get("cup_shape", "classic")).strip().lower() == "modern"
+    modern = cup_shape_of(conf) in RECTANGULAR_SHAPES
     # The holder the model was printed with: a Micro's crucibles are a fraction
     # of the Mini's bays.
     holder = holder_of(conf)
@@ -177,7 +178,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # position the form takes as where the holder sits.
     water = trays.get("water") if isinstance(trays, dict) else None
     plate = None
-    if modern and isinstance(water, dict) and "x" in water:
+    if modern and holder["plate"] and isinstance(water, dict) and "x" in water:
         pw, pd, wx_in, wy_in = holder["plate"]
         left, front = _num(water, "x") - wx_in, _num(water, "y") - wy_in
         plate = (left, front, left + pw, front + pd)

@@ -460,12 +460,23 @@ function wireForm() {
   const classicOffsets = JSON.parse((spaceBtn && spaceBtn.dataset.classic) || "{}");
   const dishSettings = JSON.parse((spaceBtn && spaceBtn.dataset.dishSettings) || "{}");
   const currentModel = () => models[modelSelect ? modelSelect.value : "mini"] || null;
-  const offsetsFor = (shape) => shape === "classic"
-    ? classicOffsets
-    : (currentModel() || {}).offsets;
   const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
   const trayY = (name) => form.querySelector('[name="trays-' + name + '-y"]');
   const machineInput = (key) => form.querySelector('[name="brushograph-' + key + '"]');
+  // Custom cups are spaced from the form's own figures: spacing is centre to
+  // centre between colours, and the water cup is parted from cyan by the same
+  // wall — the same sum configspec.custom_offsets does.
+  const CUSTOM_KEYS = ["cup_width_water", "cup_width", "cup_depth", "cup_spacing"];
+  const customOffsets = () => {
+    const [water, width, , spacing] = CUSTOM_KEYS.map((k) => parseFloat((machineInput(k) || {}).value));
+    if (![water, width, spacing].every(isFinite)) return null;
+    const first = water / 2 + width / 2 + (spacing - width);
+    return Object.fromEntries([["water", 0],
+      ...["cyan", "magenta", "yellow", "kroma"].map((n, i) => [n, first + i * spacing])]);
+  };
+  const offsetsFor = (shape) => shape === "classic" ? classicOffsets
+    : shape === "custom" ? customOffsets()
+    : (currentModel() || {}).offsets;
   const setNumber = (input, value) => {
     input.value = String(Math.round(value * 100) / 100);
   };
@@ -502,12 +513,20 @@ function wireForm() {
       el.hidden = classic;
       for (const input of el.querySelectorAll("input, select")) input.disabled = classic;
     }
+    // The cup sizes only mean something for custom containers. Hidden, not
+    // disabled, so a config keeps its figures when another holder is picked.
+    for (const key of CUSTOM_KEYS) {
+      const field = machineInput(key) && machineInput(key).closest(".field");
+      if (field) field.hidden = shapeSelect.value !== "custom";
+    }
   };
 
   // What the selected holder fixes besides positions: the dish's radii and
   // heights, or the CMYK crucibles' lift, dip and swipe exit for this model.
-  const holderSettings = () => shapeSelect && shapeSelect.value === "classic"
-    ? dishSettings
+  // Custom cups are nobody's design, so they come with no heights of their own.
+  const holderSettings = () => !shapeSelect ? {}
+    : shapeSelect.value === "classic" ? dishSettings
+    : shapeSelect.value === "custom" ? {}
     : (currentModel() || {}).containers || {};
 
   // Space the cups and set up everything their size decides, for whichever
@@ -550,7 +569,7 @@ function wireForm() {
       ...[...new Set([
         ...Object.values(models).flatMap((m) => [
           ...Object.keys(m.settings || {}), ...Object.keys(m.containers || {})]),
-        ...Object.keys(dishSettings),
+        ...Object.keys(dishSettings), ...CUSTOM_KEYS,
       ])].map(machineInput),
       machineInput("width"), machineInput("height"), shapeSelect,
       ...[...form.querySelectorAll('.tray-coords input[name$="-x"], .tray-coords input[name$="-y"]')],

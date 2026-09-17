@@ -963,7 +963,7 @@ round-cup setting that nothing else reads.
 
 ### Round cups and rectangular ones
 
-Two paint holders exist, and `brushograph.cup_shape` picks between them.
+Three container setups exist, and `brushograph.cup_shape` picks between them.
 
 **Classic** is the round cup the machine was built around. The brush goes down
 the middle — the point furthest from the wall in every direction — sweeps a
@@ -1000,13 +1000,30 @@ bed; drawn alike, the one cup that is a different size was the one you could
 not pick out. The swipe is 23.5 mm, which
 keeps it inside the 27.6 mm crucible.
 
-These sizes were once settings — `cup_width`, `cup_width_water`, `cup_depth` —
-and they are not any more: the print fixes them, so nobody had anything to tune.
-They are `MODERN_BAY_WIDTH`, `MODERN_WATER_BAY_WIDTH` and `MODERN_SWIPE_LENGTH`,
-and a config that still names them loses them on its next save (`RETIRED`).
-The round cups have theirs from the dish, `CLASSIC_DISH_RADIUS` and
-`CLASSIC_DISH_RIM_RADIUS`, and the plan view draws each dish's rim. The shape
-picker itself is labelled **Container setup**.
+For CMYK the print fixes these sizes, so they are not settings: they come from
+the model's holder in `MODELS`. The round cups have theirs from the dish,
+`CLASSIC_DISH_RADIUS` and `CLASSIC_DISH_RIM_RADIUS`, and the plan view draws each
+dish's rim. The shape picker itself is labelled **Container setup**.
+
+**Custom** is rectangular cups swiped exactly as the CMYK ones are, for a holder
+nobody has a preset for. Four settings, shown only while Custom is selected,
+size and lay them out:
+
+| setting | default | meaning |
+|---|---|---|
+| `cup_width_water` | 39.2 | the water cup's width across X, inside |
+| `cup_width` | 29.2 | each colour cup's width across X, inside |
+| `cup_depth` | 30 | how far the swipe runs along Y |
+| `cup_spacing` | 34 | centre to centre between colour cups |
+
+The defaults are Pinkograph's holder, `CMYK_holder_big.stl`, the one the CMYK
+setup used before the design holders. The water cup is parted from cyan by the
+same wall as the colours are from each other, so cyan sits half of each width
+plus `cup_spacing − cup_width` from the water — 39 mm on those figures, then 34,
+which is that holder exactly. **Auto-space containers** spaces custom cups that
+way from the water cup. A custom holder is nobody's design, so it sets no lift,
+dip or swipe exit, and the plan draws no plate for it; the four figures stay in
+a config whichever setup is picked, so switching away and back keeps them.
 
 Its floor is a staircase, so loading is one swipe from the deep end to the
 shallow one, rising as it goes:

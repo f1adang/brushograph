@@ -180,9 +180,67 @@ def model_of(conf: dict) -> str:
     return name if name in MODELS else "mini"
 
 
+# The custom container setup: rectangular cups swiped like the CMYK holder's,
+# sized and spaced by the config rather than by a printed part, for a holder
+# nobody has a preset for. The defaults are Pinkograph's big holder,
+# CMYK_holder_big.stl: 39.2 mm water and 29.2 mm colour bays on 34 mm centres,
+# swiped 30 mm of their 35.1 mm depth.
+CUSTOM_CUP_DEFAULTS = OrderedDict([
+    ("cup_width_water", 39.2),
+    ("cup_width", 29.2),
+    ("cup_depth", 30.0),
+    ("cup_spacing", 34.0),
+])
+
+RECTANGULAR_SHAPES = ("modern", "custom")
+
+
+def cup_shape_of(conf: dict) -> str:
+    bg = conf.get("brushograph", {})
+    return str(bg.get("cup_shape", "classic")).strip().lower() if isinstance(bg, dict) \
+        else "classic"
+
+
+def custom_offsets(water_width: float, width: float, spacing: float) -> OrderedDict:
+    """Centre offsets from the water cup for custom cups.
+
+    Spacing is centre to centre between colour cups, so the wall between two
+    of them is spacing less a cup's width; the water cup is parted from cyan by
+    the same wall. On Pinkograph's figures that is 39 mm to cyan, then 34 —
+    its holder exactly.
+    """
+    first = water_width / 2 + width / 2 + (spacing - width)
+    return OrderedDict([("water", 0.0)] + [
+        (name, round(first + i * spacing, 2))
+        for i, name in enumerate(("cyan", "magenta", "yellow", "kroma"))])
+
+
 def holder_of(conf: dict) -> dict:
-    """The CMYK holder of the machine this config is for."""
-    return MODELS[model_of(conf)]["holder"]
+    """The rectangular holder this config paints from.
+
+    The model's CMYK holder, or with custom containers one made of the config's
+    own cup sizes and spacing — which has no plate to draw and no heights
+    anyone designed, so it sets none.
+    """
+    if cup_shape_of(conf) != "custom":
+        return MODELS[model_of(conf)]["holder"]
+    bg = conf.get("brushograph", {})
+
+    def size(key):
+        try:
+            return float(bg.get(key, CUSTOM_CUP_DEFAULTS[key]))
+        except (TypeError, ValueError):
+            return CUSTOM_CUP_DEFAULTS[key]
+    water, width, depth = size("cup_width_water"), size("cup_width"), size("cup_depth")
+    return {
+        "offsets": custom_offsets(water, width, size("cup_spacing")),
+        "bay_width": width,
+        "water_bay_width": water,
+        "swipe_length": depth,
+        "outside": (water, width, depth),
+        "plate": None,
+        "settings": OrderedDict(),
+    }
 
 
 # Settings the form always offers, whatever the config happens to carry. The
@@ -199,11 +257,11 @@ ALWAYS_OFFERED = {
     # The cups. "classic" is the round petri dish the machine was built around;
     # "modern" is the rectangular CMYK holder, whose floor steps up towards the
     # back so the brush can be drawn out of the paint rather than lifted from
-    # it. The bay sizes are fixed by the print (MODERN_BAY_WIDTH and friends);
-    # the stepped floor is not in its STL — it is a frame over the paint — so
-    # the exit Z below has to be measured on the machine rather than derived.
+    # it, sized by the model's print; "custom" is rectangular cups of the sizes
+    # and spacing below, for any other holder.
     ("brushograph", "cup_shape"): "classic",
     ("brushograph", "cup_swipe_exit_z"): 1.0,
+    **{("brushograph", key): value for key, value in CUSTOM_CUP_DEFAULTS.items()},
     ("brushograph", "backlash_compensation"): True,
     ("brushograph", "backlash_x"): 0.5,
     ("brushograph", "backlash_y"): 0.5,
@@ -230,24 +288,13 @@ def with_defaults(conf: dict) -> dict:
     out = json.loads(json.dumps(conf))
     for path, value in ALWAYS_OFFERED.items():
         _dig(out, path).setdefault(path[-1], value)
-    bg = out.get("brushograph")
-    if isinstance(bg, dict):
-        for key in RETIRED:
-            bg.pop(key, None)
     _offer_black(out)
     return out
 
 
-# Settings a config once carried and no longer should: the cup sizes, which the
-# printed holders fix. A config that still names them loses them on the next
-# save, and nothing reads them in the meantime.
-RETIRED = ("cup_width", "cup_width_water", "cup_depth")
-
-
 def is_classic(conf: dict) -> bool:
-    bg = conf.get("brushograph", {})
-    return isinstance(bg, dict) and \
-        str(bg.get("cup_shape", "classic")).strip().lower() != "modern"
+    return isinstance(conf.get("brushograph", {}), dict) and \
+        cup_shape_of(conf) not in RECTANGULAR_SHAPES
 
 
 def fit_cups_to_shape(conf: dict) -> dict:
@@ -263,7 +310,7 @@ def fit_cups_to_shape(conf: dict) -> dict:
     the config says: the form does not offer Classic for it.
     """
     bg = conf.get("brushograph")
-    if isinstance(bg, dict) and not MODELS[model_of(conf)]["classic"]:
+    if isinstance(bg, dict) and not MODELS[model_of(conf)]["classic"] and is_classic(conf):
         bg["cup_shape"] = "modern"
     if not is_classic(conf):
         return conf
@@ -328,7 +375,8 @@ BRUSHOGRAPH_GROUPS = [
     ("Brush control",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
     ("Containers",
-     ["cup_shape", "cup_swipe_exit_z"], False),
+     ["cup_shape", "cup_swipe_exit_z", "cup_width_water", "cup_width", "cup_depth",
+      "cup_spacing"], False),
     ("Paint management",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
@@ -350,6 +398,7 @@ ENUM_LABELS = {
     **{name: m["label"] for name, m in MODELS.items()},
     "classic": "Classic",
     "modern": "CMYK",
+    "custom": "Custom",
 }
 
 ENUMS = {
@@ -359,7 +408,7 @@ ENUMS = {
         "concentric", "archimedeanchords", "alignedrectilinear", "rectilinear", "hilbertcurve",
     ],
     "controller-controller_type": ["GRBL", "Marlin", "FluidNC"],
-    "brushograph-cup_shape": ["classic", "modern"],
+    "brushograph-cup_shape": ["classic", "modern", "custom"],
     "brushograph-model": list(MODELS),
 }
 
@@ -385,7 +434,11 @@ HELP = {
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
-    "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.",
+    "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes. Custom is rectangular cups swiped the same way, at the sizes and spacing you give below.",
+    "brushograph-cup_width_water": "Custom containers: how wide the water cup is across X, inside (mm). Wider than the colours, so the brush has room to be rinsed.",
+    "brushograph-cup_width": "Custom containers: how wide each colour cup is across X, inside (mm).",
+    "brushograph-cup_depth": "Custom containers: how far the swipe runs along Y, which should stay inside the cup (mm).",
+    "brushograph-cup_spacing": "Custom containers: centre to centre between colour cups along X (mm). The water cup is parted from cyan by the same wall, so Auto-space puts cyan at half of each width plus that wall from the water.",
     "brushograph-cup_swipe_exit_z": "Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Auto-space containers sets it from the holder's design; adjust it on the machine if the brush does not drag up the stairs.",
     "brushograph-dip_depth": "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.",
     "brushograph-remove_drops_lift": "Lift when exiting the container, so it hits the edge and removes excess color",

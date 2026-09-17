@@ -173,6 +173,7 @@ text: {
 "Black": "Schwarz",
 "Kroma": "Schwarz",
 "Classic": "Klassisch",
+"Custom": "Eigene",
 /* The fill patterns are named as the slicer names them; the picker reads them
    as words, so the words are translated and the stored value is not. */
 "concentric": "konzentrisch",
@@ -245,16 +246,18 @@ text: {
   "Welcher openBrushograph dies ist. Der Mini ist die Standardmaschine, der 𝔐𝔦𝔨𝔯𝔬 die kleine, mit kürzeren Zahnstangen, 12 mm Z-Hub und einem eigenen CMYK-Halter mit fünf Näpfen. Die Wahl stellt Verfahrgrenzen, Versatz des Druckbereichs, Hub zum Behälter und Behälterabstände passend ein.",
 "Lift on Z-axis when going into a container for color":
   "Hub der Z-Achse beim Anfahren eines Behälters zum Farbholen",
-"Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes.":
-  "„Klassisch“ ist der runde Napf, um den herum die Maschine gebaut wurde: Der Pinsel fährt mittig hinab, streicht eine Sehne und kommt wieder herauf. „CMYK“ ist der rechteckige Halter mit fünf Kammern, dessen Boden nach hinten ansteigt — dort führt der Pinsel einen einzigen Zug vom tiefen zum flachen Ende und steigt dabei an.",
-"How wide a colour cup is across X (mm). Modern cups only; a colour bay of the printed holder measures 29.2.":
-  "Wie breit ein Farbbehälter in X ist (mm). Nur bei modernen Behältern; eine Farbkammer des gedruckten Halters misst 29,2.",
-"How wide the water cup is across X (mm). Modern cups only. The holder gives the water its own, wider bay — 39.2 against the colours' 29.2 — so the brush has room to be rinsed.":
-  "Wie breit der Wasserbehälter in X ist (mm). Nur bei modernen Behältern. Der Halter gibt dem Wasser eine eigene, breitere Kammer — 39,2 gegen 29,2 bei den Farben —, damit der Pinsel Platz zum Ausspülen hat.",
-"How deep a cup is along Y (mm) — the length of the swipe. Modern cups only. The holder's bays open 35.1 mm deep; the default keeps the swipe inside that.":
-  "Wie tief ein Behälter in Y ist (mm) — die Länge des Streichzugs. Nur bei modernen Behältern. Die Kammern des Halters sind 35,1 mm tief; der Vorgabewert hält den Zug darin.",
-"Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Measure it on the machine: nothing in the holder's STL gives the step heights.":
-  "Z am flachen Ende der Stufen, wo der Zug endet (mm). Der Zug beginnt bei der Tauchtiefe, in der Farbe, und steigt bis hierher. Halten Sie ihn über der Unterlagenhöhe, sonst verlässt der Pinsel den Behälter auf Papierhöhe. Messen Sie ihn an der Maschine: Die STL-Datei des Halters gibt die Stufenhöhen nicht her.",
+"Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes. Custom is rectangular cups swiped the same way, at the sizes and spacing you give below.":
+  "„Klassisch“ ist der runde Napf, um den herum die Maschine gebaut wurde: Der Pinsel fährt mittig hinab, streicht eine Sehne und kommt wieder herauf. „CMYK“ ist der rechteckige Halter mit fünf Kammern, dessen Boden nach hinten ansteigt — dort führt der Pinsel einen einzigen Zug vom tiefen zum flachen Ende und steigt dabei an. „Eigene“ sind rechteckige Behälter, die ebenso bestrichen werden, in den Maßen und Abständen, die Sie unten angeben.",
+"Custom containers: how wide the water cup is across X, inside (mm). Wider than the colours, so the brush has room to be rinsed.":
+  "Eigene Behälter: wie breit der Wasserbehälter in X innen ist (mm). Breiter als die Farben, damit der Pinsel Platz zum Ausspülen hat.",
+"Custom containers: how wide each colour cup is across X, inside (mm).":
+  "Eigene Behälter: wie breit jeder Farbbehälter in X innen ist (mm).",
+"Custom containers: how far the swipe runs along Y, which should stay inside the cup (mm).":
+  "Eigene Behälter: wie weit der Zug in Y läuft; er sollte im Behälter bleiben (mm).",
+"Custom containers: centre to centre between colour cups along X (mm). The water cup is parted from cyan by the same wall, so Auto-space puts cyan at half of each width plus that wall from the water.":
+  "Eigene Behälter: Mittenabstand der Farbbehälter in X (mm). Zwischen Wasser und Cyan liegt dieselbe Wand, also setzt „Behälter anordnen“ Cyan um je die halbe Breite beider plus diese Wand vom Wasser entfernt.",
+"Z at the shallow end of the stairs, where the swipe finishes (mm). The swipe starts at Dip Depth, in the paint, and rises to this. Keep it above Canvas Height, or the brush leaves the cup at paper level. Auto-space containers sets it from the holder's design; adjust it on the machine if the brush does not drag up the stairs.":
+  "Z am flachen Ende der Stufen, wo der Zug endet (mm). Der Zug beginnt bei der Tauchtiefe, in der Farbe, und steigt bis hierher. Halten Sie ihn über der Unterlagenhöhe, sonst verlässt der Pinsel den Behälter auf Papierhöhe. „Behälter anordnen“ setzt ihn nach dem Entwurf des Halters; passen Sie ihn an der Maschine an, wenn der Pinsel nicht die Stufen hinaufstreicht.",
 "How far the brush descends into a cup, as a Z coordinate. Negative goes down. Deep enough to reach the paint, no deeper — a shallow petri dish wants far less than a tall pot.":
   "Wie weit der Pinsel in einen Behälter hinabfährt, als Z-Koordinate. Negativ heißt abwärts. Tief genug, um die Farbe zu erreichen, und nicht tiefer — eine flache Petrischale verlangt weit weniger als ein hoher Topf.",
 "Lift when exiting the container, so it hits the edge and removes excess color":
