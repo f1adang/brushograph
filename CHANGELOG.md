@@ -23,12 +23,12 @@ message describes that version.
   Pinkograph's is, that was very nearly this spot already.
 - A stir stays centred on its cup, however near the end of the axis the cup
   sits. A holder can reach past what the machine can: Pinkograph's 39.2 mm
-  water crucible is centred at X 12, so half of it lies past the endstop, and
-  its black crucible sits at 153 of a 160 mm axis with most of its right half
+  water crucible is centred at X 15, so half of it lies past the endstop, and
+  its black crucible sits at 156 of a 160 mm axis with most of its right half
   out of reach. Cutting the far end of the stir alone left it working the left
   half of the crucible, against the near rim, so the shorter side now sets
-  both: black sweeps ±4.5 mm about its centre rather than 10.2 mm one way and
-  4.5 the other, 10.1 mm clear of each rim instead of 4.4 from the left one. A
+  both: black sweeps ±3.5 mm about its centre rather than 10.2 mm one way and
+  3.5 the other, 11.1 mm clear of each rim instead of 4.4 from the left one. A
   cup with under half a millimetre to work in is dipped without a stir. The log
   names every cup whose stir came out short — this holder needs 164.9 mm of
   reach for a full stir at both ends and the axis offers 159, so its water and
@@ -51,11 +51,6 @@ message describes that version.
   is now drawn overshooting. The two kept configs carried such a size, 151 mm
   tall against 131 and 119 paintable, and are corrected; every config saved
   from an actual session was already inside the limit.
-- Cup Mix Offset says how far right the holder really sits along X, against
-  where the container positions put it, and shifts the mixing sweep by that
-  much (Pinkograph is set to 2 mm). A dip and a swipe go to the centre of a
-  cup, where a holder a couple of millimetres off its figures never showed; a
-  sweep the width of the cup shows it by crowding one wall.
 
 ## [v2.8.4](https://github.com/f1adang/brushograph/releases/tag/v2.8.4) — 2026-09-18
 
