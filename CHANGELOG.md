@@ -21,18 +21,24 @@ message describes that version.
   rather than two. It used to stop over the water container at Z 0. On a
   holder whose water crucible is wide enough to cover the origin, as
   Pinkograph's is, that was very nearly this spot already.
-- A stir stays centred on its cup, however near the end of the axis the cup
-  sits. A holder can reach past what the machine can: Pinkograph's 39.2 mm
-  water crucible is centred at X 15, so half of it lies past the endstop, and
-  its black crucible sits at 156 of a 160 mm axis with most of its right half
-  out of reach. Cutting the far end of the stir alone left it working the left
-  half of the crucible, against the near rim, so the shorter side now sets
-  both: black sweeps ±3.5 mm about its centre rather than 10.2 mm one way and
-  3.5 the other, 11.1 mm clear of each rim instead of 4.4 from the left one. A
-  cup with under half a millimetre to work in is dipped without a stir. The log
-  names every cup whose stir came out short — this holder needs 164.9 mm of
-  reach for a full stir at both ends and the axis offers 159, so its water and
-  its black are short wherever it is placed.
+- Nothing goes past the ground a job already covers: the containers it dips in
+  and the canvas it paints. The stir was bounded by the model's zero.g corner
+  instead, which is not a limit at all — zero.g drives into the endstops on
+  purpose, that being what zeroes the machine. So the stir in the black
+  crucible, the outermost one, ran the carriage into the stop. Steps lost there
+  are lost for the rest of the file, and black is painted last, so the whole
+  black plate came out about 3 mm to the left of the colours.
+- The same bound is put on the backlash take-up, which was the other way into
+  the stop and is older than the stir. A take-up overshoots the way the head
+  was already going, so leaving the black crucible at X 156 on a machine that
+  ends at 156 it asked for X 156.5 — every time the brush went for black. It is
+  clipped to the end of the range now, and skipped where there is no room, so a
+  correction is only ever as large as there is room for.
+- A stir stays centred on its cup, and gives up the same distance on each side
+  when one side runs out first, rather than being cut on the far side alone and
+  left working the near rim. Black's crucible now has no room to stir at all —
+  it is the furthest thing out — and is dipped without one; the log says which
+  cups those are.
 - The painted size is fitted to what the machine can actually paint. Max Width
   and Max Height are the machine's limits measured from the origin, and a
   painting starts at the canvas offset — the strip the containers stand in — so
