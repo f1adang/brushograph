@@ -4,6 +4,22 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.8.5](https://github.com/f1adang/brushograph/releases/tag/v2.8.5) — 2026-09-18
+
+- The brush stirs a rectangular cup before it climbs out of it. A round cup has
+  always swept a chord down in the paint; a crucible was entered at the deep end
+  and drawn straight up the stairs, one pass through the paint, mixing nothing
+  and picking up what one pass picks up. It now sweeps across the bay at dip
+  depth first — across X, the one direction that stays down in the paint, since
+  the stairs climb along Y — and only then swipes out. Before rather than after,
+  because the swipe up the stairs is also what wipes the brush. Cup Mix Sweeps,
+  beside Cup Swipe Exit Z, says how many; 0 is the old motion. The sweep keeps
+  15% of the cup's width off each wall, uses the water cup's greater width when
+  it is in the water, and is clipped to the machine's X travel, less the
+  backlash take-up that overshoots every move — Pinkograph's 39.2 mm water
+  crucible is centred at X 12, so half of it lies past the endstop, and its
+  black crucible reaches 3 mm beyond the far end. clean.g's wash stirs to match.
+
 ## [v2.8.4](https://github.com/f1adang/brushograph/releases/tag/v2.8.4) — 2026-09-18
 
 - Black knocks out the colour plates, a new switch beside Ink cutoff, on by
