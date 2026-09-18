@@ -19,6 +19,11 @@ message describes that version.
   backlash take-up that overshoots every move — Pinkograph's 39.2 mm water
   crucible is centred at X 12, so half of it lies past the endstop, and its
   black crucible reaches 3 mm beyond the far end. clean.g's wash stirs to match.
+- Cup Mix Offset says how far right the holder really sits along X, against
+  where the container positions put it, and shifts the mixing sweep by that
+  much. A dip and a swipe go to the centre of a cup, where a holder a couple of
+  millimetres off its figures never showed; a sweep the width of the cup shows
+  it by crowding one wall. Pinkograph's is set to 2 mm.
 
 ## [v2.8.4](https://github.com/f1adang/brushograph/releases/tag/v2.8.4) — 2026-09-18
 
