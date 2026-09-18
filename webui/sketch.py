@@ -129,14 +129,19 @@ def render(conf: dict, theme: str = "default") -> bytes:
 
     cw, ch = _num(bg, "width", 0), _num(bg, "height", 0)
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
-    # Max Width and Max Height are the largest painting, and a painting starts
-    # at the canvas offset — the form warns when Height passes Max Height, and a
-    # Mini config's Width is its Max Width. So the bed reaches from the origin,
-    # where the trays are, to the offset plus the limit. Drawn from the origin
-    # at the limit alone, a Mini's 25 mm offset put the top of every full-size
-    # picture past the edge of the bed.
-    max_w = ox + _num(bg, "max_width", _num(bg, "width", 200))
-    max_h = oy + _num(bg, "max_height", _num(bg, "height", 200))
+    # Max Width and Max Height are the machine's limits, measured from the
+    # origin where the trays are, so the bed is drawn at them alone. A painting
+    # starts at the canvas offset, which leaves it the limit less that offset —
+    # 131 mm of Pinkograph's 156, the other 25 being the strip its containers
+    # stand in. This was drawn as offset plus limit, a bed 25 mm longer than the
+    # machine, because a full-size Mini picture otherwise hung over the edge of
+    # it. That picture really did hang over the edge: the form was matching the
+    # painted height against the limit without taking the offset off first, and
+    # a 149 mm painting on Pinkograph ran 18 mm past the end of the bed. The
+    # form subtracts it now, and a canvas that still overshoots is drawn
+    # overshooting rather than given a bed that flatters it.
+    max_w = _num(bg, "max_width", _num(bg, "width", 200))
+    max_h = _num(bg, "max_height", _num(bg, "height", 200))
     enter_r = _num(bg, "tray_enter_radius", _num(bg, "dip_entry_radius", 5))
     modern = cup_shape_of(conf) in RECTANGULAR_SHAPES
     # The holder the model was printed with: a Micro's crucibles are a fraction

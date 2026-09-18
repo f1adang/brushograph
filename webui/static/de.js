@@ -239,8 +239,10 @@ text: {
   "Höhe einer Datei (mm); größere Dateien sind zulässig, müssen aber dasselbe Seitenverhältnis haben",
 "X offset for image (0,0) position": "X-Versatz für die Bildposition (0,0)",
 "Y offset for image (0,0) position": "Y-Versatz für die Bildposition (0,0)",
-"Total width limit of machine (mm)": "Größte Breite der Maschine (mm)",
-"Total height limit of machine (mm)": "Größte Höhe der Maschine (mm)",
+"Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.":
+  "Größte Breite der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim X-Versatz, also ist das breitestmögliche um ebendiesen Versatz geringer.",
+"Total height limit of machine (mm), measured from the origin. A painting starts at Offset Y — the strip the containers stand in — so the tallest one is this less that offset: 131 mm of Pinkograph's 156.":
+  "Größte Höhe der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim Y-Versatz — dem Streifen, auf dem die Behälter stehen — also ist das höchstmögliche um ebendiesen Versatz geringer: 131 mm von Pinkographs 156.",
 "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence":
   "Kürzeste Bahnlänge (mm) zum Malen. Zum Plotten setzen Sie diese Zahl sehr hoch (z. B. 1000000), damit kein Farbholen stattfindet",
 "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence":
@@ -323,8 +325,8 @@ text: {
   "in dieser Datei wurde keine G0/G1-Bewegung gefunden",
 "images differ in aspect ratio — will use {tray} ({w}x{h})":
   "die Bilder haben verschiedene Seitenverhältnisse — es gilt {tray} ({w}×{h})",
-"height {height} mm from {tray} — over the machine's {max} mm limit":
-  "Höhe {height} mm nach {tray} — über der Grenze der Maschine von {max} mm",
+"{w}x{h} mm from {tray} — narrowed from {asked} mm, the bed paints {max} mm tall":
+  "{w}×{h} mm nach {tray} — von {asked} mm verschmälert, die Arbeitsfläche malt {max} mm hoch",
 "height {height} mm, matching {tray}'s {w}x{h} px":
   "Höhe {height} mm, passend zu {w}×{h} px von {tray}",
 "Choose a photo for a tray first": "Wählen Sie zuerst ein Foto für einen Behälter",

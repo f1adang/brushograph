@@ -432,6 +432,7 @@ function wireForm() {
   form.addEventListener("input", () => {
     clearTimeout(debounce);
     debounce = setTimeout(updateSketch, 180);
+    capPaintedHeight();
   });
   updateSketch();
   document.addEventListener("brushograph:theme", updateSketch);
@@ -463,6 +464,18 @@ function wireForm() {
   const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
   const trayY = (name) => form.querySelector('[name="trays-' + name + '-y"]');
   const machineInput = (key) => form.querySelector('[name="brushograph-' + key + '"]');
+  /* What is left of the machine for a painting, after the strip the canvas is
+     offset by. Max Width and Max Height are the machine's limits, measured from
+     the origin — where the containers sit — and a painting starts at the canvas
+     offset, so the offset comes off the limit. On Pinkograph that is 156 less
+     25: a 149 mm painting was 18 mm past the end of the bed. Infinity when the
+     config carries no limit, which leaves the size alone. */
+  const machineLimit = (limitKey, offsetKey) => {
+    const limit = parseFloat((machineInput(limitKey) || {}).value);
+    if (!isFinite(limit)) return Infinity;
+    const offset = parseFloat((machineInput(offsetKey) || {}).value);
+    return limit - (isFinite(offset) ? offset : 0);
+  };
   // Custom cups are spaced from the form's own figures: spacing is centre to
   // centre between colours, and the water cup is parted from cyan by the same
   // wall — the same sum configspec.custom_offsets does.
@@ -632,12 +645,14 @@ function wireForm() {
       // the way back, which puts back whatever the config said.
       const width = machineInput("width");
       const height = machineInput("height");
-      const maxW = parseFloat((machineInput("max_width") || {}).value);
-      const maxH = parseFloat((machineInput("max_height") || {}).value);
+      // Against what is paintable, not the raw limits: the canvas offset is
+      // the strip the containers stand in, and no painting reaches into it.
+      const maxW = machineLimit("max_width", "offset_x");
+      const maxH = machineLimit("max_height", "offset_y");
       const w = parseFloat(width && width.value);
       const h = parseFloat(height && height.value);
       if (modelSelect.value !== opened.model && width && height && w > 0 && h > 0) {
-        const fit = Math.min(1, isFinite(maxW) ? maxW / w : 1, isFinite(maxH) ? maxH / h : 1);
+        const fit = Math.min(1, maxW / w, maxH / h);
         if (fit < 1) {
           width.value = String(Math.floor(w * fit));
           height.value = String(Math.floor(h * fit));
@@ -695,6 +710,21 @@ function wireForm() {
     img.src = url;
   }
 
+  const paintableHeight = () => machineLimit("max_height", "offset_y");
+
+  /* The browser's own guard on a height typed by hand, kept in step with the
+     two fields it comes from: matching the picture's proportions is the only
+     thing that sets the height on its own, and it fits it, but nothing stopped
+     a figure entered straight into the field. */
+  const capPaintedHeight = () => {
+    const height = machineInput("height");
+    if (!height) return;
+    const limit = paintableHeight();
+    if (isFinite(limit) && limit >= 1) height.max = String(Math.floor(limit));
+    else height.removeAttribute("max");
+  };
+  capPaintedHeight();
+
   function matchRatio() {
     if (!widthInput || !heightInput) return;
     const entries = [...shapes.entries()];
@@ -703,22 +733,40 @@ function wireForm() {
     if (!isFinite(width) || width <= 0) return note("set a width first", null, true);
 
     const [tray, shape] = entries[0];
+    const ratio = shape.h / shape.w;
     // Whole millimetres: the ratio is a guide, not a tolerance.
-    const height = Math.max(1, Math.round(width * (shape.h / shape.w)));
+    const limit = paintableHeight();
+    let fitted = width;
+    let height = Math.max(1, Math.round(fitted * ratio));
+    let touched = false;
+    // Too tall for the bed: narrow the painting until it fits, rather than
+    // squash it. The width is the figure that was set, but a picture that runs
+    // off the end of the bed is not a painting.
+    if (height > limit) {
+      fitted = Math.max(1, Math.floor(limit / ratio));
+      height = Math.max(1, Math.min(Math.round(fitted * ratio), Math.floor(limit)));
+      // Set quietly: the listener that calls this runs on typing, not on an
+      // assignment, so writing the field back does not call it again.
+      if (widthInput.value !== String(fitted)) {
+        widthInput.value = fitted;
+        touched = true;
+      }
+    }
     if (heightInput.value !== String(height)) {
       heightInput.value = height;
-      // Bubbles to the form listener, so the sketch redraws.
-      heightInput.dispatchEvent(new Event("input", { bubbles: true }));
+      touched = true;
     }
+    // One event for whichever of the two moved — it bubbles to the form
+    // listener, which is what redraws the sketch.
+    if (touched) heightInput.dispatchEvent(new Event("input", { bubbles: true }));
 
     const ratios = entries.map(([, s]) => s.h / s.w);
-    const maxH = parseFloat((form.querySelector('[name="brushograph-max_height"]') || {}).value);
     if (Math.max(...ratios) - Math.min(...ratios) > 0.005) {
       note("images differ in aspect ratio — will use {tray} ({w}x{h})",
            { tray: trayName(tray), w: shape.w, h: shape.h }, true);
-    } else if (isFinite(maxH) && height > maxH) {
-      note("height {height} mm from {tray} — over the machine's {max} mm limit",
-           { height, tray: trayName(tray), max: maxH }, true);
+    } else if (fitted !== width) {
+      note("{w}x{h} mm from {tray} — narrowed from {asked} mm, the bed paints {max} mm tall",
+           { w: fitted, h: height, tray: trayName(tray), asked: width, max: limit }, true);
     } else {
       note("height {height} mm, matching {tray}'s {w}x{h} px",
            { height, tray: trayName(tray), w: shape.w, h: shape.h });
