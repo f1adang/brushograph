@@ -24,15 +24,19 @@ message describes that version.
   Coming back it holds that height until it is out of the containers, then
   comes down to Move To Other Shape Lift as it crosses the canvas, arriving one
   short drop above the paper.
-- The climb and the descent are kept on the canvas side of the containers,
-  which is why each is two moves and not one. A ramp spread evenly over the
-  whole trip is still below the crucible rims while it is crossing them: from
-  the black crucible to the near corner of the canvas an even descent passes
-  over the yellow crucible at Z 6.2, with the rims at 9. The leg that crosses
-  the containers is flown level at Go In Tray Lift, and the two legs meet where
-  the path crosses Offset Y. The trip that loads the brush before a tray's
-  first stroke is made from wherever the brush was parked rather than from the
-  canvas, so that one still lifts clear before it sets off.
+- The ramp runs at one steady rate and finishes where the brush arrives: hard
+  against the container going out, on the spot it is about to paint coming
+  back. What it may not do is ramp over the containers — stretched across the
+  whole trip it is below their rims while it is crossing them, passing over the
+  yellow crucible at Z 6.2 with the rims at 9 on a canvas offset 25 mm out. So
+  it runs over the open bed and stops where the path first meets a container's
+  mouth, the few millimetres from there being flown level at Go In Tray Lift,
+  which clears the rims by design. That is the mouths themselves, taken 15%
+  large so the walls count: on Pinkograph the climb now runs to Y 23 rather
+  than stopping at Offset Y 60, which is 103 mm of the 130 mm trip against 66.
+  The trip that loads the brush before a tray's first stroke is made from
+  wherever the brush was parked rather than from the canvas, so that one still
+  lifts clear before it sets off.
 - A job parks the brush at X0 Y0, then at Dip Depth + 1 — where home.g,
   clean.g and zero.g all leave it, so there is one parking place to know
   rather than two. It used to stop over the water container at Z 0. On a
