@@ -19,6 +19,24 @@ message describes that version.
   backlash take-up that overshoots every move — Pinkograph's 39.2 mm water
   crucible is centred at X 12, so half of it lies past the endstop, and its
   black crucible reaches 3 mm beyond the far end. clean.g's wash stirs to match.
+- The painted size is fitted to what the machine can actually paint. Max Width
+  and Max Height are the machine's limits measured from the origin, and a
+  painting starts at the canvas offset — the strip the containers stand in — so
+  the largest painting is the limit less that offset: 131 mm tall on
+  Pinkograph, not 156. Matching the height to an uploaded picture's proportions
+  compared it against the limit alone, so a photograph 151 mm wide came out
+  149 mm tall and ran 18 mm past the end of the bed. It now narrows the
+  painting until it fits instead of squashing it — that photograph becomes
+  132 × 130 — and says so. Switching model fits against the same figures, and
+  the Height field carries the limit as its own, so a height typed by hand is
+  refused rather than painted off the bed.
+- The machine sketch draws the bed at Max Width and Max Height, where it drew
+  it at the offset plus the limit. That was a bed 25 mm longer than the machine,
+  added because a full-size picture otherwise hung over the edge of it — which
+  it did, because the size was not being fitted. A canvas that still overshoots
+  is now drawn overshooting. The two kept configs carried such a size, 151 mm
+  tall against 131 and 119 paintable, and are corrected; every config saved
+  from an actual session was already inside the limit.
 - Cup Mix Offset says how far right the holder really sits along X, against
   where the container positions put it, and shifts the mixing sweep by that
   much. A dip and a swipe go to the centre of a cup, where a holder a couple of
