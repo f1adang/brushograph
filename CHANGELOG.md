@@ -16,6 +16,14 @@ message describes that version.
   beside Cup Swipe Exit Z, says how many; 0 is the old motion. The sweep keeps
   15% of the cup's width off each wall and uses the water cup's greater width
   when it is in the water. clean.g's wash stirs to match.
+- No more hop in the air at the start of a run or before the wash at the end of
+  one. The trip to a container begins by lifting off the paper, which is right
+  when the brush is standing on it and nonsense when it is not: at the start of
+  a run and on the way to the end-of-tray wash it dropped to the between-shapes
+  clearance and immediately climbed back out of it. It is only made from the
+  paper now. Two more no-op lines went with it — a second lift written before
+  the wash, where the trip to the water lifts anyway, and a lift between the
+  wash's three entries, which the entry before it already ended at.
 - The lift and the trip to the containers run together, and so do the trip back
   and the descent. The brush used to stand still while Z went to Go In Tray
   Lift, fly across level, and stand still again at the far end while Z came
