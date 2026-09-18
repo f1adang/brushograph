@@ -355,9 +355,11 @@ class Copicograf:
             else:
                 spans = None
             if not spans:
-                self.gcodes.append(GCodeRapidMove(Z=max(z_hold, z_end)))
+                lift = max(z_hold, z_end)
+                self.gcodes.append(GCodeRapidMove(Z=lift))
                 self.gcodes.append(GCodeRapidMove(X=_mm(to_x), Y=_mm(to_y)))
-                self.gcodes.append(GCodeRapidMove(Z=z_end))
+                if z_end < lift:
+                    self.gcodes.append(GCodeRapidMove(Z=z_end))
                 return
 
             t = min(s[0] for s in spans) if to_cup else max(s[1] for s in spans)
@@ -365,9 +367,11 @@ class Copicograf:
                 # A mouth under the brush at the moment it sets off, or under
                 # the spot it is going to: there is no open bed to ramp over,
                 # so lift clear and fly it level, as a trip with no ramp does.
-                self.gcodes.append(GCodeRapidMove(Z=max(z_hold, z_end)))
+                lift = max(z_hold, z_end)
+                self.gcodes.append(GCodeRapidMove(Z=lift))
                 self.gcodes.append(GCodeRapidMove(X=_mm(to_x), Y=_mm(to_y)))
-                self.gcodes.append(GCodeRapidMove(Z=z_end))
+                if z_end < lift:
+                    self.gcodes.append(GCodeRapidMove(Z=z_end))
                 return
             mid_x = from_x + (to_x - from_x) * t
             mid_y = from_y + (to_y - from_y) * t
@@ -395,15 +399,20 @@ class Copicograf:
             for i in range(num_of_entries):
                 first_coords, second_coords = get_coords_in_tray(tray_x, tray_y)
                 if i == 0:
-                    # Straight up off the paper first — the brush is standing
-                    # on it — and the rest of the climb is made on the way.
-                    self.gcodes.append(GCodeRapidMove(Z=clear))
+                    # Straight up off the paper first, because the brush is
+                    # standing on it, and the rest of the climb is made on the
+                    # way. Only then: a trip that is not starting from the
+                    # paper has nothing to get off, and dropping to the
+                    # clearance to climb back out of it was a dip in the air
+                    # at the start of every run and before every wash.
+                    if from_canvas:
+                        self.gcodes.append(GCodeRapidMove(Z=clear))
                     travel_with_z(x + self.offset_x, y + self.offset_y,
                                   tray_x, entry_y, clear, self.go_in_tray_lift,
                                   to_cup=True, ramp=from_canvas)
                 else:
-                    # Already over the tray from the entry before it.
-                    self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+                    # Already over the tray, and already at the tray lift: the
+                    # entry before this one ended there.
                     self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(entry_y)))
 
                 if first_coords[1] > 1000 or second_coords[1] > 1000:
@@ -786,11 +795,8 @@ class Copicograf:
         # touching the paper before parking — two trips across the bed and a
         # water mark on the artwork, for a brush that is about to be dipped in
         # the next colour anyway.
-        if self.move_to_other_shape_lift + self.canvas_height > self.go_in_tray_lift:
-            self.gcodes.append(GCodeRapidMove(Z=self.move_to_other_shape_lift + self.canvas_height))
-        else:
-            self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
-
+        # No lift written here: the trip to the water starts by making sure of
+        # one, and two of them in a row was the second half of a hop in the air.
         wash_the_brush(0, 0, return_to_canvas=False)
 
         ##############################################
