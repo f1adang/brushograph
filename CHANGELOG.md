@@ -32,6 +32,18 @@ message describes that version.
   Coming back it holds that height until it is out of the containers, then
   comes down to Move To Other Shape Lift as it crosses the canvas, arriving one
   short drop above the paper.
+- Z eases in and out of the ramp rather than starting and stopping dead. At
+  one steady rate it changed rate in a single step where the ramp met the
+  level leg beside the containers, and a planner reads that as a corner and
+  slows through it — the hesitation the ramp was meant to be rid of. Z now
+  moves slowest at both ends of a ramp and quickest in the middle, so it is
+  already still where the level leg picks up and the two read as one move.
+  Drawn as a dozen chords, which is what a controller makes of any curve. On
+  the 103 mm ramp Pinkograph runs, the step into the level leg goes from 4.99°
+  to 1.18° and no join inside the ramp passes 2.08°; across every ramp in a
+  four-plate job the worst join is smaller than the single step it replaces,
+  by about two and a half times. It is also the safer curve, holding Z nearer
+  the tray lift at the container end, which is the end with the rims.
 - The ramp runs at one steady rate and finishes where the brush arrives: hard
   against the container going out, on the spot it is about to paint coming
   back. What it may not do is ramp over the containers — stretched across the
