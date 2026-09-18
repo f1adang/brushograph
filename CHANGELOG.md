@@ -16,6 +16,11 @@ message describes that version.
   beside Cup Swipe Exit Z, says how many; 0 is the old motion. The sweep keeps
   15% of the cup's width off each wall and uses the water cup's greater width
   when it is in the water. clean.g's wash stirs to match.
+- A job parks the brush at X0 Y0, then at Dip Depth + 1 — where home.g,
+  clean.g and zero.g all leave it, so there is one parking place to know
+  rather than two. It used to stop over the water container at Z 0. On a
+  holder whose water crucible is wide enough to cover the origin, as
+  Pinkograph's is, that was very nearly this spot already.
 - A stir stays centred on its cup, however near the end of the axis the cup
   sits. A holder can reach past what the machine can: Pinkograph's 39.2 mm
   water crucible is centred at X 12, so half of it lies past the endstop, and
