@@ -18,6 +18,14 @@ _XY = namedtuple("_XY", "X Y")
 # equal to the canvas height puts both at the same Z.
 DIP_MARKER = "; dip"
 
+# How many chords a Z ramp is drawn with, so its rate eases to nothing where
+# the level leg beside the containers takes over instead of stopping dead.
+# On Pinkograph a ramp is 9 mm of Z over 103 of bed: straight, that is 4.99°
+# all the way and a 4.99° step into the level leg. Eased over twelve chords,
+# the step is 1.18° and the sharpest join inside the ramp 2.08°. Sixteen buys
+# 0.4° more and past that it is all file and no smoothness.
+RAMP_CHORDS = 12
+
 
 def _read_plain_move(line_text):
     """(text, xy) for a plain move, as the pygcode path would have seen it.
@@ -318,6 +326,36 @@ class Copicograf:
                     return None
             return lo, hi
 
+        def ramp_z(ax, ay, az, bx, by, bz):
+            """Straight from A to B, with Z easing in and out of its change.
+
+            Z on one straight line changes rate in a single step where the ramp
+            meets the level leg beside the containers, and the planner reads
+            that as a corner and slows through it — a hesitation in the middle
+            of the bed, which is the thing running Z with the travel was meant
+            to be rid of. So Z is eased: it moves slowest at both ends of the
+            ramp and quickest in the middle, which leaves it already still
+            where the level leg picks it up, and the two read as one move.
+
+            The line in X and Y is the same line as before, cut into chords —
+            a controller draws any curve as chords in the end. A dozen of them,
+            which leaves no join above about two degrees for the planner to
+            slow for, and each chord long enough not to starve it.
+
+            The easing is also the safer curve. It holds Z nearer the tray lift
+            at the container end of the ramp than a straight line does, which
+            is the end where the rims are.
+            """
+            span = max(abs(bx - ax), abs(by - ay))
+            steps = RAMP_CHORDS if span >= 2 * RAMP_CHORDS else 1
+            for k in range(1, steps + 1):
+                t = k / steps
+                ease = t * t * (3 - 2 * t)
+                self.gcodes.append(GCodeLinearMove(
+                    X=_mm(ax + (bx - ax) * t),
+                    Y=_mm(ay + (by - ay) * t),
+                    Z=round(az + (bz - az) * ease, 2)))
+
         def travel_with_z(from_x, from_y, to_x, to_y, z_hold, z_end,
                           to_cup, ramp=True):
             """Cross the bed while Z changes, the change ending as it arrives.
@@ -376,13 +414,15 @@ class Copicograf:
             mid_x = from_x + (to_x - from_x) * t
             mid_y = from_y + (to_y - from_y) * t
             if to_cup:
-                # Ramp over the open bed, then level in over the mouths.
-                self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(mid_y), Z=z_end))
+                # Ramp over the open bed, arriving at the tray lift with Z
+                # already still, then level in over the mouths.
+                ramp_z(from_x, from_y, z_hold, mid_x, mid_y, z_end)
                 self.gcodes.append(GCodeLinearMove(X=_mm(to_x), Y=_mm(to_y), Z=z_end))
             else:
-                # Level while the mouths are still under it, then ramp home.
+                # Level while the mouths are still under it, then ramp home,
+                # Z leaving and arriving as gently as it took off.
                 self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(mid_y), Z=z_hold))
-                self.gcodes.append(GCodeLinearMove(X=_mm(to_x), Y=_mm(to_y), Z=z_end))
+                ramp_z(mid_x, mid_y, z_hold, to_x, to_y, z_end)
 
         def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
                               return_to_canvas=True, water=False, from_canvas=False):
