@@ -4,6 +4,20 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.8.4](https://github.com/f1adang/brushograph/releases/tag/v2.8.4) — 2026-09-18
+
+- Black knocks out the colour plates, a new switch beside Ink cutoff, on by
+  default. A paper profile writes a press black — pure black converts to C 60%,
+  M 50%, Y 54%, K 95% — because on paper those tints are a colour bed that keeps
+  the key plate from looking brown. A press screens them; the cutoff here makes
+  each one a solid brush pass, laid down and then covered by the solid black
+  pass that follows. Leaving them off changes nothing you can see and more than
+  halves the painting: a test photograph goes from 50.1% of the page painted to
+  21.2%, with the yellow plate — 99% of it under the black — dropping from 9.6%
+  to nothing, one tray fewer to dip and drag. Untick it where the trays are out
+  of register: painting the bed means a black pass that lands a little off shows
+  colour at its edge rather than bare paper.
+
 ## [v2.8.3](https://github.com/f1adang/brushograph/releases/tag/v2.8.3) — 2026-09-17
 
 - The G-code preview counts cup dips again. It took any Z below the canvas for
