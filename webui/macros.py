@@ -91,14 +91,34 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
     lines: list[str] = []
 
     if shape in RECTANGULAR_SHAPES:
-        depth = holder_of(conf)["swipe_length"]
+        holder = holder_of(conf)
+        depth = holder["swipe_length"]
         exit_z = _num(bg, "cup_swipe_exit_z", 1.0)
         margin = depth * 0.15
         near, far = tray_y - depth / 2 + margin, tray_y + depth / 2 - margin
+        # The same stir copicograf makes before climbing out, kept on the bed
+        # the same way — the water crucible is the wide one, and wide enough
+        # on some holders to hang over the endstop.
+        reach = holder["water_bay_width"] / 2 * 0.7
+        sweeps = int(_num(bg, "cup_mix_sweeps", 2))
+        left = max(0.0, tray_x - reach)
+        right = min(tray_x + reach, MODELS[model_of(conf)]["zero_sweep"][0])
+        if right - left < 1.0:
+            sweeps = 0
         for _ in range(max(1, reps)):
             lines += [
                 f"G00 X{_fmt(tray_x)} Y{_fmt(near)}",
                 f"G00 Z{_fmt(dip)}",
+            ]
+            for i in range(max(0, sweeps)):
+                lines += [
+                    f"G00 X{_fmt(left)} Y{_fmt(near)}"
+                    + (" ; stir, then load" if i == 0 else ""),
+                    f"G00 X{_fmt(right)} Y{_fmt(near)}",
+                ]
+            if sweeps > 0:
+                lines.append(f"G00 X{_fmt(tray_x)} Y{_fmt(near)}")
+            lines += [
                 f"G01 X{_fmt(tray_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs — wipes itself",
                 f"G00 Z{_fmt(lift)}",
             ]

@@ -27,7 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from configspec import CMYK_TO_TRAY, holder_of, tray_entries  # noqa: E402
+from configspec import (CMYK_TO_TRAY, MODELS, holder_of, model_of,  # noqa: E402
+                        tray_entries)
 
 FALLBACK_PATTERN = "concentric"
 
@@ -686,8 +687,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # gcodes=[] on purpose: Copicograf's default argument is a shared mutable
     # list, so leaving it out would append this run onto the previous one.
     copicograf = Copicograf(conf=conf, gcodes=[])
-    # copicograf knows the Mini's holder only; the swipe fits the model's.
-    copicograf.cup_depth = holder_of(conf)["swipe_length"]
+    # copicograf knows the Mini's holder only; the swipe and the stir in the
+    # paint before it fit the model's.
+    holder = holder_of(conf)
+    copicograf.cup_depth = holder["swipe_length"]
+    copicograf.cup_width = holder["bay_width"]
+    copicograf.water_cup_width = holder["water_bay_width"]
+    # The stir keeps off both endstops by the backlash take-up, which overshoots
+    # every move in the direction it was going: without that allowance a stir
+    # that ends on the limit is carried half a millimetre past it.
+    take_up = float(bg.get("backlash_x", 0) or 0) if bg.get("backlash_compensation", True) else 0.0
+    copicograf.x_limits = (take_up, MODELS[model_of(conf)]["zero_sweep"][0] - take_up)
     stats = {"trays": [], "strokes": 0}
 
     def prepare(entry):

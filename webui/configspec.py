@@ -274,6 +274,11 @@ ALWAYS_OFFERED = {
     # and spacing below, for any other holder.
     ("brushograph", "cup_shape"): "classic",
     ("brushograph", "cup_swipe_exit_z"): 1.0,
+    # Two stirs across the bay before the brush climbs out of the paint. The
+    # round cups have always swept their chord down there; a rectangular bay
+    # went straight up the stairs, which is one pass through the paint and no
+    # mixing at all. 0 is that older behaviour.
+    ("brushograph", "cup_mix_sweeps"): 2,
     **{("brushograph", key): value for key, value in CUSTOM_CUP_DEFAULTS.items()},
     ("brushograph", "backlash_compensation"): True,
     ("brushograph", "backlash_x"): 0.5,
@@ -391,8 +396,8 @@ BRUSHOGRAPH_GROUPS = [
     ("Brush control",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
     ("Containers",
-     ["cup_shape", "cup_swipe_exit_z", "cup_width_water", "cup_width", "cup_depth",
-      "cup_spacing"], False),
+     ["cup_shape", "cup_swipe_exit_z", "cup_mix_sweeps", "cup_width_water",
+      "cup_width", "cup_depth", "cup_spacing"], False),
     ("Paint management",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
@@ -451,6 +456,7 @@ HELP = {
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
     "brushograph-go_in_tray_lift": "Lift on Z-axis when going into a container for color",
     "brushograph-cup_shape": "Classic is the round cup the machine was built around: the brush goes down the middle, sweeps a chord and comes back up. CMYK is the rectangular five-bay holder, whose floor climbs towards the back — there the brush makes one swipe from the deep end to the shallow one, rising as it goes. Custom is rectangular cups swiped the same way, at the sizes and spacing you give below.",
+    "brushograph-cup_mix_sweeps": "Rectangular containers: how many times the brush sweeps across the cup, down at Dip Depth, before it swipes up the stairs. Each sweep stirs the paint and loads the bristles; the swipe out is also what wipes them, so the stirring happens first. 0 goes straight up the stairs. The sweep runs across X, keeping 15% of the cup's width off each wall, and the water cup's greater width is used for it.",
     "brushograph-cup_width_water": "Custom containers: how wide the water cup is across X, inside (mm). Wider than the colours, so the brush has room to be rinsed.",
     "brushograph-cup_width": "Custom containers: how wide each colour cup is across X, inside (mm).",
     "brushograph-cup_depth": "Custom containers: how far the swipe runs along Y, which should stay inside the cup (mm).",

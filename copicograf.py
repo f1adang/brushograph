@@ -91,7 +91,22 @@ class Copicograf:
         # 23.5 mm of the Mini's 27.6 mm crucible. Not a setting, so not read
         # from the config; the WebUI sets it for the model it is painting on.
         self.cup_depth = 23.5
+        # How wide a crucible is across X, and the water one, which is wider.
+        # Fixed by the print like the length, and set the same way.
+        self.cup_width = 16.2
+        self.water_cup_width = 27.6
+        # The X the stir may use, low and high. The WebUI sets it from the
+        # model's travel, less the backlash take-up that overshoots every
+        # move it makes; on its own copicograf only knows about the endstop.
+        self.x_limits = (0.0, float("inf"))
         self.cup_swipe_exit_z = float(bg.get("cup_swipe_exit_z", 1.0))
+        # Sweeps across the bay, down in the paint, before the swipe up the
+        # stairs. 0 goes straight up them, which is what every rectangular bay
+        # did before.
+        try:
+            self.cup_mix_sweeps = max(0, int(bg.get("cup_mix_sweeps", 2)))
+        except (TypeError, ValueError):
+            self.cup_mix_sweeps = 2
 
         self.offset_y = float(self.conf["brushograph"]["offset_y"])
         self.offset_x = float(self.conf["brushograph"]["offset_x"])
@@ -269,7 +284,7 @@ class Copicograf:
                 set_fast_speed()
 
         def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
-                              return_to_canvas=True):
+                              return_to_canvas=True, water=False):
             set_fast_speed()
             for i in range(num_of_entries):
                 first_coords, second_coords = get_coords_in_tray(tray_x, tray_y)
@@ -304,6 +319,43 @@ class Copicograf:
                     self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(near)))
                     self.gcodes.append(DIP_MARKER)
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
+
+                    #######################################################
+                    # Stir first. The brush sweeps the width of the bay   #
+                    # at the deep end, down in the paint, the way the     #
+                    # round cups have always swept their chord: it lifts  #
+                    # pigment that has settled and works paint up into    #
+                    # the bristles, which a single pass through the bay   #
+                    # does not.                                           #
+                    #                                                     #
+                    # Across X, because the stairs climb along Y — this   #
+                    # is the one direction that stays at dip depth — and  #
+                    # before the swipe rather than after, since the swipe #
+                    # is also what wipes the brush, and a stir on the way #
+                    # out would put back the paint it has just drawn off. #
+                    #######################################################
+                    # 70% of the half-width leaves the sweep the same 15% of
+                    # the bay off each wall that the swipe leaves off its ends.
+                    #
+                    # Then kept on the machine. This is the first thing that
+                    # takes the brush off a crucible centre line, and a holder
+                    # can hang over the bed at either end: Pinkograph's water
+                    # crucible is 39.2 mm wide with its centre at X 12, so half
+                    # of it is past the endstop, and its last colour reaches
+                    # 3 mm beyond the far end of the travel. A stir that is
+                    # short on one side still stirs, and one with no room at
+                    # all is skipped.
+                    width = self.water_cup_width if water else self.cup_width
+                    reach = width / 2 * 0.7
+                    lo, hi = self.x_limits
+                    left, right = max(lo, tray_x - reach), min(hi, tray_x + reach)
+                    if right - left >= 1.0:
+                        for _ in range(self.cup_mix_sweeps):
+                            self.gcodes.append(GCodeRapidMove(X=_mm(left), Y=_mm(near)))
+                            self.gcodes.append(GCodeRapidMove(X=_mm(right), Y=_mm(near)))
+                        if self.cup_mix_sweeps:
+                            self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(near)))
+
                     self.gcodes.append(GCodeLinearMove(
                         X=_mm(tray_x), Y=_mm(far), Z=self.cup_swipe_exit_z))
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
@@ -360,7 +412,7 @@ class Copicograf:
 
         def wash_the_brush(x, y, return_to_canvas=True):
             append_go_in_tray(self.water_tray_x, self.water_tray_y, x, y, 3, False,
-                              return_to_canvas)
+                              return_to_canvas, water=True)
 
         def prepare_paint(x, y):
             append_go_in_tray(color_tray_x, color_tray_y, x, y, self.prepare_paint_count, True)

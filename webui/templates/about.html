@@ -61,6 +61,12 @@ try { var t = localStorage.getItem("brushograph-theme");
     <li data-i18n="note-dip"><b>Dip Depth</b> sets how far the brush goes into a cup. It was fixed at
     Z&nbsp;&minus;4, which is deeper than a shallow dish needs. It is always offered, even by a
     config that does not mention it, as are the backlash settings, which are ticked unless the config says otherwise.</li>
+    <li data-i18n="note-mix"><b>Cup Mix Sweeps</b> is how many times the brush sweeps across a
+    rectangular cup, down at dip depth, before it swipes up the stairs and out. Each sweep stirs
+    the paint and works it into the bristles; the swipe out is also what wipes them, so the
+    stirring goes first. The round cups have always swept a chord down in the paint &mdash; this is
+    that, for the crucibles. 0 goes straight up the stairs, as before. The sweep is kept inside
+    the machine's travel, which matters on a holder whose widest cup hangs over an endstop.</li>
     <li data-i18n="note-backlash">The preview shows the path without backlash compensation. Those corrective moves are for
     the machine's slack, and drawing them would bury the artwork in strokes that are not in it.</li>
     <li data-i18n="note-face"><b>Insta Face Filter</b>, offered when a face is found, evens the light across the face

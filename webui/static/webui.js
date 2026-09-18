@@ -519,6 +519,11 @@ function wireForm() {
       const field = machineInput(key) && machineInput(key).closest(".field");
       if (field) field.hidden = shapeSelect.value !== "custom";
     }
+    // The stir before the swipe belongs to a rectangular bay: a round cup
+    // sweeps its chord whatever this says. Hidden the same way.
+    const mix = machineInput("cup_mix_sweeps");
+    const mixField = mix && mix.closest(".field");
+    if (mixField) mixField.hidden = classic;
   };
 
   // What the selected holder fixes besides positions: the dish's radii and
