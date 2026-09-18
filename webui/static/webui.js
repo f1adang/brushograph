@@ -816,6 +816,7 @@ function wireForm() {
   const cmykImg = $("cmyk-image");
   const cmykNote = $("cmyk-note");
   const cmykCutoff = $("cmyk-cutoff");
+  const cmykKnockout = $("cmyk-knockout");
   let cmykPreviewTimer = null;
 
   function cmykFile() {
@@ -828,6 +829,7 @@ function wireForm() {
     const fd = new FormData();
     fd.append("image", file);
     if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
+    if (cmykKnockout) fd.append("cmyk_knockout", cmykKnockout.checked ? "true" : "false");
     fd.append("theme", document.documentElement.dataset.theme || "default");
 
     const label = labelOf(cmykBtn);
@@ -868,6 +870,11 @@ function wireForm() {
         if (!cmykFile()) return;
         clearTimeout(cmykPreviewTimer);
         cmykPreviewTimer = setTimeout(previewCmyk, 180);
+      });
+    }
+    if (cmykKnockout) {
+      cmykKnockout.addEventListener("change", () => {
+        if (cmykFile()) previewCmyk();
       });
     }
     const sizeNote = $("size-note");

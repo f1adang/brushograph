@@ -172,6 +172,18 @@
         </label>
         <p class="note">A tint below the cutoff is left as paper; at or above it becomes
           that tray's ink. 0 keeps any non-zero tint.</p>
+        <div class="switches">
+          <label class="switch">
+            <input type="hidden" name="cmyk_knockout" value="false">
+            <input type="checkbox" name="cmyk_knockout" id="cmyk-knockout" value="true" checked>
+            <span><b>Black knocks out the colours</b>Leave cyan, magenta and yellow
+              off wherever black paints. The conversion beds dark tones on all
+              three, the way a press does, and the black pass then covers them:
+              half the painting for no visible change. Untick it to lay that bed
+              anyway, so a black pass slightly out of register shows colour at
+              its edge rather than bare paper.</span>
+          </label>
+        </div>
         <div class="row">
           <button type="button" class="ghost" id="cmyk-preview-btn">Show the plates</button>
           <span class="note" id="cmyk-note" hidden></span>

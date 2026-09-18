@@ -4,8 +4,10 @@
 A brush paints solid ink or nothing, so each process colour has to become a
 two-tone plate before the rest of the pipeline sees it. The split is a real
 CMYK conversion (the same paper profile `i2gc` uses), then a cutoff: a tint
-below the cutoff is paper, anything at or above is that tray's ink. The plates
-are what you would have uploaded as already-thresholded pictures.
+below the cutoff is paper, anything at or above is that tray's ink. The colour
+plates are then knocked out where the black plate paints, so no tray lays down
+a coat that the key plate covers. The plates are what you would have uploaded
+as already-thresholded pictures.
 
 Dithering is not used. A Floyd–Steinberg plate is thousands of specks, and the
 brush cannot lay those down; a hard cutoff is the same kind of image the
@@ -90,26 +92,44 @@ def to_cmyk(image: Image.Image) -> Image.Image:
     return rgb.convert("CMYK")
 
 
-def threshold_plates(image: Image.Image, cutoff: float = 40.0) -> dict[str, Image.Image]:
-    """1-bit images keyed C/M/Y/K, black where that ink should paint, lying landscape."""
+def threshold_plates(image: Image.Image, cutoff: float = 40.0,
+                     knockout: bool = True) -> dict[str, Image.Image]:
+    """1-bit images keyed C/M/Y/K, black where that ink should paint, lying landscape.
+
+    `knockout` drops the colour inks wherever the black plate already paints.
+    The profile writes a press black: pure black comes out C 60% M 50% Y 54%
+    K 95%, because on paper those tints sit under the key plate as a colour bed
+    that keeps the black from looking brown. A press lays them as screens; here
+    the cutoff turns every one of them into a solid brush pass, hidden under a
+    solid black pass that follows. Knocking them out costs nothing visible —
+    the black covers that ground either way — and on a photograph it more than
+    halves the painting: yellow in particular is almost entirely the black
+    plate's underlay. Switch it off to paint the colour bed anyway, which is
+    the better black where the trays are out of register, since a black pass
+    that lands a little off then shows colour at its edge rather than bare
+    paper.
+    """
     cmyk = to_cmyk(landscape(image))
     level = _cutoff_level(cutoff)
-    plates = {}
-    for name, channel in zip(CHANNELS, cmyk.split()):
-        ink = np.asarray(channel) >= level
-        plates[name] = Image.fromarray(
-            np.where(ink, 0, 255).astype(np.uint8), "L"
-        ).convert("1")
-    return plates
+    ink = {name: np.asarray(channel) >= level
+           for name, channel in zip(CHANNELS, cmyk.split())}
+    if knockout:
+        for name in ("C", "M", "Y"):
+            ink[name] = ink[name] & ~ink["K"]
+    return {name: Image.fromarray(
+        np.where(mask, 0, 255).astype(np.uint8), "L").convert("1")
+        for name, mask in ink.items()}
 
 
 def ink_fraction(img: Image.Image) -> float:
     return float((np.asarray(img.convert("L")) < 128).mean())
 
 
-def plates_for_trays(image: Image.Image, cutoff: float = 40.0) -> dict[str, Image.Image]:
+def plates_for_trays(image: Image.Image, cutoff: float = 40.0,
+                     knockout: bool = True) -> dict[str, Image.Image]:
     """Plates keyed by tray name (cyan, magenta, yellow, kroma)."""
-    return {CMYK_TO_TRAY[ch]: plate for ch, plate in threshold_plates(image, cutoff).items()}
+    return {CMYK_TO_TRAY[ch]: plate
+            for ch, plate in threshold_plates(image, cutoff, knockout).items()}
 
 
 def _ink_mask(plate: Image.Image) -> np.ndarray:

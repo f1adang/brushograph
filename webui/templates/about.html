@@ -48,7 +48,10 @@ try { var t = localStorage.getItem("brushograph-theme");
     the rest of the repo uses, then each channel is cut at an ink cutoff into a two-tone plate.
     Those plates are traced exactly as already-thresholded uploads would be. A picture on a
     colour's card replaces that plate. Tints below the cutoff stay paper, so the brush is not
-    asked to paint a wash it cannot lay down.</li>
+    asked to paint a wash it cannot lay down. The profile beds dark tones on cyan, magenta
+    and yellow the way a press does, under the black that follows; those three are knocked
+    out wherever black paints, which halves the painting of a photograph and changes nothing
+    you can see. A switch beside the cutoff paints the bed anyway, for trays out of register.</li>
     <li data-i18n="note-isolate">If a person, animal or prominent object is detected in the photo, an <b>Isolate</b> option appears.
     It cuts the subject out with a small segmentation network (U&sup2;-Net, 4.4&nbsp;MB, downloaded
     once on first start and run through OpenCV), leaving the background as bare paper. Without the
