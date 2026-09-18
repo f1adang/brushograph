@@ -283,18 +283,73 @@ class Copicograf:
                 self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
                 set_fast_speed()
 
+        def travel_with_z(from_x, from_y, to_x, to_y, z_hold, z_end, ramp=True):
+            """Cross the bed while Z changes, keeping the change off the cups.
+
+            Z used to be set standing still and the trip flown level. Running
+            the two together is one move instead of two and saves the pause —
+            but only over the canvas. The containers stand in the strip between
+            the origin and the canvas offset, and a ramp spread evenly over the
+            whole trip is still below their rims while it is crossing them:
+            from the black crucible to the near corner of the canvas an even
+            descent passes over the yellow crucible at Z 6.2, and the rims are
+            at 9.
+
+            So the strip is flown level at `z_hold` and the ramp to `z_end` is
+            made on the canvas side of it, the two legs meeting where the path
+            crosses the canvas offset. A trip that does not cross it — the
+            opening sequence starts on the offset itself — is lifted clear and
+            flown level, as every trip used to be, and so is one whose caller
+            says `ramp` is not safe because the brush is somewhere other than
+            where the trip is written from.
+
+            Coming the other way the first leg is level whatever happens, so it
+            is safe from wherever the brush actually stands: only the dogleg it
+            turns at is a guess.
+            """
+            edge = self.offset_y
+            lo, hi = sorted((from_y, to_y))
+            if not ramp or not lo < edge < hi:
+                self.gcodes.append(GCodeRapidMove(Z=max(z_hold, z_end)))
+                self.gcodes.append(GCodeRapidMove(X=_mm(to_x), Y=_mm(to_y)))
+                self.gcodes.append(GCodeRapidMove(Z=z_end))
+                return
+            t = (edge - from_y) / (to_y - from_y)
+            mid_x = from_x + (to_x - from_x) * t
+            if from_y < to_y:
+                # Leaving the containers: level out of the strip, then ramp.
+                self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(edge), Z=z_hold))
+                self.gcodes.append(GCodeLinearMove(X=_mm(to_x), Y=_mm(to_y), Z=z_end))
+            else:
+                # Heading for them: ramp across the canvas, arrive level.
+                self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(edge), Z=z_end))
+                self.gcodes.append(GCodeLinearMove(X=_mm(to_x), Y=_mm(to_y), Z=z_end))
+
         def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
-                              return_to_canvas=True, water=False):
+                              return_to_canvas=True, water=False, from_canvas=False):
             set_fast_speed()
+            clear = self.move_to_other_shape_lift + self.canvas_height
+            # Where the cup is entered and left again: the two ends of a
+            # rectangular bay, the middle of a round one both times.
+            if self.cup_shape in ("modern", "custom"):
+                margin = self.cup_depth * 0.15
+                entry_y = tray_y - self.cup_depth / 2 + margin
+                exit_y = tray_y + self.cup_depth / 2 - margin
+            else:
+                entry_y = exit_y = tray_y
             for i in range(num_of_entries):
                 first_coords, second_coords = get_coords_in_tray(tray_x, tray_y)
                 if i == 0:
-                    if self.move_to_other_shape_lift + self.canvas_height > self.go_in_tray_lift:
-                        self.gcodes.append(GCodeRapidMove(Z=self.move_to_other_shape_lift + self.canvas_height))
-                    else:
-                        self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+                    # Straight up off the paper first — the brush is standing
+                    # on it — and the rest of the climb is made on the way.
+                    self.gcodes.append(GCodeRapidMove(Z=clear))
+                    travel_with_z(x + self.offset_x, y + self.offset_y,
+                                  tray_x, entry_y, clear, self.go_in_tray_lift,
+                                  ramp=from_canvas)
                 else:
+                    # Already over the tray from the entry before it.
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+                    self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(entry_y)))
 
                 if first_coords[1] > 1000 or second_coords[1] > 1000:
                     print("napaka")
@@ -313,10 +368,7 @@ class Copicograf:
                     # heights, which the holder's STL does not carry: its     #
                     # bays are open, the floor is not part of that model.     #
                     ###########################################################
-                    margin = self.cup_depth * 0.15
-                    near = tray_y - self.cup_depth / 2 + margin
-                    far = tray_y + self.cup_depth / 2 - margin
-                    self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(near)))
+                    near, far = entry_y, exit_y
                     self.gcodes.append(DIP_MARKER)
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
 
@@ -373,7 +425,6 @@ class Copicograf:
                     # The loading sweep still runs the full chord, but it     #
                     # happens down in the paint where the brush is inside.    #
                     ###########################################################
-                    self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(tray_y)))
                     self.gcodes.append(DIP_MARKER)
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
                     self.gcodes.append(GCodeRapidMove(X=first_coords[0], Y=first_coords[1]))
@@ -399,17 +450,22 @@ class Copicograf:
             # touching it with a wet brush, which left a water mark in the
             # corner of the artwork at every colour change.
             if return_to_canvas:
-                if self.move_to_other_shape_lift + self.canvas_height > self.go_in_tray_lift:
-                    self.gcodes.append(GCodeRapidMove(Z=self.move_to_other_shape_lift + self.canvas_height))
-                else:
-                    self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
-
-                self.gcodes.append(GCodeRapidMove(X=x + self.offset_x, Y=y + self.offset_y))
+                # Out of the containers at the tray lift, then down to the
+                # between-shapes clearance as it crosses the canvas, so the
+                # brush arrives one short drop above the paper rather than
+                # standing still at the far end while Z comes down.
+                travel_with_z(tray_x, exit_y, x + self.offset_x, y + self.offset_y,
+                              self.go_in_tray_lift, clear)
                 self.gcodes.append(GCodeRapidMove(Z=self.canvas_height))
             set_normal_speed()
 
-        def append_go_for_paint(x, y):
-            append_go_in_tray(color_tray_x, color_tray_y, x, y)
+        def append_go_for_paint(x, y, from_canvas=True):
+            # from_canvas says the brush is standing at (x, y) on the paper, so
+            # the climb to the tray can be made on the way there. The trip that
+            # loads the brush before the first stroke is the exception: it is
+            # made from wherever the last job left it.
+            append_go_in_tray(color_tray_x, color_tray_y, x, y,
+                              from_canvas=from_canvas)
 
             # self.randomize_paint_per_run()
 
@@ -539,7 +595,7 @@ class Copicograf:
         # painting starts at, the trip ends with the brush arriving there
         # loaded, so it leaves no mark of its own.
         if pickup_at is not None:
-            append_go_for_paint(pickup_at[0], pickup_at[1])
+            append_go_for_paint(pickup_at[0], pickup_at[1], from_canvas=False)
 
         self.last_draw_gcode = None
         self.last_draw_params = None
