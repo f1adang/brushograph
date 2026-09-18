@@ -692,12 +692,19 @@ class Copicograf:
         wash_the_brush(0, 0, return_to_canvas=False)
 
         ##############################################
-        # Park the brush in water, at the very end   #
+        # Park at the origin, at the very end        #
         ##############################################
         # Only worth doing when nothing follows: between colours the brush is
         # already over the water and the next thing it does is go for paint.
+        #
+        # X0 Y0 and then Dip Depth + 1, which is where home.g, clean.g and
+        # zero.g all leave the brush — a job now ends where the macros do, so
+        # there is one parking place to know rather than two. It used to stop
+        # over the water container at Z 0, which was a second convention, and
+        # on a holder whose water crucible is wide enough to cover the origin
+        # it was very nearly this spot anyway.
         if park:
             set_fast_speed()
-            self.gcodes.append(GCodeRapidMove(X=self.water_tray_x, Y=self.water_tray_y))
-            self.gcodes.append(GCodeRapidMove(Z=0))
+            self.gcodes.append(GCodeRapidMove(X=0, Y=0))
+            self.gcodes.append(GCodeRapidMove(Z=self.dip_depth + 1))
             set_normal_speed()
