@@ -16,6 +16,23 @@ message describes that version.
   beside Cup Swipe Exit Z, says how many; 0 is the old motion. The sweep keeps
   15% of the cup's width off each wall and uses the water cup's greater width
   when it is in the water. clean.g's wash stirs to match.
+- The lift and the trip to the containers run together, and so do the trip back
+  and the descent. The brush used to stand still while Z went to Go In Tray
+  Lift, fly across level, and stand still again at the far end while Z came
+  down; now Z runs with the travel. Going for paint it lifts clear of the paper
+  where it stands, then climbs to Go In Tray Lift as it crosses the canvas.
+  Coming back it holds that height until it is out of the containers, then
+  comes down to Move To Other Shape Lift as it crosses the canvas, arriving one
+  short drop above the paper.
+- The climb and the descent are kept on the canvas side of the containers,
+  which is why each is two moves and not one. A ramp spread evenly over the
+  whole trip is still below the crucible rims while it is crossing them: from
+  the black crucible to the near corner of the canvas an even descent passes
+  over the yellow crucible at Z 6.2, with the rims at 9. The leg that crosses
+  the containers is flown level at Go In Tray Lift, and the two legs meet where
+  the path crosses Offset Y. The trip that loads the brush before a tray's
+  first stroke is made from wherever the brush was parked rather than from the
+  canvas, so that one still lifts clear before it sets off.
 - A job parks the brush at X0 Y0, then at Dip Depth + 1 — where home.g,
   clean.g and zero.g all leave it, so there is one parking place to know
   rather than two. It used to stop over the water container at Z 0. On a
