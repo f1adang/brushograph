@@ -157,7 +157,10 @@ MODELS = OrderedDict([
         # Where choosing the model puts the water container; the others are
         # auto-spaced from it.
         "water": (12, 6),
-        # zero.g's sweep to the far corner and back: X, Y, Z.
+        # zero.g's sweep to the far corner and back: X, Y, Z. It drives into
+        # the endstops on purpose, which is what makes it a zeroing routine and
+        # what makes it useless as a limit: the machine cannot work out there.
+        # Nothing but zero.g may use these figures as somewhere to move to.
         "zero_sweep": (160, 160, 32),
     }),
     ("micro", {
@@ -181,7 +184,8 @@ MODELS = OrderedDict([
             ("max_width", 65), ("max_height", 100), ("offset_x", 0), ("offset_y", 19),
         ]),
         "water": (2, 6),
-        # The Mini's sweep, shortened by the racks and scaled to the Z travel.
+        # The Mini's sweep, shortened by the racks and scaled to the Z travel,
+        # and driven into the endstops the same way.
         "zero_sweep": (75, 123, 21),
     }),
 ])
@@ -537,6 +541,36 @@ def _walk(path: list[str], value) -> list[dict]:
             out.append({"group": g["label"], "fields": g["fields"], "help": HELP.get("-".join(path))})
         return out
     return [_field(path, value)]
+
+
+def workable_x(conf: dict) -> float:
+    """The furthest right a job already asks the machine to go.
+
+    The containers and the far edge of the canvas: a job has always visited
+    both, so both are known to be reachable. Deliberately not the axis travel.
+    zero.g sweeps to the model's far corner and drives into the endstops on
+    purpose, which is what zeroes the machine and what makes that corner
+    useless as a working limit: the machine cannot reach out there. A move that
+    ends against a stop loses what it loses for the whole of the rest of the
+    file, and everything after it lands short of where it was asked for.
+    The stir in the paint is the only thing that would otherwise go looking for
+    room past the last container, and the last container is black.
+
+    Only the containers the job actually dips in, which is what tray_entries
+    lists — the water cup and the colours in color_order. A cup the job never
+    visits says nothing about where the machine can go, and one it does not
+    paint from tends to be parked well off the bed, as the additionals always
+    are.
+    """
+    bg = conf.get("brushograph", {})
+    wanted = {e["tray"] for e in tray_entries(conf)}
+    xs = [float(t["x"]) for name, t in conf.get("trays", {}).items()
+          if name in wanted and isinstance(t, dict) and "x" in t]
+    try:
+        xs.append(float(bg.get("offset_x", 0)) + float(bg.get("width", 0)))
+    except (TypeError, ValueError):
+        pass
+    return max(xs) if xs else 0.0
 
 
 def tray_entries(conf: dict) -> list[dict]:

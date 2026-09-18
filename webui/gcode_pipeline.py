@@ -27,8 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,  # noqa: E402
-                        cup_shape_of, holder_of, model_of, tray_entries)
+from configspec import (CMYK_TO_TRAY, RECTANGULAR_SHAPES,  # noqa: E402
+                        cup_shape_of, holder_of, tray_entries, workable_x)
 
 FALLBACK_PATTERN = "concentric"
 
@@ -598,12 +598,23 @@ def start_sequence(conf: dict) -> list[str]:
 
 # --------------------------------------------------------------------- backlash
 
-def apply_backlash(lines: list[str], bx: float, by: float) -> list[str]:
+def apply_backlash(lines: list[str], bx: float, by: float,
+                   x_range: tuple[float, float] | None = None) -> list[str]:
     """Insert a corrective move whenever an axis reverses direction.
 
     On a reversal the axis first has to take up its own slack, so the commanded
     distance is short by the backlash figure. Overshooting by that amount and
     coming back puts the head where the path asked for.
+
+    The overshoot goes the way the head was already travelling, so a reversal
+    made at the outermost point of the file is carried past it — and `x_range`
+    is where that is not allowed to happen. Leaving the black crucible, which
+    on Pinkograph sits at X 156 with the axis ending there, the take-up asked
+    for X 156.5 and the carriage found the stop instead. What it loses there it
+    does not get back: every move after it lands short by as much, which on a
+    file that paints black last is the whole black plate, shifted left. Clipped
+    to the end of the range instead, so the correction is as much as there is
+    room for, and skipped where there is none.
     """
     out: list[str] = []
     x = y = None
@@ -621,6 +632,10 @@ def apply_backlash(lines: list[str], bx: float, by: float) -> list[str]:
             d = 1 if nx > x else -1
             if dir_x and d != dir_x and bx:
                 cx = x - d * bx
+                if x_range is not None:
+                    cx = min(max(cx, x_range[0]), x_range[1])
+                    if abs(cx - x) < 1e-9:
+                        cx = None
             dir_x = d
         if y is not None and ny is not None and abs(ny - y) > 1e-9:
             d = 1 if ny > y else -1
@@ -693,11 +708,12 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     copicograf.cup_depth = holder["swipe_length"]
     copicograf.cup_width = holder["bay_width"]
     copicograf.water_cup_width = holder["water_bay_width"]
-    # The stir keeps off both endstops by the backlash take-up, which overshoots
-    # every move in the direction it was going: without that allowance a stir
-    # that ends on the limit is carried half a millimetre past it.
+    # The stir is held inside the ground a job already covers — the containers
+    # and the canvas — not the axis travel. It also keeps off both ends by the
+    # backlash take-up, which overshoots every move in the direction it was
+    # going, so a stir ending on the bound is not carried past it.
     take_up = float(bg.get("backlash_x", 0) or 0) if bg.get("backlash_compensation", True) else 0.0
-    copicograf.x_limits = (take_up, MODELS[model_of(conf)]["zero_sweep"][0] - take_up)
+    copicograf.x_limits = (take_up, workable_x(conf) - take_up)
     # A crucible near either end of the axis cannot be stirred the whole way
     # across: the stir stays centred on it and gives up the same distance on
     # both sides, so it goes short rather than lopsided. Worth saying, because
@@ -712,10 +728,11 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                     else holder["bay_width"]) / 2 * 0.7
             reach = min(full, x - lo, hi - x)
             if reach < 0.5:
-                log(f"[{name}] no room to stir at X {x:g} — dipping without it")
+                log(f"[{name}] no room to stir at X {x:g} — dipping without it: "
+                    f"the crucible is the outermost thing the machine goes to")
             elif reach < full - 0.05:
                 log(f"[{name}] stir shortened to +/-{reach:.1f} mm of {full:.1f} — "
-                    f"X {x:g} leaves the crucible short of the axis")
+                    f"X {x:g} leaves it short of the ground a job covers")
     stats = {"trays": [], "strokes": 0}
 
     def prepare(entry):
@@ -801,7 +818,8 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # at all still passes through here, but compensating by zero is a no-op.
     if bg.get("backlash_compensation", True):
         before = len(lines)
-        lines = apply_backlash(lines, float(bg.get("backlash_x", 0)), float(bg.get("backlash_y", 0)))
+        lines = apply_backlash(lines, float(bg.get("backlash_x", 0)),
+                               float(bg.get("backlash_y", 0)), x_range=(0.0, workable_x(conf)))
         log(f"backlash compensation: +{len(lines) - before} corrective moves")
 
     header = [

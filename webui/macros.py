@@ -21,7 +21,8 @@ G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
 
-from configspec import MODELS, RECTANGULAR_SHAPES, holder_of, model_of, with_defaults
+from configspec import (MODELS, RECTANGULAR_SHAPES, holder_of, model_of,
+                        with_defaults, workable_x)
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g"]
@@ -102,8 +103,10 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
         reach = holder["water_bay_width"] / 2 * 0.7
         sweeps = int(_num(bg, "cup_mix_sweeps", 2))
         # Centred on the cup, however near the end of the axis it sits: the
-        # shorter side sets both, as it does in copicograf.
-        reach = min(reach, tray_x, MODELS[model_of(conf)]["zero_sweep"][0] - tray_x)
+        # shorter side sets both, as it does in copicograf, and neither side
+        # goes past the ground a job already covers — the far end of that is
+        # the endstop, and a move that reaches it loses steps against it.
+        reach = min(reach, tray_x, workable_x(conf) - tray_x)
         left, right = tray_x - reach, tray_x + reach
         if reach < 0.5:
             sweeps = 0
