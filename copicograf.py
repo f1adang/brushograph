@@ -283,46 +283,101 @@ class Copicograf:
                 self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
                 set_fast_speed()
 
-        def travel_with_z(from_x, from_y, to_x, to_y, z_hold, z_end, ramp=True):
-            """Cross the bed while Z changes, keeping the change off the cups.
+        # The containers as seen from above, a little larger than they are, so
+        # the walls count as part of them. A bay is its rectangle; a round dish
+        # is squared off, which is the generous way round.
+        def cup_mouths():
+            rect = self.cup_shape in ("modern", "custom")
+            for name, tray in self.conf.get("trays", {}).items():
+                if name == "additionals" or not isinstance(tray, dict) or "x" not in tray:
+                    continue
+                tx, ty = float(tray["x"]), float(tray.get("y", 0))
+                if rect:
+                    w = self.water_cup_width if name == "water" else self.cup_width
+                    d = self.cup_depth
+                else:
+                    w = d = 2 * self.remove_drops_radius
+                w, d = w * 1.15, d * 1.15
+                yield tx - w / 2, tx + w / 2, ty - d / 2, ty + d / 2
 
-            Z used to be set standing still and the trip flown level. Running
-            the two together is one move instead of two and saves the pause —
-            but only over the canvas. The containers stand in the strip between
-            the origin and the canvas offset, and a ramp spread evenly over the
-            whole trip is still below their rims while it is crossing them:
-            from the black crucible to the near corner of the canvas an even
-            descent passes over the yellow crucible at Z 6.2, and the rims are
-            at 9.
+        def _box_span(ax, ay, bx, by, box):
+            """Which part of A->B lies inside the box, as (t0, t1), or None."""
+            x0, x1, y0, y1 = box
+            lo, hi = 0.0, 1.0
+            for a, b, q0, q1 in ((ax, bx, x0, x1), (ay, by, y0, y1)):
+                span = b - a
+                if abs(span) < 1e-9:
+                    if not q0 <= a <= q1:
+                        return None
+                    continue
+                t0, t1 = (q0 - a) / span, (q1 - a) / span
+                if t0 > t1:
+                    t0, t1 = t1, t0
+                lo, hi = max(lo, t0), min(hi, t1)
+                if lo > hi:
+                    return None
+            return lo, hi
 
-            So the strip is flown level at `z_hold` and the ramp to `z_end` is
-            made on the canvas side of it, the two legs meeting where the path
-            crosses the canvas offset. A trip that does not cross it — the
-            opening sequence starts on the offset itself — is lifted clear and
-            flown level, as every trip used to be, and so is one whose caller
-            says `ramp` is not safe because the brush is somewhere other than
-            where the trip is written from.
+        def travel_with_z(from_x, from_y, to_x, to_y, z_hold, z_end,
+                          to_cup, ramp=True):
+            """Cross the bed while Z changes, the change ending as it arrives.
 
-            Coming the other way the first leg is level whatever happens, so it
-            is safe from wherever the brush actually stands: only the dogleg it
-            turns at is a guess.
+            Z used to be set standing still and the trip flown level, which is
+            a pause at each end. It runs with the travel instead: one ramp, at
+            one steady rate, finishing exactly where the brush is going —
+            against the container on the way out, on the spot it paints on the
+            way back.
+
+            What it may not do is ramp over the containers. A ramp stretched
+            across the whole trip is below the rims while it is crossing them:
+            from the black crucible to the near corner of a canvas offset 25 mm
+            out, an even descent passes over the yellow crucible at Z 6.2 with
+            the rims at 9. So the ramp runs over the open bed and stops where
+            the path first meets a container's mouth; the rest is flown level
+            at `z_hold`, which is the tray lift and clears the rims by design.
+            Going the other way it is the same line read backwards: level until
+            the last mouth is behind it, then the ramp, arriving at the paper.
+
+            That makes the ramp as long as it can be — the whole trip bar the
+            few millimetres over the cups — rather than ending early at the
+            canvas offset, which was this first and is a good deal shorter.
+
+            `ramp=False` is for a caller that cannot promise the brush is
+            standing where the trip is written from: the trip that loads the
+            brush before a tray's first stroke starts whereever the job was
+            parked, and ramping from there climbs out through the water
+            crucible's far wall. Such a trip lifts clear and flies level, as
+            every trip used to.
             """
-            edge = self.offset_y
-            lo, hi = sorted((from_y, to_y))
-            if not ramp or not lo < edge < hi:
+            if ramp:
+                spans = [s for s in (_box_span(from_x, from_y, to_x, to_y, box)
+                                     for box in cup_mouths()) if s is not None]
+            else:
+                spans = None
+            if not spans:
                 self.gcodes.append(GCodeRapidMove(Z=max(z_hold, z_end)))
                 self.gcodes.append(GCodeRapidMove(X=_mm(to_x), Y=_mm(to_y)))
                 self.gcodes.append(GCodeRapidMove(Z=z_end))
                 return
-            t = (edge - from_y) / (to_y - from_y)
+
+            t = min(s[0] for s in spans) if to_cup else max(s[1] for s in spans)
+            if not 0.0 < t < 1.0:
+                # A mouth under the brush at the moment it sets off, or under
+                # the spot it is going to: there is no open bed to ramp over,
+                # so lift clear and fly it level, as a trip with no ramp does.
+                self.gcodes.append(GCodeRapidMove(Z=max(z_hold, z_end)))
+                self.gcodes.append(GCodeRapidMove(X=_mm(to_x), Y=_mm(to_y)))
+                self.gcodes.append(GCodeRapidMove(Z=z_end))
+                return
             mid_x = from_x + (to_x - from_x) * t
-            if from_y < to_y:
-                # Leaving the containers: level out of the strip, then ramp.
-                self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(edge), Z=z_hold))
+            mid_y = from_y + (to_y - from_y) * t
+            if to_cup:
+                # Ramp over the open bed, then level in over the mouths.
+                self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(mid_y), Z=z_end))
                 self.gcodes.append(GCodeLinearMove(X=_mm(to_x), Y=_mm(to_y), Z=z_end))
             else:
-                # Heading for them: ramp across the canvas, arrive level.
-                self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(edge), Z=z_end))
+                # Level while the mouths are still under it, then ramp home.
+                self.gcodes.append(GCodeLinearMove(X=_mm(mid_x), Y=_mm(mid_y), Z=z_hold))
                 self.gcodes.append(GCodeLinearMove(X=_mm(to_x), Y=_mm(to_y), Z=z_end))
 
         def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
@@ -345,7 +400,7 @@ class Copicograf:
                     self.gcodes.append(GCodeRapidMove(Z=clear))
                     travel_with_z(x + self.offset_x, y + self.offset_y,
                                   tray_x, entry_y, clear, self.go_in_tray_lift,
-                                  ramp=from_canvas)
+                                  to_cup=True, ramp=from_canvas)
                 else:
                     # Already over the tray from the entry before it.
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
@@ -455,7 +510,7 @@ class Copicograf:
                 # brush arrives one short drop above the paper rather than
                 # standing still at the far end while Z comes down.
                 travel_with_z(tray_x, exit_y, x + self.offset_x, y + self.offset_y,
-                              self.go_in_tray_lift, clear)
+                              self.go_in_tray_lift, clear, to_cup=False)
                 self.gcodes.append(GCodeRapidMove(Z=self.canvas_height))
             set_normal_speed()
 
