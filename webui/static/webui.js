@@ -534,11 +534,9 @@ function wireForm() {
     }
     // The stir before the swipe belongs to a rectangular bay: a round cup
     // sweeps its chord whatever this says. Hidden the same way.
-    for (const key of ["cup_mix_sweeps", "cup_mix_offset"]) {
-      const mix = machineInput(key);
-      const mixField = mix && mix.closest(".field");
-      if (mixField) mixField.hidden = classic;
-    }
+    const mix = machineInput("cup_mix_sweeps");
+    const mixField = mix && mix.closest(".field");
+    if (mixField) mixField.hidden = classic;
   };
 
   // What the selected holder fixes besides positions: the dish's radii and

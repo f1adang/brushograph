@@ -707,15 +707,15 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         for name, tray in sorted(conf.get("trays", {}).items()):
             if not isinstance(tray, dict) or "x" not in tray:
                 continue
-            middle = float(tray["x"]) + copicograf.cup_mix_offset
+            x = float(tray["x"])
             full = (holder["water_bay_width"] if name == "water"
                     else holder["bay_width"]) / 2 * 0.7
-            reach = min(full, middle - lo, hi - middle)
+            reach = min(full, x - lo, hi - x)
             if reach < 0.5:
-                log(f"[{name}] no room to stir at X {middle:g} — dipping without it")
+                log(f"[{name}] no room to stir at X {x:g} — dipping without it")
             elif reach < full - 0.05:
                 log(f"[{name}] stir shortened to +/-{reach:.1f} mm of {full:.1f} — "
-                    f"X {middle:g} leaves the crucible short of the axis")
+                    f"X {x:g} leaves the crucible short of the axis")
     stats = {"trays": [], "strokes": 0}
 
     def prepare(entry):

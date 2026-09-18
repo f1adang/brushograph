@@ -107,14 +107,6 @@ class Copicograf:
             self.cup_mix_sweeps = max(0, int(bg.get("cup_mix_sweeps", 2)))
         except (TypeError, ValueError):
             self.cup_mix_sweeps = 2
-        # Where the holder really is along X, against where the tray
-        # coordinates put it. A dip and a swipe only use the centre, so a
-        # holder a couple of millimetres off its figures never showed; a sweep
-        # the width of the cup does, by running up against one wall.
-        try:
-            self.cup_mix_offset = float(bg.get("cup_mix_offset", 0.0))
-        except (TypeError, ValueError):
-            self.cup_mix_offset = 0.0
 
         self.offset_y = float(self.conf["brushograph"]["offset_y"])
         self.offset_x = float(self.conf["brushograph"]["offset_x"])
@@ -360,9 +352,8 @@ class Copicograf:
                     # with under a millimetre to work in.
                     width = self.water_cup_width if water else self.cup_width
                     lo, hi = self.x_limits
-                    middle = tray_x + self.cup_mix_offset
-                    reach = min(width / 2 * 0.7, middle - lo, hi - middle)
-                    left, right = middle - reach, middle + reach
+                    reach = min(width / 2 * 0.7, tray_x - lo, hi - tray_x)
+                    left, right = tray_x - reach, tray_x + reach
                     if reach >= 0.5:
                         for _ in range(self.cup_mix_sweeps):
                             self.gcodes.append(GCodeRapidMove(X=_mm(left), Y=_mm(near)))
