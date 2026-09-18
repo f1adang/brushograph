@@ -27,8 +27,8 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from configspec import (CMYK_TO_TRAY, MODELS, holder_of, model_of,  # noqa: E402
-                        tray_entries)
+from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,  # noqa: E402
+                        cup_shape_of, holder_of, model_of, tray_entries)
 
 FALLBACK_PATTERN = "concentric"
 
@@ -698,6 +698,24 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # that ends on the limit is carried half a millimetre past it.
     take_up = float(bg.get("backlash_x", 0) or 0) if bg.get("backlash_compensation", True) else 0.0
     copicograf.x_limits = (take_up, MODELS[model_of(conf)]["zero_sweep"][0] - take_up)
+    # A crucible near either end of the axis cannot be stirred the whole way
+    # across: the stir stays centred on it and gives up the same distance on
+    # both sides, so it goes short rather than lopsided. Worth saying, because
+    # the G-code just has a shorter move in it and the paint mixes less.
+    if cup_shape_of(conf) in RECTANGULAR_SHAPES and copicograf.cup_mix_sweeps:
+        lo, hi = copicograf.x_limits
+        for name, tray in sorted(conf.get("trays", {}).items()):
+            if not isinstance(tray, dict) or "x" not in tray:
+                continue
+            middle = float(tray["x"]) + copicograf.cup_mix_offset
+            full = (holder["water_bay_width"] if name == "water"
+                    else holder["bay_width"]) / 2 * 0.7
+            reach = min(full, middle - lo, hi - middle)
+            if reach < 0.5:
+                log(f"[{name}] no room to stir at X {middle:g} — dipping without it")
+            elif reach < full - 0.05:
+                log(f"[{name}] stir shortened to +/-{reach:.1f} mm of {full:.1f} — "
+                    f"X {middle:g} leaves the crucible short of the axis")
     stats = {"trays": [], "strokes": 0}
 
     def prepare(entry):

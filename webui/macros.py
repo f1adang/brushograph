@@ -102,9 +102,11 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
         reach = holder["water_bay_width"] / 2 * 0.7
         sweeps = int(_num(bg, "cup_mix_sweeps", 2))
         middle = tray_x + _num(bg, "cup_mix_offset", 0.0)
-        left = max(0.0, middle - reach)
-        right = min(middle + reach, MODELS[model_of(conf)]["zero_sweep"][0])
-        if right - left < 1.0:
+        # Centred on the cup, however near the end of the axis it sits: the
+        # shorter side sets both, as it does in copicograf.
+        reach = min(reach, middle, MODELS[model_of(conf)]["zero_sweep"][0] - middle)
+        left, right = middle - reach, middle + reach
+        if reach < 0.5:
             sweeps = 0
         for _ in range(max(1, reps)):
             lines += [

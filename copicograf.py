@@ -345,20 +345,25 @@ class Copicograf:
                     # 70% of the half-width leaves the sweep the same 15% of
                     # the bay off each wall that the swipe leaves off its ends.
                     #
-                    # Then kept on the machine. This is the first thing that
-                    # takes the brush off a crucible centre line, and a holder
-                    # can hang over the bed at either end: Pinkograph's water
-                    # crucible is 39.2 mm wide with its centre at X 12, so half
-                    # of it is past the endstop, and its last colour reaches
-                    # 3 mm beyond the far end of the travel. A stir that is
-                    # short on one side still stirs, and one with no room at
-                    # all is skipped.
+                    # Then kept on the machine, and kept centred on the cup
+                    # while doing it. A holder can hang over the bed at either
+                    # end — Pinkograph's water crucible is 39.2 mm wide with
+                    # its centre at X 12, so half of it is past the endstop,
+                    # and its black crucible sits at 153 of a 160 mm axis, most
+                    # of its right half out of reach. Clipping the far end
+                    # alone left the stir sitting in the left half of the
+                    # crucible, working against the near rim and leaving the
+                    # rest of the paint alone. So the shorter side sets both:
+                    # the stir keeps the cup's centre as its own and gives up
+                    # the same distance on each side, which is a smaller stir
+                    # in a cup at the end of the axis and no stir at all in one
+                    # with under a millimetre to work in.
                     width = self.water_cup_width if water else self.cup_width
-                    reach = width / 2 * 0.7
                     lo, hi = self.x_limits
                     middle = tray_x + self.cup_mix_offset
-                    left, right = max(lo, middle - reach), min(hi, middle + reach)
-                    if right - left >= 1.0:
+                    reach = min(width / 2 * 0.7, middle - lo, hi - middle)
+                    left, right = middle - reach, middle + reach
+                    if reach >= 0.5:
                         for _ in range(self.cup_mix_sweeps):
                             self.gcodes.append(GCodeRapidMove(X=_mm(left), Y=_mm(near)))
                             self.gcodes.append(GCodeRapidMove(X=_mm(right), Y=_mm(near)))
