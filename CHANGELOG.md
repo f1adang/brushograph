@@ -6,6 +6,22 @@ message describes that version.
 
 ## [v2.8.6](https://github.com/f1adang/brushograph/releases/tag/v2.8.6) — 2026-09-19
 
+- A machine can be started from a model instead of from a file. The pulldown
+  was a list of machines with no way to add one that did not already exist
+  somewhere: a new bed meant finding somebody else's config, editing every
+  figure in it, and hoping nothing was left over. “+ New machine…” sits at the
+  bottom of that list, asks for a model and a name, and writes out that
+  model's own defaults under it — travel limits, canvas offset, the containers
+  spaced along from where the holder has room for them, and the container
+  heights of the shape that model can actually hold: the petri dish's if it
+  takes one, the printed crucibles' if it does not. The rest is what the form
+  always offers, so every control is present; a config that omits a section
+  simply has no control for it, and a new machine would have no way to gain
+  one. It is kept the way an upload with “Persist config on server” is kept,
+  including never writing over a name that is already taken — that config is
+  somebody else's machine — so it joins the list, is selected, and opens in
+  the form ready to be checked against the bed it was named for.
+
 - The wash stays on ground the machine can reach, whichever containers it
   washes in. A container is deeper than the strip it stands in, so both shapes
   reached south of the origin: the rectangular bay put its near edge at Y -4.5
