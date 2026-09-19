@@ -107,6 +107,18 @@ try { var t = localStorage.getItem("brushograph-theme");
 </footer>
 
 <dialog id="info-dialog"></dialog>
+
+<!-- Asked before anything is taken off the server for good. A kept config is
+     shared, so the machine being deleted may be one somebody else set up. -->
+<dialog id="confirm-dialog">
+  <form method="dialog">
+    <p id="confirm-dialog-text"></p>
+    <div class="actions dialog-actions">
+      <button value="cancel" class="ghost" id="confirm-dialog-cancel">Cancel</button>
+      <button value="ok" class="danger" id="confirm-dialog-ok">Delete</button>
+    </div>
+  </form>
+</dialog>
 <script>const SESSION_ID = "{{ session_id }}";</script>
 <script src="{{ asset('de.js') }}"></script>
 <script src="{{ asset('webui.js') }}"></script>

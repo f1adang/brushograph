@@ -862,6 +862,14 @@ button { font: 14px var(--sans); border-radius: 5px; cursor: pointer; }
   padding: 9px 15px;
 }
 .ghost:hover { border-color: var(--ink-faint); }
+/* Deleting a kept config takes it away from everyone on the server, so the
+   button that does it does not look like the two beside it. */
+.danger {
+  background: var(--sheet); color: var(--bad); border: 1px solid var(--bad);
+  padding: 9px 15px;
+}
+.danger:hover:not(:disabled) { background: var(--bad); color: var(--sheet); }
+.dialog-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 14px; }
 button:disabled { opacity: .45; cursor: not-allowed; }
 button:focus-visible, summary:focus-visible, .inline-file:focus-within {
   outline: 2px solid var(--ink); outline-offset: 2px;

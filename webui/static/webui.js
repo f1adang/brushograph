@@ -301,6 +301,26 @@ function addSavedOption(name) {
   return option;
 }
 
+/* The other way round: a machine that is no longer on the server should not
+   still be offered by a page that was open when it went. */
+function removeSavedOption(name) {
+  if (!configSelect) return;
+  const option = [...configSelect.options].find((o) => o.value === name);
+  if (option) option.remove();
+  configSelect.selectedIndex = 0;
+  if (![...configSelect.options].some((o) => o.value && o.value !== "__new__")) {
+    say($("machine-config-prompt"), "No machines kept yet");
+  }
+}
+
+/* Back to what the page shows before any machine is picked. */
+function resetOptionsForm() {
+  const box = $("options-form-container");
+  if (!box) return;
+  box.innerHTML = '<div class="placeholder"><p></p></div>';
+  say(box.querySelector("p"), "Choose a machine to see its options.");
+}
+
 const cfgDlBtn = $("cfg-download");
 if (cfgDlBtn) {
   cfgDlBtn.addEventListener("click", () => {
@@ -313,6 +333,25 @@ if (cfgDlBtn) {
     document.body.appendChild(a);
     a.click();
     a.remove();
+  });
+}
+
+/* ---- asking before something is taken off the server ---- */
+/* Resolves true only if the confirming button was the one pressed: Escape and
+   the backdrop both close a <dialog> with an empty returnValue, and neither
+   means yes. The text is translated where it is shown, like every other
+   message here, so it follows a change of theme. */
+function askToConfirm(english, vars, okEnglish) {
+  const dlg = $("confirm-dialog");
+  if (!dlg || typeof dlg.showModal !== "function") {
+    // No dialog element to use — better to ask plainly than not at all.
+    return Promise.resolve(window.confirm(t(english, vars)));
+  }
+  say($("confirm-dialog-text"), english, vars);
+  if (okEnglish) say($("confirm-dialog-ok"), okEnglish);
+  return new Promise((resolve) => {
+    dlg.addEventListener("close", () => resolve(dlg.returnValue === "ok"), { once: true });
+    dlg.showModal();
   });
 }
 
@@ -1044,6 +1083,49 @@ function wireForm() {
       } finally {
         say(updateBtn, label);
         updateBtn.disabled = gcodeBtn.disabled = configBtn.disabled = false;
+      }
+    });
+  }
+
+  /* ---- taking this machine off the server ---- */
+  /* Deliberately asks first, and says where it goes from: a kept config is in
+     the machine list for everyone using this server, so deleting one is not
+     only this session's business. */
+  const deleteBtn = $("options-form-delete-config");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async () => {
+      const errBox = $("setup-error");
+      const statusBox = $("setup-status");
+      errBox.hidden = true;
+      statusBox.hidden = true;
+      const name = deleteBtn.dataset.configName || machineConfigName;
+      const ok = await askToConfirm(
+        "Delete {name} from the server? It goes from the machine list for everyone "
+        + "using this server, not just from this page.", { name }, "Delete");
+      if (!ok) return;
+      const label = labelOf(deleteBtn);
+      deleteBtn.textContent = t("Deleting…");
+      deleteBtn.disabled = gcodeBtn.disabled = configBtn.disabled = true;
+      if (updateBtn) updateBtn.disabled = true;
+      try {
+        const fd = new FormData();
+        fd.append("name", name);
+        fd.append("mode", "saved");
+        const res = await fetch("machine_config/delete", { method: "POST", body: fd });
+        if (!res.ok) throw new Error(await serverError(res));
+        removeSavedOption(name);
+        machineConfigName = null;
+        machineConfigMode = null;
+        showCfgNote("Deleted {name} from the server.", { name });
+        // Nothing is chosen any more, so the form goes back to its placeholder
+        // rather than standing there editing a machine that no longer exists.
+        resetOptionsForm();
+      } catch (err) {
+        say(errBox, String(err.message || err));
+        errBox.hidden = false;
+        say(deleteBtn, label);
+        deleteBtn.disabled = gcodeBtn.disabled = configBtn.disabled = false;
+        if (updateBtn) updateBtn.disabled = false;
       }
     });
   }

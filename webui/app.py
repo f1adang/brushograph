@@ -540,6 +540,34 @@ def machine_config_update():
     return jsonify(name=name, version=config_version(out))
 
 
+@app.post("/machine_config/delete")
+def machine_config_delete():
+    """Take a kept config off the server.
+
+    Only a kept one. An uploaded config is the session's own and goes when the
+    session does; there is nothing on the server to remove. The file goes, but
+    webui_configs is a git repository of its own and the removal is committed
+    there like every other write, so what was under that name is still
+    recoverable — this is a shared server, and the machine being deleted may
+    be one somebody else set up.
+    """
+    name = request.form.get("name", "")
+    if request.form.get("mode") != "saved":
+        return jsonify(error="Only a config kept on the server can be deleted there."), 400
+    try:
+        path = config_path(name, "saved", session_id())
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    with SAVED_CONFIGS_LOCK:
+        if not path.is_file():
+            return jsonify(error=f"{name} is no longer on the server — somebody else may "
+                                 "have deleted it already."), 404
+        path.unlink()
+        config_history.commit(SAVED_CONFIGS_DIR, name, "Delete",
+                              config_history.client_ip(request), app.logger.warning)
+    return jsonify(name=name)
+
+
 def keep_config(name: str, raw: bytes, reason: str = "Upload") -> str:
     """Put an uploaded config on the server for good, and return its name there.
 

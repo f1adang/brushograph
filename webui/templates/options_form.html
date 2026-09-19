@@ -109,12 +109,15 @@
             <code>.conf</code> you can keep or hand to another machine.</p>
           {% if machine_config_mode == 'saved' %}
           <p class="note">Update writes them over the copy kept on this server instead, for
-            everyone who picks it from the machine list.</p>
+            everyone who picks it from the machine list. Delete takes that copy off the
+            server, for everyone.</p>
           {% endif %}
           <div class="actions">
             <button type="submit" class="primary" id="options-form-machine-config">Download Machine Config</button>
             {% if machine_config_mode == 'saved' %}
             <button type="button" class="primary" id="options-form-update-config">Update {{ machine_config_name }}</button>
+            <button type="button" class="danger" id="options-form-delete-config"
+                    data-config-name="{{ machine_config_name }}">Delete {{ machine_config_name }}</button>
             {% endif %}
             <span class="note" id="setup-status" hidden></span>
           </div>
