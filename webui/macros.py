@@ -247,14 +247,20 @@ def generate_macros(conf: dict) -> dict[str, str]:
     ]
     out["clean.g"] = "\n".join(lines) + "\n"
 
-    # calibrate.g — place the dot and park over it. Nothing before it: no
-    # wash, no lift to Go In Tray Lift first, unlike every other macro here —
-    # this one is meant to do only the dot. Z0 and Z10 are given as literal
-    # heights for this macro specifically, not canvas_height or
-    # go_in_tray_lift, so neither is read from the config.
+    # calibrate.g — place the dot and park over it. No wash and nothing else:
+    # this one is meant to do only the dot. It lifts first all the same, the
+    # way every other macro here does, because it is run from wherever the
+    # brush was left and where these macros leave it is X0 Y0 at Dip Depth + 1
+    # — inside the water container, under its rim. Crossing to the canvas
+    # origin from there at that height drags the brush through the container
+    # wall, so the trip starts at Go In Tray Lift, the height that clears the
+    # rims. Z0 and Z10 stay literal for this macro specifically, not
+    # canvas_height or go_in_tray_lift: the dot is the canvas itself, and the
+    # park is only high enough to see it.
     lines = [
         "; calibrate.g — place the dot, then park over it",
         *_preamble(bg, "normal"),
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
         f"G00 X{_fmt(ox)} Y{_fmt(oy)} ; the canvas origin",
         "G00 Z0 ; touch down — the single dot",
         "G00 Z10 ; park over the dot",
