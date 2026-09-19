@@ -47,6 +47,14 @@ version's heading appears with its first bullet and grows until it is tagged.
   all: it used to be made anyway and dip nothing, wiping a rim the brush was
   nowhere near.
 
+- **Update puts an uploaded machine on the server too.** The button only ever
+  offered to write back a machine that was already kept there, so keeping one
+  you had uploaded and edited meant downloading the file and uploading it
+  again with the box ticked. Now it keeps it from where it is. A name already
+  taken is still never written over — that is somebody else's machine, and
+  yours goes in beside it as workshop-2.conf, with the page saying which name
+  it got.
+
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
 - Backlash compensation compensates. It never did: it added a corrective move
