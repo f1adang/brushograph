@@ -493,26 +493,64 @@ def _check_saved_size(raw: bytes) -> None:
 
 @app.post("/machine_config/update")
 def machine_config_update():
-    """Write the form as it stands over the kept config it was loaded from.
+    """Write the form as it stands out to the server, under this config's name.
 
-    Keeping never overwrites — an upload cannot know what is already under its
-    name. This is the deliberate way to change a kept config, and it still will
-    not overwrite blind: the form carries the version of the file it was built
-    from, and if somebody else has updated it since, the update is refused
-    rather than quietly throwing their changes away.
+    Whichever way the config got here, this button puts it on the server: that
+    is the whole of what it is for, and it used to refuse a config that had
+    been uploaded rather than kept, which left the only way of keeping an
+    edited machine being to download it and upload it again with the box
+    ticked.
+
+    A config already kept there is written over in place. It will not overwrite
+    blind: the form carries the version of the file it was built from, and if
+    somebody else has updated it since, the update is refused rather than
+    quietly throwing their changes away.
+
+    An uploaded config is the session's own and has nothing on the server yet,
+    so this is what puts it there — kept exactly the way an upload with the box
+    ticked is kept, which means a name already taken is never written over. It
+    belongs to somebody else's machine, and this config goes in beside it under
+    the first free `stem-2.conf`. The page is told the name it actually got.
     """
     name = request.form.get("machine_config_name", "")
-    if request.form.get("machine_config_mode") != "saved":
-        return jsonify(error="Only a config kept on the server can be updated there."), 400
+    mode = request.form.get("machine_config_mode", "")
+    if mode not in ("saved", "uploaded"):
+        return jsonify(error="There is no machine config loaded to save."), 400
     try:
         path = config_path(name, "saved", session_id())
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
+    # Outside SAVED_CONFIGS_LOCK on purpose: keep_config takes that lock
+    # itself, and it is a plain Lock rather than an RLock, so calling it from
+    # inside one hangs the request until the server is killed. Nothing here
+    # needs the lock held across both halves — this branch writes nothing of
+    # its own, it only asks keep_config to do the writing.
+    if mode == "uploaded":
+        try:
+            base, _ = read_config(name, "uploaded", session_id())
+        except (ValueError, json.JSONDecodeError) as exc:
+            return jsonify(error=f"Could not load that config: {exc}"), 400
+        conf, problems = apply_form(base, request.form)
+        if problems:
+            return jsonify(error="; ".join(problems[:4])), 400
+        out = config_bytes(conf)
+        try:
+            kept = keep_config(name, out, reason="Update")
+        except ValueError as exc:
+            return jsonify(error=str(exc)), 400
+        return jsonify(name=kept, mode="saved", requested=name,
+                       version=config_version(out))
+
     with SAVED_CONFIGS_LOCK:
         if not path.is_file():
+            # Nothing on the server and nothing in the session either: a kept
+            # config is never copied into one, so there is no base left to fold
+            # the form back into, and what the form posts is only the settings
+            # it was built to offer rather than a whole machine.
             return jsonify(error=(
-                f"{name} is no longer on the server, so there is nothing to update. Upload it "
-                "again with “Persist config on server” ticked to keep it anew.")), 404
+                f"{name} is no longer on the server, and a kept config leaves no copy in your "
+                "session, so there is nothing here to write back. Pick another machine, or "
+                "upload the file again to start from it.")), 404
         try:
             base, raw = read_config(name, "saved", session_id())
         except (ValueError, json.JSONDecodeError) as exc:
@@ -537,7 +575,8 @@ def machine_config_update():
         os.replace(part, path)
         config_history.commit(SAVED_CONFIGS_DIR, name, "Update",
                               config_history.client_ip(request), app.logger.warning)
-    return jsonify(name=name, version=config_version(out))
+    return jsonify(name=name, mode="saved", requested=name,
+                   version=config_version(out))
 
 
 @app.post("/machine_config/delete")

@@ -1635,18 +1635,33 @@ config is written all the same and the failure goes to the log.
 
 ### Updating a kept config
 
-When the form was loaded from a kept config, **Save these settings** in Machine
-setup offers **Update workshop.conf** beside Download. It writes the settings
-as they stand over the kept file — exactly the bytes Download would have given
-you — so everyone who picks that machine from the list gets them. A session
-upload has no copy on the server and is not offered one.
+**Save these settings** in Machine setup offers **Update workshop.conf** beside
+Download, whichever way that config arrived. Putting the settings on the server
+is the whole of what the button is for, and it used to refuse a config that had
+been uploaded rather than kept — which left the only way of keeping an edited
+machine being to download the file and upload it again with the box ticked.
+
+A config already kept there is written over in place: the settings as they
+stand, exactly the bytes Download would have given you, so everyone who picks
+that machine from the list gets them.
+
+An uploaded config has nothing on the server yet, so the button puts it there,
+kept exactly the way an upload with the box ticked is kept. That means a name
+already taken is never written over — it belongs to somebody else's machine, so
+this one goes in beside it as `workshop-2.conf`, and the page says under what
+name rather than leaving you to guess which of the two is yours. The form then
+carries on as a kept config: the next Update goes to the same place, and Delete
+can reach it.
 
 **Update does not overwrite blind.** Two people can load `workshop.conf`, both
 tune it, and both press Update; the second would quietly throw away the first
 one's changes. So the form carries a version of the file it was built from — a
 hash of the very bytes it was parsed from, taken in the same read — and an
 update whose version no longer matches the file is refused with *changed on the
-server since you loaded it*, the file untouched. Picking the config from the list
+server since you loaded it*, the file untouched. A kept config that has gone
+from the server altogether cannot be written back either: a kept one leaves no
+copy in your session, so there is no base left to fold the form into — what the
+form posts is the settings it was built to offer, not a whole machine. Picking the config from the list
 again loads the current one. A successful update hands back the new version, so
 the same page can update again without reloading.
 
@@ -1656,10 +1671,8 @@ file is written beside the old one and swapped in with `os.replace`, so anyone
 loading it meanwhile gets the old config or the new one, never half of each.
 Kept configs' size limit applies to what an update writes, too.
 
-There is **no way to delete a kept config from the page**, and **no
-authentication** on keeping or updating one — like everything else here, anyone
-who can reach the page can do it. Clearing one out means removing the file from
-`webui_configs/` on the server. A list that other people's uploads join only
+There is **no authentication** on keeping, updating or deleting a kept config —
+like everything else here, anyone who can reach the page can do it. A list that other people's uploads join only
 refreshes on a page load; the one you just kept appears at once.
 
 ## Assets are never cached

@@ -1051,11 +1051,36 @@ function wireForm() {
     });
   }
 
-  /* ---- write the settings back over the kept config they came from ---- */
-  /* Only offered for a kept config; the server refuses the update if somebody
-     else has changed that config since this form was loaded. */
+  /* ---- put the settings on the server ---- */
+  /* Offered whichever way the config arrived. A kept one is written over,
+     version-checked, and the server refuses if somebody else has changed it
+     since this form was loaded; an uploaded one is kept for the first time,
+     which can give it a different name if its own is already taken. */
   const updateBtn = $("options-form-update-config");
   const versionInput = form.querySelector('[name="machine_config_version"]');
+  const nameInput = form.querySelector('[name="machine_config_name"]');
+  const modeInput = form.querySelector('[name="machine_config_mode"]');
+
+  /* The config this form is editing has just become a kept one, or changed its
+     name becoming one. Everything that was rendered from the old name follows
+     it, so the next Update goes to the same place and Delete can reach it. */
+  function nowKeptAs(name) {
+    if (nameInput) nameInput.value = name;
+    if (modeInput) modeInput.value = "saved";
+    machineConfigName = name;
+    machineConfigMode = "saved";
+    addSavedOption(name);
+    if (configSelect) configSelect.value = name;
+    say(updateBtn, "Update {name}", { name });
+    const note = $("setup-update-note");
+    if (note) note.hidden = true;
+    if (deleteBtn) {
+      deleteBtn.dataset.configName = name;
+      say(deleteBtn, "Delete {name}", { name });
+      deleteBtn.hidden = false;
+    }
+  }
+
   if (updateBtn && versionInput) {
     updateBtn.addEventListener("click", async () => {
       const errBox = $("setup-error");
@@ -1075,7 +1100,17 @@ function wireForm() {
         const data = await res.json();
         // The next update from this form is compared against what this one wrote.
         versionInput.value = data.version;
-        say(statusBox, "Updated {name} on the server.", { name: data.name });
+        if (data.mode === "saved" && machineConfigMode !== "saved") nowKeptAs(data.name);
+        else if (data.name !== machineConfigName) nowKeptAs(data.name);
+        if (data.requested && data.name !== data.requested) {
+          // Kept under another name because its own was taken. Saying so is
+          // the whole point: the machine list now has two that look alike.
+          say(statusBox, "Kept as {name} — {requested} on this server is another machine, "
+                       + "and it was not written over.",
+              { name: data.name, requested: data.requested });
+        } else {
+          say(statusBox, "Updated {name} on the server.", { name: data.name });
+        }
         statusBox.hidden = false;
       } catch (err) {
         say(errBox, String(err.message || err));

@@ -37,7 +37,7 @@ text: {
 "Choose file": "Datei auswählen",
 "No file selected": "Keine Datei ausgewählt",
 "No machines kept yet": "Noch keine Maschinen hinterlegt",
-"Persist config on server": "Konfiguration auf dem Server hinterlegen",
+"Upload config to server": "Konfiguration auf den Server laden",
 "About keeping a config on the server": "Über das Hinterlegen einer Konfiguration auf dem Server",
 "A kept config is added to the machine list above for anyone who opens this page, and stays after the server restarts. Without this, an upload is only yours, and only for as long as your session lasts.":
   "Eine hinterlegte Konfiguration erscheint in der Maschinenliste oben für jeden, der diese Seite öffnet, und bleibt auch nach einem Neustart des Servers erhalten. Ohne dies gehört eine hochgeladene Datei nur Ihnen, und nur so lange, wie Ihre Sitzung währt.",
@@ -87,6 +87,14 @@ text: {
 "Update writes them over the copy kept on this server instead, for everyone who picks it from the machine list.":
   "„Aktualisieren“ schreibt sie stattdessen über die auf diesem Server hinterlegte Fassung, für jeden, der sie aus der Maschinenliste wählt.",
 "Updating…": "Wird aktualisiert …",
+"Update {name}": "{name} aktualisieren",
+"Delete {name}": "{name} löschen",
+"Kept as {name} — {requested} on this server is another machine, and it was not written over.":
+  "Als {name} hinterlegt — {requested} ist auf diesem Server eine andere Maschine und wurde nicht überschrieben.",
+"Update puts them on this server, in the machine list for everyone who opens this page. A name already taken is somebody else's machine and is never written over — this one goes in beside it, and the page says under what name.":
+  "„Aktualisieren“ legt sie auf diesem Server ab, in der Maschinenliste für jeden, der diese Seite öffnet. Ein bereits vergebener Name gehört zur Maschine eines anderen und wird niemals überschrieben — diese hier kommt daneben, und die Seite nennt den Namen, den sie bekommen hat.",
+"There is no machine config loaded to save.":
+  "Es ist keine Maschinenkonfiguration geladen, die hinterlegt werden könnte.",
 "Updated {name} on the server.": "{name} auf dem Server aktualisiert.",
 "Only a config kept on the server can be updated there.":
   "Nur eine auf dem Server hinterlegte Konfiguration kann dort aktualisiert werden.",
@@ -470,8 +478,8 @@ patterns: [
   ["^(.+): '(.*)' is not a number$", "$1: „$2“ ist keine Zahl"],
   ["^Tray (\\d+)$", "Behälter $1"],
   ["^Update (\\S+\\.conf)$", "$1 aktualisieren"],
-  ["^(\\S+\\.conf) is no longer on the server, so there is nothing to update\\. Upload it again with “Persist config on server” ticked to keep it anew\\.$",
-   "$1 ist nicht mehr auf dem Server, es gibt also nichts zu aktualisieren. Laden Sie sie mit angehaktem „Konfiguration auf dem Server hinterlegen“ erneut hoch, um sie wieder zu hinterlegen."],
+  ["^(\\S+\\.conf) is no longer on the server, and a kept config leaves no copy in your session, so there is nothing here to write back\\. Pick another machine, or upload the file again to start from it\\.$",
+   "$1 ist nicht mehr auf dem Server, und eine hinterlegte Konfiguration hinterlässt keine Abschrift in Ihrer Sitzung; es gibt hier also nichts zurückzuschreiben. Wählen Sie eine andere Maschine oder laden Sie die Datei erneut hoch, um von ihr auszugehen."],
   ["^(\\S+\\.conf) has been changed on the server since you loaded it\\. Pick it again from the machine list to see those changes; updating now would overwrite them\\.$",
    "$1 wurde auf dem Server geändert, seit Sie sie geladen haben. Wählen Sie sie erneut aus der Maschinenliste, um diese Änderungen zu sehen; jetzt zu aktualisieren würde sie überschreiben."],
   ["^A machine config is a few kilobytes; this one is (\\d+) KB, over the (\\d+) KB the server will keep\\.$",
