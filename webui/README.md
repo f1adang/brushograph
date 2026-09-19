@@ -1030,6 +1030,18 @@ passes the point that colour's painting starts from, so the trip to the tray
 ends with the brush arriving there loaded rather than touching down somewhere
 else and leaving a mark.
 
+That pickup makes **`prepare_paint_count` dips, not one**. One dip is a re-ink,
+and it is enough for a brush already carrying the colour; the brush arriving
+here is not, it has just been washed and is full of water, and one dip charges
+it so weakly that a tray opened pale and came up to colour somewhere in its
+first strokes. The mixing routine is the same one the opening sequence uses and
+the same figure from the config, honoured to the letter: `0` is what that
+setting means by a plotter, and a plotter has nothing to pick up, so it makes
+no trip at all. A count of zero used to make the trip anyway and dip nothing in
+it — the rim wipe and the journey home sit outside the dipping loop, so it
+wiped a rim the brush was nowhere near and then flew home from a cup it had
+never entered.
+
 A colour change therefore reads: wash (three dips in the water), lift clear,
 dip the next colour, shed the drip it comes up with, travel to the first stroke
 of that colour, and paint. How the drip is shed depends on the containers: a

@@ -427,6 +427,13 @@ class Copicograf:
         def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
                               return_to_canvas=True, water=False, from_canvas=False,
                               ramp=None):
+            # No entries is no trip at all, not a trip that dips nothing: the
+            # rim wipe and the journey home sit outside the loop, so a count of
+            # zero would otherwise wipe a rim the brush is nowhere near and
+            # then fly home from a cup it never went to. prepare_paint_count is
+            # documented as "0 for plotter", and a plotter wants neither.
+            if num_of_entries <= 0:
+                return
             set_fast_speed()
             clear = self.move_to_other_shape_lift + self.canvas_height
             # Where the cup is entered and left again: the two ends of a
@@ -571,12 +578,16 @@ class Copicograf:
                 self.gcodes.append(GCodeRapidMove(Z=self.canvas_height))
             set_normal_speed()
 
-        def append_go_for_paint(x, y, from_canvas=True):
+        def append_go_for_paint(x, y, from_canvas=True, entries=1):
             # from_canvas says the brush is standing at (x, y) on the paper, so
             # the climb to the tray can be made on the way there. The trip that
             # loads the brush before the first stroke is the exception: it is
             # made from wherever the last job left it.
-            append_go_in_tray(color_tray_x, color_tray_y, x, y,
+            #
+            # One entry re-inks a brush that is already carrying the colour.
+            # Loading a clean one takes the mixing routine, which is what
+            # `entries` is for.
+            append_go_in_tray(color_tray_x, color_tray_y, x, y, entries,
                               from_canvas=from_canvas)
 
             # self.randomize_paint_per_run()
@@ -706,8 +717,17 @@ class Copicograf:
         # last time — which is nothing, if it was washed. Given the point the
         # painting starts at, the trip ends with the brush arriving there
         # loaded, so it leaves no mark of its own.
+        #
+        # It is the mixing routine rather than the single dip a re-ink makes,
+        # because the brush arriving here has just been washed: it is clean and
+        # full of water, and one dip charges it weakly, so a tray opened its
+        # painting pale and came up to colour somewhere in the first strokes.
+        # prepare_paint_count is the same figure the opening sequence mixes
+        # with, and it is honoured to the letter — 0 is a plotter, and a
+        # plotter has nothing to pick up.
         if pickup_at is not None:
-            append_go_for_paint(pickup_at[0], pickup_at[1], from_canvas=False)
+            append_go_for_paint(pickup_at[0], pickup_at[1], from_canvas=False,
+                                entries=self.prepare_paint_count)
 
         self.last_draw_gcode = None
         self.last_draw_params = None
