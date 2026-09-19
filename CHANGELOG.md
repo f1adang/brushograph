@@ -6,6 +6,18 @@ message describes that version.
 
 ## [v2.8.6](https://github.com/f1adang/brushograph/releases/tag/v2.8.6) — 2026-09-19
 
+- calibrate.g lifts to Go In Tray Lift before it crosses to the canvas. It was
+  the one macro here that set off from wherever it found the brush without
+  clearing anything first, on the grounds that it is meant to do only the dot.
+  But where these macros leave the brush is X0 Y0 at Dip Depth + 1, which on a
+  holder whose water container covers the origin — Pinkograph's does — is
+  inside that container, under a rim at Z9. Going straight to the canvas
+  origin from there dragged the brush through the container wall, and the
+  calibration dot it then placed was measured against a brush that had just
+  been shoved sideways. The trip begins at the height that clears the rims
+  now. The dot itself is unchanged: still Z0 at the canvas origin, still
+  parked at Z10 above it.
+
 - A machine can be started from a model instead of from a file. The pulldown
   was a list of machines with no way to add one that did not already exist
   somewhere: a new bed meant finding somebody else's config, editing every
