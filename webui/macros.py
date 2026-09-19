@@ -29,6 +29,7 @@ from __future__ import annotations
 
 from configspec import (MODELS, RECTANGULAR_SHAPES, holder_of, model_of,
                         tray_entries, with_defaults, workable_x)
+from gcode_pipeline import to_ascii
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
@@ -520,5 +521,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     lines += [f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift", *_park_at_origin(park_z)]
     out["backlash.g"] = "\n".join(lines) + "\n"
 
-    # Every macro, zero.g's fixed routine included, says what made it.
-    return {name: gcode_note() + "\n" + text for name, text in out.items()}
+    # Every macro, zero.g's fixed routine included, says what made it — and
+    # goes out in ASCII, like everything else the machine is sent.
+    return {name: to_ascii(gcode_note() + "\n" + text)
+            for name, text in out.items()}

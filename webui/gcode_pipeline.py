@@ -11,6 +11,7 @@ import math
 import os
 import re
 import sys
+import unicodedata
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -561,6 +562,47 @@ MARLIN_ONLY = re.compile(r"^\s*M(204|203|400)\b", re.I)
 HOMING = re.compile(r"^\s*G0*28\b", re.I)
 
 
+# What the prose in this repo is written with, and what a controller can be
+# given instead. Anything not listed decomposes or becomes a question mark,
+# which is visible in the file rather than silently dropped.
+_FOR_MACHINE = str.maketrans({
+    "\u2014": "--", "\u2013": "-", "\u2026": "...", "\u2018": "'", "\u2019": "'",
+    "\u201c": '"', "\u201d": '"', "\u00d7": "x", "\u00b0": " deg", "\u00b1": "+/-",
+    "\u00a0": " ", "\u2212": "-",
+})
+
+
+def to_ascii(text: str) -> str:
+    """Every byte the machine reads, inside ASCII.
+
+    GRBL and FluidNC read any byte above 127 as a realtime command, and a
+    sender streams a comment like any other line — so an em dash in a comment
+    is not a typographical detail, it is a character the board acts on. The
+    site URL in the header has been punycode for that reason since it was
+    written; this is the same rule applied to everything else, at the one
+    place where the text becomes a file.
+
+    Applied at the end rather than by writing the comments differently in the
+    first place, because the comments are prose and the repo writes prose with
+    em dashes: the fault was not that someone typed one, it was that nothing
+    stood between what was typed and what the machine was sent. A figure taken
+    from a config can carry anything at all, which is the other half of it.
+
+    Punctuation this repo uses is translated, the rest is decomposed the way
+    NFKD does it — which turns the 𝔐𝔦𝔨𝔯𝔬's own name into Mikro — and whatever
+    survives that becomes a question mark. A question mark in a comment is
+    wrong and looks wrong, which is the right way round for something nobody
+    has thought about yet.
+    """
+    decomposed = unicodedata.normalize("NFKD", text.translate(_FOR_MACHINE))
+    # NFKD splits an accented letter into a letter and a combining mark, and
+    # the mark has no ASCII to become. Dropping it leaves the letter, where
+    # keeping it would put a question mark in the middle of a word: naive, not
+    # nai?ve.
+    return ("".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+            .encode("ascii", "replace").decode("ascii"))
+
+
 def sanitize_for_controller(lines: list[str], controller: str) -> tuple[list[str], int]:
     """Drop commands the target controller cannot parse.
 
@@ -1089,7 +1131,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         f"; Trays: {', '.join(t['tray'] for t in stats['trays'])}",
         f"; Image area: {width_mm:g} x {height_mm:g} mm",
     ]
-    out_path.write_text("\n".join(header + start_sequence(conf) + lines) + "\n")
+    out_path.write_text(to_ascii("\n".join(header + start_sequence(conf) + lines)) + "\n")
     stats["infill"] = infill
     stats["lines"] = len(lines) + len(header)
     stats["bytes"] = out_path.stat().st_size
