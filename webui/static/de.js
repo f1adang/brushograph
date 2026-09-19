@@ -214,7 +214,9 @@ text: {
 "Remove Drops Radius": "Abstreifradius",
 "Backlash Compensation": "Ausgleich des Umkehrspiels",
 "Backlash X": "Umkehrspiel X",
+"Backlash X far end": "Umkehrspiel X am fernen Ende",
 "Backlash Y": "Umkehrspiel Y",
+"Backlash Y far end": "Umkehrspiel Y am fernen Ende",
 "Hostname": "Netzwerkname",
 "Acc": "Beschleunigung",
 "Feedrate 1": "Vorschub 1",
@@ -288,10 +290,14 @@ text: {
   "Geschwindigkeiten für das Malen bzw. Zeichnen, das Farbholen (schneller) und das Abstreifen der Tropfen",
 "Post-processes the generated G-code to apply backlash compensation by injecting specific corrective moves whenever the X or Y axis changes direction":
   "Bearbeitet die erzeugten Maschinensteuerbefehle nach und gleicht das Umkehrspiel aus, indem bei jedem Richtungswechsel der X- oder Y-Achse eigene Korrekturbewegungen eingefügt werden",
-"Backlash distance (mm) to apply when the X-axis reverses direction.":
-  "Ausgleichsweg (mm) bei Richtungswechsel der X-Achse.",
-"Backlash distance (mm) to apply when the Y-axis reverses direction.":
-  "Ausgleichsweg (mm) bei Richtungswechsel der Y-Achse.",
+"Play in the X axis (mm), measured at the X0 end of the bed. Paint backlash.g and read the left-hand pair of its X row against the gauge. On Pinkograph this is the axis that changes across the bed: 1.9 mm here and 1.3 at the far end.":
+  "Spiel der X-Achse (mm), gemessen am Ende X0 der Arbeitsfläche. Malen Sie backlash.g und lesen Sie das linke Paar seiner X-Reihe am Maßstab ab. Beim Pinkograph ist dies die Achse, die sich über die Arbeitsfläche hinweg ändert: 1,9 mm hier und 1,3 am fernen Ende.",
+"Play in the X axis (mm) at the far end of X. Read the right-hand pair of backlash.g's X row. Equal to Backlash X means one figure everywhere, which is what an even axis wants; where the two differ the compensation follows a straight line between them across the bed. X play that changes with X is the belt: what is lost at a reversal is the slack and the stretch of the length between the drive and the carriage, and that length is what changes.":
+  "Spiel der X-Achse (mm) am fernen Ende von X. Lesen Sie das rechte Paar der X-Reihe von backlash.g ab. Gleich dem Umkehrspiel X bedeutet überall derselbe Wert, was eine gleichmäßige Achse verlangt; unterscheiden sich die beiden, so folgt der Ausgleich einer Geraden zwischen ihnen über die Arbeitsfläche hinweg. Ändert sich das Spiel in X mit X, so liegt es am Riemen: verloren geht bei der Umkehr die Lose und die Dehnung des Stückes zwischen Antrieb und Schlitten, und eben dessen Länge ändert sich.",
+"Play in the Y axis (mm), measured at the X0 end of the bed. Read the left-hand pair of backlash.g's Y row, at its left-hand end. Pinkograph reads 1.3 mm here and 1.2 at the far end, which is near enough one figure.":
+  "Spiel der Y-Achse (mm), gemessen am Ende X0 der Arbeitsfläche. Lesen Sie das linke Paar der Y-Reihe von backlash.g an dessen linkem Ende ab. Der Pinkograph zeigt hier 1,3 mm und 1,2 am fernen Ende, was nahezu ein einziger Wert ist.",
+"Play in the Y axis (mm) at the far end of X. Read the right-hand pair of backlash.g's Y row, at its right-hand end. Y play that changes with X is the gantry beam twisting: it is driven from one side, so the far side arrives carrying whatever the beam has wound up. Equal figures mean one play everywhere.":
+  "Spiel der Y-Achse (mm) am fernen Ende von X. Lesen Sie das rechte Paar der Y-Reihe von backlash.g ab. Ändert sich das Spiel in Y mit X, so verwindet sich der Portalträger: er wird von einer Seite angetrieben, und die ferne Seite kommt mit dem an, was der Träger aufgedreht hat. Gleiche Werte bedeuten überall dasselbe Spiel.",
 "Max brush width (mm) for Z-mapping": "Größte Pinselbreite (mm) für die Z-Zuordnung",
 "Minimum skeleton path length in pixels": "Kürzeste Skelettbahn in Bildpunkten",
 "Smoothing window size for path filtering": "Fensterbreite der Glättung beim Filtern der Bahnen",

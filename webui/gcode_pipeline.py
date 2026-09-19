@@ -633,6 +633,31 @@ def start_sequence(conf: dict) -> list[str]:
 # machine does is repeatable to worse than this.
 BACKLASH_THRESHOLD = 0.05
 
+# How far the shift is allowed to drift from the last figure stated in the file
+# before it is stated again. Only the preview reads those notes, and only to
+# subtract them: a twentieth of a millimetre is a twentieth of a brush stroke
+# and well under a pixel at preview scale. A play that changes across the bed
+# changes the shift on nearly every move, and stating every change costs 251
+# notes on a two-tray job where this costs 123 — 42 KB against 38. Measured at
+# 0.2 mm it is 37 notes, which is 2 KB saved for an error a fifth of a stroke
+# wide, so this is the end of the curve worth being on.
+BACKLASH_SHIFT_STEP = 0.05
+
+
+def _figure(bg: dict, key: str, fallback: float = 0.0) -> float:
+    """One backlash figure out of the config, however it got written there.
+
+    A config is a file people edit, and a figure that is missing, blank or not
+    a number is the same thing here: nothing was read off the sheet for it.
+    """
+    value = bg.get(key)
+    if value is None or value == "":
+        return fallback
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return fallback
+
 
 def _coord(value: float) -> str:
     """A coordinate written the way the rest of the file writes them."""
@@ -651,8 +676,37 @@ def _rewrite(line: str, values: dict[str, float]) -> str:
     return _WORD.sub(sub, body) + sep + comment
 
 
+def _play_across_x(near: float, far: float | None,
+                   span: tuple[float, float] | None):
+    """The play at a given X, as a straight line across the axis.
+
+    Two figures and a straight line between them, because two figures are what
+    a sheet can be read for and a straight line is what the fault is: the play
+    that changes across the bed is the gantry skewing, and a skew held at one
+    end and free at the other grows with the distance from the driven side.
+    Outside the span it is held at the end figure rather than extrapolated —
+    the containers sit past the canvas on some machines, and a line drawn
+    through two readings has nothing to say about ground neither was taken on.
+
+    One figure, or two the same, gives a constant: the function is then exactly
+    what the single figure always was, and the file comes out byte for byte
+    what it did before any of this.
+    """
+    lo, hi = span if span else (0.0, 0.0)
+    if far is None or hi - lo < 1e-9 or abs(far - near) < 1e-9:
+        return lambda _x: near
+
+    def at(x: float) -> float:
+        return near + (far - near) * min(max((x - lo) / (hi - lo), 0.0), 1.0)
+
+    return at
+
+
 def apply_backlash(lines: list[str], bx: float, by: float,
-                   x_range: tuple[float, float] | None = None) -> list[str]:
+                   x_range: tuple[float, float] | None = None,
+                   bx_far: float | None = None,
+                   by_far: float | None = None,
+                   play_range: tuple[float, float] | None = None) -> list[str]:
     """Command the machine where the brush has to be, not where the path is.
 
     An axis with slack in it carries the brush ahead of the commanded position
@@ -685,12 +739,63 @@ def apply_backlash(lines: list[str], bx: float, by: float,
     landed short by as much, which on a file that paints black last was the
     whole black plate. `x_range` remains as the floor under the other end,
     where a coordinate written low could ask for less than zero.
+
+    `bx_far` and `by_far` are the same two figures read at the far end of X,
+    and they make the play a function of where the brush is rather than a
+    number. Pinkograph's sheet reads 1.9 mm of X play at the X0 end of the
+    paper and 1.3 at the other, and 1.3 falling to 1.2 in Y: it is the X axis
+    that changes across this bed, and Y that is near enough one figure. No
+    single figure fits the first — the best one is the mean, and it is 0.3 mm
+    out at each end, a third of a brush stroke and enough to stop the plates
+    registering with each other.
+
+    Both axes are written for the play at the X each coordinate is going to,
+    rather than for the play crossed at the last reversal, and this is the one
+    place this differs from a fix that only inserts moves. Neither axis's play
+    is something the machine carries away from the reversal and keeps. Y is the
+    gantry beam, driven from one side: a Y play that changes along X is the beam
+    racking, and how much of the twist reaches the brush is a matter of where
+    the carriage is standing, changing continuously as X moves with no reversal
+    anywhere. X is the carriage running along that beam, where the lost motion
+    is the slack and the stretch of the belt between the drive and the carriage
+    — which is also a matter of position, since it is the free length that
+    changes. Either way the offset follows the carriage rather than staying at
+    whatever the reversal left, and a coordinate written for its own X is what
+    lands the brush on the path.
+
+    Simulated both ways to be sure, on a play larger at the X0 end and against
+    a lost-motion axis modelled as a local clearance and then as an offset the
+    drive keeps: identical to the micron, because both let the offset grow to
+    the play where the carriage is while it travels towards the wider end and
+    both hold it at zero coming back. Freezing the figure at the reversal
+    instead was measurably worse on the same job — 0.076 mm of mean X error
+    against 0.019, and a fifth of the painted points out by more than 0.1 mm
+    against a fifteenth.
+
+    Writing each coordinate for its own X is also exact along a stroke and not
+    only at its ends: the model is a straight line in X, a G1 is a straight
+    line in X, so compensating the two endpoints compensates every point
+    between them. An axis given equal figures is a constant again, and none of
+    this shows.
+
+    The take-up moves are untouched by any of it. They cross the slack, and
+    slack is crossed only at a reversal; the drift between reversals is the
+    belt and the beam following the carriage, which the coordinates carry.
     """
     out: list[str] = []
     x = y = None            # where the path last asked the brush to be
     cmd_x = cmd_y = None    # what was last written to get it there
     dir_x = dir_y = 0
-    off_x = off_y = 0.0
+    said_x = said_y = 0.0   # the shift the file last stated
+    # The two figures are the two ends of the *painting*, not of the axis:
+    # they are read off a sheet, the sheet is painted on the paper, and a line
+    # drawn through two readings says nothing about the ground past them. So
+    # the containers, which on Pinkograph stand at X 156 to the canvas's 132,
+    # are compensated with the figure for the end of the paper rather than one
+    # extrapolated a fifth of the way further out. Nothing is painted there.
+    span = play_range if play_range is not None else x_range
+    play_x = _play_across_x(bx, bx_far, span)
+    play_y = _play_across_x(by, by_far, span)
 
     def clamp_x(value: float) -> float:
         if x_range is None:
@@ -707,29 +812,40 @@ def apply_backlash(lines: list[str], bx: float, by: float,
         ny = float(words["Y"]) if "Y" in words else y
 
         # The move that seats the nut on its other face. Both axes reversing at
-        # once share one, as they share the move that follows.
+        # once share one, as they share the move that follows. The play crossed
+        # by a take-up is the play where the brush is standing, not where it is
+        # going: the slack is taken up before the move proper begins.
         seat: dict[str, float] = {}
-        was = (off_x, off_y)
         if x is not None and nx is not None and abs(nx - x) > BACKLASH_THRESHOLD:
             d = 1 if nx > x else -1
             if d != dir_x:
                 reversal = dir_x != 0
-                dir_x, off_x = d, (0.0 if d > 0 else -bx)
+                dir_x = d
+                here = play_x(x)
                 # Nothing to seat on the first move of the file: the side the
                 # nut is resting on is not knowable, and the brush is up.
-                if reversal and bx:
-                    at = clamp_x(x + off_x)
+                if reversal and here:
+                    at = clamp_x(x if d > 0 else x - here)
                     if cmd_x is None or abs(at - cmd_x) > 1e-9:
                         seat["X"] = at
         if y is not None and ny is not None and abs(ny - y) > BACKLASH_THRESHOLD:
             d = 1 if ny > y else -1
             if d != dir_y:
                 reversal = dir_y != 0
-                dir_y, off_y = d, (0.0 if d > 0 else -by)
-                if reversal and by:
-                    at = y + off_y
+                dir_y = d
+                here = play_y(x if x is not None else 0.0)
+                if reversal and here:
+                    at = y if d > 0 else y - here
                     if cmd_y is None or abs(at - cmd_y) > 1e-9:
                         seat["Y"] = at
+
+        # What these coordinates are written low by, each for the play at the X
+        # they are going to. An axis that has not settled on a direction yet is
+        # not shifted at all.
+        going = nx if nx is not None else 0.0
+        off_x = -play_x(going) if dir_x < 0 else 0.0
+        off_y = -play_y(going) if dir_y < 0 else 0.0
+
         # The shift now in force, written into the file where it changes. The
         # preview has to undo it to draw the path that was asked for, and
         # working it out from the take-up moves alone does not survive the
@@ -748,13 +864,18 @@ def apply_backlash(lines: list[str], bx: float, by: float,
                        + " ; backlash take-up" + shift)
             cmd_x = seat.get("X", cmd_x)
             cmd_y = seat.get("Y", cmd_y)
-        elif (off_x, off_y) != was:
-            # The shift changed with no move to carry the note: the first time
-            # an axis settles on a direction there is nothing to seat, because
-            # which face the nut is resting on is not knowable. The coordinates
-            # after it are shifted all the same, so the note goes on a line of
-            # its own rather than leaving the preview a step behind.
+            said_x, said_y = off_x, off_y
+        elif (abs(off_x - said_x) > BACKLASH_SHIFT_STEP
+              or abs(off_y - said_y) > BACKLASH_SHIFT_STEP):
+            # The shift changed with no move to carry the note. That is the
+            # first time an axis settles on a direction, where there is nothing
+            # to seat because which face the nut is resting on is not knowable;
+            # and it is every BACKLASH_SHIFT_STEP of drift while a play that
+            # changes across the bed is followed across it. The coordinates are
+            # shifted either way, so the note goes on a line of its own rather
+            # than leaving the preview a step behind.
             out.append("; backlash" + shift)
+            said_x, said_y = off_x, off_y
 
         shifted: dict[str, float] = {}
         if "X" in words and nx is not None:
@@ -829,7 +950,11 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # coordinate low by up to the take-up while the axis travels left, so the
     # near end keeps off the endstop by that much. The far end needs nothing:
     # the compensated file never asks for more X than the path did.
-    take_up = float(bg.get("backlash_x", 0) or 0) if bg.get("backlash_compensation", True) else 0.0
+    # The largest of the X figures, not the near one: the play is read at both
+    # ends of the axis now, and the floor has to hold against whichever end the
+    # stir happens to be at.
+    take_up = max(_figure(bg, "backlash_x"),
+                  _figure(bg, "backlash_x_far")) if bg.get("backlash_compensation", True) else 0.0
     copicograf.x_limits = (take_up, workable_x(conf))
     # A crucible near either end of the axis cannot be stirred the whole way
     # across: the stir stays centred on it and gives up the same distance on
@@ -939,9 +1064,25 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # at all still passes through here, but compensating by zero is a no-op.
     if bg.get("backlash_compensation", True):
         before = len(lines)
-        lines = apply_backlash(lines, float(bg.get("backlash_x", 0)),
-                               float(bg.get("backlash_y", 0)), x_range=(0.0, workable_x(conf)))
-        log(f"backlash compensation: +{len(lines) - before} corrective moves")
+        span = (0.0, workable_x(conf))
+        # A config that names no far figure has one play, the way every config
+        # did before the play was found to change across the bed.
+        near_x, near_y = _figure(bg, "backlash_x"), _figure(bg, "backlash_y")
+        far_x = _figure(bg, "backlash_x_far", near_x)
+        far_y = _figure(bg, "backlash_y_far", near_y)
+        # Where the two figures were read: the ends of the painting, which is
+        # where backlash.g paints the sheet they come off.
+        paper = (float(bg.get("offset_x", 0) or 0),
+                 float(bg.get("offset_x", 0) or 0) + width_mm)
+        lines = apply_backlash(lines, near_x, near_y, x_range=span,
+                               bx_far=far_x, by_far=far_y, play_range=paper)
+        moves = sum(1 for line in lines if "; backlash take-up" in line)
+        log(f"backlash compensation: {moves} corrective moves, "
+            f"+{len(lines) - before} lines")
+        for axis, near, far in (("X", near_x, far_x), ("Y", near_y, far_y)):
+            if abs(far - near) > 1e-9:
+                log(f"backlash {axis}: {near:g} mm at X{paper[0]:g} to {far:g} at "
+                    f"X{paper[1]:g}, straight between, held either side")
 
     header = [
         gcode_note(),

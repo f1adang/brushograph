@@ -65,12 +65,17 @@ off screen for someone reading it at the bottom of machine setup.
 The options form is built from the config's own keys, which means a machine file
 written before a setting existed — or by hand, or by an older version — simply
 has no control for it, and no way to gain one. A short list is therefore always
-offered whatever the config carries: dip depth, and the three backlash settings.
+offered whatever the config carries: dip depth, and the five backlash settings.
 
 A config that names them keeps its own values; one that does not gets a dip no
 deeper than the old fixed one and a modest 0.5 mm of backlash either way to tune
-from. Downloading the config writes them out, so a setting made in the form is
-not silently dropped on the way back.
+from. The two far-end figures are the exception to a flat default: a config
+carrying 1.9 mm of X play and no reading at the far end of the bed is one whose
+play was measured once, so it is given 1.9 there too — filling in 0.5 beside it
+would invent a slope nobody read off a sheet, and the file would come out
+compensated for a machine that had not been measured. Downloading the config
+writes them out, so a setting made in the form is not silently dropped on the
+way back.
 
 These are filled in, never overridden. A config that states a value keeps it,
 including a `false`: backlash compensation opens ticked when the config says so
@@ -704,6 +709,82 @@ Reversals shorter than 0.05 mm, Studio's figure, are not reversals. On a job out
 of this pipeline that is nearly free — 148 take-ups against 149 without it,
 because `planar`'s `SIMPLIFY_PX` has already dropped the moves that small — so
 it is insurance for paths that have not been simplified rather than a saving.
+
+### The play is not one number
+
+Pinkograph's sheet reads **1.9 mm of X play at the X0 end of the paper and 1.3
+at the other**, with Y at 1.3 falling to 1.2. It is the X axis that changes
+across this bed; Y is near enough one figure, which is what the far-end boxes
+are for saying.
+
+An axis like that cannot be compensated with one number. The best single figure
+is the mean, and the mean is 0.3 mm out at each end — a third of a brush stroke,
+and since the coordinates started moving an over-estimate costs exactly what an
+under-estimate does. **Backlash X far end** and **Backlash Y far end** are the
+same two readings taken at the other end of the paper, and the compensation runs
+a straight line between each pair across the painting, holding the end figure
+outside it. Two figures because two are what a sheet can be read for, and a
+straight line because both faults are linear in X. Equal figures are a constant,
+which is what every config written before this says, and its file comes out as
+it always did.
+
+Measured on a two-tray job, 1,061 moves and 336 painted points, against a
+machine carrying those figures — the nut's position modelled within the gap
+rather than every reversal assumed to cross all of it:
+
+| Compensation | Mean X error | Points over 0.1 mm |
+|---|---|---|
+| None | 0.907 mm | 91.9% |
+| One figure, the mean (1.6) | 0.077 mm | 36.5% |
+| Two figures (1.9 → 1.3) | 0.019 mm | 6.6% |
+
+What is left is two classes and neither is the model: the park at X0 Y0, where
+the compensated file is clipped by the endstop and there is nothing to
+compensate with, and a handful of moves shorter than the play itself, which no
+scheme lands — the worst of them is 0.47 mm at X 13, where the play is at its
+widest.
+
+**The shift follows X rather than being fixed at each reversal.** Neither axis's
+play is something the machine carries away from a reversal and keeps. Y is the
+gantry beam, driven from one side, so a Y play that changes along X is the beam
+racking: how much of the twist reaches the brush is a matter of where the
+carriage is standing, and it changes as X moves with no reversal anywhere. X is
+the carriage running along that beam, where what is lost at a reversal is the
+slack and the stretch of the belt between the drive and the carriage — also a
+matter of position, because it is the free length that changes.
+
+That was worth testing rather than asserting, since the two would part company
+if an axis really did keep what a reversal gave it. Simulated both ways —
+the lost motion as a local clearance, and then as an offset the drive keeps
+however far it travels — the two come out identical to the micron on this
+machine's figures, because a play that is widest at X0 lets the offset grow to
+the local figure while the axis travels that way and holds it at zero coming
+back. Freezing the figure at the reversal instead is measurably worse on the
+same job: 0.076 mm of mean X error against 0.019, and a fifth of the painted
+points out by more than 0.1 mm against a fifteenth. A scanline fill is long X
+strokes between reversals, so a frozen figure carries the whole spread out to
+the far end of every stroke.
+
+Following the play also makes the compensation exact along a stroke and not
+only at its ends: the model is a straight line in X and a G1 is a straight line
+in X, so compensating the two endpoints compensates every point between them.
+
+**No extra moves.** The same 296 take-ups either way: slack is crossed at a
+reversal, and the drift between reversals is the belt and the beam following the
+carriage, which the coordinates already carry. What the file gains is notes —
+the shift is stated where it changes, and it now changes on nearly every move.
+Stating every change costs 251 of them, 42 KB against the flat file's 34.
+Stating it when it has drifted by 0.05 mm costs 123 and 38 KB, and leaves the
+preview drawing the path to within 0.048 mm, a twentieth of a brush stroke. At
+0.2 mm it would be 37 notes and 36 KB: 2 KB for a fifth of a stroke, which is
+the wrong end of that curve.
+
+The two figures are the ends of the **painting**, not of the axis. They are read
+off a sheet, the sheet is painted on the paper, and a line drawn through two
+readings says nothing about ground neither was taken on — so the containers,
+which on Pinkograph stand at X 156 to the canvas's 132, get the figure for the
+edge of the paper rather than one extrapolated a fifth further out. Nothing is
+painted out there.
 
 ### Controller dialect
 

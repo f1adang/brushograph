@@ -358,6 +358,10 @@ ALWAYS_OFFERED = {
     ("brushograph", "backlash_compensation"): True,
     ("brushograph", "backlash_x"): 0.5,
     ("brushograph", "backlash_y"): 0.5,
+    # The same two read at the far end of X. Offered as a constant here and
+    # then mirrored onto the near figures by with_defaults, because a config
+    # that never named them is a config whose play was measured once: filling
+    # in 0.5 beside a stated 2.3 would invent a slope nobody read off a sheet.
     ("connection", "hostname"): "fluidnc.local",
 }
 
@@ -381,11 +385,29 @@ def with_defaults(conf: dict) -> dict:
     out = json.loads(json.dumps(conf))
     for path, value in ALWAYS_OFFERED.items():
         _dig(out, path).setdefault(path[-1], value)
+    _offer_far_backlash(out)
     _offer_black(out)
     # Written back in painting order too, so a saved config says what happens.
     if isinstance(out.get("color_order"), list):
         out["color_order"] = paint_order(out["color_order"])
     return out
+
+
+def _offer_far_backlash(conf: dict) -> None:
+    """Give a config the far-end play figures, equal to the ones it has.
+
+    The play is a straight line across X between two readings, and a config
+    written when it was one number has only the near one. It gets the control
+    the way it gets every other always-offered setting — and it gets it set to
+    what it already says, so the line is flat and the machine does exactly what
+    it did before. A machine whose sheet says otherwise is two boxes away from
+    saying so.
+    """
+    bg = conf.get("brushograph")
+    if not isinstance(bg, dict):
+        return
+    for axis in ("x", "y"):
+        bg.setdefault(f"backlash_{axis}_far", bg.get(f"backlash_{axis}", 0.5))
 
 
 def is_classic(conf: dict) -> bool:
@@ -476,7 +498,9 @@ BRUSHOGRAPH_GROUPS = [
     ("Paint management",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
-    ("Backlash", ["backlash_compensation", "backlash_x", "backlash_y"], False),
+    ("Backlash",
+     ["backlash_compensation", "backlash_x", "backlash_x_far", "backlash_y",
+      "backlash_y_far"], False),
 ]
 
 SECTIONS = [
@@ -545,8 +569,10 @@ HELP = {
     "brushograph-prepare_paint_count": "Number of initial color mixing cycles. 0 for plotter",
     "brushograph-moves": "Speed settings for painting/drawing, fetching color (faster), and removing color drops",
     "brushograph-backlash_compensation": "Post-processes the generated G-code to apply backlash compensation by injecting specific corrective moves whenever the X or Y axis changes direction",
-    "brushograph-backlash_x": "Backlash distance (mm) to apply when the X-axis reverses direction.",
-    "brushograph-backlash_y": "Backlash distance (mm) to apply when the Y-axis reverses direction.",
+    "brushograph-backlash_x": "Play in the X axis (mm), measured at the X0 end of the bed. Paint backlash.g and read the left-hand pair of its X row against the gauge. On Pinkograph this is the axis that changes across the bed: 1.9 mm here and 1.3 at the far end.",
+    "brushograph-backlash_x_far": "Play in the X axis (mm) at the far end of X. Read the right-hand pair of backlash.g's X row. Equal to Backlash X means one figure everywhere, which is what an even axis wants; where the two differ the compensation follows a straight line between them across the bed. X play that changes with X is the belt: what is lost at a reversal is the slack and the stretch of the length between the drive and the carriage, and that length is what changes.",
+    "brushograph-backlash_y": "Play in the Y axis (mm), measured at the X0 end of the bed. Read the left-hand pair of backlash.g's Y row, at its left-hand end. Pinkograph reads 1.3 mm here and 1.2 at the far end, which is near enough one figure.",
+    "brushograph-backlash_y_far": "Play in the Y axis (mm) at the far end of X. Read the right-hand pair of backlash.g's Y row, at its right-hand end. Y play that changes with X is the gantry beam twisting: it is driven from one side, so the far side arrives carrying whatever the beam has wound up. Equal figures mean one play everywhere.",
     "brushograph-max_width_mm": "Max brush width (mm) for Z-mapping",
     "brushograph-min_path_length_px": "Minimum skeleton path length in pixels",
     "brushograph-smooth_window_size": "Smoothing window size for path filtering",
@@ -564,6 +590,10 @@ HELP = {
 # Where a key's own name is not what the form should call it.
 LABELS = {
     "cup_shape": "Container setup",
+    # Backlash X and Backlash Y are the near end, and keep the names they were
+    # given when they were the only figures there were.
+    "backlash_x_far": "Backlash X far end",
+    "backlash_y_far": "Backlash Y far end",
 }
 
 _ACRONYMS = {"x": "X", "y": "Y", "z": "Z", "mm": "(mm)", "px": "(px)"}
