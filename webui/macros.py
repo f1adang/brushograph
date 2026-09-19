@@ -97,6 +97,14 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
         exit_z = _num(bg, "cup_swipe_exit_z", 1.0)
         margin = depth * 0.15
         near, far = tray_y - depth / 2 + margin, tray_y + depth / 2 - margin
+        # The near edge gets the clamp the stir across X already has. A bay
+        # deeper than the strip it stands in reaches south of the origin — on
+        # Pinkograph the water crucible puts this edge at Y -4.5 — and there
+        # is no ground down there to reach: zero.g backs three millimetres off
+        # the Y endstop and calls that spot Y0, so Y -3 is the stop itself.
+        # Every wash drove into it, and what a move loses against a stop it
+        # loses for the whole of the rest of the file.
+        near = max(near, 0.0)
         # The same stir copicograf makes before climbing out, kept on the bed
         # the same way — the water crucible is the wide one, and wide enough
         # on some holders to hang over the endstop.
@@ -134,16 +142,26 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
     # same config always produces the same macro.
     radius = _num(bg, "tray_enter_radius", 10)
     d = radius * 0.70711
+    # The chord is swept from both corners, so whichever side runs out of
+    # ground first sets it for all four quadrants — the same bound the
+    # rectangular stir gets, and for the same reason. A dish sits in the strip
+    # along the front, and a sweep wider than the strip is deep reaches south
+    # of the origin, where there is nothing but the Y endstop: on the Mini's
+    # dish, 15 mm of enter radius around a tray at Y 6 asks for Y -4.6.
+    d = min(d, tray_x, tray_y, workable_x(conf) - tray_x)
     for i in range(max(1, reps)):
         qx, qy = _QUADRANTS[i % 4]
         lines += [
             f"G00 X{_fmt(tray_x)} Y{_fmt(tray_y)}",
             f"G00 Z{_fmt(dip)}",
-            f"G00 X{_fmt(tray_x + qx * d)} Y{_fmt(tray_y + qy * d)}",
-            f"G00 X{_fmt(tray_x - qx * d)} Y{_fmt(tray_y - qy * d)}",
-            f"G00 X{_fmt(tray_x)} Y{_fmt(tray_y)}",
-            f"G00 Z{_fmt(lift)}",
         ]
+        if d >= 0.5:
+            lines += [
+                f"G00 X{_fmt(tray_x + qx * d)} Y{_fmt(tray_y + qy * d)}",
+                f"G00 X{_fmt(tray_x - qx * d)} Y{_fmt(tray_y - qy * d)}",
+                f"G00 X{_fmt(tray_x)} Y{_fmt(tray_y)}",
+            ]
+        lines.append(f"G00 Z{_fmt(lift)}")
     return lines
 
 
