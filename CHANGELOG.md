@@ -20,6 +20,18 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.10.1](https://github.com/f1adang/brushograph/releases/tag/v2.10.1) — 2026-09-19
+
+- **The macros are plain ASCII now, like the jobs always were.** Five of the
+  six opened with an em dash in their first comment, and every dip in any of
+  them printed one more — sixteen in a backlash.g sheet. GRBL and FluidNC read
+  any byte above 127 as a realtime command and a sender streams a comment like
+  any other line, so those were characters the board acted on, in the one place
+  nothing looks at the file on the way past: uploaded to the machine and run
+  from its own SD card. Everything written for the machine now goes through one
+  pass that keeps it inside ASCII, whatever it was typed with and whatever a
+  config happens to be called. Job files are unchanged, byte for byte.
+
 ## [v2.10.0](https://github.com/f1adang/brushograph/releases/tag/v2.10.0) — 2026-09-19
 
 - The **preview shows the picture again** rather than the picture with a
