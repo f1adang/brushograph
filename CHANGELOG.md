@@ -20,6 +20,17 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.10.0](https://github.com/f1adang/brushograph/releases/tag/v2.10.0) — 2026-09-19
+
+- The **preview shows the picture again** rather than the picture with a
+  sawtooth through it. Compensation writes the coordinates in the machine's
+  terms — low by the play while an axis travels one way, as they are while it
+  travels the other — and the preview was drawing them as they stood, which
+  put a step of the play at every reversal. It now reads the shift the file
+  states at each change and takes it back off, so what you see is the path
+  that was asked for. On Pinkograph that step was 2.3 mm of jitter across
+  every plate; there is none now.
+
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
 - Backlash compensation compensates. It never did: it added a corrective move
