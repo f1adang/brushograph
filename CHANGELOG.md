@@ -55,6 +55,13 @@ version's heading appears with its first bullet and grows until it is tagged.
   yours goes in beside it as workshop-2.conf, with the page saying which name
   it got.
 
+- **The colour cards step aside for a photograph.** Load a colour photograph
+  and the Cyan, Magenta, Yellow and Black cards are put away until you remove
+  it, because the photograph makes those four plates itself. A picture left on
+  one of those cards used to replace the plate the photograph had made for it,
+  with nothing on the page to say so. Anything chosen there is kept, and comes
+  back with the card. A fifth colour keeps its card either way.
+
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
 - Backlash compensation compensates. It never did: it added a corrective move
