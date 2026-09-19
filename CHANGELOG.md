@@ -38,6 +38,15 @@ version's heading appears with its first bullet and grows until it is tagged.
   finished, which is one move instead of two and no height held over the
   paper on the way.
 
+- **A colour starts at full strength.** Every tray begins by going for paint,
+  because the tray before it left the brush washed and standing in water — and
+  that trip made a single dip, which is a re-ink and not a loading. The first
+  strokes of each colour came out pale and came up to strength somewhere along
+  the way. It now mixes the way the opening sequence does, Prepare Paint Count
+  dips of it. Set that to 0, as a plotter does, and the trip is not made at
+  all: it used to be made anyway and dip nothing, wiping a rim the brush was
+  nowhere near.
+
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
 - Backlash compensation compensates. It never did: it added a corrective move
