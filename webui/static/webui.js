@@ -1534,7 +1534,8 @@ function renderSimStats() {
 }
 
 /* ------------------------------------------------------------ macros ---- */
-/* zero.g, home.g, paper.g, clean.g, prime.g — one round trip to /macros, held
+/* zero.g, home.g, paper.g, clean.g, calibrate.g, backlash.g — one round trip
+ * to /macros, held
  * here as {name: text} so Download and Upload need no second request. Same
  * shape as the config download, minus the tray images that one refuses to
  * run without: /macros only reads the text fields. */

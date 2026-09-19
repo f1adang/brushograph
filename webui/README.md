@@ -1361,12 +1361,12 @@ every other always-offered setting.
 
 At the end of Machine setup, below Save these settings — it is about the
 machine rather than about a picture, so it lives with its plan drawing rather
-than down by Run — the **Macro generator** builds five small routines:
-`zero.g`, `home.g`, `paper.g`, `clean.g` and `calibrate.g`. All five come from
-`webui/macros.py`, a module the pipeline never imports and that never touches
-a tray image, so generating them needs none of the pictures a G-code run
-refuses to proceed without. Four of the five are built from the config;
-`zero.g` is not (see below).
+than down by Run — the **Macro generator** builds six small routines:
+`zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g`. All
+six come from `webui/macros.py`, a module the pipeline never imports and that
+never touches a tray image, so generating them needs none of the pictures a
+G-code run refuses to proceed without. Five of the six are built from the
+config; `zero.g` is not (see below).
 
 - **zero.g** is the machine's own self-zero dance, reproduced verbatim: zero
   the near corner, lift, sweep out to the far corner and back to confirm
@@ -1393,11 +1393,73 @@ refuses to proceed without. Four of the five are built from the config;
   so a clean brush is also a homed one.
 - **calibrate.g** does only one thing: touch the canvas origin down to `Z0`
   and park at `Z10`, both literal heights rather than `canvas_height` or
-  `go_in_tray_lift`. Unlike the other four it does not lift to
-  `go_in_tray_lift` before its first move either — no wash, no travel-safety
-  lift, just the dot and a park over it.
+  `go_in_tray_lift`. No wash, just the dot and a park over it. It does lift to
+  `go_in_tray_lift` before crossing the bed, like the rest — it is run from
+  where the other macros leave the brush, X0 Y0 at Dip Depth + 1, which on a
+  holder whose water crucible covers the origin is under the rim.
+- **backlash.g** paints a sheet for measuring the play in each axis, the one
+  macro that puts the brush on the paper for anything but a dot. Two sections,
+  set well apart and each read on its own. The **X section** is vertical
+  strokes with the pairs spread along X, the **Y section** horizontal strokes
+  with the pairs spread along Y. Every pair is one commanded position drawn
+  twice, arrived at from each side in turn, so the gap between the two marks
+  is the play. Three test pairs an axis rather than one, because a belt slack
+  in one place and a nut with play in it everywhere do not read the same, and
+  the figure for the box is only one figure if the three agree.
 
-`home.g`, `paper.g` and `clean.g` share one rule: every move to somewhere
+  Each section then has its own **gauge**: five more pairs, drawn 0.5, 1, 1.5,
+  2 and 2.5 mm apart, both strokes of each arriving from the same side so the
+  play cannot open or close them. Find the gauge pair a test pair looks like
+  and that is the figure, to a tenth. A gauge per section rather than one for
+  the sheet because a gap between two horizontal lines does not look like the
+  same gap between two vertical ones, and the axis with the larger play is the
+  one that most needs its own ruler. Three test pairs and then a clear break
+  before the five, wider than any spacing inside either group, so neither can
+  be counted into the other.
+
+  A gauge rather than a rule because a ruler will not settle this. A brush
+  stroke is about a millimetre wide, and half a millimetre between two wet
+  marks is not a measurement anyone takes off a sheet with a rule — but
+  telling which of five known pairs a test pair resembles is easy. And a gauge
+  rather than something cleverer because there is nothing cleverer to do:
+  backlash does not accumulate. Alternating moves lose the play once and get
+  it back at the next reversal, and a staircase with a net direction loses it
+  going out and regains it coming back. No arrangement of moves turns half a
+  millimetre into a visible ten, so a drift test — the obvious idea, and the
+  one tried first — cannot work, and reading a gap is what is left.
+
+  The two sections go side by side on a canvas wider than it is tall and
+  stacked on one taller than it is wide, because the X section wants width for
+  its eight columns and the Y section height for its eight rows. That is the
+  difference between the Mini at 132 × 89 and the 𝔐𝔦𝔨𝔯𝔬 at 65 × 100: laying
+  both out the one way puts eight of the 𝔐𝔦𝔨𝔯𝔬's columns into 65 mm, where a
+  2.5 mm pair has nothing between it and the next.
+
+  Every stroke backs off 12 mm and comes in along the axis under test, so that
+  axis is certainly travelling the right way when it arrives; the move before
+  that runs along the *other* axis in the same direction as the stroke, which
+  keeps the play out of the ends of the lines. A stroke that began with a
+  reversal would start 1.6 mm short of where it says on Pinkograph, and the
+  ends of these lines are part of what is being read. That settle backs off by
+  the full 12 mm too, not a token millimetre: the macro exists because the
+  play is *not* known, and a settle sized for a small one would displace every
+  stroke on exactly the machine worth measuring. Both are clamped to the bed,
+  and each section keeps off the near edges by the run-up where the canvas can
+  spare it — laid out hard against the origin, the 𝔐𝔦𝔨𝔯𝔬's first Y pair asked
+  for X −0.6, which is the endstop.
+
+  Strokes are capped at 55 mm because a pair has to come out of one dip:
+  at the full height of the canvas a pair came to 163 mm against Pinkograph's
+  `paint_per_run_max` of 150. As drawn it is 32 strokes and 1491 mm of paint
+  over 16 dips, 93 mm a dip. One dip a pair, from the last cup in painting
+  order — black where there is a black cup, cyan on a classic holder with no
+  room for one.
+
+  Macros never go through `apply_backlash` — only `gcode_pipeline.generate`
+  does — so the sheet paints raw whatever **Backlash compensation** is set to,
+  and measures the machine rather than the setting.
+
+`home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g` share one rule: every move to somewhere
 new — a tray, the canvas, the origin — is preceded by a lift to
 `go_in_tray_lift`, and only that: never the larger of it and
 `move_to_other_shape_lift + canvas_height`, the way copicograf's own travel
