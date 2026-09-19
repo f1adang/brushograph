@@ -4,6 +4,23 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.8.6](https://github.com/f1adang/brushograph/releases/tag/v2.8.6) — 2026-09-19
+
+- The wash stays on ground the machine can reach, whichever containers it
+  washes in. A container is deeper than the strip it stands in, so both shapes
+  reached south of the origin: the rectangular bay put its near edge at Y -4.5
+  on Pinkograph, and the round dish's diagonal sweep — 15 mm of enter radius
+  around a tray at Y 6 — asked for Y -4.6 on Brushparang. There is nothing
+  down there to dip into. zero.g backs three millimetres off the Y endstop and
+  calls that spot Y0, so Y -3 is the stop itself, and every wash drove into it
+  three times a file. What a move loses against a stop it loses for the whole
+  of the rest of the file, which is how a wash ends up moving the painting
+  that follows it. Both are clipped to the origin now, the clamp the stir
+  across X was already given and for the same reason, and the round sweep is
+  skipped outright where there is no room left for one. clean.g dips at Y0 on
+  both machines; the swipe up the stairs to Y16.5, which is what wipes the
+  brush, is untouched.
+
 ## [v2.8.5](https://github.com/f1adang/brushograph/releases/tag/v2.8.5) — 2026-09-19
 
 - The brush stirs a rectangular cup before it climbs out of it. A round cup has
