@@ -454,6 +454,32 @@ def first_stroke_point(path: Path) -> tuple[float, float] | None:
     return None
 
 
+def last_stroke_point(path: Path) -> tuple[float, float] | None:
+    """Where the last stroke of an adapted file ends, in canvas mm.
+
+    The mirror of first_stroke_point, and wanted for the same kind of reason:
+    a trip that ramps its Z across the bed has to be written from where the
+    brush is actually standing, and at the end of a tray that is wherever the
+    painting happened to finish — not the canvas origin the wash was being
+    told about.
+    """
+    down = False
+    last = None
+    for raw in path.read_text(errors="replace").splitlines():
+        line = raw.split(";", 1)[0].strip()
+        if line == PEN_DOWN:
+            down = True
+            continue
+        if line == PEN_UP:
+            down = False
+            continue
+        if down and _G1.match(line):
+            words = dict(_WORD.findall(line))
+            if "X" in words and "Y" in words:
+                last = (float(words["X"]), float(words["Y"]))
+    return last
+
+
 def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
                       mask: "InkMask | None" = None) -> int:
     """Chain, tidy and write paths in the pen-up/pen-down form copicograf reads.
@@ -885,9 +911,13 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         # does not dry with paint in it. Between colours there is no point: it
         # is already over the water from the wash, and the next thing it does is
         # go for the next colour.
+        # Where this tray's painting ends, so the wash that follows it can
+        # climb to the water on the way there instead of standing still to
+        # lift and then flying the bed level.
         copicograf.prepare_path(str(adapted), float(entry["x"]), float(entry["y"]),
                                 calibrate=False, pickup_at=pickup_at,
-                                park=(i == len(todo) - 1))
+                                park=(i == len(todo) - 1),
+                                wash_from=last_stroke_point(adapted))
         stats["trays"].append({"tray": tray, "color": entry["color"], "strokes": n})
         stats["strokes"] += n
 

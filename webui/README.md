@@ -1051,6 +1051,20 @@ to the tray lifts to `go_in_tray_lift` before it moves, where the first move of
 the painting itself only lifts by `move_to_other_shape_lift` — two millimetres,
 which is clearance over the paper, not over a tray rim.
 
+**The wash climbs on its way to the water**, like every other trip across the
+bed. Ramping and lifting off the paper were one flag: a trip that begins on a
+stroke wants both, so `from_canvas` asked for both. The wash at the end of a
+tray is the case where they part — the stroke it has just finished has already
+lifted it clear — and with one flag it either hopped a second time or flew the
+bed level and dropped at the far end. They are asked for separately now, and
+the wash takes the ramp without the lift.
+
+For that the trip has to know where it starts, and the wash was being written
+from the canvas origin, which is a line the brush is not standing on. The
+pipeline reads the end of the last stroke out of the adapted file
+(`last_stroke_point`, the mirror of `first_stroke_point`) and passes it as
+`wash_from`, so the climb is drawn from where the painting actually finished.
+
 ### Wiping the brush
 
 After a pickup from a **round** cup the brush carries a drop that would

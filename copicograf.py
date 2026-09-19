@@ -162,7 +162,7 @@ class Copicograf:
         gcfh.close()
 
     def prepare_path(self, gcode_path, color_tray_x, color_tray_y, calibrate=True,
-                     pickup_at=None, park=True):
+                     pickup_at=None, park=True, wash_from=None):
         def set_normal_speed():
             self.gcodes.append(self.initial_gcode_acc)
             self.gcodes.append(self.initial_gcode_feedrate_1)
@@ -425,7 +425,8 @@ class Copicograf:
                 ramp_z(mid_x, mid_y, z_hold, to_x, to_y, z_end)
 
         def append_go_in_tray(tray_x, tray_y, x, y, num_of_entries=1, remove_drop=True,
-                              return_to_canvas=True, water=False, from_canvas=False):
+                              return_to_canvas=True, water=False, from_canvas=False,
+                              ramp=None):
             set_fast_speed()
             clear = self.move_to_other_shape_lift + self.canvas_height
             # Where the cup is entered and left again: the two ends of a
@@ -447,9 +448,16 @@ class Copicograf:
                     # at the start of every run and before every wash.
                     if from_canvas:
                         self.gcodes.append(GCodeRapidMove(Z=clear))
+                    # Ramping and lifting off the paper are asked for
+                    # separately. They coincide for a trip that begins on a
+                    # stroke, but the wash at the end of a tray is already
+                    # standing at the clearance — the stroke it just finished
+                    # lifted it there — so it wants the ramp without a second
+                    # lift, which was a hop in the air when they were one flag.
                     travel_with_z(x + self.offset_x, y + self.offset_y,
                                   tray_x, entry_y, clear, self.go_in_tray_lift,
-                                  to_cup=True, ramp=from_canvas)
+                                  to_cup=True,
+                                  ramp=from_canvas if ramp is None else ramp)
                 else:
                     # Already over the tray, and already at the tray lift: the
                     # entry before this one ended there.
@@ -575,9 +583,9 @@ class Copicograf:
 
             self.dist_painted = 0
 
-        def wash_the_brush(x, y, return_to_canvas=True):
+        def wash_the_brush(x, y, return_to_canvas=True, ramp=None):
             append_go_in_tray(self.water_tray_x, self.water_tray_y, x, y, 3, False,
-                              return_to_canvas, water=True)
+                              return_to_canvas, water=True, ramp=ramp)
 
         def prepare_paint(x, y):
             append_go_in_tray(color_tray_x, color_tray_y, x, y, self.prepare_paint_count, True)
@@ -837,7 +845,19 @@ class Copicograf:
         # the next colour anyway.
         # No lift written here: the trip to the water starts by making sure of
         # one, and two of them in a row was the second half of a hop in the air.
-        wash_the_brush(0, 0, return_to_canvas=False)
+        #
+        # `wash_from` is where the painting actually finished, so the climb to
+        # the water is made on the way there like every other trip across the
+        # bed, rather than standing still to lift and then flying level. It has
+        # to be told: the brush ends wherever the last stroke left it, and this
+        # was written from the canvas origin, which is a line the brush is not
+        # on. Without it there is nothing to promise the ramp is being drawn
+        # from where the brush is standing, so the trip stays flat.
+        if wash_from is not None:
+            wash_the_brush(wash_from[0], wash_from[1],
+                           return_to_canvas=False, ramp=True)
+        else:
+            wash_the_brush(0, 0, return_to_canvas=False)
 
         ##############################################
         # Park at the origin, at the very end        #
