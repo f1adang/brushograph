@@ -31,6 +31,13 @@ version's heading appears with its first bullet and grows until it is tagged.
   that was asked for. On Pinkograph that step was 2.3 mm of jitter across
   every plate; there is none now.
 
+- **The wash climbs on its way to the water.** At the end of every colour the
+  brush either hopped in the air before setting off for the wash or crossed
+  the bed flat and dropped at the far end of it, where every other trip to a
+  container lifts as it travels. It now ramps from wherever the painting
+  finished, which is one move instead of two and no height held over the
+  paper on the way.
+
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
 - Backlash compensation compensates. It never did: it added a corrective move
