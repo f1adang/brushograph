@@ -4,6 +4,28 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
+## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
+
+- Backlash compensation compensates. It never did: it added a corrective move
+  at every reversal, but sent it the way the brush was already going, so the
+  brush was dragged half a millimetre past each corner and then landed on the
+  corner exactly as far out as it would have with the setting switched off.
+  Every reversal in a job — about 140 in a small one — got a little tail
+  painted past it for nothing. The file is now written in the machine's terms
+  instead of the picture's: while an axis is travelling one way its
+  coordinates are written low by the play, while it travels the other they are
+  written as they are, and at each turn a short move crosses the slack without
+  the brush following it. On a test job of 686 points, seven are more than a
+  tenth of a millimetre out and all seven are in the opening dip or the park
+  at the end, with the brush over water or in the air. Before, all 686 were
+  out. Nothing is sent past the far end of an axis any more either, which is
+  what once put the black plate 3 mm to the left of the colours.
+
+  Worth knowing if you had a figure in the box already: it used to change only
+  how long that stray tail was, and it now moves the painting, so a figure
+  that is too large costs exactly what one that is too small does. If you have
+  never measured yours, paint backlash.g below and read it off.
+
 ## [v2.8.6](https://github.com/f1adang/brushograph/releases/tag/v2.8.6) — 2026-09-19
 
 - A kept config can be deleted from the page, beside the Download and Update
