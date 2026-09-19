@@ -683,6 +683,7 @@ def apply_backlash(lines: list[str], bx: float, by: float,
         # The move that seats the nut on its other face. Both axes reversing at
         # once share one, as they share the move that follows.
         seat: dict[str, float] = {}
+        was = (off_x, off_y)
         if x is not None and nx is not None and abs(nx - x) > BACKLASH_THRESHOLD:
             d = 1 if nx > x else -1
             if d != dir_x:
@@ -703,15 +704,31 @@ def apply_backlash(lines: list[str], bx: float, by: float,
                     at = y + off_y
                     if cmd_y is None or abs(at - cmd_y) > 1e-9:
                         seat["Y"] = at
+        # The shift now in force, written into the file where it changes. The
+        # preview has to undo it to draw the path that was asked for, and
+        # working it out from the take-up moves alone does not survive the
+        # clamp: a take-up cut short at the end of an axis reports a smaller
+        # step than the shift really took, and a reader adding those steps up
+        # carries that error to the end of the file. Stated outright it is
+        # exact, it costs a few characters a reversal, and a controller reads
+        # none of it.
+        shift = f", shift X{_coord(off_x)} Y{_coord(off_y)}"
         if seat:
             # No feedrate of its own: Studio sends these at a slow one, but F
             # is modal and it never puts the old one back, so every move after
             # a reversal crawls until something sets F again. At the prevailing
             # feed the move is over in the time it takes to cross the slack.
             out.append("G1 " + " ".join(f"{a}{_coord(v)}" for a, v in sorted(seat.items()))
-                       + " ; backlash take-up")
+                       + " ; backlash take-up" + shift)
             cmd_x = seat.get("X", cmd_x)
             cmd_y = seat.get("Y", cmd_y)
+        elif (off_x, off_y) != was:
+            # The shift changed with no move to carry the note: the first time
+            # an axis settles on a direction there is nothing to seat, because
+            # which face the nut is resting on is not knowable. The coordinates
+            # after it are shifted all the same, so the note goes on a line of
+            # its own rather than leaving the preview a step behind.
+            out.append("; backlash" + shift)
 
         shifted: dict[str, float] = {}
         if "X" in words and nx is not None:

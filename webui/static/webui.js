@@ -1294,6 +1294,14 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
   const marked = /^\s*;\s*dip\b/im.test(text);
   const moves = [];
   let x = 0, y = 0, z = 10, tray = null, trayIndex = -1;
+  // What the file says, against what the path asked for. Backlash
+  // compensation writes the coordinates in the axis's terms: while an axis
+  // travels one way they are the path's, while it travels the other they are
+  // the path's less the play. Skipping the take-up lines is no longer enough
+  // on its own — the shift stays in the moves between them, and drawn
+  // straight it puts a step of the play at every reversal, which is a sawtooth
+  // across the artwork that nobody asked to paint.
+  let cmdX = 0, cmdY = 0, offX = 0, offY = 0;
   const trays = [];
   let paintMM = 0, travelMM = 0, dips = 0, strokes = 0, wasDown = false, dipping = false;
 
@@ -1309,15 +1317,37 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
     // Backlash compensation injects a corrective move before each reversal.
     // Those are for the machine's slack, not part of the path that was asked
     // for, and drawing them buries the artwork in hatching that is not in it.
-    if (/;\s*backlash take-up/i.test(rawLine)) continue;
+    //
+    // It is also the one line that says how far the coordinates after it are
+    // shifted. A take-up is written at the position the path has already
+    // reached, so what it commands, less what was commanded last, is exactly
+    // the change in the shift — the play, in whichever direction the axis has
+    // just turned. Reading it off the file this way needs no figure from the
+    // config, and gets it per axis, which is as well: the two are rarely the
+    // same and the file does not carry either.
+    const takeUp = /;\s*backlash take-up/i.test(rawLine);
+    // The shift the generator states where it changes. Absolute, not a step:
+    // read as steps to be added up, a take-up clipped short at the end of an
+    // axis under-reports and the error rides along to the end of the file.
+    const shift = rawLine.match(/shift\s*X(-?[\d.]+)\s*Y(-?[\d.]+)/i);
+    if (shift) { offX = parseFloat(shift[1]); offY = parseFloat(shift[2]); }
     const line = rawLine.split(";")[0].trim();
     if (!/^G0*[01](?![0-9])/.test(line)) continue;
-    let nx = x, ny = y, nz = z;
+    let ncx = cmdX, ncy = cmdY, nz = z;
     const words = line.matchAll(/([XYZ])\s*(-?\d*\.?\d+)/g);
     for (const [, axis, value] of words) {
       const v = parseFloat(value);
-      if (axis === "X") nx = v; else if (axis === "Y") ny = v; else nz = v;
+      if (axis === "X") ncx = v; else if (axis === "Y") ncy = v; else nz = v;
     }
+    if (takeUp) {
+      // A file from before the shift was written down says only where the
+      // take-up went, so the step it makes is all there is to go on.
+      if (!shift) { offX += ncx - cmdX; offY += ncy - cmdY; }
+      cmdX = ncx; cmdY = ncy;
+      continue;
+    }
+    cmdX = ncx; cmdY = ncy;
+    const nx = ncx - offX, ny = ncy - offY;
     // Z at the canvas is painting; in a cup is not, however low it goes. The
     // move that leaves the cup (the swipe up the stairs, or the lift) is in it.
     let inCup;

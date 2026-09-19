@@ -158,12 +158,28 @@ Backlash compensation injects a corrective move at every reversal — 148 of the
 in a small test job. Those are for the machine's slack, not part of the path that
 was asked for, and drawing them buries the artwork in strokes that are not in
 it. The preview skips them, and shows the path as it would be without
-compensation. It is no longer quite the file the machine gets: compensation also
-writes the coordinates between those moves low by up to the play while an axis
-travels in one direction, so the drawn path can sit half a millimetre off the
-commanded one. That is a third of a percent of the canvas and well under a
-pixel at preview scale, and undoing it to draw the path exactly would mean
-reimplementing the compensation in the browser to throw the result away.
+compensation — and it now really is the path that was asked for, not the file
+with some lines left out. Dropping the take-up moves stopped being enough when
+compensation started shifting the coordinates *between* them: while an axis
+travels one way they are the path's, while it travels the other they are the
+path's less the play, and drawn straight that is a step of the play at every
+reversal — a sawtooth across the artwork that nobody asked to paint.
+
+So the generator writes the shift into the file where it changes: in the
+take-up's own comment (`; backlash take-up, shift X-1.7 Y0`), and on a line of
+its own the first time an axis settles on a direction, which shifts the
+coordinates with no take-up to carry the note. The preview reads it and
+subtracts it.
+
+Stated outright rather than worked out from the take-up moves, because working
+it out does not survive the clamp: a take-up cut short at the end of an axis
+steps by less than the shift really took, and a reader adding those steps up
+carries the error to the end of the file. Measured on a job of 866 moves with
+Pinkograph's 1.7 and 2.3 mm of play: reading the steps, 858 endpoints came out
+wrong and the drift reached 5.04 mm by the last move. Reading the stated shift,
+15 do, every one of them within the play of the X0 end where the compensation
+itself is clipped by the endstop — and there the preview is drawing where the
+brush will really be, which is the more honest of the two.
 
 ### No calibration preamble
 
