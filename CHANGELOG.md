@@ -62,6 +62,21 @@ version's heading appears with its first bullet and grows until it is tagged.
   with nothing on the page to say so. Anything chosen there is kept, and comes
   back with the card. A fifth colour keeps its card either way.
 
+- The play in an axis can now be given at **both ends of the bed**, and the
+  compensation follows a straight line between them. It is not the same figure
+  at both ends: Pinkograph's sheet reads 1.9 mm of X play at one end of the bed
+  and 1.3 at the other, with Y steady at 1.3 to 1.2. One figure cannot
+  compensate an axis like that — the best of them, the mean, is still 0.3 mm
+  out at each end of every plate, which is a third of a brush stroke and is
+  what makes the colours miss each other. Two figures bring the average error
+  on a test job from 0.077 mm to 0.019, and the points more than a tenth of a
+  millimetre out from a third of them to a fifteenth. **Backlash X** and
+  **Backlash Y** are now the readings at the X0 end, and there are two new
+  boxes for the far end; a config that names only the old two is compensated
+  with one figure everywhere, exactly as it was before, and its file comes out
+  unchanged. Paint backlash.g to fill the new boxes in. The job gains no extra
+  moves and runs no slower — only the coordinates change.
+
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
 - Backlash compensation compensates. It never did: it added a corrective move
