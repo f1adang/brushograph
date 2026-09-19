@@ -1528,25 +1528,47 @@ config; `zero.g` is not (see below).
   `go_in_tray_lift` before crossing the bed, like the rest — it is run from
   where the other macros leave the brush, X0 Y0 at Dip Depth + 1, which on a
   holder whose water crucible covers the origin is under the rim.
-- **backlash.g** paints a sheet for measuring the play in each axis, the one
-  macro that puts the brush on the paper for anything but a dot. Two sections,
-  set well apart and each read on its own. The **X section** is vertical
-  strokes with the pairs spread along X, the **Y section** horizontal strokes
-  with the pairs spread along Y. Every pair is one commanded position drawn
-  twice, arrived at from each side in turn, so the gap between the two marks
-  is the play. Three test pairs an axis rather than one, because a belt slack
-  in one place and a nut with play in it everywhere do not read the same, and
-  the figure for the box is only one figure if the three agree.
+- **backlash.g** paints a sheet for measuring the play in each axis at both
+  ends of the bed, the one macro that puts the brush on the paper for anything
+  but a dot. Every pair is one commanded position drawn twice, arrived at from
+  each side in turn, so the gap between the two marks is the play.
 
-  Each section then has its own **gauge**: five more pairs, drawn 0.5, 1, 1.5,
-  2 and 2.5 mm apart, both strokes of each arriving from the same side so the
-  play cannot open or close them. Find the gauge pair a test pair looks like
-  and that is the figure, to a tenth. A gauge per section rather than one for
-  the sheet because a gap between two horizontal lines does not look like the
-  same gap between two vertical ones, and the axis with the larger play is the
-  one that most needs its own ruler. Three test pairs and then a clear break
-  before the five, wider than any spacing inside either group, so neither can
-  be counted into the other.
+  Four groups. Two **rows of test pairs**, each spread across the whole width
+  of the paper: the **X row** is three vertical pairs at the left, the middle
+  and the right, and the **Y row** three horizontal pairs across the same
+  width. The left-hand pair of each row is the near figure and the right-hand
+  pair the far one; the middle pair is the check, and falls halfway between
+  them if the play really is a straight line across the bed. Both rows span the
+  width because the play changes along X and a group huddled in one corner
+  reads a fraction of the difference and calls the rest even, which is the one
+  thing this sheet must not do — it is what the old layout did, with all three
+  Y pairs at one X and the X pairs in the left quarter of their own box.
+
+  A Y pair is read at its **outer end**, because it opens out along its own
+  length: both strokes are drawn at one commanded Y with the gantry twisted
+  opposite ways, and the twist that reaches the brush grows along X. That is
+  the fault this sheet is here to size, drawn as a picture of itself.
+
+  Then a **gauge** an axis: five more pairs, drawn 0.5, 1, 1.5, 2 and 2.5 mm
+  apart, both strokes of each arriving from the same side so the play cannot
+  open or close them. Find the gauge pair a test pair looks like and that is
+  the figure, to a tenth. A gauge per axis rather than one for the sheet
+  because a gap between two horizontal lines does not look like the same gap
+  between two vertical ones, and the axis with the larger play is the one that
+  most needs its own ruler. A gap wider than the widest gauge pair is wide
+  enough to lay a rule across, which is what a gauge is for saving you from at
+  half a millimetre and not at three.
+
+  The gauge pairs are laid out with the same **clear space between every pair**
+  whatever gap each one draws, rather than in slots of equal width: spread
+  evenly, the 0.5 mm pair gets as much room as the 2.5 mm pair and the space
+  after the widest one closes towards its own gap, which is the one place a
+  reader must not have to guess which line belongs to which pair. The Y gauge
+  is 5.5 mm clear between rows on the Mini and 3.0 on the 𝔐𝔦𝔨𝔯𝔬, against gaps
+  of at most 2.5. Evenly spaced in the same room the 𝔐𝔦𝔨𝔯𝔬's widest pair had
+  1.5 mm to the next one, which is narrower than the pair itself. The Mini had
+  8.0 and now has 5.5, because the band it sits in is shorter than the box it
+  used to share with the test pairs — still more than twice the widest gap.
 
   A gauge rather than a rule because a ruler will not settle this. A brush
   stroke is about a millimetre wide, and half a millimetre between two wet
@@ -1559,12 +1581,20 @@ config; `zero.g` is not (see below).
   millimetre into a visible ten, so a drift test — the obvious idea, and the
   one tried first — cannot work, and reading a gap is what is left.
 
-  The two sections go side by side on a canvas wider than it is tall and
-  stacked on one taller than it is wide, because the X section wants width for
-  its eight columns and the Y section height for its eight rows. That is the
-  difference between the Mini at 132 × 89 and the 𝔐𝔦𝔨𝔯𝔬 at 65 × 100: laying
-  both out the one way puts eight of the 𝔐𝔦𝔨𝔯𝔬's columns into 65 mm, where a
-  2.5 mm pair has nothing between it and the next.
+  Both test rows take the full width, so what is left to lay out is the two
+  gauges, and they are rulers that can sit anywhere. On a canvas wider than it
+  is tall they share the bottom band, the Y gauge's rows on the left and the X
+  gauge's columns beside them; on a taller one there is no width to spare — the
+  𝔐𝔦𝔨𝔯𝔬's 65 mm is one gauge stroke and nothing else — so they take a band
+  each. That is the difference between the Mini at 132 × 89 and the 𝔐𝔦𝔨𝔯𝔬 at
+  65 × 100.
+
+  The outer pairs stand a run-up in from the edges of the paper rather than on
+  them: a stroke at the very end of an axis has nothing to back off into but
+  the endstop and would be measuring that. On the Mini they fall at X 12 and
+  X 130.7 of the 132 the figures are meant for, so reading them as the edges
+  overstates the difference by about a tenth of itself — finer than the gauge
+  can be read to, and the macro says so in its own header.
 
   Every stroke backs off 12 mm and comes in along the axis under test, so that
   axis is certainly travelling the right way when it arrives; the move before
@@ -1581,8 +1611,12 @@ config; `zero.g` is not (see below).
 
   Strokes are capped at 55 mm because a pair has to come out of one dip:
   at the full height of the canvas a pair came to 163 mm against Pinkograph's
-  `paint_per_run_max` of 150. As drawn it is 32 strokes and 1491 mm of paint
-  over 16 dips, 93 mm a dip. One dip a pair, from the last cup in painting
+  `paint_per_run_max` of 150. The Y row is three pairs rather than one the
+  whole way across for the same reason — one pair spanning 132 mm would read
+  the play everywhere at once, which is what it wants to be, but two strokes of
+  it is 264 mm out of a single dip. Three short ones are the same reading with
+  gaps in it. As drawn the sheet is 32 strokes and 1242 mm of paint over 16
+  dips, 78 mm a dip and 110 at the worst of them. One dip a pair, from the last cup in painting
   order — black where there is a black cup, cyan on a classic holder with no
   room for one.
 
