@@ -154,12 +154,16 @@ form's `dip_depth`, or anything below the canvas when the form has none.
 
 ### What the preview leaves out
 
-Backlash compensation injects a corrective move at every reversal — 130 of them
+Backlash compensation injects a corrective move at every reversal — 148 of them
 in a small test job. Those are for the machine's slack, not part of the path that
 was asked for, and drawing them buries the artwork in strokes that are not in
 it. The preview skips them, and shows the path as it would be without
-compensation. Checked against the same file with those lines physically removed:
-the parsed moves are identical.
+compensation. It is no longer quite the file the machine gets: compensation also
+writes the coordinates between those moves low by up to the play while an axis
+travels in one direction, so the drawn path can sit half a millimetre off the
+commanded one. That is a third of a percent of the canvas and well under a
+pixel at preview scale, and undoing it to draw the path exactly would mean
+reimplementing the compensation in the browser to throw the result away.
 
 ### No calibration preamble
 
@@ -610,6 +614,72 @@ usefully draw. They collapse onto the two that mean something here —
 — with a logged fallback, and the dropdown offers only patterns that work,
 ordered with the ones
 best suited to a brush first.
+
+### Backlash compensation
+
+An axis with slack in it does not go where it is told the moment it turns round.
+Coming from the right and asked for X40, the first half millimetre of the move
+only takes the nut across its own play, and the brush stops at X40.5 — ahead of
+the commanded point, on the side it came from. So the file is written in the
+axis's terms rather than the path's, which is openBrushograph Studio's scheme:
+while the axis travels left every coordinate is written half a millimetre low,
+while it travels right they are written as they are, and at each reversal a move
+between the two is inserted. That move is half a millimetre of commanded motion
+which the slack swallows whole, so the brush does not follow it.
+
+What was here before did the opposite, and did not work. It moved the brush half
+a millimetre *past* each corner, the way it had been going, and left every
+coordinate after it alone — so the corner was overshot, and then missed by
+exactly as much as it would have been missed with no compensation at all.
+Simulated against a lost-motion axis over 10 → 50 → 40 → 60 → 20 with 0.5 mm of
+play, it carried the brush out to 50.5 and 60.5 as tails painted past the two
+corners, and then landed those corners at 40.5 and 20.5 — which is, to the
+micron, where no compensation at all puts them. A small job makes about 140
+reversals. The scheme here lands all five points on the number.
+
+Measured on a generated job — two trays, 864 lines, 686 commanded points, 0.5 mm
+of X play and 1.6 mm of Y — against the same path on a machine with no slack,
+modelling the nut's position within the gap rather than assuming every reversal
+crosses all of it: one point in X and six in Y are off by more than 0.1 mm. The
+six are the opening dip, before the Y axis has turned round once and while the
+brush is in the water; the one is the park at the very end, a move shorter than
+the play itself. Everything in between is exact. The old scheme missed all 686,
+by as much as it would have missed them uncompensated.
+
+The figure matters more than it used to. Under the old scheme it only set how
+long a tail was painted past each corner; now it shifts the coordinates, so
+what is left at each reversal is the difference between the figure and the
+truth, and an over-estimate costs exactly what an under-estimate of the same
+size does. Simulated: 0.5 mm of real play compensated as 1.6 leaves 1.1 mm at
+every reversal, worse than the 0.5 of leaving compensation off altogether.
+
+The remaining ambiguity is not fixable from G-code and is not worth fixing: what
+the slack does on the *first* move of a job depends on which face the nut was
+resting on when the machine was zeroed, which the file cannot know. Either
+convention leaves the whole painting translated by up to the play — 0.5 mm
+across 151 mm of canvas, a rigid shift of the picture rather than a distortion
+of it, and invisible next to a brush stroke a millimetre wide.
+
+Two details of Studio's version are deliberately not copied. It sends the
+take-up at a slow feedrate of its own, but `F` is modal and it never puts the
+old one back, so every move after a reversal crawls until something sets `F`
+again — here the move goes at the prevailing feed, and it is over in the time it
+takes to cross the slack. And it clamps only at zero. The sign of the scheme is
+chosen so the compensated file never asks for more X or Y than the path itself
+did, which is the end that hurt: leaving the black crucible, which on Pinkograph
+sits at X 156 with the axis ending there, the old take-up asked for X 156.5 and
+the carriage found the stop instead. What it lost there it did not get back —
+every move after it landed short by as much, which on a file that paints black
+last was the whole black plate, shifted 3 mm. The same job now reaches X 156.0
+and Y 101.864, both exactly the path's own extremes, where the old one reached
+Y 103.464. `workable_x` remains as a floor under the near end, where a
+coordinate written low could otherwise ask for less than zero; the stir keeps
+off that end by the take-up and no longer gives up anything at the far one.
+
+Reversals shorter than 0.05 mm, Studio's figure, are not reversals. On a job out
+of this pipeline that is nearly free — 148 take-ups against 149 without it,
+because `planar`'s `SIMPLIFY_PX` has already dropped the moves that small — so
+it is insurance for paths that have not been simplified rather than a saving.
 
 ### Controller dialect
 
@@ -1086,8 +1156,9 @@ The swipe runs front to back, finishing on the canvas side, so the brush leaves
 the cup already pointed at the paper. With the stock config its near end is
 Y −4.5, which looks like the off-the-bed fault the wipe had — it is not: the
 classic sweep reaches Y −4 from the same `tray_y` of 6 and `tray_enter_radius`
-of 10, and has done so on this machine all along. Both then read about a
-millimetre lower in the file as Y backlash take-up.
+of 10, and has done so on this machine all along. Both then read lower again in
+the file by Pinkograph's 1.6 mm of Y play, which is what **Backlash
+compensation** writes while the axis travels that way.
 
 The wash goes through the same motion, so in a rectangular bay its three dips
 become three swipes the length of the water. That rinses more, not less, and

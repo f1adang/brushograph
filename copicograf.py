@@ -104,8 +104,8 @@ class Copicograf:
         self.cup_width = 16.2
         self.water_cup_width = 27.6
         # The X the stir may use, low and high. The WebUI sets it from the
-        # model's travel, less the backlash take-up that overshoots every
-        # move it makes; on its own copicograf only knows about the endstop.
+        # model's travel, keeping the near end off the endstop by the backlash
+        # take-up; on its own copicograf only knows about the endstop.
         self.x_limits = (0.0, float("inf"))
         self.cup_swipe_exit_z = float(bg.get("cup_swipe_exit_z", 1.0))
         # Sweeps across the bay, down in the paint, before the swipe up the

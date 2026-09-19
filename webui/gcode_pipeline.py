@@ -598,27 +598,79 @@ def start_sequence(conf: dict) -> list[str]:
 
 # --------------------------------------------------------------------- backlash
 
+# What counts as a change of direction, from openBrushograph Studio. A wobble of
+# a fraction of a step is not a reversal, and spending the whole take-up on one
+# moves the brush further than the move that asked for it. On a job out of this
+# pipeline it is nearly free — 148 take-ups against 149 at 1e-9, because
+# planar's SIMPLIFY_PX has already dropped the moves that small — so it is
+# insurance rather than a saving, and it costs nothing to carry. Anything the
+# machine does is repeatable to worse than this.
+BACKLASH_THRESHOLD = 0.05
+
+
+def _coord(value: float) -> str:
+    """A coordinate written the way the rest of the file writes them."""
+    text = f"{value:.3f}".rstrip("0").rstrip(".")
+    return "0" if text in ("", "-0") else text
+
+
+def _rewrite(line: str, values: dict[str, float]) -> str:
+    """Replace named axis words in one move, leaving everything else alone."""
+    body, sep, comment = line.partition(";")
+
+    def sub(match: re.Match) -> str:
+        axis = match.group(1)
+        return axis + _coord(values[axis]) if axis in values else match.group(0)
+
+    return _WORD.sub(sub, body) + sep + comment
+
+
 def apply_backlash(lines: list[str], bx: float, by: float,
                    x_range: tuple[float, float] | None = None) -> list[str]:
-    """Insert a corrective move whenever an axis reverses direction.
+    """Command the machine where the brush has to be, not where the path is.
 
-    On a reversal the axis first has to take up its own slack, so the commanded
-    distance is short by the backlash figure. Overshooting by that amount and
-    coming back puts the head where the path asked for.
+    An axis with slack in it carries the brush ahead of the commanded position
+    by the backlash figure, on the side it was last travelling from: drive left
+    to X40 having come from the right and the brush stops at X40.5, because the
+    first half millimetre of the move only moved the nut across its own play.
+    So the file is written in the axis's terms rather than the path's. While
+    the axis travels left every coordinate is written half a millimetre low,
+    while it travels right they are written as they are, and at each reversal a
+    move between the two is inserted — half a millimetre of commanded motion
+    that the slack swallows whole and the brush does not follow.
 
-    The overshoot goes the way the head was already travelling, so a reversal
-    made at the outermost point of the file is carried past it — and `x_range`
-    is where that is not allowed to happen. Leaving the black crucible, which
-    on Pinkograph sits at X 156 with the axis ending there, the take-up asked
-    for X 156.5 and the carriage found the stop instead. What it loses there it
-    does not get back: every move after it lands short by as much, which on a
-    file that paints black last is the whole black plate, shifted left. Clipped
-    to the end of the range instead, so the correction is as much as there is
-    room for, and skipped where there is none.
+    This is openBrushograph Studio's scheme, and the sign of it is the point.
+    What was here before moved the brush half a millimetre *past* every corner,
+    the way it had been going, and left every coordinate after it alone: the
+    corner was overshot and then missed by exactly as much as it would have
+    been missed with no compensation at all. Simulated against a lost-motion
+    axis over 10 -> 50 -> 40 -> 60 -> 20 at 0.5 mm of play, it carried the brush
+    out to 50.5 and 60.5 as tails past the corners and then landed those corners
+    at 40.5 and 20.5, which is where no compensation at all puts them, to the
+    micron. A small job makes about 140 reversals. This lands all five on the
+    number — but only if the figure is right: it is the coordinates that move
+    now, so an over-estimate costs what an under-estimate of the same size does.
+
+    Because the shift is only ever downwards, the compensated file never
+    reaches past the far end of an axis. That end is where it hurt: leaving the
+    black crucible, which on Pinkograph sits at X 156 with the axis ending
+    there, the old take-up asked for X 156.5 and the carriage found the stop
+    instead, and what it lost there it did not get back — every move after it
+    landed short by as much, which on a file that paints black last was the
+    whole black plate. `x_range` remains as the floor under the other end,
+    where a coordinate written low could ask for less than zero.
     """
     out: list[str] = []
-    x = y = None
+    x = y = None            # where the path last asked the brush to be
+    cmd_x = cmd_y = None    # what was last written to get it there
     dir_x = dir_y = 0
+    off_x = off_y = 0.0
+
+    def clamp_x(value: float) -> float:
+        if x_range is None:
+            return value
+        return min(max(value, x_range[0]), x_range[1])
+
     for line in lines:
         body = line.split(";", 1)[0].strip()
         if not (_G1.match(body) or _G0.match(body)):
@@ -627,29 +679,50 @@ def apply_backlash(lines: list[str], bx: float, by: float,
         words = dict(_WORD.findall(body))
         nx = float(words["X"]) if "X" in words else x
         ny = float(words["Y"]) if "Y" in words else y
-        cx = cy = None
-        if x is not None and nx is not None and abs(nx - x) > 1e-9:
+
+        # The move that seats the nut on its other face. Both axes reversing at
+        # once share one, as they share the move that follows.
+        seat: dict[str, float] = {}
+        if x is not None and nx is not None and abs(nx - x) > BACKLASH_THRESHOLD:
             d = 1 if nx > x else -1
-            if dir_x and d != dir_x and bx:
-                cx = x - d * bx
-                if x_range is not None:
-                    cx = min(max(cx, x_range[0]), x_range[1])
-                    if abs(cx - x) < 1e-9:
-                        cx = None
-            dir_x = d
-        if y is not None and ny is not None and abs(ny - y) > 1e-9:
+            if d != dir_x:
+                reversal = dir_x != 0
+                dir_x, off_x = d, (0.0 if d > 0 else -bx)
+                # Nothing to seat on the first move of the file: the side the
+                # nut is resting on is not knowable, and the brush is up.
+                if reversal and bx:
+                    at = clamp_x(x + off_x)
+                    if cmd_x is None or abs(at - cmd_x) > 1e-9:
+                        seat["X"] = at
+        if y is not None and ny is not None and abs(ny - y) > BACKLASH_THRESHOLD:
             d = 1 if ny > y else -1
-            if dir_y and d != dir_y and by:
-                cy = y - d * by
-            dir_y = d
-        if cx is not None or cy is not None:
-            parts = ["G1"]
-            if cx is not None:
-                parts.append(f"X{cx:.3f}")
-            if cy is not None:
-                parts.append(f"Y{cy:.3f}")
-            out.append(" ".join(parts) + " ; backlash take-up")
-        out.append(line)
+            if d != dir_y:
+                reversal = dir_y != 0
+                dir_y, off_y = d, (0.0 if d > 0 else -by)
+                if reversal and by:
+                    at = y + off_y
+                    if cmd_y is None or abs(at - cmd_y) > 1e-9:
+                        seat["Y"] = at
+        if seat:
+            # No feedrate of its own: Studio sends these at a slow one, but F
+            # is modal and it never puts the old one back, so every move after
+            # a reversal crawls until something sets F again. At the prevailing
+            # feed the move is over in the time it takes to cross the slack.
+            out.append("G1 " + " ".join(f"{a}{_coord(v)}" for a, v in sorted(seat.items()))
+                       + " ; backlash take-up")
+            cmd_x = seat.get("X", cmd_x)
+            cmd_y = seat.get("Y", cmd_y)
+
+        shifted: dict[str, float] = {}
+        if "X" in words and nx is not None:
+            cmd_x = clamp_x(nx + off_x)
+            if abs(cmd_x - nx) > 1e-9:
+                shifted["X"] = cmd_x
+        if "Y" in words and ny is not None:
+            cmd_y = ny + off_y
+            if abs(cmd_y - ny) > 1e-9:
+                shifted["Y"] = cmd_y
+        out.append(_rewrite(line, shifted) if shifted else line)
         x, y = nx, ny
     return out
 
@@ -709,11 +782,12 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     copicograf.cup_width = holder["bay_width"]
     copicograf.water_cup_width = holder["water_bay_width"]
     # The stir is held inside the ground a job already covers — the containers
-    # and the canvas — not the axis travel. It also keeps off both ends by the
-    # backlash take-up, which overshoots every move in the direction it was
-    # going, so a stir ending on the bound is not carried past it.
+    # and the canvas — not the axis travel. Backlash compensation writes every
+    # coordinate low by up to the take-up while the axis travels left, so the
+    # near end keeps off the endstop by that much. The far end needs nothing:
+    # the compensated file never asks for more X than the path did.
     take_up = float(bg.get("backlash_x", 0) or 0) if bg.get("backlash_compensation", True) else 0.0
-    copicograf.x_limits = (take_up, workable_x(conf) - take_up)
+    copicograf.x_limits = (take_up, workable_x(conf))
     # A crucible near either end of the axis cannot be stirred the whole way
     # across: the stir stays centred on it and gives up the same distance on
     # both sides, so it goes short rather than lopsided. Worth saying, because
