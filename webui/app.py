@@ -30,7 +30,7 @@ import subject
 import woodcut
 from configspec import (CLASSIC_DISH_OFFSETS, CLASSIC_DISH_SETTINGS, CMYK_TO_TRAY,
                         MODELS, apply_form,
-                        build_schema, tray_entries)
+                        build_schema, new_config, tray_entries)
 from macros import generate_macros
 from sketch import PALETTES, render as render_sketch
 from version import REPO_URL, VERSION
@@ -197,6 +197,9 @@ def index():
     return render_template(
         "index.html", session_id=session_id(),
         saved=[p.name for p in saved_paths()],
+        # For the "+ New machine…" entry in the pulldown: what there is to
+        # start a machine from, in the order the models are declared.
+        models={name: m["label"] for name, m in MODELS.items()},
     )
 
 
@@ -453,6 +456,34 @@ def machine_config_upload():
     return jsonify(name=name, mode="uploaded")
 
 
+@app.post("/machine_config/create")
+def machine_config_create():
+    """Start a machine from a model rather than from a file.
+
+    The other way in needs a config to already exist somewhere. This one builds
+    it: pick the model, name it, and the server writes out that model's
+    defaults under that name and keeps it, so the machine is in the pulldown
+    from then on like any other. It is kept the same way an upload is — a name
+    already taken belongs to somebody else's machine and is never written over.
+    """
+    name = (request.form.get("name") or "").strip()
+    model = (request.form.get("model") or "").strip().lower()
+    if not name:
+        return jsonify(error="Give the machine a name."), 400
+    if model not in MODELS:
+        return jsonify(error=f"There is no {model or 'unnamed'} model to start from."), 400
+    if not name.endswith(".conf"):
+        name += ".conf"
+    if not SAFE_NAME.match(name):
+        return jsonify(error="A machine name may only contain letters, digits, dot, dash, underscore"), 400
+    raw = config_bytes(new_config(model))
+    try:
+        kept = keep_config(name, raw, reason="Create")
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(name=kept, mode="saved", requested=name)
+
+
 def _check_saved_size(raw: bytes) -> None:
     if len(raw) > MAX_SAVED_CONFIG_KB * 1024:
         raise ValueError(
@@ -509,7 +540,7 @@ def machine_config_update():
     return jsonify(name=name, version=config_version(out))
 
 
-def keep_config(name: str, raw: bytes) -> str:
+def keep_config(name: str, raw: bytes, reason: str = "Upload") -> str:
     """Put an uploaded config on the server for good, and return its name there.
 
     A name already taken is never overwritten: this is a shared server, and the
@@ -547,7 +578,7 @@ def keep_config(name: str, raw: bytes) -> str:
         # Under the lock an Update commits under, so the two never run git
         # in the same repository at once.
         with SAVED_CONFIGS_LOCK:
-            config_history.commit(SAVED_CONFIGS_DIR, candidate, "Upload",
+            config_history.commit(SAVED_CONFIGS_DIR, candidate, reason,
                                   config_history.client_ip(request), app.logger.warning)
         return candidate
     raise ValueError(f"No free name for {name} on the server.")

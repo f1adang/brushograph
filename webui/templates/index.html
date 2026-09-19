@@ -34,10 +34,28 @@ try { var t = localStorage.getItem("brushograph-theme");
           <select name="machine-config" id="machine-config">
             <option selected disabled value="" id="machine-config-prompt">{% if saved %}Choose a machine…{% else %}No machines kept yet{% endif %}</option>
             {% for c in saved %}<option value="{{ c }}">{{ c }}</option>{% endfor %}
+            <option value="__new__" id="machine-config-new">+ New machine…</option>
           </select>
           <button type="button" class="icon" id="cfg-download" title="Download this config" aria-label="Download this config">↓</button>
         </span>
       </label>
+      <div class="new-machine" id="new-machine" hidden>
+        <label class="field">
+          <span class="field-label">Model</span>
+          <select id="new-machine-model">
+            {% for key, label in models.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label class="field">
+          <span class="field-label">Name</span>
+          <input type="text" id="new-machine-name" placeholder="my-brushograph" autocomplete="off">
+        </label>
+        <span class="new-machine-actions">
+          <button type="button" id="new-machine-create">Create</button>
+          <button type="button" class="ghost" id="new-machine-cancel">Cancel</button>
+        </span>
+        <p class="note" id="new-machine-note">Starts from the model's own defaults — travel limits, canvas offset and container positions. Check them against the machine before painting.</p>
+      </div>
       <div class="own-config">
         <label class="field">
           <span class="field-label">Or use your own</span>

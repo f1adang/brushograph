@@ -191,6 +191,77 @@ MODELS = OrderedDict([
 ])
 
 
+# What a machine that has never been configured starts with, beyond the model's
+# own figures and the settings the form always offers. Most of it is simply
+# what both machines in webui_configs already agree on; the rest is the gentler
+# of the two, because a bed nobody has measured yet is better off slow.
+NEW_MACHINE_BASE = OrderedDict([
+    ("canvas_height", 0),
+    ("paint_per_run_min", 130),
+    ("paint_per_run_max", 150),
+    ("move_to_other_shape_lift", 2),
+    ("prepare_paint_count", 2),
+    ("moves", OrderedDict([
+        ("normal", OrderedDict([("acc", "M204 P20 T10"), ("feedrate_1", "G0 F1000"),
+                                ("feedrate_2", "M203 X1000 Y1000 Z1000")])),
+        ("fast", OrderedDict([("acc", "M204 P20 T20"), ("feedrate_1", "G0 F1500"),
+                              ("feedrate_2", "M203 X1300 Y1300 Z1000")])),
+        ("remove_drops", OrderedDict([("acc", "M204 P20 T20"), ("feedrate_1", "G0 F600"),
+                                      ("feedrate_2", "M203 X600 Y600 Z500")])),
+    ])),
+])
+
+
+def new_config(model: str) -> dict:
+    """A fresh config for `model`, carrying that model's defaults and nothing else.
+
+    What choosing the model in the form already does — travel limits, canvas
+    offset, the containers spaced along from where the holder has room for them
+    — written out as a whole config rather than applied to somebody else's. The
+    container heights come from the shape the model can actually hold: the
+    petri dish's if it takes one, the printed crucibles' if it does not.
+
+    Every section the form builds controls from is present, because the form is
+    built from the config's own keys: a config that omits a section simply has
+    no control for it, and a new machine would have no way to gain one.
+    """
+    name = model if model in MODELS else "mini"
+    m = MODELS[name]
+    classic = m["classic"]
+    offsets = CLASSIC_DISH_OFFSETS if classic else m["holder"]["offsets"]
+    water_x, water_y = m["water"]
+
+    bg = OrderedDict([("model", name)])
+    bg.update(m["settings"])
+    # The whole paintable bed: the limits less the strip the containers stand
+    # in. Fitted the way the form fits it, so a new machine cannot open asking
+    # to paint off the end of its own bed.
+    bg["width"] = max(1, int(m["settings"]["max_width"] - m["settings"]["offset_x"]))
+    bg["height"] = max(1, int(m["settings"]["max_height"] - m["settings"]["offset_y"]))
+    bg.update(NEW_MACHINE_BASE)
+    bg["cup_shape"] = "classic" if classic else "modern"
+    bg.update(CLASSIC_DISH_SETTINGS if classic else m["holder"]["settings"])
+
+    conf = OrderedDict([
+        ("trays", OrderedDict(
+            [(tray, {"x": round(water_x + off, 1), "y": water_y}) for tray, off in offsets.items()]
+            + [("additionals", OrderedDict())])),
+        ("additionals", []),
+        ("separation", OrderedDict([
+            ("selection", OrderedDict([("C", 0), ("M", 0), ("Y", 0), ("K", 0),
+                                       ("additionals", OrderedDict())])),
+            ("levels", 12),
+        ])),
+        ("color_order", ["C", "M", "Y", "K"]),
+        ("brushograph", bg),
+        ("slicer", OrderedDict([("infill_pattern", "concentric"), ("infill_line_distance", "0"),
+                                ("infill_angles", "[0]"), ("wall_line_count", "1")])),
+        ("controller", OrderedDict([("controller_type", "FluidNC")])),
+        ("connection", OrderedDict([("hostname", "fluidnc.local")])),
+    ])
+    return fit_cups_to_shape(with_defaults(conf))
+
+
 def model_of(conf: dict) -> str:
     bg = conf.get("brushograph", {})
     name = str(bg.get("model", "mini")).strip().lower() if isinstance(bg, dict) else "mini"

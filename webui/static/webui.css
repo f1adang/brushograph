@@ -979,6 +979,11 @@ dialog::backdrop { background: rgba(0,0,0,.3); }
 .picker .field { min-width: 190px; }
 .own-config { display: flex; flex-direction: column; gap: 7px; }
 .own-config .field.is-check .field-label { font-size: 12.5px; color: var(--ink-dim); }
+/* starting a machine from a model — opened by the pulldown's own entry */
+.new-machine { display: flex; flex-direction: column; gap: 7px; }
+.new-machine .field { min-width: 190px; }
+.new-machine-actions { display: flex; gap: 7px; }
+.new-machine .note { margin: 2px 0 0; max-width: 34ch; font-size: 12.5px; color: var(--ink-dim); }
 .topbar-error, .topbar-note { max-width: 1000px; margin: 0 auto 12px; padding: 0 28px; }
 
 /* number fields are three digits, not half a page */

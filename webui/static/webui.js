@@ -316,9 +316,70 @@ if (cfgDlBtn) {
   });
 }
 
+/* ---- starting a machine from a model ---- */
+/* The pulldown is the list of machines, so the way to add one belongs in it
+   rather than off somewhere else. Choosing the entry opens the panel instead
+   of loading anything; the machine only exists once it is named and created,
+   and then it joins the list and is selected like any other. */
+const newMachine = $("new-machine");
+const newMachineName = $("new-machine-name");
+const newMachineModel = $("new-machine-model");
+
+function showNewMachine(open) {
+  if (!newMachine) return;
+  newMachine.hidden = !open;
+  if (open) {
+    showCfgError(null);
+    showCfgNote(null);
+    if (newMachineName) newMachineName.focus();
+  } else if (configSelect && configSelect.value === "__new__") {
+    // Nothing was created, so nothing in the list is chosen.
+    configSelect.selectedIndex = machineConfigName ? configSelect.selectedIndex : 0;
+    if (!machineConfigName) configSelect.selectedIndex = 0;
+  }
+}
+
+async function createMachine() {
+  const name = (newMachineName && newMachineName.value || "").trim();
+  if (!name) return showCfgError("Give the machine a name.");
+  const fd = new FormData();
+  fd.append("name", name);
+  fd.append("model", newMachineModel ? newMachineModel.value : "mini");
+  try {
+    const res = await fetch("machine_config/create", { method: "POST", body: fd });
+    if (!res.ok) throw new Error(await serverError(res));
+    const data = await res.json();
+    machineConfigName = data.name;
+    machineConfigMode = "saved";
+    addSavedOption(data.name).selected = true;
+    showNewMachine(false);
+    if (newMachineName) newMachineName.value = "";
+    if (data.name === data.requested) {
+      showCfgNote("{name} started from the {model} defaults, and in the machine list from now on.",
+                  { name: data.name, model: newMachineModel ? newMachineModel.selectedOptions[0].textContent : "" });
+    } else {
+      showCfgNote("Kept as {name}: {original} was already taken by another machine.",
+                  { name: data.name, original: data.requested });
+    }
+    loadOptionsForm();
+  } catch (err) {
+    showCfgError(String(err.message || err));
+  }
+}
+
+if ($("new-machine-create")) $("new-machine-create").addEventListener("click", createMachine);
+if ($("new-machine-cancel")) $("new-machine-cancel").addEventListener("click", () => showNewMachine(false));
+if (newMachineName) {
+  newMachineName.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); createMachine(); }
+  });
+}
+
 if (configSelect) {
   configSelect.addEventListener("change", () => {
+    if (configSelect.value === "__new__") return showNewMachine(true);
     if (!configSelect.value) return;
+    showNewMachine(false);
     clearFile(configFile);
     showCfgNote(null);
     machineConfigName = configSelect.value;
