@@ -77,6 +77,21 @@ version's heading appears with its first bullet and grows until it is tagged.
   unchanged. Paint backlash.g to fill the new boxes in. The job gains no extra
   moves and runs no slower — only the coordinates change.
 
+- **backlash.g measures across the whole bed.** Its test pairs used to sit in
+  one corner of the paper: all three Y pairs at the same X, and the X pairs in
+  the left quarter of their own box. A play that changes from one side of the
+  bed to the other is invisible there, which is the fault it most needs to
+  show — Pinkograph's X play runs 1.9 mm at one end and 1.3 at the other, and
+  that sheet read it as the same figure three times. Both rows now run the
+  full width, three pairs each, and the left and right pairs of each row are
+  the two figures to type in, with the middle one as the check that the play
+  really does run in a straight line. A pair that opens out along its own
+  length is the change drawn as a picture of itself, not a fault in the
+  painting. The two gauges keep their five known gaps and are laid out with
+  the same clear space after every pair whatever gap it draws: the 𝔐𝔦𝔨𝔯𝔬's
+  widest pair used to have less room to the next pair than the gap it was
+  printing.
+
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
 - Backlash compensation compensates. It never did: it added a corrective move
