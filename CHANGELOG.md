@@ -26,6 +26,27 @@ message describes that version.
   that is too large costs exactly what one that is too small does. If you have
   never measured yours, paint backlash.g below and read it off.
 
+- A sixth macro, backlash.g, paints a sheet for measuring that play, which
+  until now there was no way to find out. It draws two blocks of paired
+  strokes, one for each axis, set apart and read on their own: each pair is
+  the same position painted twice, come at from one side and then the other,
+  so the gap between the two marks is the play. Three pairs an axis, spread
+  across the bed, because a belt slack at one end and a nut loose all the way
+  along do not look the same.
+
+  Beside each block is a gauge — five more pairs at 0.5, 1, 1.5, 2 and 2.5 mm,
+  drawn so that the play cannot open or close them. Find the gauge pair your
+  test pair looks like, and that is the number for the box, to about a tenth.
+  A rule is no use here: a brush stroke is a millimetre wide and half a
+  millimetre between two wet marks is not something anyone measures off paper,
+  but matching one pair against five known ones is easy. Each block has its
+  own gauge in its own direction, because a gap between two flat lines does
+  not look like the same gap between two upright ones.
+
+  Put paper on the bed and paint in the cups, and expect 32 strokes and
+  16 dips. It paints uncompensated whatever the Backlash compensation box
+  says, so it measures the machine and not the setting.
+
 ## [v2.8.6](https://github.com/f1adang/brushograph/releases/tag/v2.8.6) — 2026-09-19
 
 - A kept config can be deleted from the page, beside the Download and Update
