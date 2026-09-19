@@ -1,8 +1,24 @@
 # Changelog
 
-Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
-tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
-message describes that version.
+Changes on `autonomy` since it forked off `main` at `216288c`. Each heading
+links to its tag on GitHub, and the tag's message describes that version.
+
+Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
+
+- **MAJOR** for a different machine to use. v2.0 was the
+  𝖅𝖜𝖊𝖎𝖙𝖊𝖗 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘 Sonderedition; a release that earns
+  one may carry its name in the heading as that one does.
+- **MINOR** for a feature you would notice from the page or the paper — a new
+  control, a new macro, a way of painting that was not there before.
+- **PATCH** for work on a feature already released: a fault in it, a figure
+  corrected, a motion made safer. Patches start at v2.7.1; before that there
+  were none, and a version with nothing after the minor, such as v2.8, is one
+  of those rather than a `.0` written short.
+
+A version collects however many features are released together, one bullet
+each, and is tagged once they are all agreed rather than per commit. Every
+feature commit is followed by the commit that adds its bullet here, so a
+version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.9.0](https://github.com/f1adang/brushograph/releases/tag/v2.9.0) — 2026-09-19 — Backlash Studio Release
 
