@@ -6,6 +6,21 @@ message describes that version.
 
 ## [v2.8.6](https://github.com/f1adang/brushograph/releases/tag/v2.8.6) — 2026-09-19
 
+- A kept config can be deleted from the page, beside the Download and Update
+  that already act on it. Machines could be added to the list and written
+  over but never taken off it, so a bed that was dismantled, a name typed
+  wrong, or a config made to try something out stayed in everyone's pulldown
+  until somebody went to the server and removed the file by hand. Delete asks
+  first, and says what it is asking: a kept config is in the machine list for
+  everyone using this server, so it goes for them too and not only from the
+  page it was pressed on. Escape and the backdrop both count as no. The file
+  goes, the pulldown loses it and the form goes back to its placeholder rather
+  than standing there editing a machine that is no longer there — but
+  webui_configs is a git repository of its own, and the removal is committed
+  to it like every other write, so what was under that name can still be
+  recovered. Offered only for a config kept on the server: an uploaded one is
+  the session's own and there is nothing on the server to remove.
+
 - calibrate.g lifts to Go In Tray Lift before it crosses to the canvas. It was
   the one macro here that set off from wherever it found the brush without
   clearing anything first, on the grounds that it is meant to do only the dot.
