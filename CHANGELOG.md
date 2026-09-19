@@ -4,7 +4,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`. Every feature is
 tagged `vMAJOR.MINOR`. Each heading links to its tag on GitHub, and the tag's
 message describes that version.
 
-## [v2.8.5](https://github.com/f1adang/brushograph/releases/tag/v2.8.5) — 2026-09-18
+## [v2.8.5](https://github.com/f1adang/brushograph/releases/tag/v2.8.5) — 2026-09-19
 
 - The brush stirs a rectangular cup before it climbs out of it. A round cup has
   always swept a chord down in the paint; a crucible was entered at the deep end
