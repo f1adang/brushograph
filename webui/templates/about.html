@@ -46,8 +46,9 @@ try { var t = localStorage.getItem("brushograph-theme");
     is one the machine can actually paint. Preview it before running.</li>
     <li data-i18n="note-cmyk">A <b>colour photograph</b> in Artwork is converted to CMYK with the same paper profile
     the rest of the repo uses, then each channel is cut at an ink cutoff into a two-tone plate.
-    Those plates are traced exactly as already-thresholded uploads would be. A picture on a
-    colour's card replaces that plate. Tints below the cutoff stay paper, so the brush is not
+    Those plates are traced exactly as already-thresholded uploads would be. The four colour
+    cards are put away while a photograph is loaded, so the plates come from it alone;
+    remove the photograph to upload them by hand. Tints below the cutoff stay paper, so the brush is not
     asked to paint a wash it cannot lay down. The profile beds dark tones on cyan, magenta
     and yellow the way a press does, under the black that follows; those three are knocked
     out wherever black paints, which halves the painting of a photograph and changes nothing

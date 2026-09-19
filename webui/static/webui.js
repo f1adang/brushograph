@@ -877,10 +877,44 @@ function wireForm() {
   const wcImg = $("wc-image");
   const wcNote = $("wc-note");
 
-  // Which tray is set to "photo" and actually has a file chosen.
+  // The four cards a colour photograph would paint for itself. A fifth colour
+  // is not one of them: the separation only ever produces C, M, Y and K, so an
+  // additional tray keeps its card and its picture whatever else is loaded.
+  const PLATE_CHANNELS = ["C", "M", "Y", "K"];
+  const plateCards = [...form.querySelectorAll("article.tray[data-channel]")]
+    .filter((card) => PLATE_CHANNELS.includes(card.dataset.channel));
+  const trayList = form.querySelector(".tray-list");
+
+  /* Put the plate cards away while a photograph is loaded, and bring them back
+     when it goes. Their file inputs are left alone rather than cleared, so a
+     picture chosen before the photograph is still there if the photograph is
+     removed; what stops a card nobody can see from painting is that the run
+     drops the file inputs of hidden cards on its way out. */
+  function showPlateCards(on) {
+    for (const card of plateCards) card.hidden = !on;
+    if (trayList) {
+      trayList.hidden = [...trayList.querySelectorAll("article.tray")]
+        .every((card) => card.hidden);
+    }
+    // refreshWoodcut only, not detectSubject: this runs once at startup as
+    // well, and detectSubject reads a `let` declared further down the file.
+    // The subject and face rows live inside the woodcut panel, so hiding the
+    // panel takes them with it and nothing stale is left showing.
+    refreshWoodcut();
+  }
+
+  // A card put away is not on the bed. Written the long way because a select
+  // outside a card would make closest() null, and nothing here uses ?.
+  function cardShown(el) {
+    const card = el.closest("article.tray");
+    return !card || !card.hidden;
+  }
+
+  // Which tray is set to "photo" and actually has a file chosen. A card that
+  // is put away is not one: it is not painting, so it has nothing to cut.
   function photoTray() {
     for (const sel of form.querySelectorAll("select.image-kind")) {
-      if (sel.value !== "photo") continue;
+      if (sel.value !== "photo" || !cardShown(sel)) continue;
       const tray = (sel.name.match(/^trays-(.+)-image_kind$/) || [])[1];
       const input = form.querySelector(`input[name="trays-${CSS.escape(tray)}-image"]`);
       if (input && input.files.length) return { tray, file: input.files[0] };
@@ -890,7 +924,8 @@ function wireForm() {
 
   function refreshWoodcut() {
     if (!wcPanel) return;
-    const anyPhoto = [...form.querySelectorAll("select.image-kind")].some((s) => s.value === "photo");
+    const anyPhoto = [...form.querySelectorAll("select.image-kind")]
+      .some((s) => s.value === "photo" && cardShown(s));
     wcPanel.hidden = !anyPhoto;
     const target = photoTray();
     if (wcBtn) {
@@ -1035,6 +1070,10 @@ function wireForm() {
     cmykInput.addEventListener("change", () => {
       const on = !!cmykFile();
       cmykControls.hidden = !on;
+      // The photograph is split into those four plates, so the cards that
+      // would upload them have nothing left to do.
+      showPlateCards(!on);
+      detectSubject();
       // A colour photograph is laid on its side by the server when it is
       // portrait, so the painted-size note says that instead.
       if (sizeNote && sizeNotePhoto) {
@@ -1049,6 +1088,9 @@ function wireForm() {
     document.addEventListener("brushograph:theme", () => {
       if (cmykImg && !cmykImg.hidden && cmykFile()) previewCmyk();
     });
+    // A file input can survive a back-navigation with its file still in it,
+    // and the change event does not fire for that.
+    showPlateCards(!cmykFile());
   }
 
   /* ---- put the settings on the server ---- */
@@ -1231,7 +1273,14 @@ function wireForm() {
       form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
       fd.append("config_only", "true");
     } else {
-      const any = [...form.querySelectorAll('input[type="file"]')].some((i) => i.files.length);
+      // A put-away card still holds whatever was chosen before the photograph
+      // was loaded, and the server lets a tray picture replace that tray's
+      // plate. Dropping it here is what makes putting the card away mean
+      // something, and leaves the file in the input for when it comes back.
+      form.querySelectorAll('article.tray[hidden] input[type="file"]')
+        .forEach((i) => fd.delete(i.name));
+      const any = [...form.querySelectorAll('article.tray:not([hidden]) input[type="file"], #cmyk-photo')]
+        .some((i) => i.files.length);
       if (!any) {
         say(errBox, "No images selected");
         errBox.hidden = false;

@@ -158,14 +158,14 @@
     <div class="step-head">
       <h2>Artwork</h2>
       <p>One picture per colour, painted in the order below &mdash; or a single colour
-        photograph, split into CMYK and thresholded into those same plates. Ink is
-        anything not white.</p>
+        photograph, split into CMYK and thresholded into those same plates, which puts
+        the four colour cards away. Ink is anything not white.</p>
     </div>
 
     <section class="group" id="cmyk-panel">
       <h3>Colour photograph
         <button type="button" class="info-btn"
-                title="A colour photograph is converted to CMYK with a paper profile, then each channel is thresholded into a two-tone plate. Those plates are painted exactly as if you had uploaded already-thresholded pictures to Cyan, Magenta, Yellow and Black. A picture on a card below replaces that plate."
+                title="A colour photograph is converted to CMYK with a paper profile, then each channel is thresholded into a two-tone plate. Those plates are painted exactly as if you had uploaded already-thresholded pictures to Cyan, Magenta, Yellow and Black. Those four cards are put away while a photograph is loaded; remove it to upload plates by hand."
                 aria-label="About colour-photograph separation">ⓘ</button>
       </h3>
       <label class="field">
@@ -201,7 +201,7 @@
     {% if trays %}
     <div class="tray-list">
       {% for t in trays.trays if t.image %}
-      <article class="tray" data-tray="{{ t.tray }}">
+      <article class="tray" data-tray="{{ t.tray }}" data-channel="{{ t.color }}">
         <header>
           <span class="dot" data-tray="{{ t.tray }}" style="{% if t.tray.startswith('#') %}background:{{ t.tray }}{% endif %}"></span>
           <b>{{ t.label }}</b>

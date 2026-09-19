@@ -321,9 +321,17 @@ the brush cannot lay those down. 0% keeps any non-zero tint (`i2gc` with one
 level); 100% keeps only a channel that is already solid. Empty plates are
 skipped rather than failing the run.
 
-A picture on a tray card still wins for that colour, so a photograph can supply
-three plates and a hand-thresholded black the fourth. The G-code file is named
-after the photograph.
+**The four colour cards are put away while a photograph is loaded**, and come
+back when it is removed. The photograph makes those four plates, so a card
+offering to upload one of them beside it is offering to do the same job twice —
+and the server let a tray picture win for its colour, which meant a file chosen
+before the photograph was loaded quietly replaced one of its plates. Their file
+inputs are not cleared, only hidden, so a picture chosen earlier is still there
+if the photograph goes; what makes hiding mean something is that the run drops
+the file inputs of hidden cards on its way out. A fifth colour keeps its card
+whatever else is loaded: the separation only ever makes C, M, Y and K, so an
+additional tray has nothing to be replaced by. The G-code file is named after
+the photograph.
 
 ### Photo to woodcut
 
