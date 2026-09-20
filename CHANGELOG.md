@@ -20,6 +20,41 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.10.3](https://github.com/f1adang/brushograph/releases/tag/v2.10.3) — 2026-09-20
+
+- **`backlash.g` is drawn with a pen now instead of being painted.** Fit a pen
+  where the brush goes, put paper on the bed and run it: it visits no cup and
+  dips for nothing, so there is no paint to mix, nothing to wash, and no
+  waiting for a cup to be filled before the machine can be measured. It is the
+  same file under the same name, and its figures go in the same four boxes as
+  before.
+
+- **It measures at five places instead of two rows: the four corners and the
+  middle.** Each is an upright pair and a flat pair meeting at a corner, so
+  every station answers both axes where it stands. Backlash X and Backlash Y
+  are the two stations at the X0 end, and the far-end boxes the two at the
+  other; the middle is the check. Two stations at the same end that disagree
+  tell you something two rows could not: that the play depends on where the
+  gantry is standing along Y as well.
+
+- **The sheet is spread over everything the machine can paint, not over the
+  canvas the config is set to.** The figures go into the machine config and
+  are used by every job on it, so they are read over all the ground those jobs
+  can cover. The old sheet stayed inside the canvas: on a Mini set to paint
+  132 × 89 it read X at 12 and 130.7 and took the whole of its Y reading at
+  one height. The stations now stand at X 12 and 141, and at Y 32 and 141, of
+  a bed that paints 151 × 156 — and a job's canvas sits inside them, so the
+  compensation works between the figures rather than past them. Lay a full
+  sheet of paper on the bed for it: it draws outside the canvas on purpose.
+  Nothing, run-ups included, is commanded within 3 mm of either far end, since
+  a move that finishes against a stop throws off every line after it.
+
+- **Each gauge now prints as many pairs as its paper can keep apart**, widest
+  dropped first, and the station legs are sized from what the gauges need
+  rather than the other way round. On the 𝔐𝔦𝔨𝔯𝔬 that means an X gauge of four
+  pairs, 0.5 to 2 mm, instead of five crowded ones. The file's own header
+  names the gaps it was drawn with.
+
 ## [v2.10.2](https://github.com/f1adang/brushograph/releases/tag/v2.10.2) — 2026-09-20
 
 - **The Choose file button on Black (K) opens a file picker again.** With the
