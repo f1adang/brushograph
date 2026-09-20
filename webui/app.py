@@ -249,19 +249,28 @@ def _woodcut_params(form) -> dict:
     }
 
 
-def _gcode_name(images: dict, entries: list, conf: dict, infill: bool) -> str:
+def _gcode_name(images: dict, entries: list, cmyk: bool) -> str:
     """Name the file after the picture and the colours that painted it.
 
-    `vali_letten_c1_infill.gcode`: the source image, then the tray numbers the
-    form showed for each colour used, then whether the shapes were filled. The
-    numbers are the ones on screen, so a file can be matched to the run that
-    made it without opening it.
+    `vali_letten-c1_c2.gcode`: the source image, then the tray numbers the form
+    showed for each colour used. The numbers are the ones on screen, so a file
+    can be matched to the run that made it without opening it.
+
+    A photograph separated into all four process plates is named
+    `vali_letten-cmyk.gcode` instead. Four tray numbers would say which cups
+    were dipped but not what the run was, and the separation is the thing worth
+    reading off the card.
+
+    Whether the shapes were filled used to be part of the name. It is not any
+    more: infill is a distance in millimetres, not a yes or no, and `_infill`
+    said nothing about which of them was used.
     """
     used = [e for e in entries if e["tray"] in images]
     first = images[used[0]["tray"]].filename if used else ""
     stem = "".join(c for c in Path(first).stem if c.isalnum() or c in "-_") or "brushograph"
-    colours = "".join(f"_c{e['index']}" for e in used)
-    return f"{stem}{colours}{'_infill' if infill else ''}.gcode"
+    process = {e["tray"] for e in used} == set(CMYK_TO_TRAY.values())
+    colours = "cmyk" if cmyk and process else "_".join(f"c{e['index']}" for e in used)
+    return f"{stem}-{colours}.gcode" if colours else f"{stem}.gcode"
 
 
 def _scale_params(form) -> dict:
@@ -714,11 +723,6 @@ def options_form_post():
     if not images and not has_cmyk:
         return jsonify(error="No images selected"), 400
 
-    try:
-        infill = float(conf.get("slicer", {}).get("infill_line_distance", 1)) > 0
-    except (TypeError, ValueError):
-        infill = True
-
     with GENERATE_LOCK:
         work = Path(tempfile.mkdtemp(prefix="brushograph_", dir=session_dir(sid)))
         try:
@@ -777,7 +781,7 @@ def options_form_post():
             for tray in saved:
                 named[tray] = images.get(tray) or _NamedUpload(
                     cmyk_upload.filename if has_cmyk else saved[tray].name)
-            download_name = _gcode_name(named, entries, conf, infill)
+            download_name = _gcode_name(named, entries, has_cmyk)
             log_lines: list[str] = []
             out = work / download_name
             gcode_pipeline.generate(conf, saved, work, out, log_lines.append)

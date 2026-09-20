@@ -219,13 +219,21 @@ Two actions:
 - **Download Config** returns the edited config as a `.conf`. Types are
   preserved and keys the form does not cover are passed through untouched.
 - **Generate Gcode** runs the pipeline and offers one G-code file, named after
-  the picture and the colours that painted it:
-  `vali_letten_c1_infill.gcode`. The numbers are the tray numbers shown in the
-  form, so a file can be matched to the run that made it without opening it, and
-  `_infill` says whether the shapes were filled or only outlined. With several
-  trays the name carries each in painting order — `photo_c1_c2.gcode`. The file
-  is not saved automatically: it is drawn in the preview first and downloaded
-  from a button, so a run can be looked at before it is kept.
+  the picture and the colours that painted it: `vali_letten-c1.gcode`. The
+  numbers are the tray numbers shown in the form, so a file can be matched to
+  the run that made it without opening it. With several trays the name carries
+  each in painting order — `photo-c1_c2.gcode`. A colour photograph separated
+  into all four process plates says `photo-cmyk.gcode` instead: four tray
+  numbers name the cups that were dipped but not what the run was, and the
+  separation is what someone picking the file off the card is looking for. The
+  file is not saved automatically: it is drawn in the preview first and
+  downloaded from a button, so a run can be looked at before it is kept.
+
+  Whether the shapes were filled was part of the name until v2.10.2, as a
+  trailing `_infill`. It was dropped: infill is a line distance in millimetres,
+  and the flag said only that the figure was not zero, so every filled run of a
+  picture got the same name whatever the stroke width — the one setting that
+  moves painting time most.
 
 An **infill line distance of 0** means no infill: outlines only. The brush still
 has a width — the perimeter and the woodcut's finest mark are both measured in
@@ -1471,7 +1479,7 @@ which does this from the page:
 
 What comes back over that websocket is the machine's own console, so the page
 reports what the machine said rather than what it was told: `$SD/Run sent. The
-machine says: <Run|MPos:0.000,0.000,0.000|FS:0,0|SD:0.00,/fabrik_c1_infill.gcode>`.
+machine says: <Run|MPos:0.000,0.000,0.000|FS:0,0|SD:0.00,/fabrik-c1.gcode>`.
 
 Both go out as `mode: "no-cors"`. FluidNC answers a cross-origin preflight
 without an allow-origin header, so a normal fetch cannot read its reply — but a
