@@ -55,6 +55,26 @@ version's heading appears with its first bullet and grows until it is tagged.
   pairs, 0.5 to 2 mm, instead of five crowded ones. The file's own header
   names the gaps it was drawn with.
 
+- **A seventh macro, `containercenter.g`, paints a tick on the canvas at the
+  X of every container.** A container position is the one setting with nothing
+  to check it against: until now the only way to read one back was to watch a
+  dip and judge by eye whether the brush went into the middle of the cup or
+  into a wall. Put paint in the black cup and paper on the canvas and run it —
+  nothing is lifted out and nothing is dismantled, and the marks go where a
+  job paints. Sight each tick down to the cup it belongs to, or lay the holder
+  along the row of them: a tick that does not line up with the middle of its
+  cup is a position that wants correcting, and how far it misses by is the
+  correction, in millimetres, into that container's X. Water is ticked too,
+  and it is the one to correct first — every other cup is spaced from it. Only
+  X is marked, because the cups sit in the strip of Y below the paper, so X is
+  all a mark on the canvas can say about them; it is also the half that
+  matters, since the spacing along the row is what auto-spacing guesses and
+  what a rule measures worst. A container whose X falls past the end of the
+  canvas is painted anyway and named in the file's header, so a wider sheet
+  can be laid for it. A Classic machine has no black container, and there the
+  file says so and paints nothing rather than dipping into a cup that is not
+  there.
+
 ## [v2.10.2](https://github.com/f1adang/brushograph/releases/tag/v2.10.2) — 2026-09-20
 
 - **The Choose file button on Black (K) opens a file picker again.** With the
