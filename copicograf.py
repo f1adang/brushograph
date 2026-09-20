@@ -84,15 +84,38 @@ class Copicograf:
 
         self.canvas_height = int(self.conf["brushograph"]["canvas_height"])
         self.go_in_tray_lift = int(self.conf["brushograph"]["go_in_tray_lift"])
-        self.remove_drops_lift = int(self.conf["brushograph"]["remove_drops_lift"])
         self.move_to_other_shape_lift = int(self.conf["brushograph"]["move_to_other_shape_lift"])
 
-        self.tray_enter_radius = int(self.conf["brushograph"]["tray_enter_radius"])
+        # The three figures that describe a round cup: how wide a chord the
+        # brush sweeps down in the paint, and how far out and how high it drags
+        # the bristles over the rim afterwards. They are read where a round cup
+        # is used and nowhere else -- a rectangular bay is swiped up its stairs
+        # and wipes itself -- so a machine that has no petri dish holder should
+        # not have to carry figures describing one. The Mikro is exactly that
+        # machine: the dishes span 173 mm against its 65 of X, it is given no
+        # Classic option, and its holder preset sets the three heights a
+        # crucible fixes and none of these. Demanded outright, they made a
+        # freshly created Mikro config fail every run with a KeyError before
+        # anything was painted.
+        #
+        # Absent, they are nothing: a sweep of no radius is the plain dip the
+        # brush would make anyway, and a wipe of no radius is a move to the
+        # middle of the cup, which is where the brush already is. That is the
+        # right answer for a machine with no dishes and a poor one for a
+        # classic machine that has simply lost them, so the WebUI says so in
+        # the run log rather than leaving a shape-defining figure at zero
+        # quietly.
+        def dish(key):
+            value = self.conf["brushograph"].get(key)
+            return int(value) if value not in (None, "") else 0
+
+        self.remove_drops_lift = dish("remove_drops_lift")
+        self.tray_enter_radius = dish("tray_enter_radius")
+        self.remove_drops_radius = dish("remove_drops_radius")
         # How far the brush descends into a cup. Was fixed at -4, which is deeper
         # than a shallow petri dish wants. Absent from a config, that stays the
         # behaviour.
         self.dip_depth = float(self.conf["brushograph"].get("dip_depth", -4))
-        self.remove_drops_radius = int(self.conf["brushograph"]["remove_drops_radius"])
         bg = self.conf["brushograph"]
         self.cup_shape = str(bg.get("cup_shape", "classic")).strip().lower()
         # The modern holder's crucibles are fixed by the print: the swipe runs

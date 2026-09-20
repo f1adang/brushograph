@@ -1043,6 +1043,23 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
             elif reach < full - 0.05:
                 log(f"[{name}] stir shortened to +/-{reach:.1f} mm of {full:.1f} — "
                     f"X {x:g} leaves it short of the ground a job covers")
+    # The round-cup figures are optional in copicograf, because a machine with
+    # no petri dish holder should not have to carry figures describing one --
+    # the Mikro has none, and demanding them made a freshly created Mikro
+    # config fail every run before anything was painted. On a machine that
+    # does use round cups, though, a missing one is not a machine without
+    # dishes, it is a figure nobody filled in: the sweep or the rim wipe
+    # silently becomes a move to the middle of the cup, which is where the
+    # brush already is. Cheap to say, and impossible to see in the G-code,
+    # where it shows up as a move that is simply not there.
+    if cup_shape_of(conf) not in RECTANGULAR_SHAPES:
+        blank = [key for key in ("tray_enter_radius", "remove_drops_radius",
+                                 "remove_drops_lift")
+                 if bg.get(key) in (None, "")]
+        if blank:
+            log(f"round cups, but {', '.join(blank)} not set — taken as 0: "
+                f"the brush dips without sweeping the paint or wiping the rim")
+
     # And the same again down the length of a bay. The brush enters at the deep
     # end and walks up the stairs to the back; where the deep end is south of
     # the bed, it enters further back and the swipe is shorter by what was

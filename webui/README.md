@@ -1379,6 +1379,32 @@ The wash goes through the same motion, so in a rectangular bay its three dips
 become three swipes the length of the water. That rinses more, not less, and
 it still wipes nothing on the way out (`remove_drop=False`).
 
+#### The round-cup figures are optional
+
+`tray_enter_radius`, `remove_drops_radius` and `remove_drops_lift` describe a
+round cup: how wide a chord the brush sweeps down in the paint, and how far
+out and how high it drags the bristles over the rim afterwards. Nothing reads
+them for a rectangular bay, which is swiped up its stairs and wipes itself.
+`Copicograf.__init__` demanded all three anyway, of every config, before
+anything was painted.
+
+The 𝔐𝔦𝔨𝔯𝔬 has no petri dish holder — the dishes span 173 mm against its 65 of
+X, which is why it is offered no Classic option at all — so `_crucible_settings`
+gives its holder the three heights a crucible fixes and none of these. A
+freshly created 𝔐𝔦𝔨𝔯𝔬 config therefore failed **every** run with
+`KeyError: 'remove_drops_lift'`, before a stroke was traced. The two configs
+kept on this server never showed it: both are Mini files old enough to carry
+the dish figures whatever holder they now use.
+
+They are read with a default of 0 now. Absent, they are nothing: a sweep of no
+radius is the plain dip the brush would make anyway, and a wipe of no radius
+is a move to the middle of the cup, which is where the brush already is. That
+is the right answer for a machine with no dishes and a poor one for a classic
+machine that has merely lost them — so where the shape *is* round and a figure
+is missing, the run log says which and what it costs, rather than leaving a
+shape-defining number at zero quietly. In the G-code it would show up as a
+move that is simply not there, which is not something anyone finds by reading.
+
 ### The fifth cup
 
 The holder has a bay for black, so the machine paints CMYK rather than CMY. Very
