@@ -20,6 +20,17 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.10.2](https://github.com/f1adang/brushograph/releases/tag/v2.10.2) — 2026-09-20
+
+- **The Choose file button on Black (K) opens a file picker again.** With the
+  Classic dishes selected there is no black cup, so black's picture card is put
+  away and everything on it switched off. A colour photograph puts the same card
+  away for its own reason — it makes all four plates itself — and when the
+  photograph went, it brought black's card back without switching it on again.
+  The card sat there looking ordinary with a button that did nothing. The two
+  reasons now agree with each other, so with Classic selected the card stays
+  away, and with a CMYK holder it comes back working.
+
 ## [v2.10.1](https://github.com/f1adang/brushograph/releases/tag/v2.10.1) — 2026-09-19
 
 - **The macros are plain ASCII now, like the jobs always were.** Five of the
