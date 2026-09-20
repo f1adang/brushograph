@@ -20,6 +20,13 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.10.5](https://github.com/f1adang/brushograph/releases/tag/v2.10.5) — 2026-09-21
+
+- **The container messages in the run log are reported once per row**, not once
+  per cup. Every holder is one straight row, so all five share a Y, and a
+  clipped swipe used to say so five times over. Fifteen lines became two on the
+  machine that prompted it.
+
 ## [v2.10.4](https://github.com/f1adang/brushograph/releases/tag/v2.10.4) — 2026-09-20
 
 - **A job no longer drives into the endstop every time it dips.** On a machine
