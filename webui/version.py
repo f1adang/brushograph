@@ -8,6 +8,16 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 # Where the version tags are published: autonomy is pushed to the fork.
 REPO_URL = "https://github.com/f1adang/brushograph"
+# Where the version in the header points. The tag's own page says what the tag
+# message says and nothing else, and what someone clicking a version number
+# wants is what changed -- which is the changelog, written for whoever is using
+# the machine, with this version at the top and every earlier one under it.
+# Pinned to the branch rather than to the tag: a reader who followed the link
+# because the machine did something unfamiliar is better off on the current
+# list than on the one that was current when their server started. No anchor
+# for the version's own heading, because GitHub builds those out of the
+# heading text, date and all, which is not something this file knows.
+CHANGELOG_URL = f"{REPO_URL}/blob/autonomy/CHANGELOG.md"
 # Where a G-code file points anyone who finds it. The host is brušograf, spelled
 # in punycode: GRBL and FluidNC take any byte above 127 as a realtime command
 # (a feed override, a jog cancel), and a sender streams comments along with

@@ -1978,7 +1978,17 @@ Kongress edition (`938badf`). A new feature bumps the minor number; a change
 that reshapes the whole thing bumps the major.
 
 The header shows the version ("v2.4") at the end of the slogan's line, linking
-to that tag on GitHub. The number comes from `git describe --tags --abbrev=0` when the server
+to **`CHANGELOG.md`** on the branch. It linked to the tag's own release page
+until v2.10.3, which says what the tag message says and nothing else: someone
+who clicks a version number wants to know what changed, and that is the
+changelog, written for whoever is using the machine, with this version at the
+top and every earlier one under it. The link is pinned to the branch rather
+than to the tag the header names, because a reader who followed it after the
+machine did something unfamiliar is better off on the current list than on the
+one that was current when their server started — and there is no anchor for
+the version's own heading, since GitHub builds those out of the heading text,
+date and all, which is not something the server knows.
+The number comes from `git describe --tags --abbrev=0` when the server
 starts, so tagging is the only step — there is no version file to keep in step.
 It is the newest tag reachable from the checked-out commit, which means a
 server restarted on an untagged commit still names the version it builds on.

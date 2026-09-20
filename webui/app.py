@@ -33,7 +33,7 @@ from configspec import (CLASSIC_DISH_OFFSETS, CLASSIC_DISH_SETTINGS, CMYK_TO_TRA
                         build_schema, new_config, tray_entries)
 from macros import generate_macros
 from sketch import PALETTES, render as render_sketch
-from version import REPO_URL, VERSION
+from version import CHANGELOG_URL, VERSION
 
 WEBUI_DIR = Path(__file__).resolve().parent
 REPO_ROOT = WEBUI_DIR.parent
@@ -103,7 +103,7 @@ def _asset_helper():
         path = Path(app.static_folder) / filename
         stamp = int(path.stat().st_mtime) if path.exists() else 0
         return url_for("static", filename=filename, v=stamp)
-    return {"asset": asset, "version": VERSION, "repo_url": REPO_URL}
+    return {"asset": asset, "version": VERSION, "changelog_url": CHANGELOG_URL}
 
 
 @app.after_request
