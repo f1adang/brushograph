@@ -20,6 +20,21 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.10.4](https://github.com/f1adang/brushograph/releases/tag/v2.10.4) — 2026-09-20
+
+- **A job no longer drives into the endstop every time it dips.** On a machine
+  whose containers sit at or below Y 0 — Brushparang's are at Y −3 — the brush
+  entered each bay at its deep end, which was 13.5 mm below the bed, and hit
+  the bottom stop instead. The axis stalls there and the controller's counter
+  does not, so everything after the first dip was commanded 11 mm lower than
+  the carriage actually stood, and what you saw was the *far* end of the canvas
+  running into the **top** stop near the end of the painting. Dips are now kept
+  on the bed. Where a bay's deep end is off it the brush enters further back
+  and the swipe is shorter, which loads it with less paint: the run log says so
+  when it happens, and the cure is to correct that container's Y in the form.
+  The park at the end of a job could also be written half a millimetre below
+  zero by backlash compensation, and no longer is.
+
 ## [v2.10.3](https://github.com/f1adang/brushograph/releases/tag/v2.10.3) — 2026-09-20
 
 - **`backlash.g` is drawn with a pen now instead of being painted.** Fit a pen
