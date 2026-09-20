@@ -615,6 +615,16 @@ function wireForm() {
     return moved;
   };
 
+  /* Two unrelated things put the black card away, and each has to leave the
+     other's answer standing: the petri dishes have no fourth place for black,
+     and a colour photograph makes all four plates itself. Held apart and asked
+     together, because a single `hidden` written from two places means whichever
+     ran last wins — which is how the black card came back from under a
+     photograph still showing, and came back from under Classic still disabled,
+     with a Choose file button that opened nothing. */
+  const blackHasNoCup = () => !!shapeSelect && shapeSelect.value === "classic";
+  let cmykPhoto = false;
+
   const showForShape = () => {
     if (!shapeSelect) return;
     const classic = shapeSelect.value === "classic";
@@ -623,7 +633,9 @@ function wireForm() {
       if (spaceNote) spaceNote.hidden = spaceBtn.hidden;
     }
     for (const el of form.querySelectorAll('.coord[data-tray="kroma"], article.tray[data-tray="kroma"]')) {
-      el.hidden = classic;
+      // The cup's coordinates answer to the holder alone; the card answers to
+      // the photograph as well, and is left away if one is loaded.
+      el.hidden = classic || (cmykPhoto && el.matches("article.tray"));
       for (const input of el.querySelectorAll("input, select")) input.disabled = classic;
     }
     // The cup sizes only mean something for custom containers. Hidden, not
@@ -891,7 +903,12 @@ function wireForm() {
      removed; what stops a card nobody can see from painting is that the run
      drops the file inputs of hidden cards on its way out. */
   function showPlateCards(on) {
-    for (const card of plateCards) card.hidden = !on;
+    cmykPhoto = !on;
+    // Black keeps whatever the holder said about it: with the dishes selected
+    // it has no cup, so taking the photograph away does not give it one back.
+    for (const card of plateCards) {
+      card.hidden = !on || (card.matches('[data-tray="kroma"]') && blackHasNoCup());
+    }
     if (trayList) {
       trayList.hidden = [...trayList.querySelectorAll("article.tray")]
         .every((card) => card.hidden);

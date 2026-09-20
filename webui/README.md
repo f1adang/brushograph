@@ -338,6 +338,21 @@ whatever else is loaded: the separation only ever makes C, M, Y and K, so an
 additional tray has nothing to be replaced by. The G-code file is named after
 the photograph.
 
+**Black's card answers to two rules at once**, and for a long time each one wrote
+over the other. The photograph puts the four plate cards away; Classic cups put
+black's card away and disable everything on it, because there is no fourth dish
+to dip in. Both wrote `hidden` on the same card from two places, so whichever ran
+last decided it. Loading the form with Classic selected ran the shape rule first
+and the photograph rule second, and the second brought the card back — visible,
+with every control on it still disabled, so its **Choose file** button opened
+nothing at all. It went the other way too: switching from Classic to CMYK while a
+photograph was loaded produced a black card standing on its own with the other
+three put away. The two answers are held apart now (`blackHasNoCup()` and a
+`cmykPhoto` flag) and asked together wherever the card's `hidden` is written, so
+neither rule can overrule the other whichever changes last. Disabling stays with
+the holder alone: a card hidden under a photograph is not posted because the run
+drops the file inputs of hidden cards, which is the mechanism above.
+
 ### Photo to woodcut
 
 Set a tray's *Image Type* to **Photo** and the upload is converted to woodcut /
