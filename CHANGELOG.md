@@ -35,6 +35,15 @@ version's heading appears with its first bullet and grows until it is tagged.
   The park at the end of a job could also be written half a millimetre below
   zero by backlash compensation, and no longer is.
 
+- **A newly created 𝔐𝔦𝔨𝔯𝔬 can paint.** Every run on one failed outright, before
+  a stroke was traced, because the generator demanded three settings that
+  describe a round petri dish — how wide a chord the brush sweeps in the paint,
+  and how far out and how high it wipes the rim — and the 𝔐𝔦𝔨𝔯𝔬 has no dish
+  holder to have them for. Nothing uses them with the CMYK or custom
+  containers, and they are optional now. A machine that does use round cups and
+  is missing one is told so in the run log, since the sweep or the rim wipe
+  quietly becomes no motion at all.
+
 ## [v2.10.3](https://github.com/f1adang/brushograph/releases/tag/v2.10.3) — 2026-09-20
 
 - **`backlash.g` is drawn with a pen now instead of being painted.** Fit a pen
