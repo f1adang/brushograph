@@ -726,6 +726,33 @@ def tray_entries(conf: dict) -> list[dict]:
     return entries
 
 
+# Every holder is one straight row in the same order, whatever its centres:
+# water first, then cyan, magenta, yellow, and — where there is a fifth place —
+# black. MODERN_BAY_OFFSETS, the Mikro's and CLASSIC_DISH_OFFSETS all read that
+# way, because the cups cannot be moved relative to each other.
+CUP_ORDER = ("water", "cyan", "magenta", "yellow", "kroma")
+
+
+def in_cup_order(entries: list[dict]) -> list[dict]:
+    """tray_entries sorted the way the cups actually stand on the bed.
+
+    The entries come in painting order, Y M C K, because that is the sequence
+    the job runs in and the order the picture cards and the plan's legend want.
+    Container positions are not a sequence, though: they are a row of cups, and
+    listing them Water, Yellow, Magenta, Cyan put the form's rows in the
+    opposite order to the holder in front of you — on Classic, four dishes
+    plainly running W C M Y at 0, 45, 89 and 133 from the water. Reading a
+    position off the machine and typing it into the third box down meant
+    counting backwards every time.
+
+    Sorted rather than rebuilt, so every entry keeps its label, index and
+    picture flag. An additional colour is in no holder's row, so it sorts last
+    and keeps its painting order among its own kind — the sort is stable.
+    """
+    return sorted(entries, key=lambda e: CUP_ORDER.index(e["tray"])
+                  if e["tray"] in CUP_ORDER else len(CUP_ORDER))
+
+
 def _regroup(fields: list[dict], groups) -> list[dict]:
     """Sort flat fields into named groups, keeping anything unlisted."""
     loose, nested = {}, []
@@ -754,7 +781,11 @@ def build_schema(conf: dict) -> list[dict]:
         if key not in conf:
             continue
         if key == "trays":
-            schema.append({"key": key, "title": title, "trays": tray_entries(conf)})
+            # Two orders of the same trays: painting order for the picture
+            # cards, the holder's own row for the positions.
+            entries = tray_entries(conf)
+            schema.append({"key": key, "title": title, "trays": entries,
+                           "cups": in_cup_order(entries)})
         else:
             fields = _walk([key], conf[key])
             if key == "brushograph":

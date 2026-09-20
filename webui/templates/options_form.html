@@ -81,8 +81,10 @@
         {% if trays %}
         <section class="group">
           <h3>Container positions</h3>
+          {# In the order the cups stand in the holder, not the order they are
+             painted in: this is a row on the bed, read left to right. #}
           <div class="tray-coords">
-            {% for t in trays.trays %}
+            {% for t in trays.cups %}
             <div class="coord" data-tray="{{ t.tray }}">
               <span class="dot" data-tray="{{ t.tray }}" style="{% if t.tray.startswith('#') %}background:{{ t.tray }}{% endif %}"></span>
               <b>{{ t.label }}</b>

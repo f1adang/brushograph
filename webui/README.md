@@ -244,6 +244,21 @@ under it. Colours that are not process colours keep the config's order, between
 cyan and black. The tray cards, the plan's painting order and the file name
 follow the same order, and a saved config's `color_order` is written in it.
 
+**Container positions do not.** They are not a sequence but a row of cups, and
+every holder builds that row the same way — water, then cyan, magenta, yellow,
+and black where there is a fifth place. `MODERN_BAY_OFFSETS`, the 𝔐𝔦𝔨𝔯𝔬's and
+`CLASSIC_DISH_OFFSETS` all read W C M Y (K), because the cups are one printed
+piece and cannot be moved relative to each other. Listing the position boxes in
+painting order put them in the opposite order to the holder sitting in front of
+you: on Classic, four dishes plainly running W C M Y at 0, 45, 89 and 133 from
+the water, against a form that asked for Water, Yellow, Magenta, Cyan. Reading a
+figure off the machine meant counting backwards every time. `in_cup_order()`
+sorts `tray_entries` into `CUP_ORDER` for that one section, so the positions read
+left to right across the bed while the picture cards keep painting order. It
+sorts rather than rebuilds, so each entry keeps its label, index and picture
+flag, and an additional colour — in no holder's row — sorts last and holds its
+painting order among its own kind, the sort being stable.
+
 This used to run threshold → `potrace` → SVG → OpenSCAD → STL → PrusaSlicer →
 adapter, which meant three external programs, a 2D → 3D → 2D round trip, and
 about 13 s a tray. It is gone; see **Why the 3D round trip went** below.
