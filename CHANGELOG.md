@@ -55,6 +55,10 @@ version's heading appears with its first bullet and grows until it is tagged.
   pairs, 0.5 to 2 mm, instead of five crowded ones. The file's own header
   names the gaps it was drawn with.
 
+- **The version in the header links to this file now**, rather than to its own
+  tag on GitHub. A tag's page says what the tag message says and nothing else;
+  clicking a version number is asking what changed, and that is what is here.
+
 - **A seventh macro, `containercenter.g`, paints a tick on the canvas at the
   X of every container.** A container position is the one setting with nothing
   to check it against: until now the only way to read one back was to watch a
