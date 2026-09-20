@@ -157,6 +157,39 @@ thing that knows a dip is a dip.
 A file from before the markers still gets the height reading: a descent to the
 form's `dip_depth`, or anything below the canvas when the form has none.
 
+### One empty plate is not an empty painting
+
+`write_brush_paths` raises when a tray's picture yields no paths at all, and
+that used to end the run. It is raised per tray, though, and a run is four of
+them: a colour photograph at 30 × 30 mm with a 12 mm stroke leaves cyan (4.6%
+ink) and black (5.6%) with no shape wider than a stroke, while magenta and
+yellow (21% and 22%) still have plenty. The whole job died with **"nothing to
+paint"** on a picture that was three-quarters paintable, and the message named
+neither the tray nor the reason, so it read as *the image is empty* when the
+image was fine.
+
+A tray that comes back with nothing is skipped now, with its own line saying
+which and why — `[cyan] nothing to paint at 30 x 30 mm with a 12 mm stroke:
+every shape on this plate is finer than one stroke. Skipped` — and the run
+paints the rest. Only when **every** tray comes back empty does it stop, and
+then the message names the two figures that decide it and which one to change:
+the painted size and **Infill line distance**, the stroke width.
+
+That is the real relationship, and it is not obvious from either control on its
+own. What can be painted is the picture's finest shape measured in stroke
+widths, so halving the painted size and doubling the stroke width are the same
+act, and either can empty a plate that was full at the size before. The plates
+that go first are the sparse ones — the ones carrying a wash of light colour
+rather than solid shapes — which is why a photograph loses cyan and black
+before it loses magenta.
+
+A painted side of **zero or less** is refused before any of that, with a
+sentence rather than a traceback. Every scale in the pipeline is pixels over
+millimetres, so a side of zero was a division by zero several calls deep, which
+reached the page as a 500; a negative side did not fail at all — it flipped the
+picture and painted it off the bed, which is worse, because it looks like it
+worked.
+
 ### What the preview leaves out
 
 Backlash compensation injects a corrective move at every reversal — 148 of them

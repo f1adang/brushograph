@@ -115,6 +115,11 @@ _G0 = re.compile(r"^G0*0(?![0-9])")
 _WORD = re.compile(r"([XYZEF])\s*(-?\d*\.?\d+)")
 
 
+def _mm_size(value: float) -> str:
+    """A painted dimension for a message: whole millimetres where it is one."""
+    return f"{value:g}"
+
+
 def _enlarge_for_brush(ink: np.ndarray, width_mm: float, line_w: float, log) -> np.ndarray:
     """Resample the ink so a stroke is a few pixels wide, if it is not already.
 
@@ -964,6 +969,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     bg = conf.get("brushograph", {})
     width_mm = float(bg.get("width", 100))
     height_mm = float(bg.get("height", 100))
+    # Checked here rather than left to fail somewhere further in. Every scale in
+    # the pipeline is pixels over millimetres, so a painted side of zero is a
+    # division by zero several calls deep -- which reaches the page as a 500 and
+    # a traceback rather than as the one sentence that would fix it. A negative
+    # side does not even fail: it flips the picture and paints it off the bed,
+    # which is worse, because it looks like it worked.
+    if width_mm <= 0 or height_mm <= 0:
+        raise PipelineError(
+            f"the painted size is {_mm_size(width_mm)} x {_mm_size(height_mm)} mm: "
+            f"both sides have to be more than nothing before anything can be "
+            f"painted at them")
     slicer_conf = conf.get("slicer", {})
 
     # infill_line_distance is the gap between brush strokes, which is to say
@@ -1117,7 +1133,18 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                              infill=infill,
                              perimeters=int(float(slicer_conf.get("wall_line_count", 1) or 1)),
                              log=log)
-        n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)
+        try:
+            n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)
+        except PipelineError:
+            # Nothing on this plate survives at this size with this stroke.
+            # Not the run's problem to die of: it is one tray of several, and
+            # the others may be covered in ink. Reported and skipped here, and
+            # only if *every* tray comes back like this does the run stop --
+            # with a message that says which lever to pull.
+            log(f"[{tray}] nothing to paint at {_mm_size(width_mm)} x "
+                f"{_mm_size(height_mm)} mm with a {line_w:g} mm stroke: every shape "
+                f"on this plate is finer than one stroke. Skipped")
+            return None, 0, lines
         return adapted, n, lines
 
     # Preparation runs in parallel; the choreography does not. copicograf
@@ -1128,6 +1155,22 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
             prepared = list(pool.map(prepare, todo))
     else:
         prepared = [prepare(todo[0])]
+
+    # The trays that came back with something on them. A tray whose shapes are
+    # all finer than a stroke has already said so in its own log lines; what is
+    # left here is the painting order minus those.
+    for entry, (adapted, _n, lines) in zip(todo, prepared):
+        if adapted is None:
+            for line in lines:
+                log(line)
+    kept = [(e, r) for e, r in zip(todo, prepared) if r[0] is not None]
+    if not kept:
+        raise PipelineError(
+            f"nothing to paint: at {_mm_size(width_mm)} x {_mm_size(height_mm)} mm "
+            f"every shape in every picture is finer than the {line_w:g} mm stroke the "
+            f"brush lays down. Paint it larger, or set a narrower stroke width under "
+            f"Infill line distance")
+    todo, prepared = [e for e, _ in kept], [r for _, r in kept]
 
     for i, (entry, (adapted, n, lines)) in enumerate(zip(todo, prepared)):
         for line in lines:
