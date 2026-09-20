@@ -1379,6 +1379,54 @@ The wash goes through the same motion, so in a rectangular bay its three dips
 become three swipes the length of the water. That rinses more, not less, and
 it still wipes nothing on the way out (`remove_drop=False`).
 
+#### Six millimetres of container Y, and what they cost
+
+The swipe up the stairs *is* the wipe for a rectangular bay, and it only wipes
+if it finishes over the stairs. Brushparang wiped far too low — the brush never
+reached the stairs or the side of the cup — with every figure in its config
+agreeing with every other.
+
+Its containers were written at **Y −3**. Measured on the machine, the middle of
+the row is at **Y +3**. The swipe is built symmetrically about that figure:
+
+```
+entry_y = Y − cup_depth/2 + margin     exit_y = Y + cup_depth/2 − margin
+```
+
+with `margin` 15% of `cup_depth`, so the brush is meant to finish **10.5 mm
+behind the centre** — out of the paint and up onto the stairs. Six millimetres
+of sign error put the commanded end at Y 7.5 against a cup really centred on
++3, which is **4.5 mm behind the real centre**: over the middle of the floor,
+climbing to `cup_swipe_exit_z` in mid-air, touching no stairs and no wall.
+Corrected, the same arithmetic ends at Y 13.5, which is the 10.5 the design
+asks for.
+
+It was hidden until v2.10.4 by the endstop fault above. Every dip drove into
+the bottom stop and the frame slipped about 14 mm, which put the swipe back
+over the stairs by accident — two errors cancelling. Fixing the crash left the
+6 mm showing on its own.
+
+**A heuristic that looked right and was not.** The first attempt at catching
+this in the pre-flight argued from geometry: a bay that hangs off the front of
+the bed while bare bed is left between its back wall and the canvas cannot be a
+holder standing on the bed, because if there were room behind it, it would be
+in that room — so the container Y must be low by as much as it could move back.
+On the config as it then stood that came out as 13 mm, which was close enough
+to the real 6 to look like a finding.
+
+It is wrong. With the corrected Y 3 the bay spans −12 to 18 with the canvas at
+25, so it still hangs 12 mm off the front with 7 mm of bed behind it, and the
+check still called it 7 mm low — on figures measured off the machine. The
+premise is the mistake: **the reachable Y range is the gantry's travel, not the
+bed's extent**, and a holder can quite properly sit further forward than the
+brush can reach. A warning that fires on a correct machine teaches people to
+ignore warnings, so it was taken out again.
+
+What is left is the message that only states what is true: the front of the
+swipe is off the bed, so it is clipped, and by how much. On Brushparang that is
+13 mm of 21 — the brush works less of the bay and loads with less paint — and
+that is a fact about the machine rather than a guess about the holder.
+
 #### The round-cup figures are optional
 
 `tray_enter_radius`, `remove_drops_radius` and `remove_drops_lift` describe a

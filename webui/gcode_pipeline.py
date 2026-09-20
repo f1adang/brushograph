@@ -1067,20 +1067,28 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # brush is working less of the bay, so it loads with less paint, and the
     # reason is a container position, which is a thing in the form that can be
     # corrected.
+    #
+    # Reported once per distinct Y and not once per cup. Every holder is one
+    # straight row, so all five share a figure and five copies of one sentence
+    # is a log nobody reads to the end.
     if cup_shape_of(conf) in RECTANGULAR_SHAPES:
         depth = holder["swipe_length"]
         margin = depth * 0.15
+        rows: dict[float, list[str]] = {}
         for name, tray in sorted(conf.get("trays", {}).items()):
-            if not isinstance(tray, dict) or "x" not in tray:
-                continue
-            y = float(tray.get("y", 0))
+            if isinstance(tray, dict) and "x" in tray:
+                rows.setdefault(float(tray.get("y", 0)), []).append(name)
+        for y, names in sorted(rows.items()):
+            who = ", ".join(names)
             entry_y = y - depth / 2 + margin
+            bay0, bay1 = y - depth / 2, y + depth / 2
             if entry_y < copicograf.y_floor - 1e-9:
                 full = depth - 2 * margin
-                left = max(0.0, y + depth / 2 - margin - copicograf.y_floor)
-                log(f"[{name}] bay entered {copicograf.y_floor - entry_y:.1f} mm short at "
+                left = max(0.0, bay1 - margin - copicograf.y_floor)
+                log(f"[{who}] bay entered {copicograf.y_floor - entry_y:.1f} mm short at "
                     f"Y {y:g}: the deep end is off the bed, so the swipe is "
                     f"{left:.1f} mm of {full:.1f} and the brush loads with less")
+
     stats = {"trays": [], "strokes": 0}
 
     def prepare(entry):
