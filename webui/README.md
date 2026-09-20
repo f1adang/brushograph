@@ -1531,10 +1531,10 @@ every other always-offered setting.
 At the end of Machine setup, below Save these settings — it is about the
 machine rather than about a picture, so it lives with its plan drawing rather
 than down by Run — the **Macro generator** builds six small routines:
-`zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g`. All
-six come from `webui/macros.py`, a module the pipeline never imports and that
-never touches a tray image, so generating them needs none of the pictures a
-G-code run refuses to proceed without. Five of the six are built from the
+`zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g`.
+All six come from `webui/macros.py`, a module the pipeline never imports and
+that never touches a tray image, so generating them needs none of the pictures
+a G-code run refuses to proceed without. Five of the six are built from the
 config; `zero.g` is not (see below).
 
 - **zero.g** is the machine's own self-zero dance, reproduced verbatim: zero
@@ -1566,103 +1566,143 @@ config; `zero.g` is not (see below).
   `go_in_tray_lift` before crossing the bed, like the rest — it is run from
   where the other macros leave the brush, X0 Y0 at Dip Depth + 1, which on a
   holder whose water crucible covers the origin is under the rim.
-- **backlash.g** paints a sheet for measuring the play in each axis at both
-  ends of the bed, the one macro that puts the brush on the paper for anything
-  but a dot. Every pair is one commanded position drawn twice, arrived at from
-  each side in turn, so the gap between the two marks is the play.
+- **backlash.g** draws the sheet the play in each axis is measured off —
+  the one macro that puts anything on the paper for more than a dot. It is
+  drawn with a **pen fitted where the brush goes**: it visits no cup and dips
+  for nothing, so the machine needs no paint in it and there is nothing to
+  wash afterwards. Every pair is one commanded position drawn twice, arrived
+  at from each side in turn, so the gap between the two marks is the play.
 
-  Four groups. Two **rows of test pairs**, each spread across the whole width
-  of the paper: the **X row** is three vertical pairs at the left, the middle
-  and the right, and the **Y row** three horizontal pairs across the same
-  width. The left-hand pair of each row is the near figure and the right-hand
-  pair the far one; the middle pair is the check, and falls halfway between
-  them if the play really is a straight line across the bed. Both rows span the
-  width because the play changes along X and a group huddled in one corner
-  reads a fraction of the difference and calls the rest even, which is the one
-  thing this sheet must not do — it is what the old layout did, with all three
-  Y pairs at one X and the X pairs in the left quarter of their own box.
+  It was painted with the brush until v2.10.3, and that is what shaped the old
+  sheet. A pair had to come out of one pickup — 150 mm of painting on
+  Pinkograph, against 163 for a pair at the full height of the canvas — so no
+  stroke could be longer than 55 mm, the Y row had to be three short pairs
+  rather than one line across the paper, and every station had to be somewhere
+  the brush could be fed from a cup. None of that is about measuring. A pen
+  makes the same two marks, and the sheet is now laid out for reading rather
+  than for feeding.
 
-  A Y pair is read at its **outer end**, because it opens out along its own
-  length: both strokes are drawn at one commanded Y with the gantry twisted
-  opposite ways, and the twist that reaches the brush grows along X. That is
-  the fault this sheet is here to size, drawn as a picture of itself.
+  **Five stations**: the four corners and the middle — not of the canvas the
+  config is set to, but of **everything the machine can paint**. Each is an
+  upright pair and a flat pair meeting at a corner — the upright one is that
+  station's X figure, read across the line; the flat one its Y figure, read up
+  and down it. So one station answers both axes at one place on the bed, and
+  five of them answer both axes at five places.
 
-  Then a **gauge** an axis: five more pairs, drawn 0.5, 1, 1.5, 2 and 2.5 mm
-  apart, both strokes of each arriving from the same side so the play cannot
-  open or close them. Find the gauge pair a test pair looks like and that is
-  the figure, to a tenth. A gauge per axis rather than one for the sheet
-  because a gap between two horizontal lines does not look like the same gap
-  between two vertical ones, and the axis with the larger play is the one that
-  most needs its own ruler. A gap wider than the widest gauge pair is wide
-  enough to lay a rule across, which is what a gauge is for saving you from at
-  half a millimetre and not at three.
+  Laying the sheet out on the canvas instead is what the first version of this
+  did, and it measures the wrong machine: Pinkograph's config paints 132 × 89
+  in the middle of a bed that paints 151 × 156, so its corners fell at X 12 to
+  132 and Y 32 to 121 — under a fifth of the X the belt has to stretch over
+  and two thirds of the Y. The figures go into the machine config and are
+  applied to *every* job on it, whatever size, so they are read over all the
+  ground those jobs can cover. The stations now stand at X 12 and X 141, and
+  at Y 32 — the bottom of the paper, with the containers in the Y below it —
+  and Y 141 of 156. A job's canvas then sits **inside** the four corners, so
+  the compensation interpolates between the figures rather than running out
+  past them.
 
-  The gauge pairs are laid out with the same **clear space between every pair**
-  whatever gap each one draws, rather than in slots of equal width: spread
-  evenly, the 0.5 mm pair gets as much room as the 2.5 mm pair and the space
-  after the widest one closes towards its own gap, which is the one place a
-  reader must not have to guess which line belongs to which pair. The Y gauge
-  is 5.5 mm clear between rows on the Mini and 3.0 on the 𝔐𝔦𝔨𝔯𝔬, against gaps
-  of at most 2.5. Evenly spaced in the same room the 𝔐𝔦𝔨𝔯𝔬's widest pair had
-  1.5 mm to the next one, which is narrower than the pair itself. The Mini had
-  8.0 and now has 5.5, because the band it sits in is shorter than the box it
-  used to share with the test pairs — still more than twice the widest gap.
+  The far edge is `max_width` or `workable_x`, whichever is nearer: the second
+  is how far a job already asks the machine to go, and so how far it is known
+  to reach — never the axis travel, which is where `zero.g` drives into the
+  stops on purpose. The near edge in Y is the **canvas offset**, which is what
+  keeps the pen out of the containers: on a Mini they sit in the 32 mm of Y
+  below the paper. Because the sheet covers more than the canvas, it wants a
+  **full sheet of paper** on the bed — the file's header says so — or the
+  outer marks land on the bed itself.
 
-  A gauge rather than a rule because a ruler will not settle this. A brush
-  stroke is about a millimetre wide, and half a millimetre between two wet
-  marks is not a measurement anyone takes off a sheet with a rule — but
-  telling which of five known pairs a test pair resembles is easy. And a gauge
-  rather than something cleverer because there is nothing cleverer to do:
-  backlash does not accumulate. Alternating moves lose the play once and get
-  it back at the next reversal, and a staircase with a net direction loses it
-  going out and regains it coming back. No arrangement of moves turns half a
-  millimetre into a visible ten, so a drift test — the obvious idea, and the
-  one tried first — cannot work, and reading a gap is what is left.
+  Two rows across the bed — what the old sheet drew — can see the play change
+  along X, which is the belt stretching on one axis and the beam twisting on
+  the other. What a row cannot see is either of them changing along **Y**, and
+  a corner at each end of both axes can. **Backlash X** is the two upright
+  pairs at the X0 end and **Backlash X far end** the two at the other;
+  **Backlash Y** and **Backlash Y far end** are the flat pairs at the same two
+  ends. Two stations at one end that disagree say the play depends on where
+  the gantry is standing along Y as well, which no pair of figures in the form
+  can describe: take the middle station for both boxes and expect the
+  compensation to be right in the middle and light at the edges. The middle
+  station is the check either way — with the play a straight line across the
+  bed it falls halfway between the corners.
 
-  Both test rows take the full width, so what is left to lay out is the two
-  gauges, and they are rulers that can sit anywhere. On a canvas wider than it
-  is tall they share the bottom band, the Y gauge's rows on the left and the X
-  gauge's columns beside them; on a taller one there is no width to spare — the
-  𝔐𝔦𝔨𝔯𝔬's 65 mm is one gauge stroke and nothing else — so they take a band
-  each. That is the difference between the Mini at 132 × 89 and the 𝔐𝔦𝔨𝔯𝔬 at
-  65 × 100.
+  The corners stand **as far out as the machine can measure**, which is not
+  always as far as it can paint. Every stroke backs off `_RUN_UP` — 12 mm —
+  and comes in along the axis under test, so that axis is certainly travelling
+  the right way when it arrives; the move before that runs along the *other*
+  axis in the same direction as the stroke, which keeps the play out of the
+  ends of the lines. A stroke that began with a reversal would start 1.6 mm
+  short of where it says on Pinkograph. So a station needs 12 mm of ground
+  beyond it, and nothing in the file — run-ups included — is commanded within
+  3 mm of either far end, because a move that finishes against a stop loses
+  what it loses for the rest of the file and every line after it lands short
+  of where it says. On a sheet whose whole content is where lines land, that
+  would not look like a fault at all. Pinkograph's far corners therefore stand
+  at 141 rather than 151, and its near ones at 12 rather than 0. Every pair on
+  all three configs checked gets its full 12 mm from **both** sides — that is
+  the constraint the layout is solved against, not a hope.
 
-  The outer pairs stand a run-up in from the edges of the paper rather than on
-  them: a stroke at the very end of an axis has nothing to back off into but
-  the endstop and would be measuring that. On the Mini they fall at X 12 and
-  X 130.7 of the 132 the figures are meant for, so reading them as the edges
-  overstates the difference by about a tenth of itself — finer than the gauge
-  can be read to, and the macro says so in its own header.
+  Then a **gauge** an axis: pairs drawn 0.5, 1, 1.5, 2 and 2.5 mm apart, both
+  strokes of each arriving from the same side so the play cannot open or close
+  them. Find the gauge pair a test pair looks like and that is the figure, to
+  a tenth. A gauge per axis rather than one for the sheet because a gap
+  between two horizontal lines does not look like the same gap between two
+  vertical ones, and the axis with the larger play is the one that most needs
+  its own ruler. A gauge rather than a rule because a ruler will not settle
+  this: half a millimetre between two marks is not a measurement anyone takes
+  off a sheet with a rule, but telling which of five known pairs a test pair
+  resembles is easy. And a gauge rather than something cleverer because there
+  is nothing cleverer to do — backlash does not accumulate. Alternating moves
+  lose the play once and get it back at the next reversal, and a staircase
+  with a net direction loses it going out and regains it coming back. No
+  arrangement of moves turns half a millimetre into a visible ten, so a drift
+  test — the obvious idea, and the one tried first — cannot work, and reading
+  a gap is what is left.
 
-  Every stroke backs off 12 mm and comes in along the axis under test, so that
-  axis is certainly travelling the right way when it arrives; the move before
-  that runs along the *other* axis in the same direction as the stroke, which
-  keeps the play out of the ends of the lines. A stroke that began with a
-  reversal would start 1.6 mm short of where it says on Pinkograph, and the
-  ends of these lines are part of what is being read. That settle backs off by
-  the full 12 mm too, not a token millimetre: the macro exists because the
-  play is *not* known, and a settle sized for a small one would displace every
-  stroke on exactly the machine worth measuring. Both are clamped to the bed,
-  and each section keeps off the near edges by the run-up where the canvas can
-  spare it — laid out hard against the origin, the 𝔐𝔦𝔨𝔯𝔬's first Y pair asked
-  for X −0.6, which is the endstop.
+  The gauges are rulers and can sit anywhere they are legible, so they take
+  the paper the stations do not want: the **Y gauge's rows to the left of the
+  middle station and the X gauge's columns to its right**, in the band between
+  the top and bottom stations. Their pairs are laid out with the same **clear
+  space between every pair** whatever gap each one draws, rather than in slots
+  of equal width: spread evenly, the 0.5 mm pair gets as much room as the
+  2.5 mm pair and the space after the widest one closes towards its own gap,
+  which is the one place a reader must not have to guess which line belongs to
+  which pair.
 
-  Strokes are capped at 55 mm because a pair has to come out of one dip:
-  at the full height of the canvas a pair came to 163 mm against Pinkograph's
-  `paint_per_run_max` of 150. The Y row is three pairs rather than one the
-  whole way across for the same reason — one pair spanning 132 mm would read
-  the play everywhere at once, which is what it wants to be, but two strokes of
-  it is 264 mm out of a single dip. Three short ones are the same reading with
-  gaps in it. As drawn the sheet is 32 strokes and 1242 mm of paint over 16
-  dips, 78 mm a dip and 110 at the worst of them. One dip a pair, from the last cup in painting
-  order — black where there is a black cup, cyan on a classic holder with no
-  room for one.
+  **How long a station's leg is falls out of that**, rather than being chosen
+  and leaving the gauges what is left. Both rulers are given their room first
+  — their own gaps plus 2 mm between each pair — and the legs take the rest,
+  between a cap of 30 mm, where more length stops telling you anything, and a
+  floor of 10, where a pair of lines stops being a pair you can look along.
+  The Mini's legs come out at the cap and the 𝔐𝔦𝔨𝔯𝔬's at the floor: 65 mm of X
+  less two 12 mm run-ups is 41 mm to hold two gauges and a station besides.
+  Where the floor binds, the **widest gauge pairs are dropped** until the
+  clear space is at least as wide as the widest gap drawn: the 𝔐𝔦𝔨𝔯𝔬's X gauge
+  shows four pairs, 0.5 to 2 mm, with 2.2 mm of clear paper between them, and
+  its Y gauge five. The pairs always run from the narrowest in half-millimetre
+  steps, so they are counted from that end and none is ambiguous, and the gaps
+  that go are the ones least needed — 2.5 mm is wide enough to lay a rule
+  across, which is what a gauge is for saving you from at half a millimetre
+  and not at three. The header of each file names the gaps its own two gauges
+  were drawn with.
+
+  As drawn on the Mini the sheet is **40 strokes, 1495 mm of line and 3347 mm
+  of travel over 312 lines**, against the painted sheet's 32 strokes, 1242 mm
+  of paint, 16 dips and 5310 mm of travel over 355 — more line over more of
+  the bed, and still a third less travel, because none of it is going to a cup
+  and back. It ends parked **lifted
+  over the origin at `go_in_tray_lift`**, not at Dip Depth + 1 where every
+  other macro ends: that park is below the paper, and on a holder whose water
+  crucible covers the origin it is under the rim — right for a brush being
+  kept wet, and a pen pressed into whatever is under it.
+
+  There is no pen height setting and this does not invent one: the strokes
+  touch down at `canvas_height`, the figure the brush already uses, so a pen
+  is fitted to draw at the height the config names.
 
   Macros never go through `apply_backlash` — only `gcode_pipeline.generate`
-  does — so the sheet paints raw whatever **Backlash compensation** is set to,
-  and measures the machine rather than the setting.
+  does — so the sheet is drawn raw whatever **Backlash compensation** is set
+  to, and measures the machine rather than the setting.
 
-`home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g` share one rule: every move to somewhere
+`home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g` share one
+rule: every move to somewhere
 new — a tray, the canvas, the origin — is preceded by a lift to
 `go_in_tray_lift`, and only that: never the larger of it and
 `move_to_other_shape_lift + canvas_height`, the way copicograf's own travel
@@ -1685,14 +1725,14 @@ a macro generated once and kept, so `_container_motion()` cycles the same
 four quadrants by repetition index instead — the same coverage, without two
 downloads of the same config ever differing.
 
-None of the five macros carries an M-code or a `G28`: no `sanitize_for_controller`
+None of the six macros carries an M-code or a `G28`: no `sanitize_for_controller`
 pass is needed, because `G90`/`G21`/`G0`/`G1`/`G10`/`G92` mean the same thing to
 Marlin, GRBL and FluidNC.
 
 **Generate macros** posts the form to `/macros` — the same `apply_form()` a
 config download goes through, so a macro reflects whatever is currently typed
 into the form, saved or not, the way Download Machine Config already does.
-**Download macros** saves the five as separate files rather than a zip; five
+**Download macros** saves them as separate files rather than a zip; six
 small text files did not seem worth a new dependency. **Upload to machine**
 sends them the same shape `gcode-send` sends a job in — one `POST` per file,
 `multipart/form-data` carrying `path` (`/`) and `myfile`, `mode: "no-cors"`,
@@ -1704,7 +1744,7 @@ the SD card, which is where a job's G-code belongs and where `$SD/Run` looks;
 `/files` writes to the flash filesystem, which is where the controller's own
 dashboard theme already lives (see **Pinkograph**, above) and where a
 standing macro belongs — a card can be swapped or reformatted, and a job's
-G-code is not meant to survive that, but these five are. There is no
+G-code is not meant to survive that, but these six are. There is no
 `$SD/Run` here either: these are routines an operator runs by hand from the
 controller's own interface, not a job meant to start the moment it lands.
 
@@ -1867,7 +1907,7 @@ server restarted on an untagged commit still names the version it builds on.
 With no git or no tag the line is left out. Tags only resolve on GitHub once
 pushed: `git push fork --tags`.
 
-Every generated G-code file, the six macros included, opens with the same
+Every generated G-code file, every macro included, opens with the same
 version and a link to the site: `; Generated by Brushograph WebUI v2.4:
 http://xn--bruograf-7wb.ignore.net/`. The host is brušograf.ignore.net in
 punycode, because GRBL and FluidNC read any byte above 127 as a realtime command and a sender streams comments like any other
@@ -1883,10 +1923,11 @@ replaces whatever survives with a question mark. A question mark in a comment
 is wrong and looks wrong, which is the right way round for a character nobody
 has thought about yet.
 
-It is applied where each file is written: to the job in `generate`, and to all
-six macros in `generate_macros`. The macros needed it. Five of them emitted
+It is applied where each file is written: to the job in `generate`, and to
+every macro in `generate_macros`. The macros needed it. Five of them emitted
 `; home.g — park over the origin` and every dip anywhere emitted `; up the
-stairs — wipes itself`, so a sheet like backlash.g carried sixteen of them — and
+stairs — wipes itself`, so the backlash sheet, painted at the time, carried
+sixteen of them — and
 macros are uploaded to the machine and run from its own SD card, which is the
 one place nothing checks them on the way past. The job path had none: its
 comments were already written with `--`, and the only text in it that comes

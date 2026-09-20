@@ -1113,7 +1113,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         far_x = _figure(bg, "backlash_x_far", near_x)
         far_y = _figure(bg, "backlash_y_far", near_y)
         # Where the two figures were read: the ends of the painting, which is
-        # where backlash.g paints the sheet they come off.
+        # where backlash.g draws the sheet they come off.
         paper = (float(bg.get("offset_x", 0) or 0),
                  float(bg.get("offset_x", 0) or 0) + width_mm)
         lines = apply_backlash(lines, near_x, near_y, x_range=span,

@@ -15,11 +15,13 @@ calibrate.g is the odd one out on purpose: no wash, just the dot and a park
 over it, at two literal heights that are neither `canvas_height` nor
 `go_in_tray_lift`.
 
-backlash.g is the only one that paints: a sheet of paired strokes for reading
-the play in each axis off, one pair drawn arriving from each side, against a
-gauge of known gaps. Both rows of test pairs run the whole width of the paper,
-because the play is read at each end of the bed and not once in the middle of
-it. It wants paper on the bed and paint in the cups.
+backlash.g is the only one that draws: a sheet of paired strokes for
+reading the play in each axis off, one pair arriving from each side, against a
+gauge of known gaps. It is drawn with a pen fitted where the brush goes, so it
+visits no cup and dips for nothing -- the machine needs no paint in it. Five
+stations, each answering both axes where it stands: the four corners of
+everything the machine can paint, which is wider than the canvas a job uses,
+and the middle. It wants a pen in the holder and paper under all of it.
 
 None of the six carries an M-code or a G28, so none needs the controller
 dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
@@ -28,26 +30,43 @@ G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 from __future__ import annotations
 
 from configspec import (MODELS, RECTANGULAR_SHAPES, holder_of, model_of,
-                        tray_entries, with_defaults, workable_x)
+                        with_defaults, workable_x)
 from gcode_pipeline import to_ascii
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
                "backlash.g"]
 
-# backlash.g's gauges, in millimetres. A brush stroke is about a millimetre
-# wide, so a half-millimetre gap between two of them is not something a ruler
-# settles: each gauge prints known gaps, drawn so the play cannot affect them,
+# The gauges of backlash.g, in millimetres. A half-millimetre gap between
+# two drawn lines is not something a ruler settles, whether they were drawn
+# with a pen or painted a millimetre wide with a brush: each gauge prints
+# known gaps, drawn so the play cannot affect them,
 # and the test pairs are matched against it by eye. There is one per axis,
 # each in its own axis's orientation -- a gap between two horizontal lines is
 # not judged against a gap between two vertical ones, and which of the two
 # axes carries the larger play is the machine's own business.
 _GAUGE_GAPS = (0.5, 1.0, 1.5, 2.0, 2.5)
 
-# A stroke long enough to read a gap along and no longer: two of them plus the
-# travel between has to come out of one dip, and Pinkograph's paint_per_run_max
-# is 150 mm. At the full height of the canvas a pair came to 163.
-_STROKE_MAX = 55.0
+# How long a leg of a test station is, in millimetres: at most _TEST_LEG, and
+# never less than _LEG_MIN. A pen is not working out of a dip, so the figure
+# is about reading and not about paint. The cap is where more length stops
+# telling you anything; the floor is where a pair of lines stops being a pair
+# you can look along, and it is the one figure here allowed to push the
+# gauges into showing fewer pairs. Between them the legs take what is left
+# once both gauges have their room -- 30 mm on a Mini, and the floor itself on
+# a Mikro, whose 65 mm of X has to hold two gauges and a station besides.
+_TEST_LEG = 30.0
+_LEG_MIN = 10.0
+
+# How much clear paper is left between a station and a gauge, and between the
+# gauges. Enough that nothing reads as belonging to its neighbour.
+_CLEAR = 3.0
+
+# The room a gauge is given before anything else gets any: its own gaps plus
+# 2 mm of clear paper between each pair. The stations are sized around it, so
+# a station is as long as the paper allows once both gauges are legible --
+# rather than as long as it likes, with the gauges taking what is left.
+_GAUGE_MIN = sum(_GAUGE_GAPS) + 2.0 * (len(_GAUGE_GAPS) - 1)
 
 # How far a stroke backs off before it comes in, so the axis is certainly
 # travelling the way the test means it to when it arrives. It only has to
@@ -79,6 +98,12 @@ def _fmt(v: float) -> str:
     """3 decimal places, trailing zeros trimmed — "47", not "47.000"."""
     s = f"{v:.3f}".rstrip("0").rstrip(".")
     return "0" if s in ("-0", "") else s
+
+
+def _gap_list(gaps: list[float]) -> str:
+    """"0.5, 1, 1.5, 2 and 2.5" -- a gauge's gaps, for its own header."""
+    shown = [_fmt(g) for g in gaps]
+    return shown[0] if len(shown) == 1 else ", ".join(shown[:-1]) + " and " + shown[-1]
 
 
 def _feed(bg: dict, group: str, fallback: str = "G0 F1000") -> str:
@@ -235,7 +260,7 @@ def _comb_stroke(vertical: bool, pos: float, start: float, end: float,
 
 
 def generate_macros(conf: dict) -> dict[str, str]:
-    """The five macros, as {filename: text}, in MACRO_NAMES order."""
+    """The macros, as {filename: text}, in MACRO_NAMES order."""
     conf = with_defaults(conf)
     bg = conf.get("brushograph", {})
     trays = conf.get("trays", {})
@@ -253,8 +278,6 @@ def generate_macros(conf: dict) -> dict[str, str]:
     max_w = _num(bg, "max_width", _num(bg, "width", 200))
     max_h = _num(bg, "max_height", _num(bg, "height", 200))
     ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
-    # The painted area, not the travel limits: backlash.g draws on the paper.
-    w, h = _num(bg, "width", 100), _num(bg, "height", 100)
 
     out: dict[str, str] = {}
 
@@ -338,7 +361,16 @@ def generate_macros(conf: dict) -> dict[str, str]:
     ]
     out["calibrate.g"] = "\n".join(lines) + "\n"
 
-    # backlash.g -- the calibration sheet for Backlash X and Backlash Y.
+    # backlash.g -- the calibration sheet for Backlash X and Backlash Y,
+    # drawn dry with a pen fitted in the holder in place of the brush.
+    #
+    # It was painted until v2.10.3. Measuring the play does not need paint:
+    # the sheet is lines on paper and the reading is the gap between two of
+    # them, which a pen makes as well as a brush does, and without a cup of
+    # colour, a dip, or a wash afterwards. What the paint cost was the sheet itself -- every pair had
+    # to come out of one pickup, 150 mm of painting on Pinkograph, so no
+    # stroke could be longer than 55 mm and no station could be anywhere the
+    # brush could not be fed from a cup.
     #
     # Backlash does not accumulate. Alternating moves lose the play once and
     # get it back on the next reversal, and a staircase with a net direction
@@ -348,36 +380,49 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # prints a gauge alongside: the eye is poor at half a millimetre in the
     # open and good at telling two lines from one against a known example.
     #
-    # Three pairs per axis rather than one, spread across the bed, because a
-    # belt that has gone slack in one place and a nut with play in it
-    # everywhere do not read the same, and the answer to put in the box is
-    # only a single figure if the three pairs agree.
+    # Five stations -- the four corners of the sheet and its middle -- because
+    # neither axis has one play. X changes along X, which is the belt; Y
+    # changes along X too, which is the beam twisting. Both of those a row
+    # across the bed could see. What a row cannot see is either of them
+    # changing along Y, and a corner at each end of both axes can: two
+    # stations at the same X that disagree say the play depends on where the
+    # gantry is standing, which no pair of figures in the form can describe.
+    # The middle is the check -- with the play a straight line across the bed
+    # it falls halfway between the corners.
     cz = _num(bg, "canvas_height", 0)
     wx_lim = workable_x(conf)
-    # The sheet is laid out on the painted area, but a config is free to name a
-    # canvas that runs past what the machine can reach -- sketch.py draws that
-    # overhang rather than flattering it, and here it would drive into a stop.
-    sheet_w = max(0.0, min(w, wx_lim - ox))
-    sheet_h = max(0.0, min(h, max_h - oy))
-    entries = tray_entries(conf)
-    # The last tray in painting order is the darkest the config has -- black
-    # where there is a black cup, cyan on a classic holder that has no room
-    # for one. Water only if there are no colours at all, which will draw
-    # nothing much, but the geometry is still right and the file still runs.
-    load = entries[-1] if entries else {"x": wx, "y": wy, "label": "water"}
-    lx, ly = _num(load, "x", wx), _num(load, "y", wy)
+    # The sheet is laid out on everything the machine can paint, not on the
+    # canvas the config happens to be set to. The figures it produces are
+    # applied to every job on the machine, whatever size that job is, so they
+    # are read across the whole of the ground those jobs can cover: a Mini
+    # asked to paint 132 by 89 in the middle of a 151 by 156 bed would
+    # otherwise be measured over two thirds of its X and well under half its
+    # Y, and the play at the ends -- which is the whole point of the far-end
+    # boxes -- read where the belt is not at its longest.
+    #
+    # The far edge is the paintable width or workable_x, whichever is nearer:
+    # workable_x is how far a job already asks the machine to go and so how
+    # far it is known to reach, and it is never the axis travel, because that
+    # is where zero.g drives into the stops on purpose. The near edge is the
+    # canvas offset, which is what keeps the pen out of the containers: on a
+    # Mini they sit in the 32 mm of Y below the paper.
+    paint_w = max(0.0, min(max_w, wx_lim) - ox)
+    paint_h = max(0.0, max_h - oy)
+    # How far anything in this file may be commanded, run-ups included: a few
+    # millimetres short of those, so that nothing ends against a stop. What a
+    # move loses against a stop it loses for the rest of the file, and every
+    # line after it lands short of where it says -- which on a sheet whose
+    # whole content is where lines land would not look like a fault at all.
+    reach_x, reach_y = wx_lim - _CLEAR, max_h - _CLEAR
 
     def run_up(pos: float, approach: int, lo: float, hi: float) -> float:
         room = (pos - lo) if approach > 0 else (hi - pos)
         return max(0.0, min(_RUN_UP, room))
 
-    def dip() -> list[str]:
-        return [f"G00 Z{_fmt(go_lift)}", f"G00 X{_fmt(lx)} Y{_fmt(ly)}",
-                *_container_motion(conf, lx, ly, reps=1)]
-
     def pair(vertical, pos, start, end, lo, hi):
-        """The two strokes of one test pair, and the dip that feeds them."""
-        lines = dip()
+        """The two strokes of one test pair: one commanded line, drawn once
+        arriving from each side, so the gap between the marks is the play."""
+        lines = []
         for approach in (1, -1):
             lines += _comb_stroke(vertical, pos, start, end, approach,
                                   run_up(pos, approach, lo, hi), cz, go_lift)
@@ -387,99 +432,32 @@ def generate_macros(conf: dict) -> dict[str, str]:
         """One gauge pair: the same stroke twice, `gap` apart, same side both
         times, so what is printed is the number and not the number plus the
         play."""
-        lines = dip()
+        lines = []
         for edge in (at, at + gap):
             lines += _comb_stroke(vertical, edge, start, end, 1,
                                   run_up(edge, 1, lo, hi), cz, go_lift)
         return lines
 
-    lines = [
-        "; backlash.g -- measure the play in X and Y, at both ends of the bed,",
-        "; to fill in Backlash X, Backlash X far end, Backlash Y and Backlash Y",
-        "; far end with. Needs paper on the bed and paint in the cups.",
-        ";",
-        "; Every pair is one commanded position drawn twice, arrived at from",
-        "; each side in turn, and the gap between the two marks is the play.",
-        ";",
-        "; Four groups. Two rows of test pairs, each spread across the whole",
-        "; width of the paper, because the play is not one number: it changes",
-        "; along X, and a group huddled in one corner cannot see that.",
-        ";",
-        "; X row: three vertical pairs, at the left, the middle and the right,",
-        "; arriving from the left and from the right. The left one is Backlash",
-        "; X and the right one Backlash X far end.",
-        "; Y row: three horizontal pairs across the same width, arriving from",
-        "; below and from above. Read the left-hand pair at its left end for",
-        "; Backlash Y and the right-hand pair at its right end for Backlash Y",
-        "; far end. A pair that opens out along its own length is showing the",
-        "; play change under the brush as it goes, which is the fault both",
-        "; rows are here to size -- whichever axis turns out to carry it.",
-        ";",
-        "; Then the two gauges, "
-        + ", ".join(_fmt(g) for g in _GAUGE_GAPS[:-1])
-        + " and " + _fmt(_GAUGE_GAPS[-1]) + " mm apart, in that order, each in",
-        "; its own direction. Both strokes of a gauge pair arrive from the same",
-        "; side, so the play cannot open or close them: they are the ruler.",
-        "; Find the gauge pair a test pair looks like and that is the figure,",
-        "; to a tenth or so. Do not read one gauge against the other's pairs --",
-        "; a gap between two horizontal lines does not look like the same gap",
-        "; between two vertical ones. A gap wider than the widest gauge pair is",
-        "; wide enough to lay a rule across, which is what the gauge is for",
-        "; saving you from at half a millimetre and not at three.",
-        ";",
-        "; The middle pair of each row is the check: with the play a straight",
-        "; line across the bed it falls halfway between the outer two. If it",
-        "; does not, two figures will not describe that axis either, and the",
-        "; middle is the best single one to give both boxes.",
-        ";",
-        "; The outer pairs stand a run-up in from the edges of the paper rather",
-        "; than on them -- a stroke at the very end of an axis has nothing to",
-        "; back off into but the endstop, and would be measuring that. The",
-        "; boxes want the figures at the edges, and taking these as they are",
-        "; overstates by about a tenth of the difference between them, which is",
-        "; finer than the gauge can be read to.",
-        f"; Loading from the {load.get('label', 'last')} cup, one dip a pair.",
-        *_preamble(bg, "normal"),
-        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
-    ]
+    def gauge_gaps(span: float) -> list[float]:
+        """Which gaps a gauge with `span` millimetres to draw in can show.
 
-    # Four groups, and which of them wants the width is what lays the sheet
-    # out. Both rows of test pairs want all of it: the play changes along X,
-    # so a row that spans a third of the bed reads a third of the difference
-    # and calls the rest even. That is the one thing this sheet must not do,
-    # and it is why the rows are not inside the gauges' boxes any more.
-    #
-    # The gauges are rulers and can sit anywhere. On a sheet wider than it is
-    # tall they share the bottom band, the Y gauge's rows on the left and the
-    # X gauge's columns beside them; on a taller one there is no width to
-    # spare -- the Mikro's 65 mm is one gauge stroke and nothing else -- so
-    # they take a band each. That is the difference between the Mini at 132 by
-    # 89 and the Mikro at 65 by 100.
-    #
-    # Everything keeps off the near edges by the run-up, where the canvas can
-    # spare it: every stroke backs off that way before it comes in, and below
-    # X0 and Y0 there is nothing to back off into but the endstop.
-    pad_x = min(_RUN_UP, sheet_w * 0.12)
-    pad_y = min(_RUN_UP, sheet_h * 0.12)
-    lo_x, hi_x = ox + pad_x, ox + sheet_w * 0.99
-    if sheet_w >= sheet_h:
-        yg_y = (oy + pad_y, oy + sheet_h * 0.45)
-        yg_x = (lo_x, min(hi_x, lo_x + _STROKE_MAX))
-        xg_y = yg_y
-        xg_x = (yg_x[1] + pad_x, hi_x)
-        row_y = oy + sheet_h * 0.53
-        xt_y = (oy + sheet_h * 0.60, min(oy + sheet_h * 0.99,
-                                         oy + sheet_h * 0.60 + _STROKE_MAX))
-    else:
-        yg_y = (oy + pad_y, oy + sheet_h * 0.36)
-        yg_x = (lo_x, min(hi_x, lo_x + _STROKE_MAX))
-        xg_y = (oy + sheet_h * 0.44, oy + sheet_h * 0.62)
-        xg_x = (lo_x, hi_x)
-        row_y = oy + sheet_h * 0.68
-        xt_y = (oy + sheet_h * 0.74, min(oy + sheet_h * 0.99,
-                                         oy + sheet_h * 0.74 + _STROKE_MAX))
+        All five where there is room, and otherwise the widest are dropped
+        one at a time until the clear space between pairs is at least as wide
+        as the widest gap drawn. A reader who cannot tell the space after a
+        pair from the pair itself has no ruler, and the gaps that go are the
+        ones least needed: a gap of 2.5 mm is wide enough to lay a rule
+        across, which is what a gauge is for saving you from at half a
+        millimetre. The remaining pairs always run 0.5, 1, 1.5 ... from the
+        narrowest, so they are counted from that end and none is ambiguous.
+        """
+        for n in range(len(_GAUGE_GAPS), 1, -1):
+            gaps = _GAUGE_GAPS[:n]
+            clear = (span - sum(gaps)) / (n - 1)
+            if clear >= gaps[-1]:
+                return list(gaps)
+        return list(_GAUGE_GAPS[:2])
 
-    def gauge_slots(lo: float, hi: float) -> list[float]:
+    def gauge_slots(lo: float, hi: float, gaps: list[float]) -> list[float]:
         """Where each gauge pair starts, with the same clear space between
         every pair whatever gap it is drawing.
 
@@ -488,37 +466,157 @@ def generate_macros(conf: dict) -> dict[str, str]:
         towards its own gap, which is the one place a reader must not have to
         guess which line belongs to which pair.
         """
-        clear = max(0.0, hi - lo - sum(_GAUGE_GAPS)) / max(1, len(_GAUGE_GAPS) - 1)
+        clear = max(0.0, hi - lo - sum(gaps)) / max(1, len(gaps) - 1)
         at, out = lo, []
-        for gap in _GAUGE_GAPS:
+        for gap in gaps:
             out.append(at)
             at += gap + clear
         return out
 
-    # The X row: three vertical pairs, left, middle and right of the paper.
-    for at in (lo_x, (lo_x + hi_x) / 2, hi_x):
-        lines.append(f"; X pair at {_fmt(at)}")
-        lines += pair(True, at, xt_y[0], xt_y[1], 0.0, wx_lim)
+    # The corners. Every stroke backs off _RUN_UP before it comes in, so a
+    # station can stand at the very edge of the paintable area only where the
+    # machine can reach that far past it: the outermost ones go to the corners
+    # and are pulled in exactly as far as the run-up needs, and no further.
+    # Pinkograph's stations come out at X12 and X141 of a bed that paints 0 to
+    # 151, and at Y32 -- the bottom of the paper, with the containers in the
+    # Y below it -- and Y141 of 156.
+    x0 = max(ox, _RUN_UP)
+    x1 = max(x0, min(ox + paint_w, reach_x - _RUN_UP))
+    y0 = max(oy, _RUN_UP)
+    y1 = max(y0, min(oy + paint_h, reach_y - _RUN_UP))
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
 
-    # The Y row: three horizontal pairs at one height, spread across the same
-    # width. One pair the whole way across would read the play everywhere at
-    # once and is what this wants to be -- but two strokes of 132 mm is 264 mm
-    # of painting out of one dip, and Pinkograph's paint_per_run_max is 150.
-    # Three short ones, a dip each, are the same reading with gaps in it.
-    seg = min(_STROKE_MAX, (hi_x - lo_x) / 3 * 0.8)
-    for at in (lo_x, (lo_x + hi_x - seg) / 2, hi_x - seg):
-        lines.append(f"; Y pair at {_fmt(at)} to {_fmt(at + seg)}")
-        lines += pair(False, row_y, at, at + seg, 0.0, max_h)
+    def station(px: float, py: float, sx: int, sy: int, note: str) -> list[str]:
+        """One station: an upright pair and a flat pair meeting at (px, py).
 
-    # The two gauges.
-    for at, gap in zip(gauge_slots(*xg_x), _GAUGE_GAPS):
+        The upright pair is that station's X figure and the flat pair its Y
+        figure, so one station answers both axes at one place on the bed.
+
+        Both legs are drawn in the positive direction whichever corner they
+        belong to, the corner ones running inward and the middle's centred on
+        it. `_comb_stroke` settles by backing off before the start of a line,
+        and at the far end of an axis backing off is backing into the stop.
+        """
+        span = leg / 2 if (sx == 0 or sy == 0) else leg
+        vy = (py, py + span) if sy >= 0 else (py - span, py)
+        hx = (px, px + span) if sx >= 0 else (px - span, px)
+        if sx == 0 and sy == 0:
+            vy, hx = (py - span, py + span), (px - span, px + span)
+        return [
+            f"; station at X{_fmt(px)} Y{_fmt(py)} -- {note}",
+            *pair(True, px, vy[0], vy[1], 0.0, reach_x),
+            *pair(False, py, hx[0], hx[1], 0.0, reach_y),
+        ]
+
+    # Where the two gauges go, and how long a station's leg is, which is one
+    # question and not two. The stations hold the corners and the middle; what
+    # is left for the gauges is the band between the top and bottom pairs of
+    # them, either side of the middle station. Both rulers get their room
+    # first and the legs take what remains, so the answer on a small machine
+    # is short legs and a legible gauge rather than the reverse. The Mini's
+    # legs come out at the 30 mm cap and the Mikro's at the 10 mm floor, and
+    # on the Mikro it is the gauges that then give way: its X gauge shows four
+    # pairs where the Mini's shows five.
+    usable_w, usable_h = x1 - x0, y1 - y0
+    leg = max(_LEG_MIN, min(_TEST_LEG,
+                            0.25 * min(paint_w, paint_h),
+                            usable_w - 2 * _GAUGE_MIN - 2 * _CLEAR,
+                            (usable_h - 2 * _CLEAR - _GAUGE_MIN) / 2))
+    # The Y gauge's rows to the left of the middle station, the X gauge's
+    # columns to its right, both drawn the height of the band. A gauge is a
+    # ruler and can sit anywhere it is legible; these two places are simply
+    # the paper the stations do not want.
+    band = (y0 + leg + _CLEAR, y1 - leg - _CLEAR)
+    left = (x0, cx - leg / 2 - _CLEAR)
+    right = (cx + leg / 2 + _CLEAR, x1)
+    yg_slots, yg_run = band, (left[0], min(left[1], left[0] + leg * 2))
+    xg_slots, xg_run = right, (band[0], min(band[1], band[0] + leg * 2))
+    xg_gaps = gauge_gaps(xg_slots[1] - xg_slots[0])
+    yg_gaps = gauge_gaps(yg_slots[1] - yg_slots[0])
+
+    lines = [
+        "; backlash.g -- measure the play in X and Y with a pen, to fill in",
+        "; Backlash X, Backlash X far end, Backlash Y and Backlash Y far end.",
+        "; Needs a pen fitted where the brush goes, and paper under all of it:",
+        "; it is drawn over everything the machine can paint and not over the",
+        "; canvas a job happens to be set to, so lay a full sheet on the bed or",
+        "; the outer marks will land on the bed itself. It visits no cup and",
+        "; dips for nothing, so the machine needs no paint in it and there is",
+        "; nothing to wash afterwards.",
+        ";",
+        "; Every pair is one commanded position drawn twice, arrived at from",
+        "; each side in turn, and the gap between the two marks is the play.",
+        ";",
+        "; Five stations: the corners of the paintable area and its middle --",
+        f"; here X{_fmt(x0)} to X{_fmt(x1)} and Y{_fmt(y0)} to Y{_fmt(y1)}."
+        " Each is an",
+        "; upright pair and a flat pair meeting at a corner: the upright one",
+        "; is that station's X figure, read across the line, and the flat one",
+        "; its Y figure, read up and down it.",
+        ";",
+        "; Backlash X is the two upright pairs at the X0 end and Backlash X far",
+        "; end the two at the other; Backlash Y is the two flat pairs at the X0",
+        "; end and Backlash Y far end the two at the other. Two stations at the",
+        "; same end should agree: where they do not, the play depends on where",
+        "; the gantry is standing along Y as well, which no pair of figures can",
+        "; describe -- take the middle station's reading for both boxes and",
+        "; expect the compensation to be right in the middle and light at the",
+        "; edges. The middle station is the check either way: with the play a",
+        "; straight line across the bed it falls halfway between the corners.",
+        ";",
+        "; Then the two gauges, each in its own direction: the Y gauge's rows",
+        "; to the left of the middle station and the X gauge's columns to its",
+        "; right. Both strokes of a gauge pair arrive from the same side, so",
+        "; the play cannot open or close them: they are the ruler. Find the",
+        "; gauge pair a test pair looks like and that is the figure, to a",
+        "; tenth or so. Do not read one gauge against the other's pairs -- a",
+        "; gap between two horizontal lines does not look like the same gap",
+        "; between two vertical ones.",
+        (f"; Both gauges are drawn {_gap_list(xg_gaps)} mm apart, narrowest"
+         if xg_gaps == yg_gaps else
+         f"; The X gauge is drawn {_gap_list(xg_gaps)} mm apart and the Y one"),
+        ("; first, so count from that end. A" if xg_gaps == yg_gaps else
+         f"; {_gap_list(yg_gaps)}, narrowest first, so count from that end. A"),
+        "; gap wider than the widest pair drawn is wide enough to lay a rule",
+        "; across, which is what a gauge is for saving you from at half a",
+        "; millimetre and not at three -- so where the paper is too narrow to",
+        "; keep the widest pairs apart from their neighbours, they are the",
+        "; ones dropped.",
+        ";",
+        "; The corners stand as far out as the machine can measure, which is",
+        "; not always the edge of the paint: every stroke backs off 12 mm and",
+        "; comes in along the axis under test, so a station can only stand",
+        "; where there is 12 mm of ground beyond it, and nothing here is",
+        "; commanded within 3 mm of either far end. A move that finishes",
+        "; against a stop loses what it loses for the rest of the file.",
+        *_preamble(bg, "normal"),
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
+    ]
+
+    # Round the sheet and then the middle, which is also the shortest way
+    # between them.
+    for px, py, sx, sy, note in (
+        (x0, y0, 1, 1, "near X, near Y"),
+        (x1, y0, -1, 1, "far X, near Y"),
+        (x1, y1, -1, -1, "far X, far Y"),
+        (x0, y1, 1, -1, "near X, far Y"),
+        (cx, cy, 0, 0, "the middle"),
+    ):
+        lines += station(px, py, sx, sy, note)
+
+    for at, gap in zip(gauge_slots(*xg_slots, xg_gaps), xg_gaps):
         lines.append(f"; X gauge pair {_fmt(gap)} mm")
-        lines += gauge(True, at, gap, xg_y[0], xg_y[1], 0.0, wx_lim)
-    for at, gap in zip(gauge_slots(*yg_y), _GAUGE_GAPS):
+        lines += gauge(True, at, gap, xg_run[0], xg_run[1], 0.0, reach_x)
+    for at, gap in zip(gauge_slots(*yg_slots, yg_gaps), yg_gaps):
         lines.append(f"; Y gauge pair {_fmt(gap)} mm")
-        lines += gauge(False, at, gap, yg_x[0], yg_x[1], 0.0, max_h)
+        lines += gauge(False, at, gap, yg_run[0], yg_run[1], 0.0, reach_y)
 
-    lines += [f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift", *_park_at_origin(park_z)]
+    lines.append(f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift")
+    # Not the shared park: that one ends at Dip Depth + 1, which is below the
+    # paper, and on a holder whose water crucible covers the origin it is
+    # under the rim. A brush left there is a brush kept wet; a pen left there
+    # is a pen pressed into whatever is under it.
+    lines.append("G00 X0 Y0 ; park lifted -- a pen has no cup to hang in")
     out["backlash.g"] = "\n".join(lines) + "\n"
 
     # Every macro, zero.g's fixed routine included, says what made it — and
