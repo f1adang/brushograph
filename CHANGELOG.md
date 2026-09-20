@@ -31,6 +31,14 @@ version's heading appears with its first bullet and grows until it is tagged.
   reasons now agree with each other, so with Classic selected the card stays
   away, and with a CMYK holder it comes back working.
 
+- **Container positions are listed in the order the cups sit in the holder**,
+  water first and then cyan, magenta, yellow — and black where the holder has a
+  fifth place. They used to be listed in painting order, Water, Yellow, Magenta,
+  Cyan, which is the opposite way round to the holder in front of you, so
+  reading a position off the machine meant counting up from the bottom of the
+  form. The picture cards are unchanged and still follow painting order, which
+  is the order the job paints them in.
+
 ## [v2.10.1](https://github.com/f1adang/brushograph/releases/tag/v2.10.1) — 2026-09-19
 
 - **The macros are plain ASCII now, like the jobs always were.** Five of the
