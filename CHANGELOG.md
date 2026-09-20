@@ -31,6 +31,15 @@ version's heading appears with its first bullet and grows until it is tagged.
   reasons now agree with each other, so with Classic selected the card stays
   away, and with a CMYK holder it comes back working.
 
+- **A colour photograph's file is called `photo-cmyk.gcode`.** It used to be
+  called `photo_c3_c2_c1_c4_infill.gcode`: every tray number in painting order,
+  which tells you which cups were dipped but not what the run was. A photograph
+  separated into all four plates now says so. Fewer trays still list their
+  numbers, `photo-c1_c2.gcode`, and those are the numbers on the form, so a file
+  still matches its run without being opened. The trailing `_infill` has gone
+  from every name — infill is a distance in millimetres, and the word said only
+  that it was not zero.
+
 - **Container positions are listed in the order the cups sit in the holder**,
   water first and then cyan, magenta, yellow — and black where the holder has a
   fifth place. They used to be listed in painting order, Water, Yellow, Magenta,
