@@ -107,6 +107,18 @@ class Copicograf:
         # model's travel, keeping the near end off the endstop by the backlash
         # take-up; on its own copicograf only knows about the endstop.
         self.x_limits = (0.0, float("inf"))
+        # The lowest Y any trip into a container may ask for. A bay is deeper
+        # than the strip of Y it stands in on more than one machine, so its
+        # near end comes out south of the origin -- Brushparang's cups sit at
+        # Y -3 and their 30 mm bays reach to Y -13.5 -- and there is no ground
+        # down there. A move that finishes against a stop loses what it loses
+        # for the whole of the rest of the file: the axis stalls, the counter
+        # keeps going, and every coordinate after it lands that much out. It
+        # is a dip that crashes and the far end of the canvas that shows it.
+        # Set by the caller, the way x_limits is, to the take-up where
+        # backlash compensation is on: that pass writes coordinates low by up
+        # to the play while the axis travels down.
+        self.y_floor = 0.0
         self.cup_swipe_exit_z = float(bg.get("cup_swipe_exit_z", 1.0))
         # Sweeps across the bay, down in the paint, before the swipe up the
         # stairs. 0 goes straight up them, which is what every rectangular bay
@@ -190,8 +202,17 @@ class Copicograf:
         def get_coords_in_tray(tray_x, tray_y):
             """Calculate entering and leaving point of brush in tray."""
             angle = random.uniform(0, 2 * math.pi)
-            delta_x = abs(self.tray_enter_radius * math.cos(angle))
-            delta_y = abs(self.tray_enter_radius * math.sin(angle))
+            # The chord is swept from both ends, so whichever end runs out of
+            # ground first sets the radius for all four quadrants -- shrunk
+            # rather than clipped, because clipping one end alone leaves the
+            # sweep working one side of the dish and leaving the rest of the
+            # paint alone, which is the same argument the stir across X makes.
+            # A dish sits in the strip along the front, and a sweep wider than
+            # that strip is deep reaches south of the origin: on the Mini's
+            # dish, 15 mm of enter radius around a tray at Y 6 asks for Y -9.
+            radius = min(self.tray_enter_radius, max(0.0, tray_y - self.y_floor))
+            delta_x = abs(radius * math.cos(angle))
+            delta_y = abs(radius * math.sin(angle))
 
             first_coords = (0, 0)
             second_coords = (0, 0)
@@ -444,6 +465,15 @@ class Copicograf:
                 exit_y = tray_y + self.cup_depth / 2 - margin
             else:
                 entry_y = exit_y = tray_y
+            # Kept on the bed, the way the stir across X is. The brush then
+            # enters further back along the bay than the deep end and the
+            # swipe is shorter by what was clipped, which is less paint worked
+            # into the bristles; it is still a dip, and the alternative is a
+            # dip that stalls against the stop and throws off every move after
+            # it. exit_y too, so a bay whose whole length is off the bed
+            # collapses to one point rather than swiping backwards.
+            entry_y = max(entry_y, self.y_floor)
+            exit_y = max(exit_y, entry_y)
             for i in range(num_of_entries):
                 first_coords, second_coords = get_coords_in_tray(tray_x, tray_y)
                 if i == 0:

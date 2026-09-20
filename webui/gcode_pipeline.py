@@ -746,6 +746,7 @@ def _play_across_x(near: float, far: float | None,
 
 def apply_backlash(lines: list[str], bx: float, by: float,
                    x_range: tuple[float, float] | None = None,
+                   y_range: tuple[float, float] | None = None,
                    bx_far: float | None = None,
                    by_far: float | None = None,
                    play_range: tuple[float, float] | None = None) -> list[str]:
@@ -781,6 +782,15 @@ def apply_backlash(lines: list[str], bx: float, by: float,
     landed short by as much, which on a file that paints black last was the
     whole black plate. `x_range` remains as the floor under the other end,
     where a coordinate written low could ask for less than zero.
+
+    `y_range` is that floor for the other axis, and it was missing until the
+    play in Y was being compensated on a machine that parks at Y 0: the park
+    at the end of a job was written to Y -0.5 and finished against the stop.
+    Only the floor of either can bite, since the shift is downwards only --
+    which is why the ceiling passed for Y is infinite rather than the travel.
+    A ceiling there would be a figure that silently squashes the top of a
+    painting on any config whose canvas is taller than its travel limit says,
+    and a painting quietly shortened is worse than one that does not fit.
 
     `bx_far` and `by_far` are the same two figures read at the far end of X,
     and they make the play a function of where the brush is rather than a
@@ -844,6 +854,11 @@ def apply_backlash(lines: list[str], bx: float, by: float,
             return value
         return min(max(value, x_range[0]), x_range[1])
 
+    def clamp_y(value: float) -> float:
+        if y_range is None:
+            return value
+        return min(max(value, y_range[0]), y_range[1])
+
     for line in lines:
         body = line.split(";", 1)[0].strip()
         if not (_G1.match(body) or _G0.match(body)):
@@ -877,7 +892,7 @@ def apply_backlash(lines: list[str], bx: float, by: float,
                 dir_y = d
                 here = play_y(x if x is not None else 0.0)
                 if reversal and here:
-                    at = y if d > 0 else y - here
+                    at = clamp_y(y if d > 0 else y - here)
                     if cmd_y is None or abs(at - cmd_y) > 1e-9:
                         seat["Y"] = at
 
@@ -925,7 +940,7 @@ def apply_backlash(lines: list[str], bx: float, by: float,
             if abs(cmd_x - nx) > 1e-9:
                 shifted["X"] = cmd_x
         if "Y" in words and ny is not None:
-            cmd_y = ny + off_y
+            cmd_y = clamp_y(ny + off_y)
             if abs(cmd_y - ny) > 1e-9:
                 shifted["Y"] = cmd_y
         out.append(_rewrite(line, shifted) if shifted else line)
@@ -998,6 +1013,17 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     take_up = max(_figure(bg, "backlash_x"),
                   _figure(bg, "backlash_x_far")) if bg.get("backlash_compensation", True) else 0.0
     copicograf.x_limits = (take_up, workable_x(conf))
+    # And the same floor under Y, for the same reason and a worse symptom. A
+    # bay is deeper than the strip of Y it stands in on more than one machine:
+    # Brushparang's cups sit at Y -3 and their 30 mm bays put the deep end at
+    # Y -13.5, which is not ground, it is the stop. Every dip drove into it,
+    # the axis stalled while the counter carried on, and the file's coordinates
+    # were from then on that much below where the carriage actually was -- so
+    # what a crashed dip at the bottom of the bed shows up as is the far end of
+    # the canvas hitting the *top* stop. On that config it is 11 mm of shift
+    # into a canvas whose top edge, at Y 140, is the travel limit exactly.
+    copicograf.y_floor = (max(_figure(bg, "backlash_y"), _figure(bg, "backlash_y_far"))
+                          if bg.get("backlash_compensation", True) else 0.0)
     # A crucible near either end of the axis cannot be stirred the whole way
     # across: the stir stays centred on it and gives up the same distance on
     # both sides, so it goes short rather than lopsided. Worth saying, because
@@ -1017,6 +1043,27 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
             elif reach < full - 0.05:
                 log(f"[{name}] stir shortened to +/-{reach:.1f} mm of {full:.1f} — "
                     f"X {x:g} leaves it short of the ground a job covers")
+    # And the same again down the length of a bay. The brush enters at the deep
+    # end and walks up the stairs to the back; where the deep end is south of
+    # the bed, it enters further back and the swipe is shorter by what was
+    # clipped. Said out loud because the G-code shows only a shorter move: the
+    # brush is working less of the bay, so it loads with less paint, and the
+    # reason is a container position, which is a thing in the form that can be
+    # corrected.
+    if cup_shape_of(conf) in RECTANGULAR_SHAPES:
+        depth = holder["swipe_length"]
+        margin = depth * 0.15
+        for name, tray in sorted(conf.get("trays", {}).items()):
+            if not isinstance(tray, dict) or "x" not in tray:
+                continue
+            y = float(tray.get("y", 0))
+            entry_y = y - depth / 2 + margin
+            if entry_y < copicograf.y_floor - 1e-9:
+                full = depth - 2 * margin
+                left = max(0.0, y + depth / 2 - margin - copicograf.y_floor)
+                log(f"[{name}] bay entered {copicograf.y_floor - entry_y:.1f} mm short at "
+                    f"Y {y:g}: the deep end is off the bed, so the swipe is "
+                    f"{left:.1f} mm of {full:.1f} and the brush loads with less")
     stats = {"trays": [], "strokes": 0}
 
     def prepare(entry):
@@ -1117,6 +1164,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         paper = (float(bg.get("offset_x", 0) or 0),
                  float(bg.get("offset_x", 0) or 0) + width_mm)
         lines = apply_backlash(lines, near_x, near_y, x_range=span,
+                               y_range=(0.0, float("inf")),
                                bx_far=far_x, by_far=far_y, play_range=paper)
         moves = sum(1 for line in lines if "; backlash take-up" in line)
         log(f"backlash compensation: {moves} corrective moves, "

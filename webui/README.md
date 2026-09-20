@@ -1323,11 +1323,57 @@ physically and drawn as painting in the preview.
 
 The swipe runs front to back, finishing on the canvas side, so the brush leaves
 the cup already pointed at the paper. With the stock config its near end is
-Y −4.5, which looks like the off-the-bed fault the wipe had — it is not: the
-classic sweep reaches Y −4 from the same `tray_y` of 6 and `tray_enter_radius`
-of 10, and has done so on this machine all along. Both then read lower again in
-the file by Pinkograph's 1.6 mm of Y play, which is what **Backlash
-compensation** writes while the axis travels that way.
+Y −4.5, and the classic sweep reaches Y −4 from the same `tray_y` of 6 and
+`tray_enter_radius` of 10. This was written up here as *not* the off-the-bed
+fault the wipe had, on the grounds that both had done it on this machine all
+along. That was wrong, and it is worth saying how it looked when it finally
+bit, because the symptom was nowhere near the cause.
+
+#### A bay deeper than the strip it stands in
+
+Brushparang's five cups sit at **Y −3** and their bays are 30 mm deep, so the
+deep end of every one of them is **Y −13.5** — and Y 0 is 3 mm off the Y
+endstop, not 13.5. Every dip drove 11 mm into the stop. The axis stalls there
+and the step counter does not, so from the first dip onward the file's
+coordinates sat 11 mm below where the carriage actually was. What that looks
+like from the machine is the **far end of the canvas hitting the top stop**:
+the job's highest move is Y 139.8 against a travel limit of 140, which fits
+exactly until it is being asked for 11 mm higher than it says. A crash at the
+bottom of the bed, reported as a crash at the top, several hundred moves later.
+
+The floor under X had existed since the stir was clipped to `x_limits`; the
+same floor under Y had not. `Copicograf.y_floor` is it, set by the pipeline
+the way `x_limits` is, and `entry_y` is clamped to it — so the brush enters
+further back along the bay and the swipe is shorter by what was clipped. On
+Brushparang that is a swipe of **7 mm of 21**, which is less paint worked into
+the bristles and is said in the run log, because the G-code shows only a
+shorter move and the cause is a container position, which is a thing in the
+form that can be corrected. The classic sweep gets the same treatment by
+shrinking `tray_enter_radius` rather than clipping one end of the chord — the
+argument the stir across X already makes, since clipping one end leaves the
+sweep working one side of the dish and leaving the rest of the paint alone.
+
+`apply_backlash` needed the same floor for its own reason: it had `x_range`
+under X and nothing under Y, so a park at Y 0 came out as **Y −0.5** on a
+config with Y play, and finished the job against the stop. `y_range` is that
+floor. Only the floor of either can bite, because the shift is downwards only,
+and the ceiling passed for Y is infinite rather than the travel limit on
+purpose: a real ceiling there would silently shorten the top of a painting on
+any config whose canvas is taller than its travel figure claims, and a
+painting quietly squashed is worse than one that does not fit.
+
+Both figures are the **take-up** rather than zero where compensation is on,
+matching what `x_limits` already does, since the compensation pass writes
+coordinates low by up to the play while the axis travels down.
+
+Fixing it changed 2 of 1181 painting moves on the reported job, each by exactly
+one backlash figure: the trips to the cup now arrive from a different place, so
+the axis direction at those two reversals is different and the compensation
+follows it. Everything else that changed is the cup trips themselves and the
+ramps into them.
+
+Both ends then read lower again in the file by Pinkograph's 1.6 mm of Y play,
+which is what **Backlash compensation** writes while the axis travels that way.
 
 The wash goes through the same motion, so in a rectangular bay its three dips
 become three swipes the length of the water. That rinses more, not less, and
