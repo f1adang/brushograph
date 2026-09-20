@@ -22,6 +22,22 @@ version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.10.5](https://github.com/f1adang/brushograph/releases/tag/v2.10.5) — 2026-09-21
 
+- **A photograph no longer fails with "nothing to paint" when most of it is
+  paintable.** A tray whose picture has no shape wider than a single brush
+  stroke is skipped now, named in the run log with the reason, and the other
+  colours are painted. Before, one thin plate ended the whole run: a photograph
+  at 30 × 30 mm with a 12 mm stroke lost cyan and black that way while magenta
+  and yellow still had plenty of ink, and the message said neither which tray
+  nor why. When every tray really is empty the run still stops, but it now
+  names the two figures that decide it — the painted size and the stroke width
+  under Infill line distance — since what can be painted is the picture's
+  finest shape measured in stroke widths, and shrinking the painting does the
+  same thing as widening the brush.
+
+- **A painted size of zero is refused with a sentence** instead of a 500 and a
+  traceback, and a negative one is refused at all — it used to flip the picture
+  and paint it off the bed, which looked like it had worked.
+
 - **The container messages in the run log are reported once per row**, not once
   per cup. Every holder is one straight row, so all five share a Y, and a
   clipped swipe used to say so five times over. Fifteen lines became two on the
