@@ -1,4 +1,4 @@
-"""Six small utility routines.
+"""Seven small utility routines.
 
 home.g parks the brush, paper.g moves it out of the way for replacing the
 paper, and clean.g washes the brush the way a real job does before parking
@@ -15,7 +15,16 @@ calibrate.g is the odd one out on purpose: no wash, just the dot and a park
 over it, at two literal heights that are neither `canvas_height` nor
 `go_in_tray_lift`.
 
-backlash.g is the only one that draws: a sheet of paired strokes for
+containercenter.g paints a tick on the canvas at the X of every container
+the config names, so the positions typed into the form can be held against
+the holder they claim to describe. It is the one macro here that paints:
+black loads the brush, a tick at a time, and the brush is washed and parked
+at the end the way a job leaves it. A machine with no black cup -- a classic
+one, whose four dishes hold water and three colours -- gets a file that says
+so and paints nothing. Its file name keeps the spelling it was asked for;
+renaming it now would strand the copy already sitting in a machine's flash.
+
+backlash.g is the one that draws: a sheet of paired strokes for
 reading the play in each axis off, one pair arriving from each side, against a
 gauge of known gaps. It is drawn with a pen fitted where the brush goes, so it
 visits no cup and dips for nothing -- the machine needs no paint in it. Five
@@ -23,19 +32,20 @@ stations, each answering both axes where it stands: the four corners of
 everything the machine can paint, which is wider than the canvas a job uses,
 and the middle. It wants a pen in the holder and paper under all of it.
 
-None of the six carries an M-code or a G28, so none needs the controller
+None of the seven carries an M-code or a G28, so none needs the controller
 dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
 G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
 
-from configspec import (MODELS, RECTANGULAR_SHAPES, holder_of, model_of,
-                        with_defaults, workable_x)
+from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
+                        fit_cups_to_shape, holder_of, in_cup_order, model_of,
+                        tray_entries, with_defaults, workable_x)
 from gcode_pipeline import to_ascii
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
-               "backlash.g"]
+               "containercenter.g", "backlash.g"]
 
 # The gauges of backlash.g, in millimetres. A half-millimetre gap between
 # two drawn lines is not something a ruler settles, whether they were drawn
@@ -73,6 +83,15 @@ _GAUGE_MIN = sum(_GAUGE_GAPS) + 2.0 * (len(_GAUGE_GAPS) - 1)
 # exceed the play itself; it is clamped to the bed for a machine with no room
 # to give it, and the test still holds as long as something is left.
 _RUN_UP = 12.0
+
+# How long a containercenter.g tick is, in millimetres, and the shortest one
+# worth painting. 20 is long enough to sight along and to lay a rule against,
+# and short enough to come out of one pickup with room to spare -- the kept
+# configs carry 150 to 180 mm of painting between dips, and the shortest
+# canvas of the two machines is 70 mm deep, so the tick fits on the paper as
+# well as in the brush.
+_TICK = 20.0
+_TICK_MIN = 2.0
 
 # The classic dip sweep in copicograf picks a random quadrant each time, which
 # suits a real job's hundreds of pickups — spreading the wear across the cup —
@@ -218,6 +237,18 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
     return lines
 
 
+def _run_up(pos: float, approach: int, lo: float, hi: float) -> float:
+    """How far a stroke at `pos` may back off before it comes in.
+
+    _RUN_UP, or whatever of it there is room for: the point is only that the
+    axis is certainly travelling the way the stroke means it to when it
+    arrives, so a short one still holds, and a move that backed off past the
+    end of an axis would finish against a stop instead.
+    """
+    room = (pos - lo) if approach > 0 else (hi - pos)
+    return max(0.0, min(_RUN_UP, room))
+
+
 def _comb_stroke(vertical: bool, pos: float, start: float, end: float,
                  approach: int, run_up: float, canvas_z: float,
                  lift: float) -> list[str]:
@@ -261,7 +292,14 @@ def _comb_stroke(vertical: bool, pos: float, start: float, end: float,
 
 def generate_macros(conf: dict) -> dict[str, str]:
     """The macros, as {filename: text}, in MACRO_NAMES order."""
-    conf = with_defaults(conf)
+    # fit_cups_to_shape as well as with_defaults, the way new_config and
+    # apply_form both normalise a config: with_defaults offers a black cup to
+    # every config, because the form is built once and the container shape can
+    # change under it, and on a classic machine there is no fifth petri dish
+    # for it to be. Left in, it is a cup nothing can dip in, guessed one step
+    # past yellow -- off the end of the dish holder, and marked on the paper by
+    # containercenter.g as though it were somewhere.
+    conf = fit_cups_to_shape(with_defaults(conf))
     bg = conf.get("brushograph", {})
     trays = conf.get("trays", {})
     water = trays.get("water", {}) if isinstance(trays, dict) else {}
@@ -361,6 +399,160 @@ def generate_macros(conf: dict) -> dict[str, str]:
     ]
     out["calibrate.g"] = "\n".join(lines) + "\n"
 
+    # What the two macros that draw have in common. Both touch down at
+    # canvas_height, the figure the brush already paints the paper at, so a pen
+    # fitted in its place draws at the height the config names and neither
+    # macro has to invent a pen height nobody has a setting for.
+    cz = _num(bg, "canvas_height", 0)
+    wx_lim = workable_x(conf)
+    # How far either of them may command, run-ups included: a few millimetres
+    # short of the ends, so that nothing finishes against a stop. What a move
+    # loses against a stop it loses for the rest of the file, and every line
+    # after it lands short of where it says -- which in a file whose whole
+    # content is where lines land would not look like a fault at all.
+    reach_x, reach_y = wx_lim - _CLEAR, max_h - _CLEAR
+
+    # containercenter.g -- the X of every container, painted on the canvas in
+    # black, so the container positions in the form can be held against the
+    # holder they claim to describe. A container position is the one setting
+    # with nothing to check it against: where a cup is, is a measurement
+    # somebody took with a rule and typed in, and the only way to read it back
+    # was to watch a dip and judge by eye whether the brush went into the
+    # middle of the cup or into a wall.
+    #
+    # Only X, and only on the canvas. The containers and the canvas share the
+    # X axis and nothing else -- the cups sit in the strip of Y below the
+    # paper -- so X is the whole of what a mark up on the paper can say about
+    # them, and it is the interesting half: it is the spacing along the row
+    # that auto-spacing guesses and a rule measures badly. The marks are
+    # painted where a job paints, on paper that is already there, with no
+    # container lifted out and nothing dismantled.
+    #
+    # Black paints them because black is the colour that shows on every paper
+    # the six themes are drawn on, and because a machine with a black cup has
+    # a CMYK holder: fit_cups_to_shape takes the black cup away from a classic
+    # machine, whose four petri dishes hold water and three colours. That
+    # machine gets a file that says so and paints nothing, rather than one
+    # that dips into a cup which is not there.
+    trays = conf.get("trays", {})
+    black = trays.get(CMYK_TO_TRAY["K"]) if isinstance(trays, dict) else None
+    cups = [(e, _num(e, "x")) for e in in_cup_order(tray_entries(conf))]
+    # The canvas: where the paper is, and the near edge of it is where the
+    # ticks stand. That edge is the closest the paper comes to the containers,
+    # so a tick can be sighted down to the cup it belongs to without anything
+    # in between.
+    can_w, can_h = _num(bg, "width", max_w), _num(bg, "height", max_h)
+    tick = min(_TICK, max(0.0, can_h))
+
+    lines = [
+        "; containercenter.g -- paint the X of every container on the canvas,",
+        "; to check the container positions in the form against the holder.",
+        ";",
+        "; Black paints the ticks, so put paint in the black cup and paper on",
+        "; the canvas. Nothing is lifted out and nothing is dismantled: the",
+        "; marks go where a job paints. Each tick stands at one container's X,",
+        "; on the near edge of the canvas, which is the closest the paper comes",
+        "; to the containers.",
+        ";",
+        "; Only X is marked, because X is all the canvas can say about a",
+        "; container: the cups sit in the strip of Y below the paper. It is the",
+        "; interesting half -- the spacing along the row is what auto-spacing",
+        "; guesses, and what a rule measures worst.",
+        ";",
+        "; Sight each tick down to the cup it belongs to, or lay the holder",
+        "; along the row of them. A tick that does not line up with the middle",
+        "; of its cup is a position that wants correcting, and how far it",
+        "; misses by is the correction, in millimetres, into that container's",
+        "; X. Water is ticked too, and it is the one to correct first: every",
+        "; other cup is spaced from it.",
+        ";",
+        "; The brush is dipped once per tick and washed and parked at the end,",
+        "; the way a job leaves it.",
+    ]
+
+    # Two ways there is nothing to paint, each said in the file rather than
+    # left to be guessed at from a sheet that came out blank.
+    if black is None:
+        lines += [
+            ";",
+            "; This machine has no black container -- the Classic petri dish",
+            "; holder has four places, water and three colours -- so there is",
+            "; nothing to paint the ticks with and this file does nothing.",
+            "; Select the CMYK holder under Containers and generate again.",
+            *_preamble(bg, "normal"),
+        ]
+    elif tick < _TICK_MIN:
+        lines += [
+            ";",
+            f"; The canvas is {_fmt(can_h)} mm deep, which is not enough to",
+            "; paint a tick in, so this file does nothing.",
+            *_preamble(bg, "normal"),
+        ]
+    else:
+        bx, by = _num(black, "x"), _num(black, "y")
+        off_canvas = [e["label"] for e, ex in cups
+                      if not ox <= ex <= ox + can_w]
+        if off_canvas:
+            # Painted all the same, because the machine can reach them, and a
+            # row of ticks missing its end says least about the end -- which is
+            # where the spacing has had furthest to drift. Pinkograph's black
+            # cup stands at X 156 against a canvas that ends at 132: that tick
+            # wants paper of its own, or it is painted on the bed.
+            lines += [
+                ";",
+                "; One tick or more stands past the end of the canvas and",
+                "; lands off the paper unless a wider sheet is laid for it.",
+                "; They are painted anyway: a row of ticks missing its last one",
+                "; says least about the end of the row, which is where the",
+                "; spacing has had furthest to drift. Past the end here: "
+                + ", ".join(off_canvas) + ".",
+            ]
+        lines += [
+            ";",
+            f"; {len(cups)} containers, in the order they stand on the bed.",
+            f"; Painted from the black cup at X{_fmt(bx)} Y{_fmt(by)},"
+            f" {_fmt(tick)} mm a tick.",
+            *_preamble(bg, "normal"),
+            f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
+        ]
+        for entry, ex in cups:
+            head = f"; {entry['label']} [{entry['tray']}] -- X{_fmt(ex)}"
+            if not 0 <= ex <= wx_lim:
+                # A container the config puts somewhere the machine cannot go.
+                # Painting the nearest reachable X instead would put a tick
+                # that is not where it says it is, which is the one thing this
+                # file must not do.
+                lines.append(head + " -- out of reach, not painted")
+                continue
+            lines.append(head)
+            # A pickup per tick. A job works a brushful across 150 mm and more
+            # of painting, so 20 mm of tick is nowhere near a dry brush -- but
+            # the cup is passed anyway between one tick and the next, and a
+            # tick painted with a full brush is the same width as the one
+            # before it, which is what makes the row worth looking along.
+            # _container_motion makes its own approach to the cup, and makes
+            # it to the clamped near edge of the bay rather than to the centre
+            # the config names. Moving to the centre first, the way clean.g
+            # does, is a move to Y -3 on Brushparang, which is the Y endstop:
+            # the clamp inside that helper exists precisely because a cup can
+            # be configured south of the ground there is.
+            lines += [f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the black cup",
+                      *_container_motion(conf, bx, by, reps=1)]
+            lines += _comb_stroke(True, ex, oy, oy + tick, 1,
+                                  _run_up(ex, 1, 0.0, wx_lim), cz, go_lift)
+        # Washed and parked in the water, the way a job leaves the brush:
+        # there is black paint in it, and the shared park at Dip Depth + 1 is
+        # inside the water cup on a holder whose water crucible covers the
+        # origin.
+        lines += [
+            "; wash and park",
+            f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the water cup",
+            *_container_motion(conf, wx, wy, reps=_WASH_REPS),
+            f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
+            *_park_at_origin(park_z),
+        ]
+    out["containercenter.g"] = "\n".join(lines) + "\n"
+
     # backlash.g -- the calibration sheet for Backlash X and Backlash Y,
     # drawn dry with a pen fitted in the holder in place of the brush.
     #
@@ -389,8 +581,6 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # gantry is standing, which no pair of figures in the form can describe.
     # The middle is the check -- with the play a straight line across the bed
     # it falls halfway between the corners.
-    cz = _num(bg, "canvas_height", 0)
-    wx_lim = workable_x(conf)
     # The sheet is laid out on everything the machine can paint, not on the
     # canvas the config happens to be set to. The figures it produces are
     # applied to every job on the machine, whatever size that job is, so they
@@ -408,16 +598,6 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # Mini they sit in the 32 mm of Y below the paper.
     paint_w = max(0.0, min(max_w, wx_lim) - ox)
     paint_h = max(0.0, max_h - oy)
-    # How far anything in this file may be commanded, run-ups included: a few
-    # millimetres short of those, so that nothing ends against a stop. What a
-    # move loses against a stop it loses for the rest of the file, and every
-    # line after it lands short of where it says -- which on a sheet whose
-    # whole content is where lines land would not look like a fault at all.
-    reach_x, reach_y = wx_lim - _CLEAR, max_h - _CLEAR
-
-    def run_up(pos: float, approach: int, lo: float, hi: float) -> float:
-        room = (pos - lo) if approach > 0 else (hi - pos)
-        return max(0.0, min(_RUN_UP, room))
 
     def pair(vertical, pos, start, end, lo, hi):
         """The two strokes of one test pair: one commanded line, drawn once
@@ -425,7 +605,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         lines = []
         for approach in (1, -1):
             lines += _comb_stroke(vertical, pos, start, end, approach,
-                                  run_up(pos, approach, lo, hi), cz, go_lift)
+                                  _run_up(pos, approach, lo, hi), cz, go_lift)
         return lines
 
     def gauge(vertical, at, gap, start, end, lo, hi):
@@ -435,7 +615,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         lines = []
         for edge in (at, at + gap):
             lines += _comb_stroke(vertical, edge, start, end, 1,
-                                  run_up(edge, 1, lo, hi), cz, go_lift)
+                                  _run_up(edge, 1, lo, hi), cz, go_lift)
         return lines
 
     def gauge_gaps(span: float) -> list[float]:

@@ -1530,12 +1530,27 @@ every other always-offered setting.
 
 At the end of Machine setup, below Save these settings — it is about the
 machine rather than about a picture, so it lives with its plan drawing rather
-than down by Run — the **Macro generator** builds six small routines:
-`zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g`.
-All six come from `webui/macros.py`, a module the pipeline never imports and
+than down by Run — the **Macro generator** builds seven small routines:
+`zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g`, `containercenter.g`
+and `backlash.g`.
+All seven come from `webui/macros.py`, a module the pipeline never imports and
 that never touches a tray image, so generating them needs none of the pictures
-a G-code run refuses to proceed without. Five of the six are built from the
+a G-code run refuses to proceed without. Six of the seven are built from the
 config; `zero.g` is not (see below).
+
+They are built from `fit_cups_to_shape(with_defaults(conf))`, the same pair
+`new_config` and `apply_form` normalise with, and not from `with_defaults`
+alone as they were until `containercenter.g`. `with_defaults` offers a black
+cup to every config, because the form is built once and the container shape
+can change under it; a classic machine has four petri dishes and no fifth hole
+for it. Left in, that cup is placed one step past yellow — X 189 on a Mini's
+dish holder, whose last dish is at 145 and whose bed paints to 151 — and
+`workable_x` is the furthest of the cups and the canvas, so every macro that
+reads it believed the machine worked out to 189. On a classic Mini that put
+`backlash.g`'s far stations at X 163, past the 160 the `zero_sweep` drives
+into the X stop at; they now stand at 148. And `containercenter.g` reads the
+black cup to load its brush from, so the phantom would have sent it dipping
+into a crucible that is not there, 44 mm past the last dish on the plate.
 
 - **zero.g** is the machine's own self-zero dance, reproduced verbatim: zero
   the near corner, lift, sweep out to the far corner and back to confirm
@@ -1566,8 +1581,70 @@ config; `zero.g` is not (see below).
   `go_in_tray_lift` before crossing the bed, like the rest — it is run from
   where the other macros leave the brush, X0 Y0 at Dip Depth + 1, which on a
   holder whose water crucible covers the origin is under the rim.
+- **containercenter.g** paints a tick on the canvas at the **X of every
+  container** the config names, so the **container positions** — the one group
+  of settings with nothing to check them against — can be held against the
+  holder they claim to describe. Where a cup is, is a measurement somebody
+  took with a rule and typed in; the only way to read one back was to watch a
+  dip and judge by eye whether the brush went into the middle of the cup or
+  into a wall.
+
+  Put paint in the black cup and paper on the canvas and run it. Nothing is
+  lifted out and nothing is dismantled: the marks go where a job paints.
+  Sight each tick down to the cup it belongs to, or lay the holder along the
+  row of them — a tick that does not line up with the middle of its cup is a
+  position that wants correcting, and how far it misses by is the correction,
+  in millimetres, into that container's X. Water is ticked too, and it is the
+  one to correct first: every other cup is spaced from it.
+
+  **Only X, and that is not a shortcut.** The containers and the canvas share
+  the X axis and nothing else — the cups sit in the strip of Y below the paper
+  — so X is the whole of what a mark up on the paper can say about them. It is
+  also the interesting half: the spacing along the row is what auto-spacing
+  guesses from the water cup, and what a rule measures worst. Marking Y as
+  well was the first version of this, and it cost the whole idea: the marks
+  had to go where the containers are, which meant lifting the holder out and
+  laying a sheet in the bay it stood in, and that is a different operation —
+  the machine half dismantled, nothing where a job would find it, and the
+  answer read off a sheet that has nothing on it but the marks.
+
+  **Painted, not drawn with a pen.** `backlash.g` uses a pen because what it
+  measures is a gap between two lines and paint adds nothing to that. Here the
+  point is a tick on the canvas in the middle of the machine's ordinary
+  working state — paint in the cups, paper on the bed — so it paints, and
+  black is what it paints with: black shows on every paper the six themes are
+  drawn on, and a machine with a black cup has a CMYK holder by definition,
+  since `fit_cups_to_shape` takes the black cup away from a classic one.
+
+  The ticks stand on the **near edge of the canvas**, at `offset_y`, which is
+  the closest the paper comes to the containers, and they are 20 mm long:
+  enough to sight along and to lay a rule against, and well inside one
+  pickup — the kept configs carry 150 to 180 mm of painting between dips, and
+  the shallower of the two canvases is 70 mm deep. The brush is dipped **once
+  per tick** all the same. It is not about running dry over 100 mm of tick; it
+  is that a tick painted with a full brush is the same width as the one before
+  it, and a row of ticks is worth looking along only if they match.
+
+  **A container whose X is past the end of the canvas is painted anyway**, and
+  the header names it. Pinkograph's black cup stands at X 156 against a canvas
+  that ends at 132, so that tick wants a wider sheet or it lands on the bed —
+  but a row of ticks missing its last one says least about the end of the row,
+  which is where the spacing has had furthest to drift. A container the
+  machine cannot reach at all is named and not painted, and so are the two
+  ways there is nothing to paint: **no black cup** (a classic machine — the
+  file says to select the CMYK holder) and **a canvas too shallow for a tick**.
+  A file that did nothing and said nothing would look exactly like one that
+  had failed.
+
+  The cup is approached through `_container_motion()` and not by moving to the
+  position the config names first, the way `clean.g` does. That helper clamps
+  the near edge of a bay onto the bed; the centre it is given may be south of
+  the origin, and on Brushparang — whose five cups are all at Y −3, which is
+  the Y endstop — moving there first is a move into the stop. It ends washed
+  and parked in the water, like `clean.g`, because there is black paint in the
+  brush.
 - **backlash.g** draws the sheet the play in each axis is measured off —
-  the one macro that puts anything on the paper for more than a dot. It is
+  the macro that puts the most on the paper. It is
   drawn with a **pen fitted where the brush goes**: it visits no cup and dips
   for nothing, so the machine needs no paint in it and there is nothing to
   wash afterwards. Every pair is one commanded position drawn twice, arrived
@@ -1701,7 +1778,8 @@ config; `zero.g` is not (see below).
   does — so the sheet is drawn raw whatever **Backlash compensation** is set
   to, and measures the machine rather than the setting.
 
-`home.g`, `paper.g`, `clean.g`, `calibrate.g` and `backlash.g` share one
+`home.g`, `paper.g`, `clean.g`, `calibrate.g`, `containercenter.g` and
+`backlash.g` share one
 rule: every move to somewhere
 new — a tray, the canvas, the origin — is preceded by a lift to
 `go_in_tray_lift`, and only that: never the larger of it and
@@ -1725,14 +1803,14 @@ a macro generated once and kept, so `_container_motion()` cycles the same
 four quadrants by repetition index instead — the same coverage, without two
 downloads of the same config ever differing.
 
-None of the six macros carries an M-code or a `G28`: no `sanitize_for_controller`
+None of the seven macros carries an M-code or a `G28`: no `sanitize_for_controller`
 pass is needed, because `G90`/`G21`/`G0`/`G1`/`G10`/`G92` mean the same thing to
 Marlin, GRBL and FluidNC.
 
 **Generate macros** posts the form to `/macros` — the same `apply_form()` a
 config download goes through, so a macro reflects whatever is currently typed
 into the form, saved or not, the way Download Machine Config already does.
-**Download macros** saves them as separate files rather than a zip; six
+**Download macros** saves them as separate files rather than a zip; seven
 small text files did not seem worth a new dependency. **Upload to machine**
 sends them the same shape `gcode-send` sends a job in — one `POST` per file,
 `multipart/form-data` carrying `path` (`/`) and `myfile`, `mode: "no-cors"`,
@@ -1744,7 +1822,7 @@ the SD card, which is where a job's G-code belongs and where `$SD/Run` looks;
 `/files` writes to the flash filesystem, which is where the controller's own
 dashboard theme already lives (see **Pinkograph**, above) and where a
 standing macro belongs — a card can be swapped or reformatted, and a job's
-G-code is not meant to survive that, but these six are. There is no
+G-code is not meant to survive that, but these seven are. There is no
 `$SD/Run` here either: these are routines an operator runs by hand from the
 controller's own interface, not a job meant to start the moment it lands.
 
