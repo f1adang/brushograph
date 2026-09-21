@@ -4,10 +4,20 @@
 The pipeline downstream outlines black regions and fills them with a
 brush, so the output must be pure two-tone with nothing finer than the brush can
 lay down. Detail therefore cannot come from grey: it comes the way it does in a
-real cut, from carved hatching whose density carries the tone. That also suits
-the machine, since hatching is long parallel strokes.
+real cut, from hatching whose density carries the tone.
+
+What comes out is meant to be **strokes** — long ones, following the form,
+about a brush wide, laid further apart where the picture is lighter. That is
+how an engraver works and it is the only thing a brush does well: a brush
+cannot lay a dash, leave a millimetre and lay another, it has to come off the
+paper and go back down, and every one of those is a lift, a trip for paint and
+a blot where it lands. So there are no solid blacks here and no dashes. The
+darkest shadow is strokes packed tight, and the lightest tone the picture holds
+is the same stroke with more paper either side of it.
 """
 from __future__ import annotations
+
+import math
 
 import cv2
 import numpy as np
@@ -29,8 +39,11 @@ STROKE_BOLDNESS = 1.35
 
 MIN_WORK_SIDE = 1400
 MAX_WORK_SIDE = 2400
-# Resolution the hatching streaks are grown at before being scaled up.
-LIC_SIDE = 900
+# How many pixels wide the brush is at the resolution the strokes are traced
+# at. Tracing costs with the picture's area over the stroke spacing, and
+# neither is interesting in fine pixels, so it is done coarse and the lines are
+# drawn at the working resolution from the coordinates that come back.
+TRACE_BRUSH_PX = 6.0
 
 
 def working_side(detail: float) -> int:
@@ -94,28 +107,36 @@ def convert(
     if roughness > 0:
         tone = _roughen(tone, roughness, short_side)
 
-    # Three bands, cut at percentiles of this image's own tones rather than at
-    # a fixed level. Otsu splits ink from paper, which is the wrong question
-    # here: what matters is how much of the picture becomes solid black, how
-    # much becomes hatching and how much is left as paper, and that should hold
-    # steady whether the photograph is bright or dim.
+    # Two levels, at percentiles of this image's own tones rather than at a
+    # fixed level. Otsu splits ink from paper, which is the wrong question
+    # here: what matters is where the strokes run as tight as they go and where
+    # they give out altogether, and that should hold steady whether the
+    # photograph is bright or dim.
     sample = tone[mask > 0] if mask is not None and (mask > 0).any() else tone
     solid_pct = float(np.clip(17.0 - threshold * 0.55, 1.5, 60.0))
     paper_pct = float(np.clip(58.0 - threshold * 0.85, 12.0, 96.0))
     solid_at = float(np.percentile(sample, solid_pct))
     paper_at = float(np.percentile(sample, max(paper_pct, solid_pct + 4)))
 
-    ink = tone < solid_at
-
-    if hatching > 0:
-        ink |= _hatch(tone, solid_at, paper_at, hatching, min_feature, ease, gray)
+    # The darkest band used to be filled in solid and the hatching ran only
+    # between it and the paper. A solid is not a thing a brush does: the tracer
+    # covers one by walking round and round inside it, so a shadow came out as
+    # a contour map of nested rings — on a test portrait the middle stroke was
+    # 11.5 mm long. It is strokes all the way down now, tightest in the darks,
+    # and the middle stroke of that same portrait is 40.2 mm.
+    #
+    # Hatching at 0 is the exception, and has to be: with no strokes to draw
+    # the shadows with, the only thing left that says "shadow" is filling them
+    # in, which is what that end of the slider has always meant.
+    ink = (_hatch(tone, solid_at, paper_at, hatching, min_feature, ease, gray)
+           if hatching > 0 else tone < solid_at)
 
     if outlines:
         ink |= _contours(tone, gray, detail, min_feature)
 
     solid = ink.astype(np.uint8)
     # Only a light close, and never an open: an open with a kernel wider than a
-    # hatch line would erase the hatching that carries the tone.
+    # stroke would erase the hatching that carries the tone.
     k = _odd(max(2.0, min_feature * (0.95 - 0.6 * ease)), 3)
     solid = cv2.morphologyEx(solid, cv2.MORPH_CLOSE,
                              cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (k, k)))
@@ -215,103 +236,164 @@ def _flow_field(gray: np.ndarray, sigma: float) -> tuple[np.ndarray, np.ndarray,
 def _hatch(tone: np.ndarray, solid_at: float, paper_at: float,
            hatching: float, min_feature: float, detail_ease: float = 0.0,
            gray: np.ndarray | None = None) -> np.ndarray:
-    """Carve the midtones as lines that follow the form.
+    """Draw the tone as long strokes that follow the form.
 
     A cut is made with a knife travelling along the shape, so its lines curve
     around a cheek and run the length of a limb. Straight stripes at a fixed
-    angle, and the lattice you get from crossing two of them, read as a screen
-    laid over the picture rather than as something carved.
+    angle — and the lattice you get from crossing two of them — read as a
+    screen laid over the picture rather than as something carved. So the
+    strokes are traced along the picture's own tangent flow, from the structure
+    tensor, and where an image has no direction of its own — an open sky, a
+    flat wall — the field falls back to a steady diagonal.
 
-    The lines here are grown by smearing a coarse noise field along the image's
-    own tangent flow — the streaks that come out are continuous, follow the
-    contours, and fan around features. Their spacing is set by how coarse the
-    noise is, so it still answers to the brush; how much of each becomes ink is
-    set by the tone, so darkness still reads as darkness.
+    **Tone is carried by how far apart the strokes run, not by breaking them
+    up.** That is the whole of it: a stroke is drawn about one brush wide from
+    end to end, and the darks get more of them. It is how an engraver works and
+    it is the only thing a brush can do well — a brush cannot lay a dash and
+    then another dash a millimetre later, it has to come off the paper and go
+    back down, and a dab is a blot with a wet brush.
     """
     h, w = tone.shape
-    spacing = min_feature * (5.6 - 2.5 * hatching / 100 - 0.6 * detail_ease)
-    spacing = max(spacing, min_feature * 2.0)
-
     t = tone.astype(np.float32)
+
+    # How far apart the strokes run: nearly touching where the picture is at
+    # its darkest, far apart at the edge of the highlights, and nowhere at all
+    # on paper. Hatching slides both ends, so it reads as "how much of the
+    # picture is worked".
+    tight = min_feature * (2.4 - 0.6 * hatching / 100)
+    loose = min_feature * (10.0 - 5.0 * hatching / 100)
     ramp = np.clip((t - solid_at) / max(paper_at - solid_at, 1e-6), 0, 1)
-    in_band = (t >= solid_at) & (t < paper_at)
-    if not in_band.any():
-        return np.zeros_like(in_band)
+    apart = tight + (loose - tight) * ramp
+    paintable = t < paper_at
+    if not paintable.any():
+        return np.zeros_like(paintable)
 
     vx, vy, coherence = _flow_field(gray if gray is not None else tone,
-                                    sigma=max(2.0, spacing * 0.9))
-    # Where the picture has no direction of its own, fall back to a steady
-    # diagonal so flat areas still read as cut rather than as blank.
+                                    sigma=max(2.0, tight * 0.9))
     steady = np.pi / 4.0
-    weight = np.clip(coherence * 3.0, 0, 1)[..., None] if False else np.clip(coherence * 3.0, 0, 1)
+    weight = np.clip(coherence * 3.0, 0, 1)
     vx = vx * weight + np.cos(steady) * (1 - weight)
     vy = vy * weight + np.sin(steady) * (1 - weight)
     norm = np.sqrt(vx * vx + vy * vy) + 1e-8
     vx, vy = (vx / norm).astype(np.float32), (vy / norm).astype(np.float32)
 
-    # The streaks are grown at a working size and scaled up. Following a flow
-    # field a step at a time is the expensive part of this, and it costs with
-    # the square of the resolution; the pattern itself is smooth enough that
-    # nothing of it is lost on the way back up.
-    lic_scale = min(1.0, LIC_SIDE / max(h, w))
-    lh, lw = max(8, int(h * lic_scale)), max(8, int(w * lic_scale))
-    lic_spacing = max(2.0, spacing * lic_scale)
+    strokes = _trace_strokes(t, apart, paintable, vx, vy, min_feature, detail_ease)
 
-    # Fine noise smeared a long way. The ratio of the two is what makes a mark
-    # read as a cut line rather than a blot: short smears over coarse noise give
-    # dabs, and it is length against width that says "carved".
-    rng = np.random.default_rng(11)
-    cell = max(1, int(round(lic_spacing * 0.22)))
-    noise = rng.random((max(2, lh // cell), max(2, lw // cell))).astype(np.float32)
-    noise = cv2.resize(noise, (lw, lh), interpolation=cv2.INTER_LINEAR)
-
-    small_vx = cv2.resize(vx, (lw, lh), interpolation=cv2.INTER_LINEAR)
-    small_vy = cv2.resize(vy, (lw, lh), interpolation=cv2.INTER_LINEAR)
-    # Renormalise after the resize: averaging neighbouring directions shortens
-    # the vectors, and the smear steps one length at a time.
-    scale_norm = np.sqrt(small_vx ** 2 + small_vy ** 2) + 1e-8
-    small_vx = (small_vx / scale_norm).astype(np.float32)
-    small_vy = (small_vy / scale_norm).astype(np.float32)
-
-    lic = _smear_along(noise, small_vx, small_vy, steps=max(8, int(lic_spacing * 9)))
-    if lic_scale < 1.0:
-        lic = cv2.resize(lic, (w, h), interpolation=cv2.INTER_LINEAR)
-    # Normalise locally, so the streak pattern is comparable everywhere and the
-    # threshold below means the same thing in a bright region as in a dark one.
-    blur = max(3, _odd(int(spacing * 6)))
-    local_mean = cv2.GaussianBlur(lic, (blur, blur), 0)
-    local_dev = np.sqrt(cv2.GaussianBlur((lic - local_mean) ** 2, (blur, blur), 0)) + 1e-6
-    z = (lic - local_mean) / local_dev
-    level = np.clip(z, -3, 3) / 6.0 + 0.5      # roughly 0..1
-
-    duty_min = min(0.45, min_feature / spacing)
-    duty = duty_min + (1.0 - ramp) * (0.62 - duty_min)
-    return (level < duty) & in_band
+    # The strokes are traced coarse and drawn fine: the coordinates come back
+    # in working-image pixels, so a line is as smooth as the picture it is
+    # drawn into however cheaply it was followed.
+    marks = np.zeros((h, w), np.uint8)
+    for pts, widths in strokes:
+        for (x0, y0), (x1, y1), width in zip(pts, pts[1:], widths):
+            cv2.line(marks, (int(round(x0)), int(round(y0))),
+                     (int(round(x1)), int(round(y1))), 1, max(1, int(round(width))))
+    return marks > 0
 
 
-def _smear_along(field: np.ndarray, vx: np.ndarray, vy: np.ndarray, steps: int) -> np.ndarray:
-    """Average a field along the flow through every pixel, both ways.
+def _trace_strokes(tone: np.ndarray, apart: np.ndarray, paintable: np.ndarray,
+                   vx: np.ndarray, vy: np.ndarray, min_feature: float,
+                   detail_ease: float) -> list[tuple[list, list]]:
+    """Follow the flow from seed to seed, keeping the strokes off each other.
 
-    Line integral convolution: following the field a step at a time and
-    resampling it as we go is what lets a streak bend with the form instead of
-    running off straight.
+    Evenly spaced streamlines, in the manner of Jobard and Lefebvre: a stroke
+    is traced until it runs into paper or into the ground another stroke has
+    already claimed, and the ground it claims for itself is a band as wide as
+    the spacing the tone asks for there. Seeds are taken darkest first, so the
+    shadows are laid out before the half-tones and it is the lights that go
+    without when the two compete.
+
+    Tracing costs with the area over the spacing, and neither figure is
+    interesting in the fine pixels of the working image, so it is done at
+    whatever resolution makes the brush TRACE_BRUSH_PX across — coarse enough
+    to be quick, fine enough that a stroke bends smoothly. The coordinates come
+    back scaled to the working image, where the line is actually drawn.
+
+    The flow is a direction without a sign: the tangent at one pixel may come
+    back as the opposite of its neighbour's, and following it blindly walks a
+    stroke back over itself. Every step is therefore turned to agree with the
+    step before it.
     """
-    h, w = field.shape
-    ys, xs = np.mgrid[0:h, 0:w].astype(np.float32)
-    total = field.copy()
-    count = np.ones_like(field)
-    for direction in (1.0, -1.0):
-        px, py = xs.copy(), ys.copy()
-        for _ in range(steps):
-            dx = cv2.remap(vx, px, py, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
-            dy = cv2.remap(vy, px, py, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
-            px = px + direction * dx
-            py = py + direction * dy
-            np.clip(px, 0, w - 1, out=px)
-            np.clip(py, 0, h - 1, out=py)
-            total += cv2.remap(field, px, py, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REFLECT)
-            count += 1.0
-    return total / count
+    h, w = tone.shape
+    scale = float(np.clip(TRACE_BRUSH_PX / max(min_feature, 1e-6), 0.08, 1.0))
+    th, tw = max(8, int(h * scale)), max(8, int(w * scale))
+
+    def small(field, interp=cv2.INTER_LINEAR):
+        return cv2.resize(field, (tw, th), interpolation=interp)
+
+    fvx, fvy = small(vx), small(vy)
+    n = np.sqrt(fvx * fvx + fvy * fvy) + 1e-8      # the resize averages directions
+    fvx, fvy = (fvx / n).astype(np.float32), (fvy / n).astype(np.float32)
+    fapart = small(apart) * scale
+    ftone = small(tone)
+    fok = small(paintable.astype(np.uint8), cv2.INTER_NEAREST) > 0
+
+    # A stroke shorter than this is a dab, and a dab is a trip to the paint,
+    # a brush put down and lifted, and a blot. More detail keeps shorter ones.
+    min_run = max(3.0, min_feature * (7.0 - 3.0 * detail_ease)) * scale
+    max_steps = int(3.0 * max(th, tw))
+    claimed = np.zeros((th, tw), np.uint8)
+
+    def walk(x0: float, y0: float, back: bool) -> list:
+        pts, x, y = [], float(x0), float(y0)
+        dx, dy = float(fvx[int(y0), int(x0)]), float(fvy[int(y0), int(x0)])
+        if back:
+            dx, dy = -dx, -dy
+        for _ in range(max_steps):
+            ix, iy = int(x), int(y)
+            if not (0 <= ix < tw and 0 <= iy < th) or not fok[iy, ix] or claimed[iy, ix]:
+                break
+            pts.append((x, y))
+            nx, ny = float(fvx[iy, ix]), float(fvy[iy, ix])
+            if nx * dx + ny * dy < 0:
+                nx, ny = -nx, -ny
+            dx, dy = nx, ny
+            x, y = x + dx, y + dy
+        return pts
+
+    # Candidates on a grid half the tightest spacing, darkest first: a seed in
+    # the shadows is worth more than one in a half-tone, and one that has been
+    # claimed by an earlier stroke is skipped rather than pushed aside.
+    grid = max(1, int(round(float(fapart.min()) * 0.5)))
+    ys, xs = np.mgrid[0:th:grid, 0:tw:grid]
+    ys, xs = ys.ravel(), xs.ravel()
+    keep = fok[ys, xs]
+    ys, xs = ys[keep], xs[keep]
+    order = np.argsort(ftone[ys, xs], kind="stable")
+
+    strokes = []
+    for i in order:
+        sx, sy = int(xs[i]), int(ys[i])
+        if claimed[sy, sx]:
+            continue
+        pts = walk(sx, sy, back=True)[::-1] + walk(sx, sy, back=False)[1:]
+        if len(pts) < 2:
+            continue
+        run = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(pts, pts[1:]))
+        if run < min_run:
+            continue
+        # The ground this stroke takes for itself, and the stroke as it will be
+        # drawn. Both follow the tone under them, so a stroke that runs out of
+        # the shadow into a half-tone thins and gives its neighbours more room
+        # without ever coming off the paper.
+        widths = []
+        for a, b in zip(pts, pts[1:]):
+            mx, my = int((a[0] + b[0]) / 2), int((a[1] + b[1]) / 2)
+            mx, my = min(max(mx, 0), tw - 1), min(max(my, 0), th - 1)
+            cv2.line(claimed, (int(a[0]), int(a[1])), (int(b[0]), int(b[1])), 1,
+                     max(1, int(round(float(fapart[my, mx])))))
+            widths.append(_stroke_width(float(ftone[my, mx]), min_feature))
+        strokes.append(([(x / scale, y / scale) for x, y in pts], widths))
+    return strokes
+
+
+def _stroke_width(tone_here: float, min_feature: float) -> float:
+    """One brush wide, a little broader in the dark.
+
+    Not broader than that: a mark much wider than the brush stops being a
+    stroke and becomes a shape, and a shape is painted by going round and round
+    inside it — which is where the short strokes came from in the first place.
+    """
+    return min_feature * (0.95 - 0.25 * min(tone_here / 255.0, 1.0))
 
 
 def _drop_specks(mask: np.ndarray, min_area: float) -> np.ndarray:

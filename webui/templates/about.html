@@ -39,11 +39,12 @@ try { var t = localStorage.getItem("brushograph-theme");
   <h2>Notes</h2>
   <ul>
     <li data-i18n="note-kind">A tray's image can be <b>already thresholded</b> or a <b>photo</b>. A photo becomes a
-    woodcut first: shadows go solid black, midtones are carried by hatching that thickens as the
-    tone darkens, highlights stay as paper. The hatching follows the picture's own directions,
-    curving around a form the way a carved line does, rather than lying over it as straight
-    stripes or a lattice. Hatch spacing follows the brush width, so every mark
-    is one the machine can actually paint. Preview it before running.</li>
+    woodcut first, and the woodcut is <b>strokes</b>: long ones, about a brush wide, running
+    closer together where the picture is darker and petering out into paper where it is
+    lightest. They follow the picture's own directions, curving around a form the way a carved
+    line does, rather than lying over it as straight stripes or a lattice. Nothing is filled in
+    solid &mdash; a brush covers a solid by going round and round inside it, which is a hundred
+    short strokes where a shadow was meant to be. Preview it before running.</li>
     <li data-i18n="note-cmyk">A <b>colour photograph</b> in Artwork is converted to CMYK with the same paper profile
     the rest of the repo uses, then each channel is cut at an ink cutoff into a two-tone plate.
     Those plates are traced exactly as already-thresholded uploads would be. The four colour

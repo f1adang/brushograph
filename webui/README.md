@@ -512,44 +512,96 @@ unchanged: it still receives a bold two-tone image to trace.
 
 The output must be pure two-tone with nothing finer than the brush can lay down,
 so detail cannot come from grey. It comes the way it does in a real cut, from
-**hatching whose density carries the tone** — which also suits the machine, since
-hatching is long parallel strokes.
+**hatching whose density carries the tone** — which also suits the machine,
+since hatching is long parallel strokes.
 
-The picture is cut into three bands, at percentiles of its own tones rather than
-at a fixed level, so coverage holds steady whether the photograph is bright or
-dim:
+What comes out is **strokes**: long, about a brush wide, following the form,
+running closer together where the picture is darker and petering out into paper
+where it is lightest. Two levels, at percentiles of the picture's own tones
+rather than at a fixed level, say where the strokes run as tight as they go and
+where they give out, so coverage holds steady whether the photograph is bright
+or dim.
 
-- **shadows** become solid black,
-- **midtones** become hatching that thickens as the tone darkens,
-- **highlights** are left as paper.
+#### Tone by how far apart the strokes run
 
-#### The hatching follows the form
+The first version carried the tone two other ways, and both of them fought the
+brush.
 
-A cut is made with a knife travelling along the shape, so its lines curve around
-a cheek and run the length of a limb. Straight stripes at a fixed angle — and
-the lattice you get from crossing two of them — read as a screen laid over the
-picture rather than as something carved.
+**Shadows were filled in solid.** A solid is not a thing a brush does. The
+tracer covers one by walking round and round inside it, so a shadow arrived as
+a contour map of nested rings — and on a holder's 2 mm brush over a 132 mm
+picture, the shadow *is* most of the picture.
 
-So the lines follow the picture's own directions. The structure tensor gives, at
-every pixel, the direction the form runs in; a coarse noise field is then
-smeared along that flow, and the streaks that come out are continuous, bend with
-the contours and fan around features. Where an image has no direction of its own
-— an open sky, a flat wall — the field falls back to a steady diagonal, so those
-areas still read as cut rather than blank.
+**Midtones were a noise field smeared along the flow and then thresholded**
+(line integral convolution), with the threshold following the tone. Where the
+tone lightened, the threshold crossed the streak and the streak stopped, so the
+midtones came out as dashes. A dash is the one mark a brush cannot make
+cheaply: it has to come off the paper and go back down, which is a lift, a trip
+for paint and a blot where it lands again.
 
-Two ratios decide whether a mark looks carved. Spacing comes from the brush, so
-the lines stay paintable. Length against width comes from how far the noise is
-smeared against how coarse it is: short smears over coarse noise give dabs, long
-smears over fine noise give lines. The streaks are grown at a reduced working
-size and scaled up — following a flow field costs with the square of the
-resolution, and the pattern is smooth enough to lose nothing on the way back.
+Now the strokes are **traced**, as evenly spaced streamlines in the manner of
+Jobard and Lefebvre. A stroke follows the flow until it runs into paper or into
+the ground another stroke has already claimed, and the ground it claims is a
+band as wide as the spacing the tone asks for there — tight in the darks, wide
+in the lights, nothing at all past the paper level. Seeds are taken darkest
+first, so the shadows are laid out before the half-tones and it is the lights
+that go without where the two compete. Tone is then carried by **how far apart
+the strokes run**, which is how an engraver works and the only thing a brush
+does well.
 
-This suits the machine as well as the eye: flowing lines are long and
-continuous, where a cross-hatch lattice is thousands of short crossing segments.
-One photograph that way is 125 brush-downs for 3.1 m of painting.
+Nothing is filled in solid any more, at either end of the range. The darkest
+shadow is strokes packed at about 2 brush widths apart; the lightest tone the
+picture holds is the same stroke with 6 or 10 widths of paper either side.
+Hatching slides both figures together, so it reads as how much of the picture is
+worked. The one exception is **Hatching at 0**: with no strokes to draw a shadow
+with, the only thing left that says "shadow" is filling it in, which is what
+that end of the slider has always meant.
 
-Hatch spacing is derived from `infill_line_distance` and the output width, so the
-thinnest line is always one the brush can paint. Contours are added as knife
+The flow itself is unchanged, and is still the point: a cut is made with a knife
+travelling along the shape, so its lines curve around a cheek and run the length
+of a limb. The structure tensor gives the direction the form runs in at every
+pixel; where an image has no direction of its own — an open sky, a flat wall —
+the field falls back to a steady diagonal. One thing tracing needs that
+smearing did not: the tangent field has **no sign**, so the direction at one
+pixel may come back as the opposite of its neighbour's, and a stroke that
+follows it blindly walks back over itself. Every step is turned to agree with
+the step before it.
+
+Measured on a test portrait, 132 mm wide with a 2 mm brush, at the same
+settings:
+
+| | smeared noise | traced strokes |
+|---|---|---|
+| strokes after chaining | 48 | 33 |
+| median stroke | 11.5 mm | **40.2 mm** |
+| brush-downs in the job | 80 | 65 |
+| painted | 2.40 m | 2.29 m |
+| ink | 27.1% | 25.4% |
+| conversion | 4.81 s | **0.25 s** |
+
+and on a landscape with no face in it, same width, 2 mm brush: 56 strokes to
+31, median 22.1 mm to 32.1, 4.28 m of painting to 3.70.
+
+The conversion is nineteen times quicker because of what it stopped doing.
+Smearing a field along a flow is a full-image resample per step, hundreds of
+them; tracing costs with the total length of the strokes, which is the picture's
+area over their spacing. It is done at whatever resolution makes the brush
+`TRACE_BRUSH_PX` across — coarse enough to be quick, fine enough to bend
+smoothly — and the coordinates come back in working-image pixels, so the line is
+drawn as fine as the picture however cheaply it was followed.
+
+A stroke is drawn about **one brush wide**, and deliberately no wider: a mark
+much broader than the brush stops being a stroke and becomes a shape, and a
+shape is painted by going round and round inside it, which is where the short
+strokes came from in the first place. One a brush wide gets a single loop up one
+side and back down the other, which is one long stroke.
+
+Anything shorter than about 7 brush widths is dropped rather than painted. It
+would be a dab, and a dab costs the same lift, trip and blot as a stroke twenty
+times its length.
+
+Stroke spacing is derived from `infill_line_distance` and the output width, so
+the thinnest line is always one the brush can paint. Contours are added as knife
 lines, but only where they run far enough to be a real boundary: Canny fires on
 grass and cloud as readily as on a jawline, and short fragments would become
 hundreds of unpaintable dabs.
@@ -589,7 +641,8 @@ because the working resolution follows Detail — a pixel size computed outside
 would be wrong as soon as the slider moved. The picture is never scaled up past
 the source: enlarging it would add pixels but no detail.
 
-The noise seed is fixed, so the same photo and settings always print the same.
+The roughening noise is seeded and the strokes are traced in a fixed order — darkest seed first, ties by position — so the same photo and settings always
+print the same.
 
 #### Stroke width
 
