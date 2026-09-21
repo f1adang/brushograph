@@ -50,8 +50,8 @@ machine and left alone.
   **photo**, in which case it is cut first (see below) with the tuning controls
   appearing inline. A per-tray picture replaces the plate that colour would have
   received from the photograph. The painted size is set above, under the plan:
-  Height follows, in whole
-  millimetres, from the configured Width and the aspect ratio of the first
+  Width opens at the width of the bed and Height follows, in whole
+  millimetres, from it and the aspect ratio of the first
   picture loaded, recomputed whenever a picture is chosen or Width changes. The
   pixel grid is mapped onto width x height regardless of aspect, so a mismatch
   stretches the painting rather than fitting it; a note warns when the uploaded
@@ -144,6 +144,39 @@ back edge is known from where the water crucible sits in it — Y 21 on a Mini,
 is measured by its bays. Clearance at the stock figures is 4 mm on the Mini,
 1.5 on the 𝔐𝔦𝔨𝔯𝔬 and 1 on Pinkograph, so it fires on a mistake rather than on a
 tight machine.
+
+### The painting opens at the size of the bed
+
+Width used to open at whatever the config was last saved with, which is a figure
+from some other picture on some other day. Pinkograph's says 132 on a bed that
+paints 151, so every job started 19 mm narrower than the machine for no reason
+anybody had given, and nothing on the page said so — the plan drew the smaller
+canvas quite faithfully.
+
+An untouched Width is now `max_width` less `offset_x`, the widest the machine
+paints. Height follows the picture from there, and `matchRatio` narrows the
+width again when the proportions make it too tall for the bed, which it already
+did and says in the note under the fields: a 100 × 400 picture on Pinkograph
+comes out 31 × 124 rather than 151 × 604.
+
+It is re-applied at the four moments the answer can change — the page opening, a
+picture being chosen, the model being changed, and `max_width` or `offset_x`
+being edited — rather than on every keystroke anywhere in the form. That is what
+keeps it from fighting the fit: `matchRatio` only ever *narrows*, so a tall
+picture would otherwise hand its width to the next picture loaded, and a
+fill-on-every-event would push it back up the moment the fit pulled it down, and
+the two would trade the field between them.
+
+**Typing in the field makes it yours.** `widthByHand` latches on a **trusted**
+input event, which is the one thing that separates a person typing from this
+file writing to the field: `input.value = x` raises no event at all, a
+dispatched one is untrusted, and a keystroke is not. After that nothing here
+touches the width — a new picture changes only the height, and a wider bed
+changes only the figure the field is capped at.
+
+Both size fields carry that cap as a `max` attribute, kept in step with the
+limits they come from, so a figure typed straight into either is refused by the
+browser rather than quietly painted off the end of the bed.
 
 ### Model: Mini or 𝔐𝔦𝔨𝔯𝔬
 

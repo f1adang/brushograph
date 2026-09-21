@@ -533,6 +533,7 @@ function wireForm() {
     clearTimeout(debounce);
     debounce = setTimeout(updateSketch, 180);
     capPaintedHeight();
+    capPaintedWidth();
   });
   updateSketch();
   document.addEventListener("brushograph:theme", updateSketch);
@@ -782,6 +783,9 @@ function wireForm() {
           { model: label });
         modelNote.hidden = false;
       }
+      // A new model is a new bed, so a width nobody has typed grows or shrinks
+      // to it; one that was typed keeps whatever the fit above left it at.
+      fillWidth();
       // Through the width, so the height is matched to the picture again.
       if (width) width.dispatchEvent(new Event("input", { bubbles: true }));
       else redraw();
@@ -820,6 +824,9 @@ function wireForm() {
       if (tray === "photograph" && h > w) [w, h] = [h, w];
       shapes.set(tray, { w, h });
       URL.revokeObjectURL(url);
+      // Back to the full bed first: matchRatio only ever narrows, so a tall
+      // picture would otherwise hand its width to the next one loaded.
+      fillWidth();
       matchRatio();
     };
     img.onerror = () => { URL.revokeObjectURL(url); shapes.delete(tray); matchRatio(); };
@@ -827,19 +834,64 @@ function wireForm() {
   }
 
   const paintableHeight = () => machineLimit("max_height", "canvas_start_y", "offset_y");
+  const paintableWidth = () => machineLimit("max_width", "offset_x");
 
-  /* The browser's own guard on a height typed by hand, kept in step with the
-     two fields it comes from: matching the picture's proportions is the only
+  /* The browser's own guard on a size typed by hand, kept in step with the
+     fields each comes from: matching the picture's proportions is the only
      thing that sets the height on its own, and it fits it, but nothing stopped
-     a figure entered straight into the field. */
-  const capPaintedHeight = () => {
-    const height = machineInput("height");
-    if (!height) return;
-    const limit = paintableHeight();
-    if (isFinite(limit) && limit >= 1) height.max = String(Math.floor(limit));
-    else height.removeAttribute("max");
+     a figure entered straight into either field. */
+  const cap = (key, limit) => {
+    const input = machineInput(key);
+    if (!input) return;
+    if (isFinite(limit) && limit >= 1) input.max = String(Math.floor(limit));
+    else input.removeAttribute("max");
   };
+  const capPaintedHeight = () => cap("height", paintableHeight());
+  const capPaintedWidth = () => cap("width", paintableWidth());
   capPaintedHeight();
+  capPaintedWidth();
+
+  /* The painting fills the bed unless you say otherwise.
+
+     The width used to open at whatever the config was last saved with, which
+     is a figure from some other picture on some other day: a 132 mm width kept
+     from a photograph is 19 mm of a Mini's bed left as margin for no reason,
+     and nothing on the page said so. So an untouched width is the widest the
+     machine can paint — max_width less offset_x — and the height follows the
+     picture from there, narrowing the width again if the proportions make it
+     too tall for the bed (matchRatio).
+
+     Type in the field and it is yours: `widthByHand` latches on a trusted
+     input event, which is the one thing that separates a person typing from
+     this code writing the field, and nothing here touches the width again. */
+  let widthByHand = false;
+  if (widthInput) {
+    widthInput.addEventListener("input", (e) => { if (e.isTrusted) widthByHand = true; });
+  }
+
+  function fillWidth() {
+    if (widthByHand || !widthInput) return;
+    const limit = paintableWidth();
+    if (!isFinite(limit) || limit < 1) return;
+    const want = String(Math.floor(limit));
+    if (widthInput.value === want) return;
+    widthInput.value = want;
+    // The height follows, and the width comes back down if the picture is
+    // too tall at full width. Then one event, so the plan is redrawn with
+    // whatever the two of them settled on.
+    matchRatio();
+    widthInput.dispatchEvent(new Event("input", { bubbles: true }));
+  }
+
+  /* The limits it is measured against are in the machine setup, where they can
+     be edited under it: a bed declared wider is a painting that grows to it,
+     as long as nobody has claimed the width by hand. The model picker sets
+     them without firing anything, and calls fillWidth() itself. */
+  for (const key of ["max_width", "offset_x"]) {
+    const input = machineInput(key);
+    if (input) input.addEventListener("input", fillWidth);
+  }
+  fillWidth();
 
   function matchRatio() {
     if (!widthInput || !heightInput) return;
