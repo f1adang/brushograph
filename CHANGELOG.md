@@ -20,6 +20,25 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.10.6](https://github.com/f1adang/brushograph/releases/tag/v2.10.6) — 2026-09-21
+
+- **The brush no longer stirs a rectangular cup. It picks the colour up in a
+  different place each time instead.** A pickup is now a straight drop into the
+  paint and the swipe up the stairs, and nothing else while the brush is down
+  there — the swipe is what decides how much colour leaves the cup, and the
+  stir before it picked pigment up on the way out and wiped it off against the
+  paint on the way back, dragging the bristles sideways along the floor to do
+  it. What mixes the cup now is that the whole motion moves: the dips are
+  spread over five places across the bay, one pickup to the next taking
+  opposite ends of it, so the paint is worked over its width rather than down
+  one line of it. **Cup Dip Lanes**, where Cup Mix Sweeps was, says how many; 1
+  puts every pickup down the middle. A cup too near the end of the axis to
+  spread over — black on a holder that reaches the last of the travel — is
+  dipped in the middle and said so in the run log. The same three-plate job
+  came out 365 lines shorter and 3.4 m less travel, and 3.67 m of motion in the
+  paint became none. clean.g's wash walks the lanes as well, so it rinses the
+  width of the water.
+
 ## [v2.10.5](https://github.com/f1adang/brushograph/releases/tag/v2.10.5) — 2026-09-21
 
 - **A photograph no longer fails with "nothing to paint" when most of it is
