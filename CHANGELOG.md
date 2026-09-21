@@ -20,6 +20,28 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.12.0](https://github.com/f1adang/brushograph/releases/tag/v2.12.0) — 2026-09-21
+
+- **A photograph is cut into long strokes now, not into shapes to fill in.** The
+  woodcut used to fill its shadows in solid and carry its midtones as hatching
+  that broke into dashes wherever the tone lightened — and a brush is poor at
+  both. It covers a solid by going round and round inside it, so a shadow came
+  out as a map of nested rings, and every dash costs a lift, a trip for paint
+  and a blot where the brush lands again. The strokes are traced along the
+  picture's own directions now, and the tone is carried by how far apart they
+  run: packed about two brush widths apart in the deepest shadow, opening out
+  through the midtones, gone by the highlights. Nothing is filled in solid, a
+  stroke is about a brush wide, and anything too short to be worth a brush-down
+  is left out. On a test portrait at 132 mm with a 2 mm brush that is 48 strokes
+  down to 33, with the middle one 11.5 mm long before and 40.2 mm now, for
+  slightly less paint. **Hatching at 0** still fills the shadows in, since with
+  no strokes to draw one with that is all that is left.
+
+- **The woodcut preview comes back about twenty times faster** — 0.25 s instead
+  of 4.8 s on a test portrait, 1.5 s instead of 8 s on a 3000-pixel one —
+  because tracing strokes costs with how much line there is, where smearing a
+  field along the flow cost a full pass over the picture for every step of it.
+
 ## [v2.11.0](https://github.com/f1adang/brushograph/releases/tag/v2.11.0) — 2026-09-21
 
 - **Where the canvas starts and where a painting sits are two settings now.**
