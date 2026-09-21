@@ -40,6 +40,15 @@ version's heading appears with its first bullet and grows until it is tagged.
   width and height. It is the one group that changes from one run to the next,
   and it is what the picture above it draws.
 
+- **A painting opens at the width of the bed.** Width used to open at whatever
+  the machine config was last saved with — a figure from some other picture on
+  some other day, and on Pinkograph 132 mm of a bed that paints 151. It is now
+  the widest the machine paints, with the height following the picture as
+  before and the width narrowing again if the proportions make it too tall.
+  Type a width and it stays yours: nothing after that moves it, not a new
+  picture and not a wider bed. Both size fields also refuse a figure larger
+  than the bed instead of taking it.
+
 ## [v2.10.6](https://github.com/f1adang/brushograph/releases/tag/v2.10.6) — 2026-09-21
 
 - **The brush no longer stirs a rectangular cup. It picks the colour up in a
