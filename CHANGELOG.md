@@ -37,6 +37,18 @@ version's heading appears with its first bullet and grows until it is tagged.
   slightly less paint. **Hatching at 0** still fills the shadows in, since with
   no strokes to draw one with that is all that is left.
 
+- **Detail means something at the top of the slider now.** It used to be nearly
+  inert: everything in the cut is measured in brush widths, and the working
+  resolution follows the slider, so the brush grew with it and the cut came out
+  the same. Sliding it from end to end changed a test portrait from 19 strokes
+  to 27, and hardly at all between 25 and 92. Detail now decides how much
+  broader than the brush the cut's marks are drawn — half again as broad at 0,
+  the brush itself at 100 — and with it the stroke spacing in the half-tones,
+  how closely the strokes follow fine structure, and how short a stroke is
+  worth keeping. The same portrait now goes from 13 strokes to 56, for the same
+  amount of paint: the detail is bought with finer strokes, not with more
+  painting time.
+
 - **The woodcut preview comes back about twenty times faster** — 0.25 s instead
   of 4.8 s on a test portrait, 1.5 s instead of 8 s on a 3000-pixel one —
   because tracing strokes costs with how much line there is, where smearing a
