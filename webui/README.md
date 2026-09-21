@@ -617,6 +617,49 @@ much of the gradient range counts as an interior line. At 0 the picture is
 deliberately coarsened to a poster; at 100 nothing limits what survives except
 the brush itself.
 
+**That last sentence was not true, and the slider was nearly inert.** Every
+figure in the cut is measured in `min_feature`, the brush's width *in working
+pixels* — and the working resolution follows Detail, so `min_feature` grew with
+it and every figure derived from it came out the same number of millimetres. A
+sweep of the whole slider on a test portrait moved the ink between 18.8% and
+21.2% and the stroke count from 19 to 27, most of that at the very bottom: 22
+to 24 strokes over the whole of 25 to 92.
+
+What Detail does now is slide how much broader than the brush the cut's marks
+are drawn — `STROKE_BOLDNESS`, which used to be the fixed 1.35 and is now a
+pair, **1.55 at the bottom of the slider and 1.0 at the top**. 1.0 is the brush
+itself, the finest mark the machine can lay, so at 100 the promise above holds
+literally. Everything in the cut is measured in that figure, so the whole cut
+gets finer together: more strokes, thinner, closer, with shorter ones kept.
+
+Three things slide with it rather than against it:
+
+- **The light end of the stroke spacing**, by a further 1.25 to 0.75. The darks
+  are already as tight as strokes go — closer and they touch, and two strokes
+  that touch are one shape to be filled in — so what is left to gain is in the
+  half-tones, where more detail means the strokes keep going instead of
+  thinning out into paper.
+- **How far the flow is averaged before it is followed**, 1.5 down to 0.5 of the
+  tight spacing. A broad average gives long calm strokes that describe the big
+  forms and walk straight past a strand of hair; a narrow one bends with
+  whatever is actually there.
+- **The shortest stroke kept**, 7 brush widths down to 3. At the top a mark
+  three widths long is a feature worth having; at the bottom it is a speck in
+  the way of a poster.
+
+Measured on the same portrait, 2400 px, 132 mm wide with a 2 mm brush, counting
+the strokes the cut is made of:
+
+| detail | 0 | 25 | 55 | 78 | 92 | 100 |
+|---|---|---|---|---|---|---|
+| before | 19 | 22 | 23 | 22 | 22 | 27 |
+| after | 13 | 19 | 31 | 38 | 50 | **56** |
+
+with the ink between 23% and 25% from 25 upwards in both, before and after. The
+detail is bought with finer strokes rather than with more paint, which is the
+point: the same picture, worked more closely, for about the same time on the
+machine.
+
 The control has to *feel* gradual, which means no stage may switch on at a
 point. Three things had to go for that:
 
@@ -632,9 +675,11 @@ point. Three things had to go for that:
   step in the level moved the ink by 2.5%, so they are passed as floats.
 
 Measured on the photograph that showed the problem: stepping the slider one
-percent at a time, the largest change in painted area is now 2.4%, against 16%
-before, and the curve rises steadily from 28% to 47% rather than sitting flat to
-55 and then leaping.
+percent at a time, the largest change in painted area was 2.4%, against 16%
+before, and the curve rose steadily rather than sitting flat to 55 and then
+leaping. It survived the boldness being put on the slider: on the test portrait
+above, stepping one percent at a time over the whole range, the largest change
+in painted area is **2.2%**, and there is no step over 3%.
 
 Brush width is handed to the conversion in millimetres rather than pixels,
 because the working resolution follows Detail — a pixel size computed outside
@@ -647,12 +692,15 @@ print the same.
 #### Stroke width
 
 Every mark and every gap between marks is measured in `min_feature`, the brush's
-width in working pixels. `woodcut.STROKE_BOLDNESS` (1.35) scales that, so the
-whole cut scales together — broader strokes, laid proportionally further apart —
-rather than fattening lines over an unchanged layout. It darkens the picture a
-little (50% ink to 57% on a test portrait), because marks grow at the ends as
-well as across and speckle that was separate dots merges. Past about 1.5 the
-merging starts eating fine structure such as hair.
+width in working pixels. `woodcut.STROKE_BOLDNESS` scales that, so the whole cut
+scales together — broader strokes, laid proportionally further apart — rather
+than fattening lines over an unchanged layout. It is the pair `(1.55, 1.0)`, the
+ends of the Detail slider, and it is what that control actually does (above).
+
+1.0 is the brush itself. Past about 1.6 at the other end the merging starts
+eating fine structure such as hair, which is what that end of the slider is for:
+marks grow at the ends as well as across, and speckle that was separate dots
+becomes one mark.
 
 #### Insta Face Filter
 

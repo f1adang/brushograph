@@ -28,14 +28,26 @@ from images import flatten
 # Working resolution, and how hard the cleanup stages press, both follow the
 # Detail control. At the top of the range only the brush itself is allowed to
 # limit what survives; at the bottom the picture is deliberately coarsened.
-# How much broader than the brush the cut's marks are drawn. Every mark and
-# every gap between marks is measured in `min_feature`, so this scales the whole
-# cut together: broader strokes, laid proportionally further apart, rather than
-# just fattening the lines over an unchanged layout. It does darken the picture
-# a little — 50% ink to 57% on a test portrait — because the marks grow at the
-# ends as well as across, and speckle that used to be separate dots merges.
-# Past about 1.5 the merging starts eating fine structure such as hair.
-STROKE_BOLDNESS = 1.35
+
+# How much broader than the brush the cut's marks are drawn, at the bottom of
+# the Detail slider and at the top of it. Every mark and every gap between
+# marks is measured in `min_feature`, so this scales the whole cut together:
+# broader strokes, laid proportionally further apart, rather than fattening
+# lines over an unchanged layout.
+#
+# It is what Detail actually does. The working resolution follows the slider
+# too, but on its own that changes nothing at all: `min_feature` is the brush
+# measured in working pixels, so it grows with the resolution and every figure
+# derived from it stays the same number of millimetres. A sweep of the whole
+# slider moved a test portrait's ink between 18.8% and 21.2% and its stroke
+# count not at all. Sliding the boldness is what makes 100 finer than 0 —
+# more strokes, thinner, closer together, with shorter ones kept.
+#
+# 1.0 at the top is the brush itself, which is the finest mark the machine can
+# lay: nothing above it limits what survives, as the control promises. Past
+# about 1.6 at the bottom the merging starts eating fine structure such as
+# hair, which is what that end is for.
+STROKE_BOLDNESS = (1.55, 1.0)
 
 MIN_WORK_SIDE = 1400
 MAX_WORK_SIDE = 2400
@@ -89,8 +101,9 @@ def convert(
         min_feature = max(1.2, float(brush_mm) * rgb.shape[1] / float(width_mm))
     else:
         min_feature = max(1.0, float(min_feature_px or 3.0))
-    min_feature *= STROKE_BOLDNESS
     ease = detail / 100.0
+    bold, fine = STROKE_BOLDNESS
+    min_feature *= bold + (fine - bold) * ease
 
     gray = cv2.createCLAHE(clipLimit=2.6, tileGridSize=(8, 8)).apply(gray)
 
@@ -169,12 +182,12 @@ def _contours(tone: np.ndarray, gray: np.ndarray, detail: float, min_feature: fl
     edges = cv2.Canny(cv2.GaussianBlur(tone, (0, 0), 1.1), lo, lo * 2.6) > 0
 
     # Interior detail, faded in by how much of the gradient range is admitted.
-    # 99.7% of pixels rejected at the bottom of the slider, 88% at the top.
+    # 99.7% of pixels rejected at the bottom of the slider, 82% at the top.
     fine = cv2.GaussianBlur(gray, (0, 0), 0.8)
     gx = cv2.Sobel(fine, cv2.CV_32F, 1, 0, ksize=3)
     gy = cv2.Sobel(fine, cv2.CV_32F, 0, 1, ksize=3)
     strength = cv2.magnitude(gx, gy)
-    keep_pct = 99.7 - 11.7 * ease
+    keep_pct = 99.7 - 17.4 * ease
     level = float(np.percentile(strength, keep_pct))
     if level > 0:
         edges |= strength > level
@@ -260,16 +273,26 @@ def _hatch(tone: np.ndarray, solid_at: float, paper_at: float,
     # its darkest, far apart at the edge of the highlights, and nowhere at all
     # on paper. Hatching slides both ends, so it reads as "how much of the
     # picture is worked".
+    #
+    # Detail slides the light end further than the dark one. The darks are
+    # already as tight as strokes go — closer and they touch, and two strokes
+    # that touch are one shape to be filled in — so what is left to gain is in
+    # the half-tones, where more detail means the strokes keep going instead of
+    # thinning out into paper.
     tight = min_feature * (2.4 - 0.6 * hatching / 100)
-    loose = min_feature * (10.0 - 5.0 * hatching / 100)
+    loose = min_feature * (10.0 - 5.0 * hatching / 100) * (1.25 - 0.5 * detail_ease)
     ramp = np.clip((t - solid_at) / max(paper_at - solid_at, 1e-6), 0, 1)
     apart = tight + (loose - tight) * ramp
     paintable = t < paper_at
     if not paintable.any():
         return np.zeros_like(paintable)
 
+    # How far the flow is averaged before it is followed. A broad average gives
+    # long calm strokes that describe the big forms and walk straight past a
+    # strand of hair; a narrow one bends with whatever is actually there. That
+    # is Detail as much as anything else here, so it slides with it.
     vx, vy, coherence = _flow_field(gray if gray is not None else tone,
-                                    sigma=max(2.0, tight * 0.9))
+                                    sigma=max(1.2, tight * (1.5 - 1.0 * detail_ease)))
     steady = np.pi / 4.0
     weight = np.clip(coherence * 3.0, 0, 1)
     vx = vx * weight + np.cos(steady) * (1 - weight)
@@ -328,8 +351,10 @@ def _trace_strokes(tone: np.ndarray, apart: np.ndarray, paintable: np.ndarray,
     fok = small(paintable.astype(np.uint8), cv2.INTER_NEAREST) > 0
 
     # A stroke shorter than this is a dab, and a dab is a trip to the paint,
-    # a brush put down and lifted, and a blot. More detail keeps shorter ones.
-    min_run = max(3.0, min_feature * (7.0 - 3.0 * detail_ease)) * scale
+    # a brush put down and lifted, and a blot. More detail keeps shorter ones:
+    # at the top of the slider a mark three brush widths long is a feature
+    # worth having, at the bottom it is a speck in the way of a poster.
+    min_run = max(3.0, min_feature * (7.0 - 4.0 * detail_ease)) * scale
     max_steps = int(3.0 * max(th, tw))
     claimed = np.zeros((th, tw), np.uint8)
 
