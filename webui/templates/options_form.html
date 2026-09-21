@@ -50,6 +50,19 @@
       <img id="machine-sketch" alt="Plan view of the machine bed and its trays" src="">
     </figure>
 
+    {% if machine %}{% for g in machine.fields if g.group and g.job %}
+    <section class="group tight" id="painting-dimensions">
+      <h3>{{ g.group }}</h3>
+      <div class="grid">{% for f in g.fields %}{{ field(f) }}{% endfor %}</div>
+      <p class="note" id="size-note">The picture is scaled to fit this. The height follows the width and the
+        aspect ratio of the first picture you loaded; a portrait colour photograph is
+        turned on its side first.</p>
+      <p class="note" id="size-note-photo" hidden>Picture auto-rotated and scaled as needed to
+        maximize printing area</p>
+      <p class="note" id="ratio-note" hidden></p>
+    </section>
+    {% endfor %}{% endif %}
+
     <!-- -------------------------------------------------------------- setup -->
     <details class="setup" id="machine-setup">
       <summary><span>Machine setup</span><i>Model, connection, containers, brush heights, speeds, macros — set once per machine</i></summary>
@@ -274,18 +287,6 @@
       <img id="wc-image" alt="The photo as it will be painted" hidden>
     </section>
 
-    {% if machine %}{% for g in machine.fields if g.group and g.job %}
-    <section class="group tight">
-      <h3>{{ g.group }}</h3>
-      <div class="grid">{% for f in g.fields %}{{ field(f) }}{% endfor %}</div>
-      <p class="note" id="size-note">The picture is scaled to fit this. The height follows the width and the
-        aspect ratio of the first picture you loaded; a portrait colour photograph is
-        turned on its side first.</p>
-      <p class="note" id="size-note-photo" hidden>Picture auto-rotated and scaled as needed to
-        maximize printing area</p>
-      <p class="note" id="ratio-note" hidden></p>
-    </section>
-    {% endfor %}{% endif %}
   </section>
 
 

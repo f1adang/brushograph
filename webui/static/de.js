@@ -166,7 +166,7 @@ text: {
 "Brushograph Options": "Brušograf-Einstellungen",
 "Fill Options": "Fülleinstellungen",
 "Controller Options": "Steuerungseinstellungen",
-"Painted size": "Gemalte Größe",
+"Painting dimensions": "Bildmaße und Lage",
 "Canvas": "Leinwand",
 "Brush control": "Pinselsteuerung",
 "Containers": "Behälter",
@@ -201,6 +201,7 @@ text: {
 "Max Width": "Größtbreite",
 "Max Height": "Größthöhe",
 "Canvas Height": "Unterlagenhöhe",
+"Canvas Start Y": "Unterlagenbeginn Y",
 "Go In Tray Lift": "Hub über dem Behälter",
 "Dip Depth": "Tauchtiefe",
 "Remove Drops Lift": "Hub beim Abstreifen",
@@ -246,12 +247,16 @@ text: {
   "Breite einer Datei (mm); größere Dateien sind zulässig, müssen aber dasselbe Seitenverhältnis haben",
 "Height of a file (mm); you may upload larger files, but they need to be in the same aspect ratio":
   "Höhe einer Datei (mm); größere Dateien sind zulässig, müssen aber dasselbe Seitenverhältnis haben",
-"X offset for image (0,0) position": "X-Versatz für die Bildposition (0,0)",
-"Y offset for image (0,0) position": "Y-Versatz für die Bildposition (0,0)",
+"How far right of X0 this painting starts (mm). The picture's own (0,0) corner lands here.":
+  "Wie weit rechts von X0 dieses Bild beginnt (mm). Die Ecke (0,0) des Bildes liegt hier.",
+"How far past Canvas Start Y this painting starts (mm). 0 puts it at the start of the paintable area, right where the containers end; raise it to paint further up the bed. What the machine is asked for is the two added together.":
+  "Wie weit hinter dem Unterlagenbeginn Y dieses Bild anfängt (mm). 0 setzt es an den Anfang der bemalbaren Fläche, genau dort, wo die Behälter enden; erhöhen Sie es, um weiter hinten auf dem Bett zu malen. Die Maschine bekommt die Summe aus beiden.",
+"Where the paintable area begins in Y (mm): the far edge of the strip the containers stand in, and a fact about the machine rather than about this painting. Nothing is painted below it, and the painted height is measured from it — with Offset Y at 0 the canvas starts exactly here. Choosing a model sets it: 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬.":
+  "Wo die bemalbare Fläche in Y beginnt (mm): die hintere Kante des Streifens, auf dem die Behälter stehen, und eine Angabe über die Maschine, nicht über dieses Bild. Darunter wird nichts gemalt, und die gemalte Höhe wird von hier aus gemessen — steht der Versatz Y auf 0, beginnt die Unterlage genau hier. Die Wahl des Modells setzt ihn: 25 mm beim Mini, 19 beim 𝔐𝔦𝔨𝔯𝔬.",
 "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.":
   "Größte Breite der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim X-Versatz, also ist das breitestmögliche um ebendiesen Versatz geringer.",
-"Total height limit of machine (mm), measured from the origin. A painting starts at Offset Y — the strip the containers stand in — so the tallest one is this less that offset: 131 mm of Pinkograph's 156.":
-  "Größte Höhe der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim Y-Versatz — dem Streifen, auf dem die Behälter stehen — also ist das höchstmögliche um ebendiesen Versatz geringer: 131 mm von Pinkographs 156.",
+"Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.":
+  "Größte Höhe der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim Unterlagenbeginn Y, hinter dem Streifen, auf dem die Behälter stehen, zuzüglich dessen, was der Versatz Y hinzufügt; das höchstmögliche ist also um beides geringer: 124 mm von Pinkographs 156.",
 "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence":
   "Kürzeste Bahnlänge (mm) zum Malen. Zum Plotten setzen Sie diese Zahl sehr hoch (z. B. 1000000), damit kein Farbholen stattfindet",
 "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence":

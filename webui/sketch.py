@@ -7,8 +7,8 @@ import os
 
 from PIL import Image, ImageDraw, ImageFont
 
-from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, cup_shape_of, holder_of,
-                        tray_entries)
+from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_origin,
+                        cup_shape_of, holder_of, tray_entries)
 
 W, H = 760, 480
 PAD = 46
@@ -65,6 +65,7 @@ WORDS = {
         "bed": "bed {w:g} × {h:g} mm",
         "image": "image {w:g} × {h:g} mm @ ({x:g}, {y:g})",
         "off_bed": " (off bed)",
+        "canvas_start": "canvas starts Y {y:g}",
         "order": "Painting order: {order}",
         "order_none": "none in color_order",
         "offscreen": "not shown, parked far outside the bed: {trays}",
@@ -74,6 +75,7 @@ WORDS = {
         "bed": "Arbeitsfläche {w:g} × {h:g} mm",
         "image": "Druckbereich {w:g} × {h:g} mm bei ({x:g}, {y:g})",
         "off_bed": " (außerhalb)",
+        "canvas_start": "Unterlage ab Y {y:g}",
         "order": "Auftragsreihenfolge: {order}",
         "order_none": "keine in der Auftragsreihenfolge",
         "offscreen": "nicht dargestellt, weit außerhalb der Arbeitsfläche: {trays}",
@@ -128,10 +130,11 @@ def render(conf: dict, theme: str = "default") -> bytes:
     trays = conf.get("trays", {})
 
     cw, ch = _num(bg, "width", 0), _num(bg, "height", 0)
-    ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
+    ox, oy = canvas_origin(conf)
     # Max Width and Max Height are the machine's limits, measured from the
     # origin where the trays are, so the bed is drawn at them alone. A painting
-    # starts at the canvas offset, which leaves it the limit less that offset —
+    # starts at the canvas origin — the canvas start plus this painting's own
+    # offset — which leaves it the limit less that origin —
     # 131 mm of Pinkograph's 156, the other 25 being the strip its containers
     # stand in. This was drawn as offset plus limit, a bed 25 mm longer than the
     # machine, because a full-size Mini picture otherwise hung over the edge of
@@ -227,6 +230,20 @@ def render(conf: dict, theme: str = "default") -> bytes:
     bx, by = px(max_w, max(max_h, oy + ch))
     txt = words["bed"].format(w=max_w, h=max_h)
     d.text((bx - d.textlength(txt, font=fs) - 5, by - 16), txt, font=fs, fill=MUTED)
+
+    # Where the paintable area begins, drawn only when the painting does not
+    # begin there: with Offset Y at 0 the canvas edge is already that line, and
+    # two lines on top of each other say nothing. Offset up the bed, the gap
+    # between the containers and the picture is otherwise unexplained — this is
+    # the line the picture was moved off.
+    start_y = _num(bg, "canvas_start_y", 0)
+    if cw and ch and oy - start_y > 0.05:
+        _, sy = px(0, start_y)
+        d.line([(PAD, sy), (W - PAD, sy)], fill=(*MUTED, 160))
+        # Above the line, in the gap the offset opened: below it is the strip
+        # the containers stand in, and the cups are drawn after this.
+        d.text((PAD + 5, sy - 14), words["canvas_start"].format(y=start_y),
+               font=fs, fill=MUTED)
 
     # Canvas / image area
     if cw and ch:

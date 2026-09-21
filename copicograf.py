@@ -193,7 +193,14 @@ class Copicograf:
         # once a pickup.
         self._next_lane = {}
 
-        self.offset_y = float(self.conf["brushograph"]["offset_y"])
+        # Where the picture's (0,0) corner goes. Y is two figures added: the
+        # canvas start, which is the machine's own — the far edge of the strip
+        # the containers stand in — and the offset, which is how far up the bed
+        # this painting was wanted from there. A config written before they
+        # were split carries the whole of it in the offset and a start of 0
+        # (configspec._offer_canvas_start), which paints where it always did.
+        self.offset_y = (float(self.conf["brushograph"]["offset_y"])
+                         + float(self.conf["brushograph"].get("canvas_start_y", 0) or 0))
         self.offset_x = float(self.conf["brushograph"]["offset_x"])
         self.paint_per_run_min = int(self.conf["brushograph"]["paint_per_run_min"])
         self.paint_per_run_max = int(self.conf["brushograph"]["paint_per_run_max"])

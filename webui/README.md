@@ -30,11 +30,15 @@ machine and left alone.
 
 - **The machine** — a to-scale plan of bed, image area and trays with their
   entry and drip radii, redrawn as you edit. Trays parked outside the bed are
-  called out rather than quietly cropped. One collapsed panel sits under the
-  plan, **Machine setup**, because all of it is about the machine rather than
-  about a picture: the **Model** first, then the connection and controller
-  type, containers, their positions, **Canvas** (where the artwork sits
-  on the bed), **Brush control**, **Paint management**, backlash and the
+  called out rather than quietly cropped. **Painting dimensions** sits directly
+  under the plan, outside the fold, because it is the one group that changes
+  from one run to the next and it is what the picture above it draws: the
+  painted width and height, the offsets that say where on the bed the painting
+  lands, and the canvas height. Then one collapsed panel, **Machine setup**,
+  which is about the machine rather than about a picture: the **Model** first,
+  then the connection and controller type, containers, their positions,
+  **Canvas** (where the paintable area begins and how far the machine goes),
+  **Brush control**, **Paint management**, backlash and the
   `moves` speed groups. Then **Download Machine Config**, which writes all of
   it back out as a `.conf`, and last the **Macro generator** — `zero.g`,
   `home.g`, `paper.g`, `clean.g` and `calibrate.g`, built from the settings
@@ -45,7 +49,8 @@ machine and left alone.
   taking a picture and saying whether it is **already black and white** or a
   **photo**, in which case it is cut first (see below) with the tuning controls
   appearing inline. A per-tray picture replaces the plate that colour would have
-  received from the photograph. Then the painted size: Height follows, in whole
+  received from the photograph. The painted size is set above, under the plan:
+  Height follows, in whole
   millimetres, from the configured Width and the aspect ratio of the first
   picture loaded, recomputed whenever a picture is chosen or Width changes. The
   pixel grid is mapped onto width x height regardless of aspect, so a mismatch
@@ -83,6 +88,63 @@ or says nothing, and unticked when the config says not to. The defaults exist so
 a setting the config never mentions still has a control, not to overrule one it
 does.
 
+### Where the canvas starts, and where this painting does
+
+`offset_y` used to be two things at once. It was the strip the containers stand
+in — a fact about the machine, 25 mm on a Mini, 32 on Pinkograph — and it was
+also however far up the bed you wanted this painting, which is a decision about
+this painting. One box for both means neither can be touched without minding
+the other: moving a picture 5 mm up the paper reads as claiming the holder takes
+5 mm more room than it does, and it silently costs the painting 5 mm of height,
+because what is paintable is the travel limit less the offset.
+
+They are two figures now.
+
+| setting | where it lives | what it says |
+|---|---|---|
+| `canvas_start_y` | Machine setup → **Canvas** | where the paintable area begins: the far edge of the strip the containers stand in. A fact about the machine, set by the model — 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬. |
+| `offset_y` | **Painting dimensions**, under the plan | how far past that start this painting sits. 0 means flush with the start, which is what a machine with nothing to avoid wants. |
+
+The brush is sent to the two added together, in one place —
+`configspec.canvas_origin()` — which is what `copicograf`, the plan, the macros
+and the paintable-height guard all read. `offset_x` is unsplit: it is 0 on both
+models, there is nothing on that side of the bed to clear, and a second figure
+that is always zero is a box to get wrong.
+
+**A config written before the split has the whole of it in `offset_y`.**
+`_offer_canvas_start` moves it across and zeroes the offset, beside the other
+`_offer_*` steps in `with_defaults`. That is not a default being filled in, it
+is the one figure being read as what it always was: Pinkograph opens with a
+canvas start of 32 and an offset of 0, and the same job comes out of the
+pipeline byte for byte as before — the seeded three-plate file differs only in
+the version in its header. What has changed is that the two boxes now say which
+part of that 32 was which.
+
+**What it costs is height, and the form says so.** Paintable height is
+`max_height` less both figures, so raising the offset shortens the tallest
+picture that fits, which the height field's `max` attribute and the ratio note
+already follow. And the plan draws the line: with the offset at 0 nothing is
+drawn, since the canvas edge *is* the start; with the picture moved up the bed,
+the start is drawn where it is and labelled, so the gap between the containers
+and the paper is explained rather than mysterious.
+
+**A canvas that starts inside the containers is reported before the run.** Both
+figures are perfectly ordinary numbers on their own, and the G-code is ordinary
+too — it is paper that is not where the brush thinks it is, and the brush comes
+down on a crucible wall. So the pipeline measures where the cups actually reach,
+the back of a bay or the rim of a dish, and says so:
+
+    the canvas starts at Y 20, 11.0 mm inside the containers, which reach
+    Y 31.0 — raise Canvas Start Y or move the holder forward
+
+What it measures is the **holder**, not the swipe: a design holder is a plate
+the crucibles stand in, and it is the plate the paper would be laid over. Its
+back edge is known from where the water crucible sits in it — Y 21 on a Mini,
+17.5 on a 𝔐𝔦𝔨𝔯𝔬 — while a custom holder, being nobody's design, has no plate and
+is measured by its bays. Clearance at the stock figures is 4 mm on the Mini,
+1.5 on the 𝔐𝔦𝔨𝔯𝔬 and 1 on Pinkograph, so it fires on a mistake rather than on a
+tight machine.
+
 ### Model: Mini or 𝔐𝔦𝔨𝔯𝔬
 
 openBrushograph_hardware V6.0 builds two machines from one parametric gantry:
@@ -100,7 +162,7 @@ What differs, from the parts in the release's `Standard_STLs.zip` and
 | Z travel | 18 mm | 12 mm |
 | CMYK holder (`colourContainers.scad` preset) | `Standard_CMYK`: 30 / 18.6 mm crucibles (27.6 / 16.2 inside) on 23.6 mm centres, in a 144.4 × 39.2 mm plate | `mikro_container`: 22 / 13 mm crucibles (19.6 / 10.6 inside) on 16 mm centres, in a 96 × 30.2 mm plate |
 | painting area (max width × height) | 151 × 156 | 65 × 100 |
-| canvas offset Y | 25 | 19 |
+| canvas start Y | 25 | 19 |
 | water container at | X12 Y6 | X2 Y6 |
 | swipe | 23.5 mm | 17.5 mm |
 | go in tray lift / dip depth / swipe exit Z | 11 / 1.0 / 5.9 | 10 / 1.0 / 5.3 |
@@ -121,7 +183,7 @@ out at 80.5, out of reach. zero.g's sweep is shortened by the racks and scaled t
 travel. Apart from the painting area, these are derived rather than measured on
 a built 𝔐𝔦𝔨𝔯𝔬.
 
-Choosing a model puts its travel limits and canvas offset in the form, sets up
+Choosing a model puts its travel limits and canvas start in the form, sets up
 its holder's heights (below), puts the water container where the model has room for its holder and spaces
 the others along from it, and shrinks the painted size to fit the bed
 keeping its proportions. Going back to the model the config opened as puts back
@@ -1848,7 +1910,8 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   drawn on, and a machine with a black cup has a CMYK holder by definition,
   since `fit_cups_to_shape` takes the black cup away from a classic one.
 
-  The ticks stand on the **near edge of the canvas**, at `offset_y`, which is
+  The ticks stand on the **near edge of the canvas**, at the canvas origin —
+  `canvas_start_y` plus `offset_y` — which is
   the closest the paper comes to the containers, and they are 20 mm long:
   enough to sight along and to lay a rule against, and well inside one
   pickup — the kept configs carry 150 to 180 mm of painting between dips, and
@@ -1913,8 +1976,8 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   The far edge is `max_width` or `workable_x`, whichever is nearer: the second
   is how far a job already asks the machine to go, and so how far it is known
   to reach — never the axis travel, which is where `zero.g` drives into the
-  stops on purpose. The near edge in Y is the **canvas offset**, which is what
-  keeps the pen out of the containers: on a Mini they sit in the 32 mm of Y
+  stops on purpose. The near edge in Y is the **canvas origin**, which is what
+  keeps the pen out of the containers: on Pinkograph they sit in the 32 mm of Y
   below the paper. Because the sheet covers more than the canvas, it wants a
   **full sheet of paper** on the bed — the file's header says so — or the
   outer marks land on the bed itself.

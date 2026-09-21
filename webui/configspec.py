@@ -152,7 +152,8 @@ MODELS = OrderedDict([
         "classic": True,
         # What choosing the model puts in the form.
         "settings": OrderedDict([
-            ("max_width", 151), ("max_height", 156), ("offset_x", 0), ("offset_y", 25),
+            ("max_width", 151), ("max_height", 156), ("offset_x", 0),
+            ("canvas_start_y", 25),
         ]),
         # Where choosing the model puts the water container; the others are
         # auto-spaced from it.
@@ -181,7 +182,8 @@ MODELS = OrderedDict([
         # 65 × 100 as found on the machine, above a canvas that starts 19 mm
         # out — the 23 mm crucibles on the same Y 6 leave that much.
         "settings": OrderedDict([
-            ("max_width", 65), ("max_height", 100), ("offset_x", 0), ("offset_y", 19),
+            ("max_width", 65), ("max_height", 100), ("offset_x", 0),
+            ("canvas_start_y", 19),
         ]),
         "water": (2, 6),
         # The Mini's sweep, shortened by the racks and scaled to the Z travel,
@@ -237,7 +239,7 @@ def new_config(model: str) -> dict:
     # in. Fitted the way the form fits it, so a new machine cannot open asking
     # to paint off the end of its own bed.
     bg["width"] = max(1, int(m["settings"]["max_width"] - m["settings"]["offset_x"]))
-    bg["height"] = max(1, int(m["settings"]["max_height"] - m["settings"]["offset_y"]))
+    bg["height"] = max(1, int(m["settings"]["max_height"] - m["settings"]["canvas_start_y"]))
     bg.update(NEW_MACHINE_BASE)
     bg["cup_shape"] = "classic" if classic else "modern"
     bg.update(CLASSIC_DISH_SETTINGS if classic else m["holder"]["settings"])
@@ -416,6 +418,7 @@ def with_defaults(conf: dict) -> dict:
     for path, value in ALWAYS_OFFERED.items():
         _dig(out, path).setdefault(path[-1], value)
     _offer_far_backlash(out)
+    _offer_canvas_start(out)
     _offer_black(out)
     # Written back in painting order too, so a saved config says what happens.
     if isinstance(out.get("color_order"), list):
@@ -438,6 +441,50 @@ def _offer_far_backlash(conf: dict) -> None:
         return
     for axis in ("x", "y"):
         bg.setdefault(f"backlash_{axis}_far", bg.get(f"backlash_{axis}", 0.5))
+
+
+def _offer_canvas_start(conf: dict) -> None:
+    """Split a config's one canvas offset into where the bed starts and where the painting does.
+
+    `offset_y` used to be both: the strip the containers stand in, which is a
+    fact about the machine, and however far up the bed this painting was
+    wanted, which is a decision about this painting. One figure for two things
+    means neither can be changed without minding the other — moving a painting
+    5 mm up the paper reads as claiming the containers take 5 mm more room.
+
+    `canvas_start_y` is the machine's share and `offset_y` what is left, and
+    the brush is sent to the two added together. A config written before the
+    split has all of it in `offset_y`: it is moved across here and the offset
+    zeroed, so the machine paints exactly where it painted before and the two
+    boxes now say which part of that figure was which.
+    """
+    bg = conf.get("brushograph")
+    if not isinstance(bg, dict):
+        return
+    if "canvas_start_y" not in bg:
+        bg["canvas_start_y"] = bg.get("offset_y", 0)
+        bg["offset_y"] = 0
+    # A config that names the start but not the offset -- a fresh one, since
+    # the model's settings carry the start alone -- paints at the start.
+    bg.setdefault("offset_y", 0)
+
+
+def canvas_origin(conf: dict) -> tuple[float, float]:
+    """Where the picture's own (0,0) corner lands on the bed.
+
+    X is the offset alone; Y is the machine's canvas start plus this
+    painting's offset from it. Everything that draws or paints the canvas
+    reads it here, so the two figures are added in one place.
+    """
+    bg = conf.get("brushograph", {}) if isinstance(conf.get("brushograph"), dict) else {}
+
+    def num(key):
+        try:
+            return float(bg.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    return num("offset_x"), num("canvas_start_y") + num("offset_y")
 
 
 def is_classic(conf: dict) -> bool:
@@ -517,9 +564,13 @@ def _offer_black(conf: dict) -> None:
 # the next, and the form shows it with the artwork rather than the machine.
 BRUSHOGRAPH_GROUPS = [
     ("Model", ["model"], False),
-    ("Painted size", ["width", "height"], True),
-    ("Canvas",
-     ["offset_x", "offset_y", "max_width", "max_height", "canvas_height"], False),
+    # Where the painting goes and how big it is: the one group that changes
+    # from one run to the next, so it sits with the picture rather than in the
+    # machine setup. The offsets moved in with it — they say where on the bed
+    # this painting lands, which is a decision about this painting.
+    ("Painting dimensions",
+     ["width", "height", "offset_x", "offset_y", "canvas_height"], True),
+    ("Canvas", ["canvas_start_y", "max_width", "max_height"], False),
     ("Brush control",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
     ("Containers",
@@ -576,10 +627,11 @@ HELP = {
                            "Upload & start.",
     "brushograph-width": "Width of a file (mm); you may upload larger files, but they need to be in the same aspect ratio",
     "brushograph-height": "Height of a file (mm); you may upload larger files, but they need to be in the same aspect ratio",
-    "brushograph-offset_x": "X offset for image (0,0) position",
-    "brushograph-offset_y": "Y offset for image (0,0) position",
+    "brushograph-offset_x": "How far right of X0 this painting starts (mm). The picture's own (0,0) corner lands here.",
+    "brushograph-offset_y": "How far past Canvas Start Y this painting starts (mm). 0 puts it at the start of the paintable area, right where the containers end; raise it to paint further up the bed. What the machine is asked for is the two added together.",
+    "brushograph-canvas_start_y": "Where the paintable area begins in Y (mm): the far edge of the strip the containers stand in, and a fact about the machine rather than about this painting. Nothing is painted below it, and the painted height is measured from it — with Offset Y at 0 the canvas starts exactly here. Choosing a model sets it: 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬.",
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
-    "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Offset Y — the strip the containers stand in — so the tallest one is this less that offset: 131 mm of Pinkograph's 156.",
+    "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
     "brushograph-paint_per_run_min": "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",

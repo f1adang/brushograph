@@ -28,8 +28,9 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from configspec import (CMYK_TO_TRAY, RECTANGULAR_SHAPES,  # noqa: E402
-                        cup_shape_of, holder_of, tray_entries, workable_x)
+from configspec import (CLASSIC_DISH_RIM_RADIUS, CMYK_TO_TRAY,  # noqa: E402
+                        RECTANGULAR_SHAPES, canvas_origin, cup_shape_of,
+                        holder_of, tray_entries, workable_x)
 
 FALLBACK_PATTERN = "concentric"
 
@@ -1111,6 +1112,39 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                 log(f"[{who}] bay entered {copicograf.y_floor - entry_y:.1f} mm short at "
                     f"Y {y:g}: the deep end is off the bed, so the swipe is "
                     f"{left:.1f} mm of {full:.1f} and the brush loads with less")
+
+    # Where the containers end and the painting begins. Canvas Start Y says
+    # where the paintable area starts; the cups say where they actually reach,
+    # which is the back of a bay or the rim of a dish. A canvas that starts
+    # inside that is a painting laid over the holder: the brush comes down on
+    # a crucible wall rather than on paper, and the G-code cannot show it,
+    # because both figures are perfectly ordinary numbers on their own.
+    origin_y = canvas_origin(conf)[1]
+    # How far back the holder really stands, which is not how far the brush
+    # goes into it: a design holder is a plate the crucibles sit in, and the
+    # plate is the thing the paper would be laid over. Its depth is known from
+    # where the water crucible sits in it. A custom holder is nobody's design
+    # and has no plate, so its bays are all there is to go on, and a dish is
+    # its rim.
+    if cup_shape_of(conf) in RECTANGULAR_SHAPES:
+        plate = holder["plate"]
+        water = conf.get("trays", {}).get("water")
+        if plate and isinstance(water, dict) and "y" in water:
+            _pw, depth, _wx, wy_in = plate
+            backs = [float(water["y"]) - wy_in + depth]
+        else:
+            backs = [float(tray["y"]) + holder["swipe_length"] / 2
+                     for tray in conf.get("trays", {}).values()
+                     if isinstance(tray, dict) and "y" in tray]
+    else:
+        backs = [float(tray["y"]) + CLASSIC_DISH_RIM_RADIUS
+                 for name, tray in conf.get("trays", {}).items()
+                 if isinstance(tray, dict) and "y" in tray
+                 and name in {e["tray"] for e in tray_entries(conf)}]
+    if backs and origin_y < max(backs) - 1e-9:
+        log(f"the canvas starts at Y {origin_y:g}, {max(backs) - origin_y:.1f} mm inside "
+            f"the containers, which reach Y {max(backs):.1f} — raise Canvas Start Y or "
+            f"move the holder forward")
 
     stats = {"trays": [], "strokes": 0}
 

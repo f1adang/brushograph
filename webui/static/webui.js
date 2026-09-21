@@ -564,17 +564,22 @@ function wireForm() {
   const trayX = (name) => form.querySelector('[name="trays-' + name + '-x"]');
   const trayY = (name) => form.querySelector('[name="trays-' + name + '-y"]');
   const machineInput = (key) => form.querySelector('[name="brushograph-' + key + '"]');
-  /* What is left of the machine for a painting, after the strip the canvas is
+  /* What is left of the machine for a painting, after everything the canvas is
      offset by. Max Width and Max Height are the machine's limits, measured from
      the origin — where the containers sit — and a painting starts at the canvas
-     offset, so the offset comes off the limit. On Pinkograph that is 156 less
-     25: a 149 mm painting was 18 mm past the end of the bed. Infinity when the
-     config carries no limit, which leaves the size alone. */
-  const machineLimit = (limitKey, offsetKey) => {
+     origin, so what stands between the two comes off the limit. In Y that is
+     two figures: Canvas Start Y, the strip the containers stand in, and Offset
+     Y, however far up the bed this painting is wanted from there. On Pinkograph
+     the start alone is 156 less 32: a 149 mm painting was 18 mm past the end of
+     the bed. Infinity when the config carries no limit, which leaves the size
+     alone; an offset the config does not carry is nothing. */
+  const machineLimit = (limitKey, ...offsetKeys) => {
     const limit = parseFloat((machineInput(limitKey) || {}).value);
     if (!isFinite(limit)) return Infinity;
-    const offset = parseFloat((machineInput(offsetKey) || {}).value);
-    return limit - (isFinite(offset) ? offset : 0);
+    return offsetKeys.reduce((left, key) => {
+      const offset = parseFloat((machineInput(key) || {}).value);
+      return left - (isFinite(offset) ? offset : 0);
+    }, limit);
   };
   // Custom cups are spaced from the form's own figures: spacing is centre to
   // centre between colours, and the water cup is parted from cyan by the same
@@ -756,10 +761,10 @@ function wireForm() {
       // the way back, which puts back whatever the config said.
       const width = machineInput("width");
       const height = machineInput("height");
-      // Against what is paintable, not the raw limits: the canvas offset is
+      // Against what is paintable, not the raw limits: the canvas starts past
       // the strip the containers stand in, and no painting reaches into it.
       const maxW = machineLimit("max_width", "offset_x");
-      const maxH = machineLimit("max_height", "offset_y");
+      const maxH = machineLimit("max_height", "canvas_start_y", "offset_y");
       const w = parseFloat(width && width.value);
       const h = parseFloat(height && height.value);
       if (modelSelect.value !== opened.model && width && height && w > 0 && h > 0) {
@@ -821,7 +826,7 @@ function wireForm() {
     img.src = url;
   }
 
-  const paintableHeight = () => machineLimit("max_height", "offset_y");
+  const paintableHeight = () => machineLimit("max_height", "canvas_start_y", "offset_y");
 
   /* The browser's own guard on a height typed by hand, kept in step with the
      two fields it comes from: matching the picture's proportions is the only

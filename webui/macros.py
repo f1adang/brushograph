@@ -39,8 +39,9 @@ G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 from __future__ import annotations
 
 from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
-                        fit_cups_to_shape, holder_of, in_cup_order, model_of,
-                        tray_entries, with_defaults, workable_x)
+                        canvas_origin, fit_cups_to_shape, holder_of,
+                        in_cup_order, model_of, tray_entries, with_defaults,
+                        workable_x)
 from gcode_pipeline import to_ascii
 # After gcode_pipeline, which is what puts the repo root on sys.path: the
 # choreographer lives a directory up, beside the command-line ancestors.
@@ -304,7 +305,10 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # sketch.py falls back the same way for the same reason.
     max_w = _num(bg, "max_width", _num(bg, "width", 200))
     max_h = _num(bg, "max_height", _num(bg, "height", 200))
-    ox, oy = _num(bg, "offset_x", 0), _num(bg, "offset_y", 0)
+    # The corner the canvas starts at: the offset in X, and in Y the machine's
+    # canvas start plus this painting's offset from it. calibrate.g's dot and
+    # containercenter.g's ticks are painted on the canvas, so they follow it.
+    ox, oy = canvas_origin(conf)
 
     out: dict[str, str] = {}
 
