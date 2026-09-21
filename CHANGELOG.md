@@ -20,6 +20,26 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.11.0](https://github.com/f1adang/brushograph/releases/tag/v2.11.0) — 2026-09-21
+
+- **Where the canvas starts and where a painting sits are two settings now.**
+  Offset Y used to be both at once: the strip the containers stand in, which is
+  a fact about the machine, and however far up the bed you wanted this picture.
+  Moving a picture 5 mm up the paper therefore read as claiming the holder took
+  5 mm more room, and cost the picture 5 mm of height. **Canvas Start Y**, under
+  Machine setup → Canvas, is where the paintable area begins — the model sets
+  it, 25 mm on the Mini and 19 on the 𝔐𝔦𝔨𝔯𝔬 — and **Offset Y** is how far
+  past that this painting goes, 0 meaning flush with the start. A machine file
+  written before the split opens with its old figure as the start and an offset
+  of 0, so it paints exactly where it always did. The plan draws the start,
+  labelled, whenever the painting does not begin there, and the run log says so
+  before anything is painted if the canvas starts inside the containers.
+
+- **Painting dimensions sits under the plan now**, outside the Machine setup
+  fold, and carries the offsets and the canvas height along with the painted
+  width and height. It is the one group that changes from one run to the next,
+  and it is what the picture above it draws.
+
 ## [v2.10.6](https://github.com/f1adang/brushograph/releases/tag/v2.10.6) — 2026-09-21
 
 - **The brush no longer stirs a rectangular cup. It picks the colour up in a
