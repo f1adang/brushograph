@@ -964,7 +964,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
             "repository — only the default copicograf generator can be built here."
         )
 
-    from copicograf import Copicograf  # imported late: needs the repo on sys.path
+    from copicograf import Copicograf, dip_lanes  # imported late: needs the repo on sys.path
 
     bg = conf.get("brushograph", {})
     width_mm = float(bg.get("width", 100))
@@ -1012,20 +1012,21 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # gcodes=[] on purpose: Copicograf's default argument is a shared mutable
     # list, so leaving it out would append this run onto the previous one.
     copicograf = Copicograf(conf=conf, gcodes=[])
-    # copicograf knows the Mini's holder only; the swipe and the stir in the
-    # paint before it fit the model's.
+    # copicograf knows the Mini's holder only; the swipe and the lanes the
+    # dips are spread over fit the model's.
     holder = holder_of(conf)
     copicograf.cup_depth = holder["swipe_length"]
     copicograf.cup_width = holder["bay_width"]
     copicograf.water_cup_width = holder["water_bay_width"]
-    # The stir is held inside the ground a job already covers — the containers
-    # and the canvas — not the axis travel. Backlash compensation writes every
-    # coordinate low by up to the take-up while the axis travels left, so the
-    # near end keeps off the endstop by that much. The far end needs nothing:
-    # the compensated file never asks for more X than the path did.
+    # The lanes are held inside the ground a job already covers — the
+    # containers and the canvas — not the axis travel. Backlash compensation
+    # writes every coordinate low by up to the take-up while the axis travels
+    # left, so the near end keeps off the endstop by that much. The far end
+    # needs nothing: the compensated file never asks for more X than the path
+    # did.
     # The largest of the X figures, not the near one: the play is read at both
     # ends of the axis now, and the floor has to hold against whichever end the
-    # stir happens to be at.
+    # cup happens to be at.
     take_up = max(_figure(bg, "backlash_x"),
                   _figure(bg, "backlash_x_far")) if bg.get("backlash_compensation", True) else 0.0
     copicograf.x_limits = (take_up, workable_x(conf))
@@ -1040,25 +1041,31 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     # into a canvas whose top edge, at Y 140, is the travel limit exactly.
     copicograf.y_floor = (max(_figure(bg, "backlash_y"), _figure(bg, "backlash_y_far"))
                           if bg.get("backlash_compensation", True) else 0.0)
-    # A crucible near either end of the axis cannot be stirred the whole way
-    # across: the stir stays centred on it and gives up the same distance on
-    # both sides, so it goes short rather than lopsided. Worth saying, because
-    # the G-code just has a shorter move in it and the paint mixes less.
-    if cup_shape_of(conf) in RECTANGULAR_SHAPES and copicograf.cup_mix_sweeps:
-        lo, hi = copicograf.x_limits
+    # A crucible near either end of the axis has less room across it than the
+    # bay is wide, so the dips cannot spread over the whole of it: the lanes
+    # stay centred on the cup and give up the same distance on each side,
+    # going short rather than lopsided. Worth saying, because the G-code just
+    # has its dips closer together and the paint mixes less.
+    if cup_shape_of(conf) in RECTANGULAR_SHAPES and copicograf.cup_dip_lanes > 1:
         for name, tray in sorted(conf.get("trays", {}).items()):
             if not isinstance(tray, dict) or "x" not in tray:
                 continue
             x = float(tray["x"])
-            full = (holder["water_bay_width"] if name == "water"
-                    else holder["bay_width"]) / 2 * 0.7
-            reach = min(full, x - lo, hi - x)
-            if reach < 0.5:
-                log(f"[{name}] no room to stir at X {x:g} — dipping without it: "
-                    f"the crucible is the outermost thing the machine goes to")
-            elif reach < full - 0.05:
-                log(f"[{name}] stir shortened to +/-{reach:.1f} mm of {full:.1f} — "
-                    f"X {x:g} leaves it short of the ground a job covers")
+            width = (holder["water_bay_width"] if name == "water"
+                     else holder["bay_width"])
+            # 70% of the width, which is what the lanes get when nothing is
+            # in the way: 15% of the bay off each wall, as the swipe leaves
+            # off its own ends.
+            full = width * 0.7
+            lanes = dip_lanes(x, width, copicograf.cup_dip_lanes, copicograf.x_limits)
+            spread = max(lanes) - min(lanes)
+            if len(lanes) == 1:
+                log(f"[{name}] no room to spread the dips at X {x:g} — every one "
+                    f"of them down the middle: the crucible is the outermost "
+                    f"thing the machine goes to")
+            elif spread < full - 0.05:
+                log(f"[{name}] dips spread over {spread:.1f} mm of {full:.1f} — "
+                    f"X {x:g} leaves the bay short of the ground a job covers")
     # The round-cup figures are optional in copicograf, because a machine with
     # no petri dish holder should not have to carry figures describing one --
     # the Mikro has none, and demanding them made a freshly created Mikro

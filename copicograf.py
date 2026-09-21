@@ -26,6 +26,43 @@ DIP_MARKER = "; dip"
 # 0.4° more and past that it is all file and no smoothness.
 RAMP_CHORDS = 12
 
+# How many places across a rectangular bay the dips are spread over, when the
+# config does not say. Odd on purpose: the stride below wants a lane count it
+# is coprime with, and an odd one always has 2 to hand.
+DEFAULT_DIP_LANES = 5
+
+
+def dip_lanes(tray_x, width, lanes, x_limits=(0.0, float("inf"))):
+    """The X positions successive dips into one bay use, in visiting order.
+
+    A bay is loaded by going straight down and drawing the brush up the
+    stairs, which works the paint along one line across the bay and leaves
+    the rest of it alone. Moving that line for each pickup is what mixes the
+    cup: the pigment that settles gets lifted wherever the brush lands next,
+    and no single lane is scraped bare while the paint beside it is untouched.
+
+    The lanes are evenly spaced over the same 70% of the width the stir used,
+    which keeps 15% of the bay off each wall, and they are stepped through a
+    stride at a time rather than left to right, so one pickup and the next
+    land at opposite ends of the bay instead of creeping across it. The stride
+    is the largest one coprime with the count, so every lane is still visited
+    once per cycle: five lanes go 0 2 4 1 3, which is -r, 0, +r, -r/2, +r/2.
+
+    Kept inside x_limits the way the stir was, and by shrinking rather than
+    clipping: a bay at the end of the axis gives up the same distance on each
+    side, so its lanes stay centred on the cup instead of bunching against the
+    near rim. Under half a millimetre of reach there is nothing to spread, and
+    every pickup goes down the middle.
+    """
+    lanes = max(1, int(lanes))
+    lo, hi = x_limits
+    reach = min(width / 2 * 0.7, tray_x - lo, hi - tray_x)
+    if lanes == 1 or reach < 0.5:
+        return [tray_x]
+    stride = next(s for s in range(lanes // 2, 0, -1) if math.gcd(s, lanes) == 1)
+    return [tray_x - reach + 2 * reach * ((i * stride) % lanes) / (lanes - 1)
+            for i in range(lanes)]
+
 
 def _read_plain_move(line_text):
     """(text, xy) for a plain move, as the pygcode path would have seen it.
@@ -143,13 +180,18 @@ class Copicograf:
         # to the play while the axis travels down.
         self.y_floor = 0.0
         self.cup_swipe_exit_z = float(bg.get("cup_swipe_exit_z", 1.0))
-        # Sweeps across the bay, down in the paint, before the swipe up the
-        # stairs. 0 goes straight up them, which is what every rectangular bay
-        # did before.
+        # How many places across the bay the dips are spread over. 1 puts every
+        # one of them down the middle, which is what a rectangular bay did
+        # before there was anything to mix the paint.
         try:
-            self.cup_mix_sweeps = max(0, int(bg.get("cup_mix_sweeps", 2)))
+            self.cup_dip_lanes = max(1, int(bg.get("cup_dip_lanes", DEFAULT_DIP_LANES)))
         except (TypeError, ValueError):
-            self.cup_mix_sweeps = 2
+            self.cup_dip_lanes = DEFAULT_DIP_LANES
+        # Which lane each cup is due next, keyed by where the cup is. Per cup,
+        # so every one of them works its own paint evenly however often the
+        # job visits it — the water is dipped three times a wash and a colour
+        # once a pickup.
+        self._next_lane = {}
 
         self.offset_y = float(self.conf["brushograph"]["offset_y"])
         self.offset_x = float(self.conf["brushograph"]["offset_x"])
@@ -497,7 +539,28 @@ class Copicograf:
             # collapses to one point rather than swiping backwards.
             entry_y = max(entry_y, self.y_floor)
             exit_y = max(exit_y, entry_y)
+            # Where across the bay each of these dips goes down. A round cup
+            # is entered in the middle however often it is visited — that is
+            # the point furthest from the wall in every direction — and it
+            # mixes its own paint with the chord it sweeps down there.
+            if self.cup_shape in ("modern", "custom"):
+                lanes = dip_lanes(tray_x,
+                                  self.water_cup_width if water else self.cup_width,
+                                  self.cup_dip_lanes, self.x_limits)
+            else:
+                lanes = [tray_x]
+            # Carried on from wherever this cup was last left off, so the lanes
+            # advance across a whole job rather than restarting at the same
+            # place every pickup. Keyed by the cup, to a tenth of a millimetre:
+            # a trip is asked for in the coordinates the config gives, and the
+            # water cup and a colour are different cups.
+            cup = (round(tray_x, 1), round(tray_y, 1))
+            lane_at = self._next_lane.get(cup, 0)
+            last_x = tray_x
             for i in range(num_of_entries):
+                dip_x = lanes[lane_at % len(lanes)]
+                lane_at += 1
+                last_x = dip_x
                 first_coords, second_coords = get_coords_in_tray(tray_x, tray_y)
                 if i == 0:
                     # Straight up off the paper first, because the brush is
@@ -515,13 +578,14 @@ class Copicograf:
                     # lifted it there — so it wants the ramp without a second
                     # lift, which was a hop in the air when they were one flag.
                     travel_with_z(x + self.offset_x, y + self.offset_y,
-                                  tray_x, entry_y, clear, self.go_in_tray_lift,
+                                  dip_x, entry_y, clear, self.go_in_tray_lift,
                                   to_cup=True,
                                   ramp=from_canvas if ramp is None else ramp)
                 else:
                     # Already over the tray, and already at the tray lift: the
-                    # entry before this one ended there.
-                    self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(entry_y)))
+                    # entry before this one ended there. Across to this dip's
+                    # lane on the way down the bay, in the air over the rim.
+                    self.gcodes.append(GCodeRapidMove(X=_mm(dip_x), Y=_mm(entry_y)))
 
                 if first_coords[1] > 1000 or second_coords[1] > 1000:
                     print("napaka")
@@ -540,53 +604,31 @@ class Copicograf:
                     # heights, which the holder's STL does not carry: its     #
                     # bays are open, the floor is not part of that model.     #
                     ###########################################################
-                    near, far = entry_y, exit_y
+                    far = exit_y
                     self.gcodes.append(DIP_MARKER)
                     self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
 
                     #######################################################
-                    # Stir first. The brush sweeps the width of the bay   #
-                    # at the deep end, down in the paint, the way the     #
-                    # round cups have always swept their chord: it lifts  #
-                    # pigment that has settled and works paint up into    #
-                    # the bristles, which a single pass through the bay   #
-                    # does not.                                           #
+                    # Straight down and straight up the stairs, and       #
+                    # nothing else while the brush is in the paint.       #
                     #                                                     #
-                    # Across X, because the stairs climb along Y — this   #
-                    # is the one direction that stays at dip depth — and  #
-                    # before the swipe rather than after, since the swipe #
-                    # is also what wipes the brush, and a stir on the way #
-                    # out would put back the paint it has just drawn off. #
+                    # There used to be a stir here, a sweep or two across #
+                    # the bay at dip depth before the swipe. It mixed the #
+                    # cup and it spoiled the load: a sweep picks pigment  #
+                    # up on the way out and wipes it off against the      #
+                    # paint on the way back, and it does it by dragging   #
+                    # the bristles sideways along the floor, which splays #
+                    # a brush that is about to be asked for a 1 mm line.  #
+                    # The swipe up the stairs decides what leaves the cup #
+                    # on the brush, so it is the only thing that should   #
+                    # touch the paint.                                    #
+                    #                                                     #
+                    # The mixing is moving the whole pickup instead: this #
+                    # dip is a lane or more across the bay from the last  #
+                    # one. See dip_lanes().                               #
                     #######################################################
-                    # 70% of the half-width leaves the sweep the same 15% of
-                    # the bay off each wall that the swipe leaves off its ends.
-                    #
-                    # Then kept on the machine, and kept centred on the cup
-                    # while doing it. A holder can hang over the bed at either
-                    # end — Pinkograph's water crucible is 39.2 mm wide with
-                    # its centre at X 12, so half of it is past the endstop,
-                    # and its black crucible sits at 153 of a 160 mm axis, most
-                    # of its right half out of reach. Clipping the far end
-                    # alone left the stir sitting in the left half of the
-                    # crucible, working against the near rim and leaving the
-                    # rest of the paint alone. So the shorter side sets both:
-                    # the stir keeps the cup's centre as its own and gives up
-                    # the same distance on each side, which is a smaller stir
-                    # in a cup at the end of the axis and no stir at all in one
-                    # with under a millimetre to work in.
-                    width = self.water_cup_width if water else self.cup_width
-                    lo, hi = self.x_limits
-                    reach = min(width / 2 * 0.7, tray_x - lo, hi - tray_x)
-                    left, right = tray_x - reach, tray_x + reach
-                    if reach >= 0.5:
-                        for _ in range(self.cup_mix_sweeps):
-                            self.gcodes.append(GCodeRapidMove(X=_mm(left), Y=_mm(near)))
-                            self.gcodes.append(GCodeRapidMove(X=_mm(right), Y=_mm(near)))
-                        if self.cup_mix_sweeps:
-                            self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(near)))
-
                     self.gcodes.append(GCodeLinearMove(
-                        X=_mm(tray_x), Y=_mm(far), Z=self.cup_swipe_exit_z))
+                        X=_mm(dip_x), Y=_mm(far), Z=self.cup_swipe_exit_z))
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
                 else:
                     ###########################################################
@@ -603,6 +645,8 @@ class Copicograf:
                     self.gcodes.append(GCodeRapidMove(X=second_coords[0], Y=second_coords[1]))
                     self.gcodes.append(GCodeRapidMove(X=_mm(tray_x), Y=_mm(tray_y)))
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+
+            self._next_lane[cup] = lane_at % len(lanes)
 
             # The rim wipe is for a round cup, where the brush comes straight
             # up out of the paint carrying a drop. A modern bay has already
@@ -626,7 +670,7 @@ class Copicograf:
                 # between-shapes clearance as it crosses the canvas, so the
                 # brush arrives one short drop above the paper rather than
                 # standing still at the far end while Z comes down.
-                travel_with_z(tray_x, exit_y, x + self.offset_x, y + self.offset_y,
+                travel_with_z(last_x, exit_y, x + self.offset_x, y + self.offset_y,
                               self.go_in_tray_lift, clear, to_cup=False)
                 self.gcodes.append(GCodeRapidMove(Z=self.canvas_height))
             set_normal_speed()

@@ -773,8 +773,9 @@ every move after it landed short by as much, which on a file that paints black
 last was the whole black plate, shifted 3 mm. The same job now reaches X 156.0
 and Y 101.864, both exactly the path's own extremes, where the old one reached
 Y 103.464. `workable_x` remains as a floor under the near end, where a
-coordinate written low could otherwise ask for less than zero; the stir keeps
-off that end by the take-up and no longer gives up anything at the far one.
+coordinate written low could otherwise ask for less than zero; the dip lanes
+keep off that end by the take-up and no longer give up anything at the far
+one.
 
 Reversals shorter than 0.05 mm, Studio's figure, are not reversals. On a job out
 of this pipeline that is nearly free — 148 take-ups against 149 without it,
@@ -1336,8 +1337,8 @@ a config whichever setup is picked, so switching away and back keeps them.
 Its floor is a staircase, so loading is one swipe from the deep end to the
 shallow one, rising as it goes:
 
-    G00 X53 Y-4      ; deep end, in front
-    G00 Z-4          ; down into the paint, at dip_depth
+    G00 X53 Y-4      ; deep end, in front, in this pickup's lane
+    G00 Z-4          ; straight down into the paint, at dip_depth
     G01 X53 Y16 Z1   ; draw the length of the bay, climbing to cup_swipe_exit_z
     G00 Z8           ; clear
 
@@ -1362,6 +1363,84 @@ fault the wipe had, on the grounds that both had done it on this machine all
 along. That was wrong, and it is worth saying how it looked when it finally
 bit, because the symptom was nowhere near the cause.
 
+#### Mixing the cup by moving the dip
+
+One swipe works one line across the bay and leaves the paint either side of it
+alone, so something has to mix the cup. For a while that something was a
+**stir**: the brush swept the width of the bay at dip depth, twice by default
+(`cup_mix_sweeps`), before it swiped out.
+
+It mixed the cup and it spoiled the load. The swipe up the stairs is what
+decides what leaves the cup on the brush, and everything before it is either
+neutral or in the way — a sweep picks pigment up on the pass out and wipes it
+off against the paint on the pass back, and it does it by dragging the bristles
+sideways through the settled colour on the floor, which splays a brush that is
+about to be asked for a 1 mm line. A round cup gets away with the same
+motion because it is a chord through the middle of a dish and it comes straight
+back up; a crucible is swept along its floor, which the dip depth puts just
+under the bristles — 1.0 against a 1.2 mm floor on both design holders, which
+is bristles flexing for the whole width of the bay.
+
+The mixing is done by **moving the whole pickup** now. `dip_lanes()` spreads
+the dips over a set of lanes across the bay — five by default (`cup_dip_lanes`)
+— and each pickup takes the next one, so the cup is worked over its width by
+where the brush lands rather than by what it does once it is down there. Each
+lane is a straight drop and a swipe out, and nothing at all moves sideways at
+dip depth.
+
+The lanes sit over the middle **70%** of the bay, the same 15% off each wall
+the swipe leaves off its own ends, and they are visited a **stride** at a time
+rather than left to right: the largest stride coprime with the count, so every
+lane is still used once per cycle and no two consecutive pickups are
+neighbours. Five lanes go 0 2 4 1 3, which is −r, 0, +r, −r/2, +r/2. Five is
+the default partly because an odd count always has 2 to hand; an even one falls
+back to a stride of 1 and creeps across the bay instead, which mixes it in the
+end and mixes it slower.
+
+Each cup counts its own lanes, in a dict keyed by where the cup is, so a colour
+dipped once a pickup and the water dipped three times a wash each work their
+way evenly across themselves however often the job visits them.
+
+They are clipped like the stir was and for the same reason, by shrinking rather
+than by cutting one end off: `x_limits` holds them inside the ground a job
+already covers, the near end off the endstop by the backlash take-up. On
+Pinkograph that gives cyan five lanes 5.11 mm apart over 20.4 mm of a 29.2 mm
+cup; the 39.2 mm water crucible at X 15 is clipped to 26.2 mm of its 27.4, and
+black at X 156 — the outermost thing the machine goes to — has no room at all,
+so every dip in it goes down the middle and the run log says so. On the Mini's
+CMYK holder the colours' 16.2 mm crucibles give 11.3 mm of spread, 2.8 mm
+between lanes.
+
+The same job, three plates on that config, painted from the same seed so the
+two files are comparable move for move:
+
+| | stir | lanes |
+|---|---|---|
+| lines | 2817 | 2452 |
+| XY moves | 2266 | 1915 |
+| backlash take-ups | 571 | 401 |
+| XY travel | 47.81 m | 44.40 m |
+| travelled at dip depth | 3.67 m | none |
+| dips | 39 | 39 |
+
+The stir cost about twice its own moves: every sweep is a reversal in X, so the
+backlash pass wrote a take-up for each one, and 180 stir moves came with 170
+take-ups behind them. The extremes of the file are unchanged
+(X −1.90..132.22), because the lanes are bounded by what the stir was bounded
+by. Nothing now moves sideways at dip depth at all: every millimetre the brush
+travels in the paint is the swipe, already climbing.
+
+`cup_mix_sweeps` is retired rather than left lying about. The form is built
+from the config's own keys, so a key nothing reads keeps its box — sitting in
+the Containers group beside the setting that replaced it, implying it still
+does something. `configspec.RETIRED` is dropped in `with_defaults`, which is
+the mirror of `ALWAYS_OFFERED` and runs just before it: the control goes when
+the config is read, and the key goes out of the file the next time it is kept.
+
+clean.g's wash walks the lanes too, so a wash works the width of the water
+rather than the same line of it three times, and the macro and a job still
+agree on what a dip is.
+
 #### A bay deeper than the strip it stands in
 
 Brushparang's five cups sit at **Y −3** and their bays are 30 mm deep, so the
@@ -1374,8 +1453,8 @@ the job's highest move is Y 139.8 against a travel limit of 140, which fits
 exactly until it is being asked for 11 mm higher than it says. A crash at the
 bottom of the bed, reported as a crash at the top, several hundred moves later.
 
-The floor under X had existed since the stir was clipped to `x_limits`; the
-same floor under Y had not. `Copicograf.y_floor` is it, set by the pipeline
+The floor under X had existed since the motion across the bay was clipped to
+`x_limits`; the same floor under Y had not. `Copicograf.y_floor` is it, set by the pipeline
 the way `x_limits` is, and `entry_y` is clamped to it — so the brush enters
 further back along the bay and the swipe is shorter by what was clipped. On
 Brushparang that is a swipe of **7 mm of 21**, which is less paint worked into
@@ -1383,8 +1462,8 @@ the bristles and is said in the run log, because the G-code shows only a
 shorter move and the cause is a container position, which is a thing in the
 form that can be corrected. The classic sweep gets the same treatment by
 shrinking `tray_enter_radius` rather than clipping one end of the chord — the
-argument the stir across X already makes, since clipping one end leaves the
-sweep working one side of the dish and leaving the rest of the paint alone.
+argument the dip lanes make across X, since clipping one end leaves the sweep
+working one side of the dish and leaving the rest of the paint alone.
 
 `apply_backlash` needed the same floor for its own reason: it had `x_range`
 under X and nothing under Y, so a park at Y 0 came out as **Y −0.5** on a
@@ -1409,7 +1488,7 @@ Both ends then read lower again in the file by Pinkograph's 1.6 mm of Y play,
 which is what **Backlash compensation** writes while the axis travels that way.
 
 The wash goes through the same motion, so in a rectangular bay its three dips
-become three swipes the length of the water. That rinses more, not less, and
+become three swipes the length of the water, each in its own lane across it. That rinses more, not less, and
 it still wipes nothing on the way out (`remove_drop=False`).
 
 #### Six millimetres of container Y, and what they cost

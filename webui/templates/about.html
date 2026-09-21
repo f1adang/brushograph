@@ -62,11 +62,13 @@ try { var t = localStorage.getItem("brushograph-theme");
     <li data-i18n="note-dip"><b>Dip Depth</b> sets how far the brush goes into a cup. It was fixed at
     Z&nbsp;&minus;4, which is deeper than a shallow dish needs. It is always offered, even by a
     config that does not mention it, as are the backlash settings, which are ticked unless the config says otherwise.</li>
-    <li data-i18n="note-mix"><b>Cup Mix Sweeps</b> is how many times the brush sweeps across a
-    rectangular cup, down at dip depth, before it swipes up the stairs and out. Each sweep stirs
-    the paint and works it into the bristles; the swipe out is also what wipes them, so the
-    stirring goes first. The round cups have always swept a chord down in the paint &mdash; this is
-    that, for the crucibles. 0 goes straight up the stairs, as before. The sweep is kept inside
+    <li data-i18n="note-mix"><b>Cup Dip Lanes</b> is how many places across a rectangular cup the
+    pickups are spread over. The brush goes straight down at one of them and swipes up the stairs
+    from there, and the next pickup takes another, so the paint is mixed by where the brush lands
+    rather than by being stirred once it is down there &mdash; a brush dragged sideways through
+    settled colour splays, and wipes off against the paint what the pass before it picked up.
+    The lanes sit over the middle 70% of the cup and are visited out of order, so one pickup and
+    the next work opposite ends of it. 1 puts every pickup down the middle. They are kept inside
     the machine's travel, which matters on a holder whose widest cup hangs over an endstop.</li>
     <li data-i18n="note-backlash">The preview shows the path without backlash compensation. Those corrective moves are for
     the machine's slack, and drawing them would bury the artwork in strokes that are not in it.</li>

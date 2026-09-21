@@ -42,6 +42,9 @@ from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
                         fit_cups_to_shape, holder_of, in_cup_order, model_of,
                         tray_entries, with_defaults, workable_x)
 from gcode_pipeline import to_ascii
+# After gcode_pipeline, which is what puts the repo root on sys.path: the
+# choreographer lives a directory up, beside the command-line ancestors.
+from copicograf import DEFAULT_DIP_LANES, dip_lanes  # noqa: E402
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
@@ -177,34 +180,20 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
         # Every wash drove into it, and what a move loses against a stop it
         # loses for the whole of the rest of the file.
         near = max(near, 0.0)
-        # The same stir copicograf makes before climbing out, kept on the bed
-        # the same way — the water crucible is the wide one, and wide enough
-        # on some holders to hang over the endstop.
-        reach = holder["water_bay_width"] / 2 * 0.7
-        sweeps = int(_num(bg, "cup_mix_sweeps", 2))
-        # Centred on the cup, however near the end of the axis it sits: the
-        # shorter side sets both, as it does in copicograf, and neither side
-        # goes past the ground a job already covers — the far end of that is
-        # the endstop, and a move that reaches it loses steps against it.
-        reach = min(reach, tray_x, workable_x(conf) - tray_x)
-        left, right = tray_x - reach, tray_x + reach
-        if reach < 0.5:
-            sweeps = 0
-        for _ in range(max(1, reps)):
+        # The lanes copicograf spreads its dips over, worked out the same way
+        # and kept on the bed the same way — the water crucible is the wide
+        # one, and wide enough on some holders to hang over the endstop. The
+        # macro's own dips walk along them the way a job's do, so a wash works
+        # the width of the water rather than the same line of it three times.
+        lanes = dip_lanes(tray_x, holder["water_bay_width"],
+                          _num(bg, "cup_dip_lanes", DEFAULT_DIP_LANES),
+                          (0.0, workable_x(conf)))
+        for i in range(max(1, reps)):
+            dip_x = lanes[i % len(lanes)]
             lines += [
-                f"G00 X{_fmt(tray_x)} Y{_fmt(near)}",
+                f"G00 X{_fmt(dip_x)} Y{_fmt(near)}",
                 f"G00 Z{_fmt(dip)}",
-            ]
-            for i in range(max(0, sweeps)):
-                lines += [
-                    f"G00 X{_fmt(left)} Y{_fmt(near)}"
-                    + (" ; stir, then load" if i == 0 else ""),
-                    f"G00 X{_fmt(right)} Y{_fmt(near)}",
-                ]
-            if sweeps > 0:
-                lines.append(f"G00 X{_fmt(tray_x)} Y{_fmt(near)}")
-            lines += [
-                f"G01 X{_fmt(tray_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs — wipes itself",
+                f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs — wipes itself",
                 f"G00 Z{_fmt(lift)}",
             ]
         return lines
