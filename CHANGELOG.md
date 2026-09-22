@@ -22,6 +22,14 @@ version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.14.0](https://github.com/f1adang/brushograph/releases/tag/v2.14.0) — 2026-09-22
 
+- **Uploading the macros waits a moment between files, and tries a file again
+  if it drops.** With eleven macros to send rather than seven, the machine
+  started refusing part way through: it is an ESP32 finishing one file on its
+  flash while being asked for the next. If it still gives up, the message now
+  names the file it stopped at and mentions the other likely cause — a flash
+  filesystem with no room left, which fails at the same file however long the
+  wait.
+
 - **A painting keeps 2 mm clear of the far end of each axis.** Max Width and
   Max Height are where the machine stops, and a painting that ran to one of
   them ended on the endstop: a photograph at full size on a 140 mm axis put 142
