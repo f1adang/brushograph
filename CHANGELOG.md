@@ -37,6 +37,16 @@ version's heading appears with its first bullet and grows until it is tagged.
   slightly less paint. **Hatching at 0** still fills the shadows in, since with
   no strokes to draw one with that is all that is left.
 
+- **The macros move at the top speed the machine is set up for.** Six of the
+  seven crossed the bed at the rate a stroke is painted at — F1200 where the
+  machine is driven at F2000 — and a macro is not a painting: parking the
+  brush, clearing the bed for a sheet of paper, washing and zeroing are all
+  waiting. They travel at the Fast rate now and drop to the painting rate only
+  for the marks they actually put on the paper, which is what a job does too.
+  On a GRBL or FluidNC machine, where G0 already runs at the controller's own
+  maximum, what this speeds up are the fed moves: the swipe out of a cup, a
+  drawn tick, a gauge line.
+
 - **No macro drives faster than the machine's own Fast feedrate.** zero.g swept
   to the far corner at F2100 whatever the machine was set to — that figure came
   off the hardware it was first tuned on — and a sweep that ends in the
