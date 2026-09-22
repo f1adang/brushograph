@@ -37,6 +37,16 @@ version's heading appears with its first bullet and grows until it is tagged.
   slightly less paint. **Hatching at 0** still fills the shadows in, since with
   no strokes to draw one with that is all that is left.
 
+- **The black cup gets its colour picked up in a different place each time,
+  like the others.** Black sits at the far end of the holder, and the spread of
+  pickup positions was held inside the ground a job already covers by giving up
+  the same distance on each side of the cup — which for the outermost cup is
+  all of it. Every pickup from black went down the same line, on every job since
+  the feature was added. The spread now uses whatever room there is on each
+  side: on a holder whose black crucible is at the end of the travel that is
+  half the bay instead of none of it, and the machine still never reaches
+  further than it already did.
+
 - **Detail means something at the top of the slider now.** It used to be nearly
   inert: everything in the cut is measured in brush widths, and the working
   resolution follows the slider, so the brush grew with it and the cut came out
