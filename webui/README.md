@@ -890,6 +890,53 @@ almost none or almost all of the frame, since isolating gains nothing there.
 Tonal bands are measured from the subject alone, so isolating does not wash the
 result out.
 
+### The concentric fill spirals
+
+A concentric fill is nested rings, and it used to be handed over as nested
+rings: one path each. That is what a slicer does, and a slicer is not holding a
+wet brush. Two things came of it.
+
+**Each ring cost a brush-down.** A shape three rings deep was three lifts,
+three places and three chances to re-ink, where one stroke would do.
+
+**And the ordering pass wandered.** `order_polylines` goes to whatever is
+nearest, and after the long outline of a big shape the nearest thing is often
+not that shape's next ring in — it is the outer ring of some sliver beside it,
+because a ring's end is where it began and the next ring in starts wherever
+`findContours` chose to start it. So the fill would outline a big area and then
+pick at a corner instead of working inwards, which is exactly what it looked
+like.
+
+Chaining did not save it. The bridge pass joins ends within 1.5 line widths and
+would have spiralled a rectangle, whose rings all begin at the same corner — but
+on a real shape the topmost-leftmost point moves about between depths, so the
+ends were not where each other were. It joined 57 of 971 rings on the job that
+showed this up.
+
+`_spiral` walks a nest as one path instead: round the outer ring, **in to the
+nearest point of the ring below it**, round that, and on to the middle. It is
+the line a person fills a shape with and it is one stroke with no lift in it.
+Rings sit exactly one line width apart, so the step inward may reach
+`SPIRAL_REACH` (2.2) line widths and no further — past that it is not the ring
+below, it is another shape, and it starts a spiral of its own. One ring a depth
+a spiral, too, or a shape that erodes into two gets both halves sewn to the same
+tail.
+
+On the photograph that showed it up, at 0.5 mm:
+
+| | rings handed over | brush-downs | mean stroke | paint |
+|---|---|---|---|---|
+| before | 1156 | 1219 | 18.8 mm | +0.2% |
+| spiralled | 880 | 1028 | 22.5 mm | +0.1% |
+
+191 fewer brush-downs for the same picture, and the paint figure is *lower*:
+the steps inward overlap a little ink, and they replace the travel that used to
+cross it.
+
+It changes nothing for the `lines` style, which has one depth of rings and its
+scanlines besides, and nothing for a shape only one ring deep — which is most
+of a photograph, and why the figures move by a fifth rather than by a half.
+
 ### Long brush strokes
 
 A watercolour brush wants few long strokes, not raster fill: every extra stroke

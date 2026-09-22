@@ -46,6 +46,11 @@ FALLBACK_PATTERN = "concentric"
 # little further out covers it, the way the slicer's extrusion width did.
 EDGE_BIAS = 0.8
 
+# How far the step from one ring to the one inside it may reach, in line
+# widths. Rings sit exactly one apart, so a step much longer than that is not
+# the ring below -- it is another shape, and it starts a spiral of its own.
+SPIRAL_REACH = 2.2
+
 # A shape flatter than this in pixels cannot hold a ring worth painting.
 _MIN_RING_PTS = 3
 
@@ -59,6 +64,73 @@ SIMPLIFY_PX = 0.75
 def _distance(ink: np.ndarray) -> np.ndarray:
     """Every pixel's distance, in pixels, to the nearest bare paper."""
     return cv2.distanceTransform(ink.astype(np.uint8), cv2.DIST_L2, 5)
+
+
+def _spiral(by_depth: list[list[list[tuple[float, float]]]],
+            reach: float) -> list[list[tuple[float, float]]]:
+    """Rings, outermost first, joined into one stroke a shape.
+
+    A concentric fill is nested rings, and it used to be handed over as nested
+    rings: one brush stroke each, lifted between, and painted in whatever order
+    the ordering pass made of them. That is what a slicer does, and a slicer is
+    not holding a wet brush. Two things came of it. Each ring cost a lift and a
+    place, so a shape three rings deep was three brush-downs where one would
+    do. And the ordering pass, which goes to whatever is nearest, would finish
+    the outline of a big shape and then wander off into the rings of a sliver
+    beside it, because the sliver's rings were nearer than the next ring in --
+    the fill *looked* like it was picking at a corner instead of working
+    inwards, and it was.
+
+    So a nest is walked as one path: round the outer ring, in to the nearest
+    point of the ring below it, round that, and on to the middle. It is the
+    line a person fills a shape with, and it is one stroke with no lift in it.
+
+    `reach` is how far the step inward may be. Rings sit one line width apart,
+    so anything much over that is a different shape and starts a spiral of its
+    own -- which is what keeps the two sides of a shape that erodes into two
+    from being sewn together across the gap between them.
+    """
+    spirals: list[list[tuple[float, float]]] = []
+    open_ends: list[int] = []                 # indices of spirals still growing
+    for rings in by_depth:
+        next_open: list[int] = []
+        taken: set[int] = set()
+        for contour in rings:
+            if len(contour) < 2:
+                continue
+            best = None
+            for idx in open_ends:
+                if idx in taken:
+                    continue        # one ring a depth a spiral, or two
+                                    # sub-regions get sewn to the same tail
+                tail = spirals[idx][-1]
+                at, d2 = _nearest(contour, tail)
+                if d2 <= reach * reach and (best is None or d2 < best[1]):
+                    best = (idx, d2, at)
+            if best is None:
+                spirals.append(list(contour))
+                next_open.append(len(spirals) - 1)
+                continue
+            idx, _, at = best
+            taken.add(idx)
+            # Round the ring from the point nearest where the last one ended,
+            # and all the way round to it again: a ring is a closed loop, so
+            # where it is entered is the only choice to make about it.
+            turned = contour[at:] + contour[1:at + 1] if at else list(contour)
+            spirals[idx].extend(turned)
+            next_open.append(idx)
+        open_ends = next_open
+    return spirals
+
+
+def _nearest(contour: list[tuple[float, float]], to: tuple[float, float]):
+    """Which vertex of `contour` is closest to `to`, and how far it is, squared."""
+    at, best = 0, None
+    for i, (x, y) in enumerate(contour):
+        d2 = (x - to[0]) ** 2 + (y - to[1]) ** 2
+        if best is None or d2 < best:
+            at, best = i, d2
+    return at, (best if best is not None else 0.0)
 
 
 def _contours_at(dt: np.ndarray, depth_px: float, sx: float, sy: float,
@@ -162,10 +234,10 @@ def build(ink: np.ndarray, width_mm: float, height_mm: float, line_w: float,
         if len(depths) > 1:
             workers = min(len(depths), os.cpu_count() or 1)
             with ThreadPoolExecutor(max_workers=workers) as pool:
-                for rings in pool.map(ring, depths):
-                    paths.extend(rings)
+                by_depth = list(pool.map(ring, depths))
         else:
-            paths.extend(ring(depths[0]))
+            by_depth = [ring(depths[0])]
+        paths.extend(_spiral(by_depth, line_w * SPIRAL_REACH))
 
     if infill and style == "lines":
         inner = first_mm + walls * line_w
