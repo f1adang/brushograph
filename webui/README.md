@@ -2052,7 +2052,8 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   endstop, which they otherwise hit.
   Fixed and tuned on the actual hardware, except its very last line, which is
   not: it ends the same way `home.g` and `clean.g` do, parked at X0 Y0,
-  Z = Dip Depth + 1 — the one figure in this file that reads the config.
+  Z = Dip Depth + 1. Its feedrates are not verbatim either — see **No macro
+  goes faster than Fast**, below.
 - **home.g** parks at X0 Y0, Z at `dip_depth + 1` — a literal reading of that
   spec, so it lands just above dipping depth rather than at travel height. It
   still lifts to `go_in_tray_lift` *before* crossing the bed, and only
@@ -2318,6 +2319,39 @@ standing macro belongs — a card can be swapped or reformatted, and a job's
 G-code is not meant to survive that, but these seven are. There is no
 `$SD/Run` here either: these are routines an operator runs by hand from the
 controller's own interface, not a job meant to start the moment it lands.
+
+#### No macro goes faster than Fast
+
+Every feedrate a macro writes is held at or below the **Fast** speed group's,
+`brushograph.moves.fast.feedrate_1`. Fast is the quickest the config says this
+machine is to be driven, and a macro is the machine being driven: there is no
+reason for one to cross the bed faster than a job does.
+
+It was not a hypothetical. zero.g swept to the far corner at **F2100** on
+Pinkograph, whose fast group says **F2000** — the 2100 came off the hardware
+zero.g was first tuned on and has been carried verbatim ever since. A sweep
+that ends in the endstops on purpose is the last move that wants to be going
+quicker than the machine was set up for.
+
+**Held, not scaled.** A macro already running slower keeps its own figure:
+zero.g's F1000 Z moves and F1200 jog stay where they are, and clean.g, which
+takes the fast group's figure to begin with, is untouched. Only what is over
+the ceiling comes down, which on Pinkograph is three lines of zero.g and
+nothing else in any of the seven.
+
+A config whose fast rate is *higher* than a macro's literals changes nothing —
+F5000 leaves zero.g's 2100 alone — and a config with no `moves` section, or a
+fast feedrate with no F in it, is left alone altogether: the literals are the
+figures the routine was tuned with, and inventing a ceiling for a machine that
+has not named one would be worse than the fault this fixes.
+
+The file says when it happened. A macro that had a feed lowered carries
+
+    ; feeds held at F2000, the Fast feedrate this machine is set to
+
+under whatever it says about itself and above its first move, because a macro
+is read, and a feed that is not the one it was written with is exactly the kind
+of thing somebody goes looking for later.
 
 ## Sessions outlive a restart
 

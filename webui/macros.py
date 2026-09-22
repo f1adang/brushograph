@@ -9,7 +9,8 @@ the shared `_park_at_origin()`.
 
 zero.g is the machine's own self-zero dance — a fixed sequence tuned on the
 actual hardware, reproduced here verbatim, with the config read for nothing
-but the model's far corner and that final park.
+but the model's far corner, that final park, and the ceiling every macro's
+feedrates are held under (`_cap_feeds`).
 
 calibrate.g is the odd one out on purpose: no wash, just the dot and a park
 over it, at two literal heights that are neither `canvas_height` nor
@@ -37,6 +38,8 @@ dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
 G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
+
+import re
 
 from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
                         canvas_origin, fit_cups_to_shape, holder_of,
@@ -134,6 +137,54 @@ def _feed(bg: dict, group: str, fallback: str = "G0 F1000") -> str:
     g = moves.get(group, {}) if isinstance(moves, dict) else {}
     val = str(g.get("feedrate_1", "")).strip() if isinstance(g, dict) else ""
     return val or fallback
+
+
+# An F word: the feedrate a move is made at.
+_FEED_WORD = re.compile(r"\bF(\d+(?:\.\d+)?)\b")
+
+
+def _fast_feed(bg: dict) -> float | None:
+    """The figure in the Fast speed group's feedrate, if the config names one."""
+    found = _FEED_WORD.search(_feed(bg, "fast", ""))
+    return float(found.group(1)) if found else None
+
+
+def _with_note(text: str, note: str) -> str:
+    """`note` under whatever a macro says about itself, and above its first move."""
+    lines = text.splitlines()
+    at = 0
+    while at < len(lines) and (not lines[at].strip() or lines[at].lstrip().startswith(";")):
+        at += 1
+    return "\n".join(lines[:at] + [note] + lines[at:]) + "\n"
+
+
+def _cap_feeds(text: str, ceiling: float) -> tuple[str, bool]:
+    """Every feedrate in a macro held at or below the machine's fast rate.
+
+    Fast is the quickest the config says this machine is to be driven, and a
+    macro is the machine being driven: there is no reason for one of these to
+    cross the bed faster than a job does, and one good reason not to. zero.g
+    swept to the far corner at F2100 on a machine whose fast group says F2000,
+    because that figure came off the hardware zero.g was first tuned on and has
+    been carried verbatim ever since. A sweep that ends in the endstops on
+    purpose is the last move that wants to be going quicker than the machine
+    was set up for.
+
+    Held, not scaled: a macro that already runs slower than fast keeps its own
+    figure. The rim wipe is meant to be slow and the jog steps in zero.g are
+    meant to be deliberate, and both would be spoiled by being brought up to a
+    ceiling.
+    """
+    lowered = False
+
+    def hold(word):
+        nonlocal lowered
+        if float(word.group(1)) <= ceiling:
+            return word.group(0)
+        lowered = True
+        return "F" + _fmt(ceiling)
+
+    return _FEED_WORD.sub(hold, text), lowered
 
 
 def _preamble(bg: dict, feed_group: str = "normal") -> list[str]:
@@ -317,10 +368,12 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # re-zero at a travel height, then a short jog sequence that ends by
     # declaring the offset X10 Y0 Z10 point. The jog's last step is 1 mm more
     # on Y, so later moves to Y0 stop short of the endstop instead of hitting it. A fixed routine tuned on the
-    # actual hardware, not derived from the config, except for two things: the
+    # actual hardware, not derived from the config, except for three things: the
     # far corner is the model's — a Micro's racks end well short of the Mini's
-    # 160 — and its very last line finishes the same way home.g and clean.g
-    # do, parked at X0 Y0, Z = Dip Depth + 1.
+    # 160 — its very last line finishes the same way home.g and clean.g do,
+    # parked at X0 Y0, Z = Dip Depth + 1, and its feedrates are held under the
+    # Fast group's on the way out, which is what takes these F2100s down to
+    # whatever the machine is actually set up to be driven at.
     sweep_x, sweep_y, sweep_z = MODELS[model_of(conf)]["zero_sweep"]
     out["zero.g"] = "\n".join([
         "G10 P0 L20 X0 Y0 Z0;",
@@ -792,7 +845,22 @@ def generate_macros(conf: dict) -> dict[str, str]:
     lines.append("G00 X0 Y0 ; park lifted -- a pen has no cup to hang in")
     out["backlash.g"] = "\n".join(lines) + "\n"
 
+    # Nothing here crosses the bed faster than the config's Fast group says the
+    # machine is driven -- zero.g's own figures included, which is the whole
+    # point: they came off the machine it was first tuned on. The file says so
+    # where it made a difference, because a macro is read and a feed that is
+    # not the one in the file is the kind of thing that is looked for later.
+    ceiling = _fast_feed(bg)
+    held = {}
+    for name, text in out.items():
+        if ceiling:
+            text, lowered = _cap_feeds(text, ceiling)
+            if lowered:
+                text = _with_note(text, f"; feeds held at F{_fmt(ceiling)}, the "
+                                        f"Fast feedrate this machine is set to")
+        held[name] = text
+
     # Every macro, zero.g's fixed routine included, says what made it — and
     # goes out in ASCII, like everything else the machine is sent.
     return {name: to_ascii(gcode_note() + "\n" + text)
-            for name, text in out.items()}
+            for name, text in held.items()}
