@@ -9,6 +9,7 @@ posted form can be folded straight back into the nested JSON it came from.
 from __future__ import annotations
 
 import json
+import re
 from collections import OrderedDict
 
 CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
@@ -419,6 +420,7 @@ def with_defaults(conf: dict) -> dict:
         _dig(out, path).setdefault(path[-1], value)
     _offer_far_backlash(out)
     _offer_canvas_start(out)
+    _offer_plain_feeds(out)
     _offer_black(out)
     # Written back in painting order too, so a saved config says what happens.
     if isinstance(out.get("color_order"), list):
@@ -441,6 +443,67 @@ def _offer_far_backlash(conf: dict) -> None:
         return
     for axis in ("x", "y"):
         bg.setdefault(f"backlash_{axis}_far", bg.get(f"backlash_{axis}", 0.5))
+
+
+# A feedrate setting that is nothing but a rapid and an F word. Anything else a
+# config puts in that box -- a compound line, a G1, a comment -- is somebody
+# meaning it, and is left exactly as it is.
+_PLAIN_FEED = re.compile(r"^G0?0\s+F(\d+(?:\.\d+)?)$", re.IGNORECASE)
+
+# The speed groups' three settings. Only the first is a plain rate; the other
+# two are Marlin commands, and are hidden for any other controller.
+FEED_KEYS = ("feedrate_1",)
+
+
+def feed_rate(value) -> float | None:
+    """The millimetres a minute in a feedrate setting, however it is written."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    found = _PLAIN_FEED.match(str(value).strip())
+    return float(found.group(1)) if found else None
+
+
+def feed_line(value, fallback: str = "G0 F1000") -> str:
+    """A feedrate setting as the line that goes in the file.
+
+    The box holds millimetres a minute now, so the G-code is written around it
+    here. A config that carries the old `G0 F1200`, or anything else the
+    generator should emit verbatim, is passed through untouched.
+    """
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"G0 F{value:g}"
+    text = str(value or "").strip()
+    return text or fallback
+
+
+def _offer_plain_feeds(conf: dict) -> None:
+    """Read `G0 F1200` in a speed group as the 1200 it is.
+
+    The three speed groups came out of the generator's own G-code, so what the
+    form offered was a text box with `G0 F1200` in it: the figure that matters
+    wrapped in the syntax that carries it. On a FluidNC or GRBL machine the
+    other two settings in the group are Marlin commands and are hidden, so the
+    whole of a speed group was one text box asking for a line of G-code when
+    what it wanted was a number.
+
+    A value that is a rapid and an F word and nothing else is stored as that
+    number, and the generator writes the `G0 F` back around it. Anything else
+    is left alone: a config with a compound line in that box means it, and is
+    emitted verbatim the way it always was.
+    """
+    moves = conf.get("brushograph", {}).get("moves")
+    if not isinstance(moves, dict):
+        return
+    for group in moves.values():
+        if not isinstance(group, dict):
+            continue
+        for key in FEED_KEYS:
+            found = _PLAIN_FEED.match(str(group.get(key, "")).strip())
+            if found:
+                rate = float(found.group(1))
+                group[key] = int(rate) if rate.is_integer() else rate
 
 
 def _offer_canvas_start(conf: dict) -> None:
@@ -632,6 +695,9 @@ HELP = {
     "brushograph-canvas_start_y": "Where the paintable area begins in Y (mm): the far edge of the strip the containers stand in, and a fact about the machine rather than about this painting. Nothing is painted below it, and the painted height is measured from it — with Offset Y at 0 the canvas starts exactly here. Choosing a model sets it: 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬.",
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
     "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
+    "brushograph-moves-normal-feedrate_1": "How fast the brush paints, in millimetres a minute. This is the rate a stroke is laid at, and the macros drop to it for the marks they put on the paper.",
+    "brushograph-moves-fast-feedrate_1": "How fast the machine crosses the bed, in millimetres a minute \u2014 the trips to the containers and back, and the whole of every macro. Nothing the generator writes goes faster than this.",
+    "brushograph-moves-remove_drops-feedrate_1": "How fast the brush is drawn over the rim of a round cup to shed its drop, in millimetres a minute. Nothing reads it for a rectangular bay, which wipes itself on the way up its stairs.",
     "brushograph-paint_per_run_min": "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
@@ -672,6 +738,9 @@ HELP = {
 # Where a key's own name is not what the form should call it.
 LABELS = {
     "cup_shape": "Container setup",
+    # Only right while the box holds a figure. A config that keeps a whole line
+    # of G-code in there gets the old label back, in _field.
+    "feedrate_1": "Feedrate (mm/minute)",
     # Backlash X and Backlash Y are the near end, and keep the names they were
     # given when they were the only figures there were.
     "backlash_x_far": "Backlash X far end",
@@ -691,7 +760,14 @@ def label_for(key: str) -> str:
 
 def _field(path: list[str], value) -> dict:
     name = "-".join(path)
-    f = {"name": name, "label": LABELS.get(path[-1]) or label_for(path[-1]), "help": HELP.get(name), "value": value}
+    label = LABELS.get(path[-1]) or label_for(path[-1])
+    # "Feedrate (mm/minute)" is a promise about the box, so it is only made
+    # where the box holds a figure. A config whose speed group still carries a
+    # line of G-code -- because it carries something this cannot read as a
+    # plain rate -- is asking for that line, and says so.
+    if path[-1] in FEED_KEYS and not isinstance(value, (int, float)):
+        label = label_for(path[-1])
+    f = {"name": name, "label": label, "help": HELP.get(name), "value": value}
     if name in ENUMS:
         f["type"] = "select"
         # Keep the config's own value even if it is not one of the known ones.

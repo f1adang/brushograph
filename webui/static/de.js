@@ -221,6 +221,7 @@ text: {
 "Hostname": "Netzwerkname",
 "Acc": "Beschleunigung",
 "Feedrate 1": "Vorschub 1",
+"Feedrate (mm/minute)": "Vorschub (mm/Minute)",
 "Feedrate 2": "Vorschub 2",
 "Infill Angles": "Füllwinkel",
 "Infill Line Distance": "Fülllinienabstand",

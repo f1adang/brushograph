@@ -2368,6 +2368,32 @@ G-code is not meant to survive that, but these seven are. There is no
 `$SD/Run` here either: these are routines an operator runs by hand from the
 controller's own interface, not a job meant to start the moment it lands.
 
+#### The speed groups ask for a number
+
+The three speed groups came out of the generator's own G-code, so what the form
+offered was a text box with **`G0 F1200`** in it: the figure that matters,
+wrapped in the syntax that carries it. On a FluidNC or GRBL machine the other
+two settings in the group — `acc` (`M204`) and `feedrate_2` (`M203`) — are
+Marlin commands and are hidden, so a whole speed group was one text box asking
+for a line of G-code when what it wanted was a number.
+
+It holds **millimetres a minute** now, in a number field labelled
+*Feedrate (mm/minute)*, and the generator writes the `G0 F` back around it —
+`configspec.feed_line`, and a four-line copy of the same rule in `copicograf`,
+which has no imports from here and is meant to keep it that way. The same job
+comes out byte for byte identical.
+
+**By the shape of the value, not by the controller.** A setting that is a rapid
+and an F word and nothing else is read as that number; anything else is left
+exactly as it is, rendered as the text box it was, and emitted verbatim. A
+config with `G1 X5 F300 ; something clever` in that box means it. Keying on the
+value rather than on `controller_type` also means nothing has to happen when
+the controller is changed in the form, which it can be without a reload.
+
+`_offer_plain_feeds` does the reading, beside the other `_offer_*` steps in
+`with_defaults`, so a config written before this opens with numbers in the boxes
+and keeps them the next time it is saved.
+
 #### How fast a macro moves
 
 **Travel at the top speed the config names, marks at the rate a job paints

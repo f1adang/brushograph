@@ -42,7 +42,7 @@ from __future__ import annotations
 import re
 
 from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
-                        canvas_origin, fit_cups_to_shape, holder_of,
+                        canvas_origin, feed_line, fit_cups_to_shape, holder_of,
                         in_cup_order, model_of, tray_entries, with_defaults,
                         workable_x)
 from gcode_pipeline import to_ascii
@@ -133,10 +133,15 @@ def _gap_list(gaps: list[float]) -> str:
 
 
 def _feed(bg: dict, group: str, fallback: str = "G0 F1000") -> str:
+    """A speed group's rate as the line that sets it.
+
+    The setting holds millimetres a minute, so `feed_line` writes the G-code
+    round it; a config still carrying a whole line is passed through as it is.
+    """
     moves = bg.get("moves", {})
     g = moves.get(group, {}) if isinstance(moves, dict) else {}
-    val = str(g.get("feedrate_1", "")).strip() if isinstance(g, dict) else ""
-    return val or fallback
+    val = g.get("feedrate_1", "") if isinstance(g, dict) else ""
+    return feed_line(val, fallback) if str(val).strip() else fallback
 
 
 # An F word: the feedrate a move is made at.

@@ -91,6 +91,22 @@ def dip_lanes(tray_x, width, lanes, x_limits=(0.0, float("inf"))):
             for i in range(lanes)]
 
 
+def _feed_line(value, fallback="G0 F1000"):
+    """A speed group's feedrate as the line that goes in the file.
+
+    The WebUI's box holds millimetres a minute -- the figure, without the
+    G-code around it -- so the G-code is written around it here. A config that
+    carries a whole line instead, which is what every one of them carried
+    before, is emitted exactly as it reads.
+    """
+    if isinstance(value, bool):
+        return fallback
+    if isinstance(value, (int, float)):
+        return f"G0 F{value:g}"
+    text = str(value or "").strip()
+    return text or fallback
+
+
 def _read_plain_move(line_text):
     """(text, xy) for a plain move, as the pygcode path would have seen it.
 
@@ -237,15 +253,18 @@ class Copicograf:
         self.prepare_paint_count = int(self.conf["brushograph"]["prepare_paint_count"])
 
         self.initial_gcode_acc = self.conf["brushograph"]["moves"]["normal"]["acc"]
-        self.initial_gcode_feedrate_1 = self.conf["brushograph"]["moves"]["normal"]["feedrate_1"]
+        self.initial_gcode_feedrate_1 = _feed_line(
+            self.conf["brushograph"]["moves"]["normal"]["feedrate_1"])
         self.initial_gcode_feedrate_2 = self.conf["brushograph"]["moves"]["normal"]["feedrate_2"]
 
         self.paint_gcode_acc = self.conf["brushograph"]["moves"]["fast"]["acc"]
-        self.paint_gcode_feedrate_1 = self.conf["brushograph"]["moves"]["fast"]["feedrate_1"]
+        self.paint_gcode_feedrate_1 = _feed_line(
+            self.conf["brushograph"]["moves"]["fast"]["feedrate_1"])
         self.paint_gcode_feedrate_2 = self.conf["brushograph"]["moves"]["fast"]["feedrate_2"]
 
         self.remove_drops_gcode_acc = self.conf["brushograph"]["moves"]["remove_drops"]["acc"]
-        self.remove_drops_gcode_feedrate_1 = self.conf["brushograph"]["moves"]["remove_drops"]["feedrate_1"]
+        self.remove_drops_gcode_feedrate_1 = _feed_line(
+            self.conf["brushograph"]["moves"]["remove_drops"]["feedrate_1"])
         self.remove_drops_gcode_feedrate_2 = self.conf["brushograph"]["moves"]["remove_drops"]["feedrate_2"]
 
     def randomize_paint_per_run(self):

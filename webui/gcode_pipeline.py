@@ -30,7 +30,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, CMYK_TO_TRAY,  # noqa: E402
                         RECTANGULAR_SHAPES, canvas_origin, cup_shape_of,
-                        holder_of, tray_entries, workable_x)
+                        feed_line, holder_of, tray_entries, workable_x)
 
 FALLBACK_PATTERN = "concentric"
 
@@ -659,7 +659,8 @@ def start_sequence(conf: dict) -> list[str]:
     if isinstance(moves, dict):
         normal = moves.get("normal", {})
         if isinstance(normal, dict) and str(normal.get("feedrate_1", "")).strip():
-            feed = str(normal["feedrate_1"]).strip()
+            # The box holds millimetres a minute; the G-code goes round it here.
+            feed = feed_line(normal["feedrate_1"])
     return [
         "G90 ; Absolute positioning",
         "G21 ; Millimeters",
