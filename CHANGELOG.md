@@ -20,6 +20,22 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.14.0](https://github.com/f1adang/brushograph/releases/tag/v2.14.0) — 2026-09-22
+
+- **Four new macros stir the paint: mix-c, mix-m, mix-y and mix-k.** Watercolour
+  in a crucible separates — pigment to the floor, water and methylcellulose
+  above — and a cup that has stood overnight paints pale until the brush has
+  worked it. Each file takes the brush into one cup and hops it about the floor
+  sixty times at the Fast rate, quickly and at random, which mixes where a
+  tidy sweep only swirls; then it rinses the brush and parks it. The stairs at
+  the back of the cup are left out of the hopping. Run one again for a longer
+  stir.
+
+- **A dip into a colour cup is spread across that cup's width**, not the water
+  cup's. The two are not the same size, and the colour cups were being dipped as
+  though they were 10 mm wider than they are — not into the wall, but a
+  millimetre off it where four were intended.
+
 ## [v2.13.0](https://github.com/f1adang/brushograph/releases/tag/v2.13.0) — 2026-09-22
 
 - **Clean Brush washes in four dips, leaving the cup a different way each
