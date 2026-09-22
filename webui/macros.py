@@ -113,6 +113,14 @@ _QUADRANTS = [(1, 1), (-1, 1), (-1, -1), (1, -1)]
 # its motion lives in closures nested inside Copicograf.prepare_path().
 _WASH_REPS = 3
 
+# How clean.g washes: four dips in the water, each leaving the cup a different
+# way. Up the stairs to begin with, which is the wipe a job gives the brush
+# every pickup; then out over each side wall in turn, which is the wipe it
+# never gets, since the swipe draws the same one line of the bristles every
+# time; then up the stairs again, so the brush comes out of the water shaped
+# the way a job expects to find it.
+_WASH_ROUTINE = ["stairs", "left", "right", "stairs"]
+
 
 def _num(d: dict, key: str, default: float = 0.0) -> float:
     try:
@@ -226,60 +234,27 @@ def _park_at_origin(park_z: float) -> list[str]:
     ]
 
 
-def _brim_wipe(conf: dict, tray_x: float, at_y: float, width: float,
-               z: float, lift: float) -> list[str]:
-    """One drag over the left wall of the cup and one over the right.
+def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
+                      exits: list[str] | None = None) -> list[str]:
+    """Dips at (tray_x, tray_y), classic or modern, each leaving the way `exits` says.
 
-    The swipe up the stairs wipes the brush along one line of it, and it is
-    the same line every time. A rinsed brush still carries water in the sides
-    of the bristles, and what takes that out is an edge drawn across them --
-    which is what the two side walls are, and they are the only edges of a
-    rectangular bay that the swipe never touches.
+    A dip is the same wherever it is made: in over the rim, down onto the floor,
+    a moment standing there. What can differ is how the brush comes out of a
+    rectangular bay, and `exits` says, one word a dip --
 
-    Out over the wall and back, at the height the brush comes in at, which is
-    under the rim: the bristles meet the wall and are drawn over it rather than
-    lifted off it. Left first and then right, because a wipe on one side alone
-    takes the water off one side alone -- the same argument the round cups'
-    two rim wipes have always made.
+    - `stairs`, up the shallow end, which is how a job always leaves a cup and
+      what wipes the brush along its length;
+    - `left` or `right`, out over that side wall, which is an edge drawn across
+      the sides of the bristles instead. The swipe only ever wipes one line of
+      the brush, and it is the same line every time; the side walls are the
+      only edges of a rectangular bay it never touches.
 
-    Held inside the ground a job covers, the way the dips are: the water
-    crucible is the wide one and it sits at the near end of the row, so its
-    left wall can be off the machine. A side with no room to reach past is not
-    wiped, rather than wiped at the endstop.
-    """
-    lo, hi = 0.0, workable_x(conf)
-    over = RIM_CATCH          # how far past the wall the bristles are drawn
-    left = tray_x - width / 2 - over
-    right = tray_x + width / 2 + over
-    # Back over the middle of the cup at the tray lift, and only then down:
-    # the swipe leaves the brush at whichever lane it dipped in, and dropping
-    # there would put the bristles under the rim somewhere they then have to
-    # cross the bay to get out of.
-    lines = [f"G00 X{_fmt(tray_x)} Y{_fmt(at_y)}",
-             f"G00 Z{_fmt(z)} ; back under the rim, to wipe on the walls"]
-    for side, at in (("left", left), ("right", right)):
-        if not lo <= at <= hi:
-            lines.append(f"; no room to wipe on the {side} wall -- it is off the bed")
-            continue
-        lines += [
-            f"G01 X{_fmt(at)} Y{_fmt(at_y)} ; out over the {side} wall",
-            f"G01 X{_fmt(tray_x)} Y{_fmt(at_y)} ; and back in",
-        ]
-    lines.append(f"G00 Z{_fmt(lift)} ; Go In Tray Lift")
-    return lines
+    Absent, every dip leaves up the stairs, which is what a wash was before
+    clean.g asked for the walls.
 
-
-def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int,
-                      brim_wipe: bool = False) -> list[str]:
-    """`reps` dips or swipes at (tray_x, tray_y), classic or modern.
-
-    No rim wipe on the way out of a dip: the callers are a wash and a tick's
+    No rim wipe on the way out either way: the callers are a wash and a tick's
     pickup, and — like copicograf's own wash_the_brush() — a brush being rinsed
-    has nothing to shed. A modern bay's swipe wipes itself regardless, on the
-    way up the stairs.
-
-    `brim_wipe` is the other thing: one drag over each side wall after the
-    first swipe, which clean.g asks for. That one is not about drips.
+    has nothing to shed.
     """
     bg = conf.get("brushograph", {})
     shape = str(bg.get("cup_shape", "classic")).strip().lower()
@@ -320,7 +295,20 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int,
         # copicograf.RIM_CATCH.
         rim_z = max(exit_z + 1.0, lift - 2.0 - RIM_CATCH)
         rim_z = min(lift, max(dip + 1.0, rim_z))
-        for i in range(max(1, reps)):
+        # How far out a wall wipe reaches, and whether the machine can get
+        # there. The water crucible is the wide one and it stands at the near
+        # end of the row, so its left wall can be off the bed -- Pinkograph's
+        # is 39.2 mm across at X 15, which puts that wall at X -6.6. A wall
+        # that cannot be reached is not wiped on; that dip leaves up the
+        # stairs instead, so the brush still comes out of the cup properly.
+        walls = {}
+        for side, at in (("left", tray_x - holder["water_bay_width"] / 2 - RIM_CATCH),
+                         ("right", tray_x + holder["water_bay_width"] / 2 + RIM_CATCH)):
+            if 0.0 <= at <= workable_x(conf):
+                walls[side] = at
+
+        plan = list(exits or []) or ["stairs"] * max(1, reps)
+        for i, leaves in enumerate(plan):
             dip_x = lanes[i % len(lanes)]
             lines += [
                 f"G00 X{_fmt(dip_x)} Y{_fmt(approach)}",
@@ -331,12 +319,20 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int,
                 " ; the bay in clear air, so the bristles come back",
                 f"G01 Z{_fmt(dip)} ; straight down, at Dip Depth",
                 f"G4 P{DIP_DWELL:g} ; stand on the floor",
-                f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs -- wipes itself",
-                f"G00 Z{_fmt(lift)}",
             ]
-            if brim_wipe and i == 0:
-                lines += _brim_wipe(conf, tray_x, far, holder["water_bay_width"],
-                                    rim_z, lift)
+            if leaves in walls:
+                # Out and up over the side wall from where it stands, the way
+                # the swipe goes out and up over the stairs: the bristles are
+                # drawn across the edge rather than lifted off it.
+                lines.append(f"G01 X{_fmt(walls[leaves])} Y{_fmt(near)} Z{_fmt(rim_z)}"
+                             f" ; out over the {leaves} wall -- wipes the side of the brush")
+            else:
+                if leaves in ("left", "right"):
+                    lines.append(f"; no room to wipe on the {leaves} wall --"
+                                 " it is off the bed, so this one leaves up the stairs")
+                lines.append(f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)}"
+                             " ; up the stairs -- wipes itself")
+            lines.append(f"G00 Z{_fmt(lift)}")
         return lines
 
     # Classic: down the middle, a diagonal sweep, back up. The real dance
@@ -523,7 +519,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         # from; going to the centre first crossed the mouth for no reason, and
         # on a holder whose cups sit south of the origin it was a move into the
         # Y endstop -- Brushparang's water cup is at Y -3.
-        *_container_motion(conf, wx, wy, reps=_WASH_REPS, brim_wipe=True),
+        *_container_motion(conf, wx, wy, exits=_WASH_ROUTINE),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         *_park_at_origin(park_z),
     ]

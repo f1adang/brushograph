@@ -1722,21 +1722,31 @@ clean.g and containercenter.g dip the same way, so the macro and a job still
 agree on what a dip is — except for the first-pickup exemption, which a macro
 has no run to be the start of.
 
-**clean.g also wipes the brush on the two side walls**, once, after its first
-swipe. The swipe up the stairs wipes along one line of the brush and it is the
-same line every time; a rinsed brush still carries water in the sides of the
-bristles, and what takes that out is an edge drawn across them. The side walls
-are the only edges of a rectangular bay the swipe never touches. So the brush
-comes back down under the rim and is drawn out over the left wall and back,
-then out over the right and back — both, because a wipe on one side takes the
-water off one side, which is the argument the round cups' two rim wipes have
-always made.
+**clean.g's wash is four dips, each leaving the cup a different way:**
 
-It is held inside the ground a job covers, the way the dips are. The water
-crucible is the wide one and it stands at the near end of the row, so its left
-wall can be off the machine: on Pinkograph, whose water cup is 39.2 mm across
-at X 15, the left wall wants X −6.6. That side is not wiped, and the file says
-so rather than wiping at the endstop.
+| | in the water | out |
+|---|---|---|
+| 1 | dip | up the stairs |
+| 2 | dip | over the **left** wall |
+| 3 | dip | over the **right** wall |
+| 4 | dip | up the stairs |
+
+then the shared park at X0 Y0, Z = Dip Depth + 1.
+
+The stairs are the wipe a job gives the brush at every pickup, so the wash
+begins and ends with the brush shaped the way a job expects to find it. The two
+in the middle are the wipe it never gets: the swipe draws the same one line of
+the bristles every time, and the side walls are the only edges of a rectangular
+bay it never touches. A wall exit leaves the way the swipe does — out and up,
+from the floor to just under the rim — so the edge is drawn across the sides of
+the brush rather than lifted off them.
+
+**On every machine here the left wall is off the bed.** The water crucible is
+the wide one and it stands at the near end of the row, hard against the X
+origin: the Mini's 27.6 mm bay at X 12 puts that wall at X −3.8, the 𝔐𝔦𝔨𝔯𝔬's at
+X −9.8, Pinkograph's 39.2 mm bay at X 15 at X −6.6. That dip leaves up the
+stairs instead and the file says why, in the file, because it is a fact about
+where the cup is and moving the cup five millimetres to the right fixes it.
 
 #### Mixing the cup by moving the dip
 
