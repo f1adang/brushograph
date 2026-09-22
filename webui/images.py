@@ -43,6 +43,33 @@ def prepare(image: Image.Image, max_side: int, log=None, name: str = "") -> Imag
     return image.resize(size, Image.Resampling.LANCZOS, reducing_gap=3.0)
 
 
+def lay_along(image: Image.Image, canvas_w: float, canvas_h: float) -> Image.Image:
+    """A photograph turned a quarter turn when its long side would then lie along the canvas's.
+
+    The pixel grid is mapped onto the painted width by height whatever their
+    proportions, so a portrait photograph painted into a landscape canvas is
+    not merely small, it is stretched. Turning it is the difference between a
+    picture that fills the paper and one squeezed into a column of it: on a
+    151 x 124 mm bed a 3:4 photograph paints 93 x 124 upright and 151 x 113 on
+    its side, which is half as much paper again.
+
+    The canvas, not the bed, because the canvas is what the picture is mapped
+    onto and both ends of this can see it: the browser sizes the canvas from
+    the picture it has measured, and the server reads the same two figures off
+    the form. A rule either of them worked out alone would be a rule they could
+    disagree about, and a disagreement here is a painting stretched by exactly
+    the amount of the turn.
+
+    Only photographs. An already thresholded picture is somebody's own artwork,
+    laid out the way they meant it; it is passed through upright.
+    """
+    if canvas_w <= 0 or canvas_h <= 0:
+        return image
+    if (image.width >= image.height) != (canvas_w >= canvas_h):
+        return image.transpose(Image.Transpose.ROTATE_90)
+    return image
+
+
 def flatten(image: Image.Image) -> Image.Image:
     """An RGB copy, with any transparency laid over white."""
     if image.mode == "RGB":

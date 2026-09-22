@@ -291,6 +291,23 @@ def _scale_params(form) -> dict:
     }
 
 
+def _lay_for_canvas(form, image: Image.Image, log=None, name: str = "") -> Image.Image:
+    """A photograph turned a quarter turn if the canvas it is going into is the other way up.
+
+    The canvas is the painted width and height off the form, which is what the
+    picture is mapped onto. The browser applies the same rule when it works the
+    height out from the picture it has measured, so the two agree; see
+    `images.lay_along`.
+    """
+    canvas_w = _num(form, "brushograph-width", 0.0)
+    canvas_h = _num(form, "brushograph-height", 0.0)
+    turned = uploads.lay_along(image, canvas_w, canvas_h)
+    if log and turned is not image:
+        log("%sturned a quarter turn: %d\u00d7%d px for a %g \u00d7 %g mm canvas",
+            name, image.width, image.height, canvas_w, canvas_h)
+    return turned
+
+
 def _subject_mask(form, image: Image.Image, log=None):
     """The isolation mask, or None when isolation was not asked for or found."""
     if not _flag(form, "woodcut_isolate", "false"):
@@ -350,7 +367,7 @@ def cmyk_preview():
         return jsonify(error="No image supplied"), 400
     try:
         with Image.open(upload.stream) as im:
-            photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE)
+            photo = _lay_for_canvas(request.form, uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
         plates = cmyk_sep.threshold_plates(photo, _cmyk_cutoff(request.form),
                                            _cmyk_knockout(request.form))
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
@@ -374,7 +391,7 @@ def woodcut_preview():
         return jsonify(error="No image supplied"), 400
     try:
         with Image.open(upload.stream) as im:
-            photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE)
+            photo = _lay_for_canvas(request.form, uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
         # The mask is read off the photograph as it came: isolation works
         # on the real picture, not on a retouched one.
         mask = _subject_mask(request.form, photo)
@@ -734,6 +751,8 @@ def options_form_post():
                 with Image.open(photo_path) as im:
                     photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE, app.logger.info,
                                             cmyk_upload.filename)
+                photo = _lay_for_canvas(request.form, photo, app.logger.info,
+                                        f"{cmyk_upload.filename}: ")
                 plates = cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form),
                                                    _cmyk_knockout(request.form))
                 wanted = {e["tray"] for e in entries if e["image"]}
@@ -760,6 +779,11 @@ def options_form_post():
                 # sees it; an already-thresholded image is passed through, upright
                 # and at a size worth working on.
                 if is_photo:
+                    # A photograph is turned to lie along the canvas; a picture
+                    # that is already black and white is somebody's own artwork
+                    # and is painted the way up it arrived.
+                    picture = _lay_for_canvas(request.form, picture, app.logger.info,
+                                              f"[{tray}] ")
                     mask = _subject_mask(request.form, picture, app.logger.info)
                     converted = woodcut.convert(
                         _prettify_faces(request.form, picture, app.logger.info),

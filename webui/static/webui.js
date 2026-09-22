@@ -819,10 +819,10 @@ function wireForm() {
     const url = URL.createObjectURL(file);
     const img = new Image();
     img.onload = () => {
-      let w = img.naturalWidth, h = img.naturalHeight;
-      // The server lays a portrait photograph on its side (cmyk_sep.landscape).
-      if (tray === "photograph" && h > w) [w, h] = [h, w];
-      shapes.set(tray, { w, h });
+      // As it came: which way up it will be painted is decided at the point
+      // the height is worked out, because it answers to the bed as well, and
+      // the bed can change under a picture that is already loaded.
+      shapes.set(tray, { w: img.naturalWidth, h: img.naturalHeight });
       URL.revokeObjectURL(url);
       // Back to the full bed first: matchRatio only ever narrows, so a tall
       // picture would otherwise hand its width to the next one loaded.
@@ -835,6 +835,50 @@ function wireForm() {
 
   const paintableHeight = () => machineLimit("max_height", "canvas_start_y", "offset_y");
   const paintableWidth = () => machineLimit("max_width", "offset_x");
+
+  /* Which way up a picture is painted.
+
+     A photograph is turned a quarter turn by the server when its long side
+     would then lie along the canvas's (images.lay_along), because the pixel
+     grid is mapped onto the painted width by height whatever their
+     proportions: a portrait photograph in a landscape canvas is not merely
+     small, it is stretched. The height is worked out from the picture the same
+     way up, or the two would disagree by exactly the amount of the turn.
+
+     Against the bed here, where the server compares against the canvas. They
+     agree because of what this then does with the answer: the width fills the
+     bed and the height follows the turned picture, so the canvas comes out the
+     bed's way up, and the canvas is what the server reads off the form.
+
+     Photographs only. A picture that is already black and white is somebody's
+     own artwork, laid out the way they meant it, and it is painted the way up
+     it arrived. */
+  const isPhoto = (tray) => {
+    if (tray === "photograph") return true;
+    const sel = form.querySelector(`[name="trays-${CSS.escape(tray)}-image_kind"]`);
+    return !!sel && sel.value === "photo";
+  };
+  const laidAlong = (tray, shape) => {
+    if (!isPhoto(tray)) return shape;
+    const bw = paintableWidth(), bh = paintableHeight();
+    if (!isFinite(bw) || !isFinite(bh) || bw <= 0 || bh <= 0) return shape;
+    return (shape.w >= shape.h) === (bw >= bh) ? shape : { w: shape.h, h: shape.w };
+  };
+
+  /* Two unrelated things put the "turned and scaled to fill the paper" note up
+     in place of the ordinary one, and each has to leave the other's answer
+     standing: a colour photograph, which is always laid out by the server, and
+     a picture this has just decided to turn. Held apart and asked together,
+     because one `hidden` written from two places is whichever ran last. */
+  const sizeNote = $("size-note");
+  const sizeNotePhoto = $("size-note-photo");
+  let cmykPhotoLoaded = false;
+  let pictureTurned = false;
+  const showSizeNote = () => {
+    const laid = cmykPhotoLoaded || pictureTurned;
+    if (sizeNote) sizeNote.hidden = laid;
+    if (sizeNotePhoto) sizeNotePhoto.hidden = !laid;
+  };
 
   /* The browser's own guard on a size typed by hand, kept in step with the
      fields each comes from: matching the picture's proportions is the only
@@ -887,9 +931,11 @@ function wireForm() {
      be edited under it: a bed declared wider is a painting that grows to it,
      as long as nobody has claimed the width by hand. The model picker sets
      them without firing anything, and calls fillWidth() itself. */
-  for (const key of ["max_width", "offset_x"]) {
+  // A wider bed is a wider painting; a bed that changes shape can also turn
+  // the picture, which the height comes from.
+  for (const key of ["max_width", "offset_x", "max_height", "canvas_start_y", "offset_y"]) {
     const input = machineInput(key);
-    if (input) input.addEventListener("input", fillWidth);
+    if (input) input.addEventListener("input", () => { fillWidth(); matchRatio(); });
   }
   fillWidth();
 
@@ -900,7 +946,10 @@ function wireForm() {
     const width = parseFloat(widthInput.value);
     if (!isFinite(width) || width <= 0) return note("set a width first", null, true);
 
-    const [tray, shape] = entries[0];
+    const [tray, raw] = entries[0];
+    const shape = laidAlong(tray, raw);
+    pictureTurned = shape !== raw;
+    showSizeNote();
     const ratio = shape.h / shape.w;
     // Whole millimetres: the ratio is a guide, not a tolerance.
     const limit = paintableHeight();
@@ -928,7 +977,10 @@ function wireForm() {
     // listener, which is what redraws the sketch.
     if (touched) heightInput.dispatchEvent(new Event("input", { bubbles: true }));
 
-    const ratios = entries.map(([, s]) => s.h / s.w);
+    const ratios = entries.map(([name, s]) => {
+      const laid = laidAlong(name, s);
+      return laid.h / laid.w;
+    });
     if (Math.max(...ratios) - Math.min(...ratios) > 0.005) {
       note("images differ in aspect ratio — will use {tray} ({w}x{h})",
            { tray: trayName(tray), w: shape.w, h: shape.h }, true);
@@ -1019,7 +1071,16 @@ function wireForm() {
       if (el) el.addEventListener("input", () => { $(out).value = el.value; });
     }
     form.querySelectorAll("select.image-kind").forEach((s) =>
-      s.addEventListener("change", () => { refreshWoodcut(); detectSubject(); }));
+      s.addEventListener("change", () => {
+        refreshWoodcut();
+        detectSubject();
+        // A photograph is turned to lie along the bed and a thresholded
+        // picture is not, so the painted size answers to this too — the width
+        // through fillWidth, because a picture that was narrowed to fit
+        // upright has the whole bed again once it is lying down.
+        fillWidth();
+        matchRatio();
+      }));
 
     document.addEventListener("brushograph:theme", () => {
       // The cut is printed on the theme's paper by the server, so a theme
@@ -1032,8 +1093,12 @@ function wireForm() {
       if (!target) return;
       const fd = new FormData();
       fd.append("image", target.file);
+      // brushograph-height with the width: the server turns the photograph to
+      // lie along the canvas, and the preview has to be the same way up as the
+      // run or it is a preview of something else.
       for (const n of ["woodcut_detail", "woodcut_hatching", "woodcut_threshold",
-                       "woodcut_roughness", "brushograph-width", "slicer-infill_line_distance"]) {
+                       "woodcut_roughness", "brushograph-width", "brushograph-height",
+                       "slicer-infill_line_distance"]) {
         const el = form.querySelector(`[name="${n}"]`);
         if (el) fd.append(n, el.value);
       }
@@ -1091,6 +1156,11 @@ function wireForm() {
     if (!file || !cmykBtn) return;
     const fd = new FormData();
     fd.append("image", file);
+    // The canvas, so the plates are laid out the way the run will lay them.
+    for (const n of ["brushograph-width", "brushograph-height"]) {
+      const el = form.querySelector(`[name="${n}"]`);
+      if (el) fd.append(n, el.value);
+    }
     if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
     if (cmykKnockout) fd.append("cmyk_knockout", cmykKnockout.checked ? "true" : "false");
     fd.append("theme", document.documentElement.dataset.theme || "default");
@@ -1140,8 +1210,6 @@ function wireForm() {
         if (cmykFile()) previewCmyk();
       });
     }
-    const sizeNote = $("size-note");
-    const sizeNotePhoto = $("size-note-photo");
     cmykInput.addEventListener("change", () => {
       const on = !!cmykFile();
       cmykControls.hidden = !on;
@@ -1149,12 +1217,10 @@ function wireForm() {
       // would upload them have nothing left to do.
       showPlateCards(!on);
       detectSubject();
-      // A colour photograph is laid on its side by the server when it is
-      // portrait, so the painted-size note says that instead.
-      if (sizeNote && sizeNotePhoto) {
-        sizeNote.hidden = on;
-        sizeNotePhoto.hidden = !on;
-      }
+      // A colour photograph is laid along the canvas by the server, so the
+      // painted-size note says that instead of how the height was found.
+      cmykPhotoLoaded = on;
+      showSizeNote();
       if (cmykImg) cmykImg.hidden = true;
       if (cmykNote) cmykNote.hidden = true;
       if (on) previewCmyk();

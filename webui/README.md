@@ -466,11 +466,10 @@ anything at or above becomes that tray's ink. Those four pictures are handed to
 the rest of the pipeline exactly as if they had been uploaded already
 thresholded onto Cyan, Magenta, Yellow and Black.
 
-A photograph taller than it is wide is turned 90° onto its side first (after
-applying the camera's orientation tag). Width is fixed and Height follows the
-ratio, so lying a portrait down paints it across the whole width instead of in
-a narrow strip that may run past `max_height`. The painted size on the page
-measures the photograph already turned.
+A photograph is turned a quarter turn when its long side would then lie along
+the canvas's — see **Which way up a photograph is painted**, below, which is
+the same rule the woodcut uses. The painted size on the page measures the
+photograph already turned.
 
 The cutoff is not dithered. A Floyd–Steinberg plate is thousands of specks, and
 the brush cannot lay those down. 0% keeps any non-zero tint (`i2gc` with one
@@ -701,6 +700,51 @@ ends of the Detail slider, and it is what that control actually does (above).
 eating fine structure such as hair, which is what that end of the slider is for:
 marks grow at the ends as well as across, and speckle that was separate dots
 becomes one mark.
+
+#### Which way up a photograph is painted
+
+The pixel grid is mapped onto the painted width by height whatever their
+proportions, so a portrait photograph in a landscape canvas is not merely
+small — it is **stretched**. A photograph is therefore turned a quarter turn
+when its long side would then lie along the canvas's.
+
+It is worth what it costs in surprise. On Pinkograph's 151 × 124 mm of bed a
+3:4 photograph paints **93 × 124 mm upright and 151 × 113 on its side**: half as
+much paper again, and the picture's own shape kept rather than squeezed into a
+column. The colour-photograph path has always done this, as "portrait goes on
+its side"; the woodcut did not, so a portrait photo uploaded to a tray was
+painted narrow.
+
+**Photographs only.** A picture that is already black and white is somebody's
+own artwork, laid out the way they meant it, and it is painted the way up it
+arrived. That is the one asymmetry here, and it is deliberate: the same file
+switched from *Already black and white* to *A photo* on a landscape bed goes
+from 93 × 124 mm to 151 × 113.
+
+**Both ends have to decide it the same way**, because the browser works the
+painted height out from the picture and the server paints the picture: a
+disagreement is a painting stretched by exactly the amount of the turn. The
+rule lives in `images.lay_along`, and each end feeds it what it has —
+
+- the **server** compares against the **canvas**, the painted width and height
+  it reads off the form, which is what the picture is mapped onto;
+- the **browser** compares against the **bed**, the paintable width and height,
+  because the canvas is the thing it is about to decide.
+
+They agree by construction. The browser fills the bed's width and takes the
+height from the turned picture, so the canvas comes out the bed's way up — and
+that canvas is what the server then reads. The rule is not "make it landscape":
+a 𝔐𝔦𝔨𝔯𝔬's bed is 65 × 81 mm, taller than it is wide, and there a landscape
+photograph is the one that gets turned.
+
+The browser re-asks whenever the answer could have changed: a picture chosen, a
+tray switched between photo and thresholded, the model changed, or any of the
+figures the bed is made of edited. A tray switched to *A photo* also takes the
+width back — a picture that was narrowed to fit upright has the whole bed again
+once it is lying down.
+
+Both previews are sent the canvas as well, so what they show is the way up the
+run will paint it.
 
 #### Insta Face Filter
 
