@@ -1709,8 +1709,20 @@ function simView(canvas) {
   const skin = PREVIEW_INK;
   const colours = new Map();
   for (let i = -1; i < trays.length; i++) colours.set(i, trayColour(trays[i], i));
+  // A painted stroke is drawn as wide as the brush lays it, which is the
+  // whole of what a preview is for: whether the fill covers. Drawn at a fixed
+  // 1.8 px it did not. On a 0.5 mm brush shown at six pixels a millimetre the
+  // stroke is three pixels across, so a filled shape came out as a bundle of
+  // hairlines with paper between them — the picture was all there and looked
+  // like an outline of itself. A tenth of a millimetre still has to be
+  // visible, hence the floor.
+  const brush = document.querySelector('[name="slicer-infill_line_distance"]');
+  const asked = parseFloat(brush && brush.value);
+  // Zero is "outlines only", not "an infinitely fine brush": the pipeline
+  // stands a nominal millimetre in for it and so does this.
+  const brushMM = isFinite(asked) && asked > 0 ? asked : 1;
   return {
-    skin, colours,
+    skin, colours, paintPx: Math.max(1, brushMM * scale),
     // Machine Y grows away from the origin; the canvas grows downward.
     px: (x) => pad + (x - minX) * scale,
     py: (y) => canvas.height - pad - (y - minY) * scale,
@@ -1740,7 +1752,7 @@ function drawGcode() {
     sim.view = simView(canvas);
     sim.drawn = null;
   }
-  const { skin, colours, px, py } = sim.view;
+  const { skin, colours, px, py, paintPx } = sim.view;
   if (!sim.drawn || cut < sim.drawn.upto) {
     sim.drawn = { upto: 0, travel: simLayer(canvas), paint: simLayer(canvas) };
   }
@@ -1761,7 +1773,7 @@ function drawGcode() {
 
     const p = paint.ctx;
     let current = null;
-    p.lineWidth = 1.8;
+    p.lineWidth = paintPx;
     for (let i = from; i < cut; i++) {
       const m = moves[i];
       if (!m.down) continue;

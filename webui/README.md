@@ -285,6 +285,27 @@ reached the page as a 500; a negative side did not fail at all — it flipped th
 picture and painted it off the bed, which is worse, because it looks like it
 worked.
 
+### A stroke is drawn as wide as the brush
+
+The preview drew every painted stroke at a fixed **1.8 pixels**, whatever the
+brush was and whatever the zoom. That is the whole of what a preview is for —
+whether the fill covers — and 1.8 px answers it for no machine in particular.
+
+A photograph at 0.5 mm, shown at six pixels to the millimetre, has its strokes
+three pixels apart: drawn at 1.8 they come out as a bundle of hairlines with
+paper showing between them, so a solid black mass in the cut reads as an outline
+of itself on the screen. Everything was there — the count, the metres and the
+path were all right — and it looked like half a picture. The same figure goes
+the other way on a 4 mm brush, where a stroke twenty-four pixels wide was drawn
+at not quite two.
+
+It is `line_w × scale` now, floored at a pixel so a fine brush still shows, with
+the brush read from **Infill line distance** — and zero there means outlines
+only rather than an infinitely fine brush, so a nominal millimetre stands in for
+it, which is what the pipeline does with the same figure.
+
+Travel stays a hairline. It is not paint and should not look like it.
+
 ### What the preview leaves out
 
 Backlash compensation injects a corrective move at every reversal — 148 of them
