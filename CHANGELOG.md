@@ -20,7 +20,7 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
-## [v2.12.0](https://github.com/f1adang/brushograph/releases/tag/v2.12.0) — 2026-09-21
+## [v2.12.0](https://github.com/f1adang/brushograph/releases/tag/v2.12.0) — 2026-09-22
 
 - **A photograph is cut into long strokes now, not into shapes to fill in.** The
   woodcut used to fill its shadows in solid and carry its midtones as hatching
@@ -36,6 +36,15 @@ version's heading appears with its first bullet and grows until it is tagged.
   down to 33, with the middle one 11.5 mm long before and 40.2 mm now, for
   slightly less paint. **Hatching at 0** still fills the shadows in, since with
   no strokes to draw one with that is all that is left.
+
+- **The speed settings ask for a number now.** Each of the three speed groups
+  held a line of G-code — `G0 F1200` — in a text box, which on a FluidNC or
+  GRBL machine was the only setting in the group you could see: the other two
+  are Marlin commands and are hidden. It is a plain **Feedrate (mm/minute)**
+  box, and the G-code is written around it. A machine file written before this
+  opens with the numbers already in the boxes, and one carrying something more
+  elaborate than `G0 F…` keeps it and is used exactly as it reads. The three
+  boxes also have help on them now.
 
 - **The brush is bent back the other way on its way into the cup.** Every swipe
   out of a container runs the same way — deep end, up the stairs, out — so the
