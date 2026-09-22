@@ -1780,6 +1780,22 @@ has no run to be the start of.
 
 then the shared park at X0 Y0, Z = Dip Depth + 1.
 
+**A wash goes in over the mouth and straight down**, where a pickup comes down
+outside the cup and drives in across the rim. That run at the rim is there to
+bend the bristles back against the way the swipe sets them, and it costs two
+moves out past the wall and back — for a brush that is about to be rinsed four
+times and drawn over three edges, which is the same work done better. So the
+wash skips it.
+
+**And it presses `WASH_PRESS` (2 mm) below Dip Depth.** Dip Depth puts the
+bristles on the floor of the cup and no harder, because a pickup wants the
+paint that is on the floor and not the floor itself. A wash wants the floor:
+water gets into a brush that is bent against something, and two millimetres of
+bend is the difference between rinsing the tip and rinsing the brush. It is
+held there for the same `DIP_DWELL` and then drawn out.
+
+Between the two, clean.g went from 44 lines to 31 for the same four dips.
+
 The stairs are the wipe a job gives the brush at every pickup, so the wash
 begins and ends with the brush shaped the way a job expects to find it. The two
 in the middle are the wipe it never gets: the swipe draws the same one line of

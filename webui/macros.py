@@ -139,6 +139,14 @@ _WASH_REPS = 3
 # the way a job expects to find it.
 _WASH_ROUTINE = ["stairs", "left", "right", "stairs"]
 
+# How far below Dip Depth a wash pushes the brush, in millimetres. Dip Depth
+# puts the bristles on the floor of the cup and no harder, because a pickup
+# wants the paint that is on the floor and not the floor itself. A wash wants
+# the floor: water gets into a brush that is bent against something, and a
+# couple of millimetres of bend is the difference between rinsing the tip and
+# rinsing the brush.
+WASH_PRESS = 2.0
+
 
 def _num(d: dict, key: str, default: float = 0.0) -> float:
     try:
@@ -296,7 +304,8 @@ def _stir(hops: int, seed: int, xs: tuple[float, float],
 def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
                       exits: list[str] | None = None,
                       width: float | None = None, stir: int = 0,
-                      seed: int = 0) -> list[str]:
+                      seed: int = 0, bend: bool = True,
+                      press: float = 0.0) -> list[str]:
     """Dips at (tray_x, tray_y), classic or modern, each leaving the way `exits` says.
 
     A dip is the same wherever it is made: in over the rim, down onto the floor,
@@ -317,6 +326,17 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
     it is down there, which is what the mixing macros are: paint settles, and
     water and methylcellulose sit on top of it, and the only thing on this
     machine that can put them back together is the brush. Nought is a dip.
+
+    `bend` is the way in. A pickup comes down outside the cup and drives in
+    across the rim, which bends the bristles back against the way the swipe
+    sets them (copicograf.RIM_CATCH). A wash does not: those are two moves out
+    past the wall and back for a brush that is about to be rinsed and drawn
+    over three edges anyway, so it goes over the mouth and straight down.
+
+    `press` is how far below Dip Depth the brush is pushed, in millimetres.
+    Nought for a pickup, which wants the paint that is on the floor and not the
+    floor. A wash wants the floor: water gets into a brush that is bent against
+    something.
 
     No rim wipe on the way out either way: the callers are a wash and a tick's
     pickup, and — like copicograf's own wash_the_brush() — a brush being rinsed
@@ -382,16 +402,24 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
                 walls[side] = at
 
         plan = list(exits or []) or ["stairs"] * max(1, reps)
+        floor = dip - press
         for i, leaves in enumerate(plan):
             dip_x = lanes[i % len(lanes)]
+            if bend:
+                lines += [
+                    f"G00 X{_fmt(dip_x)} Y{_fmt(approach)}",
+                    f"G00 Z{_fmt(rim_z + RIM_DROP)} ; over the rim, still outside the cup",
+                    f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(rim_z)}"
+                    " ; in across the rim, going down -- bends the brush the other way",
+                    f"G01 X{_fmt(dip_x)} Y{_fmt(near)} Z{_fmt(rim_z)}"
+                    " ; the bay in clear air, so the bristles come back",
+                ]
+            else:
+                lines.append(f"G00 X{_fmt(dip_x)} Y{_fmt(near)}"
+                             " ; over the mouth -- a wash needs no run at the rim")
             lines += [
-                f"G00 X{_fmt(dip_x)} Y{_fmt(approach)}",
-                f"G00 Z{_fmt(rim_z + RIM_DROP)} ; over the rim, still outside the cup",
-                f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(rim_z)}"
-                " ; in across the rim, going down -- bends the brush the other way",
-                f"G01 X{_fmt(dip_x)} Y{_fmt(near)} Z{_fmt(rim_z)}"
-                " ; the bay in clear air, so the bristles come back",
-                f"G01 Z{_fmt(dip)} ; straight down, at Dip Depth",
+                f"G01 Z{_fmt(floor)} ; straight down, at Dip Depth"
+                + (f" less {_fmt(press)}, pressed into the floor" if press else ""),
                 f"G4 P{DIP_DWELL:g} ; stand on the floor",
             ]
             if stir:
@@ -590,7 +618,8 @@ def _mix_macro(conf: dict, channel: str, tray: str) -> str:
         "; wash and park, the way a job leaves the brush",
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the water cup",
         *_container_motion(conf, wx, wy, reps=_WASH_REPS,
-                           width=holder["water_bay_width"]),
+                           width=holder["water_bay_width"],
+                           bend=False, press=WASH_PRESS),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         *_park_at_origin(park_z),
     ]) + "\n"
@@ -689,7 +718,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
         # on a holder whose cups sit south of the origin it was a move into the
         # Y endstop -- Brushparang's water cup is at Y -3.
         *_container_motion(conf, wx, wy, exits=_WASH_ROUTINE,
-                           width=holder_of(conf)["water_bay_width"]),
+                           width=holder_of(conf)["water_bay_width"],
+                           bend=False, press=WASH_PRESS),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         *_park_at_origin(park_z),
     ]
@@ -865,7 +895,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
             "; wash and park",
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the water cup",
             *_container_motion(conf, wx, wy, reps=_WASH_REPS,
-                               width=holder_of(conf)["water_bay_width"]),
+                               width=holder_of(conf)["water_bay_width"],
+                               bend=False, press=WASH_PRESS),
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
             *_park_at_origin(park_z),
         ]
