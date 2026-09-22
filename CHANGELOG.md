@@ -37,6 +37,17 @@ version's heading appears with its first bullet and grows until it is tagged.
   slightly less paint. **Hatching at 0** still fills the shadows in, since with
   no strokes to draw one with that is all that is left.
 
+- **The brush is bent back the other way on its way into the cup.** Every swipe
+  out of a container runs the same way — deep end, up the stairs, out — so the
+  bristles were combed the same way on every pickup of every job and took a set
+  that way. A pickup now comes down *outside* the container, on the side the
+  brush returns from and low enough that the bristles meet the rim rather than
+  clearing it, and drives in and down in one diagonal move: the rim bends them
+  forward, and the run down the bay drags them forward again. It follows the
+  swipe's own line backwards, so the bristles get only the flex they already
+  survive, and it costs one move. clean.g and the container-tick macro dip the
+  same way. Round cups are unchanged.
+
 - **The macros move at the top speed the machine is set up for.** Six of the
   seven crossed the bed at the rate a stroke is painted at — F1200 where the
   machine is driven at F2000 — and a macro is not a painting: parking the
