@@ -6,8 +6,7 @@ links to its tag on GitHub, and the tag's message describes that version.
 Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 
 - **MAJOR** for a different machine to use. v2.0 was the
-  𝖅𝖜𝖊𝖎𝖙𝖊𝖗 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘 Sonderedition; a release that earns
-  one may carry its name in the heading as that one does.
+  𝖅𝖜𝖊𝖎𝖙𝖊𝖗 𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘 Sonderedition; introducing the 𝕸𝖎𝖐𝖗𝖔 model.
 - **MINOR** for a feature you would notice from the page or the paper — a new
   control, a new macro, a way of painting that was not there before.
 - **PATCH** for work on a feature already released: a fault in it, a figure
