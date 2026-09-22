@@ -1603,6 +1603,54 @@ fault the wipe had, on the grounds that both had done it on this machine all
 along. That was wrong, and it is worth saying how it looked when it finally
 bit, because the symptom was nowhere near the cause.
 
+#### Coming in bent the other way
+
+Every swipe out of a bay runs the same way — deep end, up the stairs, out — so
+the bristles are combed the same way on every pickup of every job and take a
+set that way. Nothing in a run ever bent them back.
+
+The pickup now does. The brush is brought down **outside the far wall**, the
+side it returns from, **low enough that the bristles meet the rim** rather than
+clearing it, and then **driven in and down in one move**. The rim bends them
+forward as the brush goes over it, and the run down the bay to the deep end
+drags them forward too. That is the swipe undone, and it costs one move,
+because the trip had to arrive somewhere anyway:
+
+    G00 Z11                      ; tray lift, crossing the bed
+    G00 X111.78 Y35.5            ; this pickup's lane, outside the cup
+    G00 Z6.857                   ; under the rim, still outside
+    ; dip
+    G01 X111.78 Y5.5 Z-1         ; driven in over the rim
+    G01 X111.78 Y26.5 Z5.9       ; the swipe out, as before
+
+**The line it drives in on is the swipe's own**, run backwards and extended out
+past the wall, dropped by `copicograf.RIM_CATCH` (2 mm). Taking the swipe's line
+matters: the far 40% of a design crucible is a staircase rising to the rim, so
+there is no way in over that wall that does not ride the stairs, and the swipe's
+line is the one the bristles already survive going the other way. Dropping it by
+2 mm is what turns clearing the rim into catching it. On the holders the models
+carry that lands the tip **3 mm under the Mini's rim, 4 under the 𝔐𝔦𝔨𝔯𝔬's and 2
+under Pinkograph's** — which is the figure this was asked for, arrived at from
+the holder's own geometry rather than typed in.
+
+**Diagonally, and not as a rub along the wall.** A sideways scrub at a fixed
+height splays a brush, which is the thing this exists to undo; the bend has to
+happen as part of going in.
+
+Coming down outside the cup is also safe ground: past the back wall of the
+holder there is bare bed, or the near edge of the paper, and the descent is in
+the air above it. It is the only place the brush can be under the rim without
+being over a crucible.
+
+Round cups are untouched — they have no rim to speak of and no stairs, and the
+chord they sweep already runs both ways.
+
+clean.g and containercenter.g dip the same way, so the macro and a job still
+agree on what a dip is. clean.g lost a move doing it: it used to go to the
+middle of the cup first and then let the motion make its own approach, which
+crossed the mouth for no reason and, on a holder whose cups sit south of the
+origin, was a move into the Y endstop — Brushparang's water cup is at Y −3.
+
 #### Mixing the cup by moving the dip
 
 One swipe works one line across the bay and leaves the paint either side of it

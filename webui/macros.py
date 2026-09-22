@@ -48,7 +48,7 @@ from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
 from gcode_pipeline import to_ascii
 # After gcode_pipeline, which is what puts the repo root on sys.path: the
 # choreographer lives a directory up, beside the command-line ancestors.
-from copicograf import DEFAULT_DIP_LANES, dip_lanes  # noqa: E402
+from copicograf import DEFAULT_DIP_LANES, RIM_CATCH, dip_lanes  # noqa: E402
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
@@ -256,12 +256,22 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
         lanes = dip_lanes(tray_x, holder["water_bay_width"],
                           _num(bg, "cup_dip_lanes", DEFAULT_DIP_LANES),
                           (0.0, workable_x(conf)))
+        # In over the far wall and down, the way a job does it: the swipe runs
+        # one way every time, so the brush is brought in bent the other way
+        # against the rim rather than dropped in over the mouth. See
+        # copicograf.RIM_CATCH.
+        approach = tray_y + depth / 2 + margin
+        rise = (exit_z - dip) / max(far - near, 1e-6)
+        approach_z = min(lift, max(dip + 0.5,
+                                   dip + rise * (approach - near) - RIM_CATCH))
         for i in range(max(1, reps)):
             dip_x = lanes[i % len(lanes)]
             lines += [
-                f"G00 X{_fmt(dip_x)} Y{_fmt(near)}",
-                f"G00 Z{_fmt(dip)}",
-                f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs — wipes itself",
+                f"G00 X{_fmt(dip_x)} Y{_fmt(approach)}",
+                f"G00 Z{_fmt(approach_z)} ; under the rim, still outside the cup",
+                f"G01 X{_fmt(dip_x)} Y{_fmt(near)} Z{_fmt(dip)}"
+                " ; driven in over the rim -- bends the brush the other way",
+                f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs -- wipes itself",
                 f"G00 Z{_fmt(lift)}",
             ]
         return lines
@@ -445,7 +455,11 @@ def generate_macros(conf: dict) -> dict[str, str]:
         f"; containers: {shape}",
         *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
-        f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
+        # No move to the middle of the cup first. The motion makes its own
+        # approach now, to the back of the bay, which is where a brush comes in
+        # from; going to the centre first crossed the mouth for no reason, and
+        # on a holder whose cups sit south of the origin it was a move into the
+        # Y endstop -- Brushparang's water cup is at Y -3.
         *_container_motion(conf, wx, wy, reps=_WASH_REPS),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         *_park_at_origin(park_z),

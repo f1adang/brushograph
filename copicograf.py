@@ -26,6 +26,24 @@ DIP_MARKER = "; dip"
 # 0.4° more and past that it is all file and no smoothness.
 RAMP_CHORDS = 12
 
+# How far under the rim the brush comes in for a pickup, in millimetres.
+#
+# Every swipe out of a bay runs the same way — from the deep end up the stairs
+# — so the bristles are combed the same way every time and take a set that way.
+# The brush comes in bent the other way now: it is brought down outside the far
+# wall, the side it returns from, low enough that the bristles meet the rim
+# rather than clearing it, and then driven in and down. The rim bends them
+# forward, and the run down the bay to the deep end drags them forward too,
+# which is the swipe undone.
+#
+# The line it drives in on is the swipe's own, run backwards and extended out
+# past the wall, dropped by this much. Taking the swipe's line means the
+# bristles get the treatment they already survive, over the same stairs, in the
+# other direction; dropping it is what turns clearing the rim into catching it.
+# On the holders the models carry that lands the tip 3 mm under the Mini's rim,
+# 4 under the Mikro's and 2 under Pinkograph's.
+RIM_CATCH = 2.0
+
 # How many places across a rectangular bay the dips are spread over, when the
 # config does not say. Odd on purpose: the stride below wants a lane count it
 # is coprime with, and an odd one always has 2 to hand.
@@ -555,6 +573,21 @@ class Copicograf:
             # collapses to one point rather than swiping backwards.
             entry_y = max(entry_y, self.y_floor)
             exit_y = max(exit_y, entry_y)
+            # Where the brush comes in from: outside the far wall, by the same
+            # margin the swipe keeps off the ends, at the height the swipe's
+            # own line would be out there less RIM_CATCH. Outside, because the
+            # bend wants the rim to bend against and the far wall is the side
+            # the brush returns from; low, because a brush that clears the rim
+            # is a brush that is not bent by it. Held above the floor and below
+            # the tray lift, so a config whose figures do not describe a cup
+            # gets an approach that is at worst the dip it used to make.
+            rise = ((self.cup_swipe_exit_z - self.dip_depth)
+                    / max(exit_y - entry_y, 1e-6))
+            approach_y = tray_y + self.cup_depth / 2 + margin \
+                if self.cup_shape in ("modern", "custom") else tray_y
+            approach_z = min(self.go_in_tray_lift,
+                             max(self.dip_depth + 0.5,
+                                 self.dip_depth + rise * (approach_y - entry_y) - RIM_CATCH))
             # Where across the bay each of these dips goes down. A round cup
             # is entered in the middle however often it is visited — that is
             # the point furthest from the wall in every direction — and it
@@ -594,14 +627,14 @@ class Copicograf:
                     # lifted it there — so it wants the ramp without a second
                     # lift, which was a hop in the air when they were one flag.
                     travel_with_z(x + self.offset_x, y + self.offset_y,
-                                  dip_x, entry_y, clear, self.go_in_tray_lift,
+                                  dip_x, approach_y, clear, self.go_in_tray_lift,
                                   to_cup=True,
                                   ramp=from_canvas if ramp is None else ramp)
                 else:
                     # Already over the tray, and already at the tray lift: the
                     # entry before this one ended there. Across to this dip's
-                    # lane on the way down the bay, in the air over the rim.
-                    self.gcodes.append(GCodeRapidMove(X=_mm(dip_x), Y=_mm(entry_y)))
+                    # lane on the way, in the air over the rim.
+                    self.gcodes.append(GCodeRapidMove(X=_mm(dip_x), Y=_mm(approach_y)))
 
                 if first_coords[1] > 1000 or second_coords[1] > 1000:
                     print("napaka")
@@ -621,8 +654,33 @@ class Copicograf:
                     # bays are open, the floor is not part of that model.     #
                     ###########################################################
                     far = exit_y
+                    # Down outside the cup first. Nothing is under the brush
+                    # here -- it is past the back wall of the holder, over bare
+                    # bed or the near edge of the paper -- and coming down out
+                    # here rather than over the mouth is what leaves the rim in
+                    # front of the bristles instead of under them.
+                    self.gcodes.append(GCodeRapidMove(Z=approach_z))
                     self.gcodes.append(DIP_MARKER)
-                    self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
+
+                    #######################################################
+                    # Driven in, not dropped in. One move, down and along  #
+                    # at once: the bristles meet the rim, bend forward     #
+                    # over it, and are dragged forward again all the way   #
+                    # down the bay to the deep end.                        #
+                    #                                                      #
+                    # Which is the swipe undone. Every swipe runs the same #
+                    # way, deep end to stairs, so a brush that is only ever#
+                    # swiped is combed one way all day and sets that way.  #
+                    # This is the same path, the same stairs, the same     #
+                    # flex, in the other direction, and it costs one move  #
+                    # because the trip had to arrive somewhere anyway.     #
+                    #                                                      #
+                    # Diagonally, and not as a rub along the wall: a       #
+                    # sideways scrub at a fixed height splays a brush,      #
+                    # which is the thing this is trying to undo.           #
+                    #######################################################
+                    self.gcodes.append(GCodeLinearMove(
+                        X=_mm(dip_x), Y=_mm(entry_y), Z=self.dip_depth))
 
                     #######################################################
                     # Straight down and straight up the stairs, and       #
