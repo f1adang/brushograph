@@ -37,6 +37,18 @@ version's heading appears with its first bullet and grows until it is tagged.
   slightly less paint. **Hatching at 0** still fills the shadows in, since with
   no strokes to draw one with that is all that is left.
 
+- **A photo is turned a quarter turn when that fills more of the paper.** The
+  picture is painted onto the width and height whatever their proportions, so a
+  portrait photograph on a wide bed used to come out narrow — and stretched. It
+  is now laid so its long side runs along the canvas's: on a 151 × 124 mm bed a
+  3:4 photograph goes from 93 × 124 mm to 151 × 113, half as much paper again.
+  A colour photograph has always been laid out this way; a photo uploaded to one
+  tray now is too, and on a machine whose bed is taller than it is wide it is a
+  landscape photograph that gets turned. A picture that is **already black and
+  white** is left the way up it arrived — it is your own artwork, not a
+  photograph to be fitted — so switching a tray between the two changes the
+  painted size, and the note under it says when a picture has been turned.
+
 - **The black cup gets its colour picked up in a different place each time,
   like the others.** Black sits at the far end of the holder, and the spread of
   pickup positions was held inside the ground a job already covers by giving up
