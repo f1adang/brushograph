@@ -29,23 +29,15 @@ version's heading appears with its first bullet and grows until it is tagged.
   right — the two edges of a rectangular cup the swipe never touches. A wall
   that is off the end of the machine is not wiped, and the file says so.
 
-- **The bending motion goes over the rim, to the dipping position, and then
-  straight down** to Dip Depth before the swipe out, instead of reaching full
-  depth at the corner where the swipe starts — which is the one point a
-  controller blends away, so the brush was skimming the paint rather than
-  standing in it. **And it is left off the first pickup of a run**: the bend
-  undoes a set the swipe puts in, and at the start of a job nothing has swiped
-  the brush.
-
-- **The brush goes properly into the paint on its way into the cup.** The new
-  drive-in reached full depth at a single point — the corner where the swipe
-  starts — and a controller blends a corner between two moves rather than
-  cutting it, so that was the one point the brush was guaranteed not to reach:
-  what went in the paint was the last millimetre of a brush still on its way
-  down. It now reaches Dip Depth a tenth of the bay south of the middle and runs
-  along the floor to the deep end from there, which is 3 to 7.5 mm of travel in
-  the paint at full depth depending on the holder. It still catches the rim on
-  the way in.
+- **The bend now lets go of the brush before it dips.** It crosses the rim —
+  which is where the bending happens — and then travels the length of the
+  container in clear air, so the bristles come back to themselves, and only
+  then goes straight down to Dip Depth and stands there a moment before
+  swiping out. Carrying the bend on down into the cup was why the brush never
+  reached the bottom: a folded brush is a shorter brush, and pushing it further
+  down does not unfold it. **The bend is also left off the first pickup of a
+  run**: it undoes a set the swipe puts in, and at the start of a job nothing
+  has swiped the brush.
 
 ## [v2.12.0](https://github.com/f1adang/brushograph/releases/tag/v2.12.0) — 2026-09-22
 
