@@ -48,8 +48,8 @@ from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
 from gcode_pipeline import to_ascii
 # After gcode_pipeline, which is what puts the repo root on sys.path: the
 # choreographer lives a directory up, beside the command-line ancestors.
-from copicograf import (DEFAULT_DIP_LANES, DIP_PLUNGE,  # noqa: E402
-                        RIM_CATCH, dip_lanes)
+from copicograf import (DEFAULT_DIP_LANES, DIP_DWELL,  # noqa: E402
+                        RIM_CATCH, RIM_DROP, dip_lanes)
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
@@ -314,23 +314,29 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int,
         # against the rim rather than dropped in over the mouth. See
         # copicograf.RIM_CATCH.
         approach = tray_y + depth / 2 + margin
-        rise = (exit_z - dip) / max(far - near, 1e-6)
-        approach_z = min(lift, max(dip + 0.5,
-                                   dip + rise * (approach - near) - RIM_CATCH))
+        # How low the brush is as it crosses the rim, and never lower than a
+        # millimetre over the stairs at the far end: the bend has to be over
+        # before the brush crosses the bay, or it arrives still folded. See
+        # copicograf.RIM_CATCH.
+        rim_z = max(exit_z + 1.0, lift - 2.0 - RIM_CATCH)
+        rim_z = min(lift, max(dip + 1.0, rim_z))
         for i in range(max(1, reps)):
             dip_x = lanes[i % len(lanes)]
             lines += [
                 f"G00 X{_fmt(dip_x)} Y{_fmt(approach)}",
-                f"G00 Z{_fmt(approach_z)} ; under the rim, still outside the cup",
-                f"G01 X{_fmt(dip_x)} Y{_fmt(near)} Z{_fmt(dip + DIP_PLUNGE)}"
-                " ; driven in over the rim -- bends the brush the other way",
-                f"G01 Z{_fmt(dip)} ; and down onto the floor, at Dip Depth",
+                f"G00 Z{_fmt(rim_z + RIM_DROP)} ; over the rim, still outside the cup",
+                f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(rim_z)}"
+                " ; in across the rim, going down -- bends the brush the other way",
+                f"G01 X{_fmt(dip_x)} Y{_fmt(near)} Z{_fmt(rim_z)}"
+                " ; the bay in clear air, so the bristles come back",
+                f"G01 Z{_fmt(dip)} ; straight down, at Dip Depth",
+                f"G4 P{DIP_DWELL:g} ; stand on the floor",
                 f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs -- wipes itself",
                 f"G00 Z{_fmt(lift)}",
             ]
             if brim_wipe and i == 0:
                 lines += _brim_wipe(conf, tray_x, far, holder["water_bay_width"],
-                                    approach_z, lift)
+                                    rim_z, lift)
         return lines
 
     # Classic: down the middle, a diagonal sweep, back up. The real dance

@@ -26,39 +26,32 @@ DIP_MARKER = "; dip"
 # 0.4° more and past that it is all file and no smoothness.
 RAMP_CHORDS = 12
 
-# How far under the rim the brush comes in for a pickup, in millimetres.
+# How far under the rim the bristles are drawn on the way in, in millimetres,
+# and how much higher than that the drive-in starts, so that it is going down
+# as it crosses the rim rather than rubbing along it.
 #
 # Every swipe out of a bay runs the same way — from the deep end up the stairs
 # — so the bristles are combed the same way every time and take a set that way.
-# The brush comes in bent the other way now: it is brought down outside the far
-# wall, the side it returns from, low enough that the bristles meet the rim
-# rather than clearing it, and then driven in and down. The rim bends them
-# forward, and the run down the bay to the deep end drags them forward too,
-# which is the swipe undone.
+# The brush comes in bent the other way now: down outside the far wall, the
+# side it returns from, then in across the rim, low enough that the rim catches
+# the bristles and folds them forward.
 #
-# The line it drives in on is the swipe's own, run backwards and extended out
-# past the wall, dropped by this much. Taking the swipe's line means the
-# bristles get the treatment they already survive, over the same stairs, in the
-# other direction; dropping it is what turns clearing the rim into catching it.
-# On the holders the models carry that lands the tip 3 mm under the Mini's rim,
-# 4 under the Mikro's and 2 under Pinkograph's.
+# And then it lets go of them. The first version drove on down the stairs and
+# into the deep end in one move, so the bristles were still folded over when
+# the brush got there -- the plunge that followed pushed a bent brush at the
+# floor and the tip never reached it. The bend is over once the rim is crossed;
+# the brush then travels the bay in clear air, which is what gives the bristles
+# their shape back, and only then goes down.
 RIM_CATCH = 2.0
+RIM_DROP = 2.0
 
-# How far above Dip Depth the drive-in ends, in millimetres, so that the last
-# thing before the swipe is a straight descent onto the floor.
-#
-# The drive-in used to finish at Dip Depth itself, at the far end of a long
-# shallow diagonal -- which put the brush at full depth for exactly one point
-# of its path, the corner where the swipe starts. A controller does not cut
-# corners, it blends them, and a shallow diagonal is still most of a
-# millimetre off the floor a millimetre before its end. What went into the
-# paint was the last of a brush still on its way down.
-#
-# So the drive-in stops short, over the dipping position, and a move of its own
-# takes the brush the rest of the way down. A plunge straight down Z arrives
-# where it says it will: there is no long run left for the descent to be spread
-# over, and a blended junction costs it the deviation setting and nothing more.
-DIP_PLUNGE = 2.0
+# How long the brush stands on the floor of the cup before the swipe pulls it
+# out, in seconds. The plunge and the swipe meet at a corner, and a controller
+# rounds a corner rather than cutting it, so without this the brush starts
+# leaving the bottom before it has finished arriving at it. Seconds on GRBL and
+# FluidNC; a Marlin board reads P as milliseconds and so does not wait at all,
+# which is the harmless way round.
+DIP_DWELL = 0.15
 
 # How many places across a rectangular bay the dips are spread over, when the
 # config does not say. Odd on purpose: the stride below wants a lane count it
@@ -628,16 +621,17 @@ class Copicograf:
             # arrive: outside the cup for a drive-in, over the mouth for the
             # plain drop the first trip of a job still makes.
             bend = self._picked_up and self.cup_shape in ("modern", "custom")
-            rise = ((self.cup_swipe_exit_z - self.dip_depth)
-                    / max(exit_y - entry_y, 1e-6))
             approach_y = tray_y + self.cup_depth / 2 + margin if bend else entry_y
-            # The line it drives in on ends DIP_PLUNGE above the floor, so it
-            # is a shade shallower than the swipe's own -- which is the line it
-            # is drawn from, dropped by RIM_CATCH so the bristles meet the rim
-            # instead of clearing it.
-            approach_z = min(self.go_in_tray_lift,
-                             max(self.dip_depth + 0.5,
-                                 self.dip_depth + rise * (approach_y - entry_y) - RIM_CATCH))
+            # How low the brush is when it crosses the rim: under it by
+            # RIM_CATCH, taking the rim as two millimetres under the tray lift,
+            # which is where every holder the models carry puts it. Never lower
+            # than a millimetre over the stairs at the far end, though -- the
+            # swipe leaves them at cup_swipe_exit_z, so that is how high they
+            # stand there, and the brush has to be clear of them by the time it
+            # has crossed or it arrives at the dipping position still bent.
+            rim_z = max(self.cup_swipe_exit_z + 1.0,
+                        self.go_in_tray_lift - 2.0 - RIM_CATCH)
+            rim_z = min(self.go_in_tray_lift, max(self.dip_depth + 1.0, rim_z))
             # Where across the bay each of these dips goes down. A round cup
             # is entered in the middle however often it is visited — that is
             # the point furthest from the wall in every direction — and it
@@ -710,6 +704,7 @@ class Copicograf:
                         # which is what every trip did before the rim bend.
                         self.gcodes.append(DIP_MARKER)
                         self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
+                        self.gcodes.append(f"G4 P{DIP_DWELL:g} ; stand on the floor")
                         self.gcodes.append(GCodeLinearMove(
                             X=_mm(dip_x), Y=_mm(far), Z=self.cup_swipe_exit_z))
                         self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
@@ -720,8 +715,7 @@ class Copicograf:
                     # bed or the near edge of the paper -- and coming down out
                     # here rather than over the mouth is what leaves the rim in
                     # front of the bristles instead of under them.
-                    self.gcodes.append(GCodeRapidMove(Z=approach_z))
-                    self.gcodes.append(DIP_MARKER)
+                    self.gcodes.append(GCodeRapidMove(Z=rim_z + RIM_DROP))
 
                     #######################################################
                     # Driven in, not dropped in. One move, down and along  #
@@ -740,15 +734,24 @@ class Copicograf:
                     # sideways scrub at a fixed height splays a brush,      #
                     # which is the thing this is trying to undo.           #
                     #######################################################
-                    # Over the rim and on to the dipping position, stopping
-                    # DIP_PLUNGE short of the floor, and then straight down.
-                    # Three things in the order they have to happen in: the
-                    # bend, the place, the depth. Rolling the last two into the
-                    # end of the diagonal is what left the brush skimming the
-                    # paint instead of standing in it.
+                    #######################################################
+                    # In across the rim, and going down as it crosses:     #
+                    # that is the bend, and it is over by the far end of   #
+                    # the stairs. Then the length of the bay in clear air, #
+                    # which is where the bristles come back to themselves, #
+                    # and only then down.                                  #
+                    #                                                      #
+                    # The order is the whole of it. Bend and dip in one    #
+                    # move puts a folded brush on the floor and the tip    #
+                    # never touches it.                                    #
+                    #######################################################
                     self.gcodes.append(GCodeLinearMove(
-                        X=_mm(dip_x), Y=_mm(entry_y), Z=self.dip_depth + DIP_PLUNGE))
+                        X=_mm(dip_x), Y=_mm(far), Z=rim_z))
+                    self.gcodes.append(GCodeLinearMove(
+                        X=_mm(dip_x), Y=_mm(entry_y), Z=rim_z))
+                    self.gcodes.append(DIP_MARKER)
                     self.gcodes.append(GCodeLinearMove(Z=self.dip_depth))
+                    self.gcodes.append(f"G4 P{DIP_DWELL:g} ; stand on the floor")
 
                     #######################################################
                     # Straight down and straight up the stairs, and       #

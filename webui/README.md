@@ -1609,58 +1609,44 @@ Every swipe out of a bay runs the same way — deep end, up the stairs, out — 
 the bristles are combed the same way on every pickup of every job and take a
 set that way. Nothing in a run ever bent them back.
 
-The pickup now does. The brush is brought down **outside the far wall**, the
-side it returns from, **low enough that the bristles meet the rim** rather than
-clearing it, and then **driven in and down in one move**. The rim bends them
-forward as the brush goes over it, and the run down the bay to the deep end
-drags them forward too. That is the swipe undone, and it costs one move,
-because the trip had to arrive somewhere anyway:
-
-    G00 Z11                      ; tray lift, crossing the bed
-    G00 X111.78 Y35.5            ; this pickup's lane, outside the cup
-    G00 Z6.857                   ; under the rim, still outside
-    ; dip
-    G01 X111.78 Y5.5 Z-1         ; driven in over the rim
-    G01 X111.78 Y26.5 Z5.9       ; the swipe out, as before
-
-**Three moves, in the order they have to happen in: the bend, the place, the
-depth.** Over the rim, on to the dipping position — stopping `DIP_PLUNGE`
-(2 mm) short of the floor — and then straight down:
+The pickup now does, and in four moves that have to stay in this order:
 
     G00 X127.11 Y35.5      ; outside the cup, at the tray lift
-    G00 Z6.857             ; under the rim, still outside
+    G00 Z9                 ; down over the rim, still outside
+    G01 X127.11 Y26.5 Z7   ; in across the rim, going down — the bend
+    G01 X127.11 Y5.5 Z7    ; the length of the bay in clear air
     ; dip
-    G01 X127.11 Y5.5 Z1    ; over the rim and in, stopping short of the floor
-    G01 Z-1                ; fully lowered, at Dip Depth
-    G01 X127.11 Y26.5 Z5.9 ; up the stairs
+    G01 Z-1                ; straight down, at Dip Depth
+    G4 P0.15               ; stand on the floor
+    G01 X127.11 Y26.5 Z5.9 ; the swipe out, as before
 
-The first version rolled the last two into the end of the diagonal, which put
-the brush at Dip Depth for exactly one point of its path: the corner where the
-swipe starts. A shallow diagonal is still most of a millimetre off the floor a
-millimetre before its end, and a controller does not cut a corner, it blends
-it — so the one point the brush was meant to be deepest was the one point it
-was guaranteed not to reach, and what went in the paint was the last of a brush
-still on its way down. A plunge straight down Z arrives where it says it will:
-there is no run left for the descent to be spread over.
+**The bend, then letting go of it, then the dip.** The rim catches the bristles
+and folds them forward as the brush crosses it — the opposite of what the swipe
+does — and that is the whole of the bend. What made the first two attempts fail
+was carrying it any further: they drove on down the stairs into the deep end in
+one move, so the brush arrived still folded over, and the plunge that followed
+pushed a bent brush at the floor. The tip never got there. **A bent brush is
+shorter than a straight one**, and no amount of Z fixes that; it has to be given
+its shape back first, which is what the run down the bay in clear air is for.
 
-**The line it drives in on is the swipe's own**, run backwards and extended out
-past the wall, dropped by `copicograf.RIM_CATCH` (2 mm). Taking the swipe's line
-matters: the far 40% of a design crucible is a staircase rising to the rim, so
-there is no way in over that wall that does not ride the stairs, and the swipe's
-line is the one the bristles already survive going the other way. Dropping it by
-2 mm is what turns clearing the rim into catching it. On the holders the models
-carry that lands the tip **3 mm under the Mini's rim, 4 under the 𝔐𝔦𝔨𝔯𝔬's and 2
-under Pinkograph's** — which is the figure this was asked for, arrived at from
-the holder's own geometry rather than typed in.
+**Clear air matters both ways.** The brush crosses the rim at
+`go_in_tray_lift − 2 − RIM_CATCH` — two millimetres under a rim that the tray
+lift clears by two — and never lower than a millimetre above where the stairs
+end, which is `cup_swipe_exit_z` by definition. That is what gets it over the
+stairs and out into the empty part of the bay: 2.0 mm under the rim and 1.1 over
+the stairs on the Mini and on Pinkograph, 1.7 and 1.0 on the 𝔐𝔦𝔨𝔯𝔬.
 
-**Diagonally, and not as a rub along the wall.** A sideways scrub at a fixed
-height splays a brush, which is the thing this exists to undo; the bend has to
-happen as part of going in.
+**Going down as it crosses, not rubbing along.** It starts `RIM_DROP` (2 mm)
+higher and descends across the rim, so the bristles are taken by an edge rather
+than dragged along a wall at a fixed height — a sideways scrub splays a brush,
+which is the thing this exists to undo.
 
-Coming down outside the cup is also safe ground: past the back wall of the
-holder there is bare bed, or the near edge of the paper, and the descent is in
-the air above it. It is the only place the brush can be under the rim without
-being over a crucible.
+**And it stands on the floor for `DIP_DWELL`** (0.15 s) before the swipe pulls
+it out. The plunge and the swipe meet at a corner, and a controller rounds a
+corner rather than cutting it, so without the dwell the brush begins leaving the
+bottom before it has finished arriving. Seconds on GRBL and FluidNC; a Marlin
+board reads `P` as milliseconds and does not wait, which is the harmless way
+round.
 
 **Not on the first pickup of a run.** The bend is for a brush the swipe has
 set, and at the start of a job nothing has swiped it: the last run left it
@@ -1668,6 +1654,11 @@ standing in water, or it has just been fitted. The first trip to a cup goes in
 over the mouth and straight down, the way every trip did before this, and every
 trip after it comes in over the rim. It is the whole first trip, not its first
 dip — the opening pickup makes `prepare_paint_count` of them.
+
+Coming down outside the cup is also safe ground: past the back wall of the
+holder there is bare bed, or the near edge of the paper, and the descent is in
+the air above it. It is the only place the brush can be under the rim without
+being over a crucible.
 
 Round cups are untouched — they have no rim to speak of and no stairs, and the
 chord they sweep already runs both ways.
@@ -1691,10 +1682,6 @@ crucible is the wide one and it stands at the near end of the row, so its left
 wall can be off the machine: on Pinkograph, whose water cup is 39.2 mm across
 at X 15, the left wall wants X −6.6. That side is not wiped, and the file says
 so rather than wiping at the endstop.
- clean.g lost a move doing it: it used to go to the
-middle of the cup first and then let the motion make its own approach, which
-crossed the mouth for no reason and, on a holder whose cups sit south of the
-origin, was a move into the Y endstop — Brushparang's water cup is at Y −3.
 
 #### Mixing the cup by moving the dip
 
