@@ -1623,26 +1623,25 @@ because the trip had to arrive somewhere anyway:
     G01 X111.78 Y5.5 Z-1         ; driven in over the rim
     G01 X111.78 Y26.5 Z5.9       ; the swipe out, as before
 
-**It reaches full depth before the end, not at it.** The first version ran the
-whole way from outside the cup to the deep end as one diagonal, which put the
-brush at Dip Depth for exactly one point of its path: the corner where the swipe
-starts. A controller does not cut corners, it blends them — FluidNC and GRBL
-round a junction between two fed moves by whatever the deviation setting allows
-— so the one point the brush was meant to be deepest is the one point it is
-guaranteed not to reach, and what went into the paint was the last millimetre or
-two of a brush still on its way down. It lands at Dip Depth **a tenth of the bay
-south of the middle** (`DIP_SOUTH`) and then runs along the floor to the deep
-end, so the depth is held over a straight segment with nothing for a blended
-corner to take away:
+**Three moves, in the order they have to happen in: the bend, the place, the
+depth.** Over the rim, on to the dipping position — stopping `DIP_PLUNGE`
+(2 mm) short of the floor — and then straight down:
 
-| | lands at | south of centre | then runs at depth |
-|---|---|---|---|
-| Mini | Y 3.6 | 2.4 mm | 3.1 mm |
-| 𝔐𝔦𝔨𝔯𝔬 | Y 4.2 | 1.8 mm | 3.8 mm |
-| Pinkograph | Y 13.0 | 3.0 mm | 7.5 mm |
+    G00 X127.11 Y35.5      ; outside the cup, at the tray lift
+    G00 Z6.857             ; under the rim, still outside
+    ; dip
+    G01 X127.11 Y5.5 Z1    ; over the rim and in, stopping short of the floor
+    G01 Z-1                ; fully lowered, at Dip Depth
+    G01 X127.11 Y26.5 Z5.9 ; up the stairs
 
-A tenth of the bay is also in front of the stairs on both design holders, so the
-brush is on flat floor when it arrives at depth.
+The first version rolled the last two into the end of the diagonal, which put
+the brush at Dip Depth for exactly one point of its path: the corner where the
+swipe starts. A shallow diagonal is still most of a millimetre off the floor a
+millimetre before its end, and a controller does not cut a corner, it blends
+it — so the one point the brush was meant to be deepest was the one point it
+was guaranteed not to reach, and what went in the paint was the last of a brush
+still on its way down. A plunge straight down Z arrives where it says it will:
+there is no run left for the descent to be spread over.
 
 **The line it drives in on is the swipe's own**, run backwards and extended out
 past the wall, dropped by `copicograf.RIM_CATCH` (2 mm). Taking the swipe's line
@@ -1663,11 +1662,20 @@ holder there is bare bed, or the near edge of the paper, and the descent is in
 the air above it. It is the only place the brush can be under the rim without
 being over a crucible.
 
+**Not on the first pickup of a run.** The bend is for a brush the swipe has
+set, and at the start of a job nothing has swiped it: the last run left it
+standing in water, or it has just been fitted. The first trip to a cup goes in
+over the mouth and straight down, the way every trip did before this, and every
+trip after it comes in over the rim. It is the whole first trip, not its first
+dip — the opening pickup makes `prepare_paint_count` of them.
+
 Round cups are untouched — they have no rim to speak of and no stairs, and the
 chord they sweep already runs both ways.
 
 clean.g and containercenter.g dip the same way, so the macro and a job still
-agree on what a dip is. clean.g lost a move doing it: it used to go to the
+agree on what a dip is — except for the first-pickup exemption, which a macro
+has no run to be the start of.
+ clean.g lost a move doing it: it used to go to the
 middle of the cup first and then let the motion make its own approach, which
 crossed the mouth for no reason and, on a holder whose cups sit south of the
 origin, was a move into the Y endstop — Brushparang's water cup is at Y −3.

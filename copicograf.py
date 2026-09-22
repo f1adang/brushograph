@@ -44,22 +44,21 @@ RAMP_CHORDS = 12
 # 4 under the Mikro's and 2 under Pinkograph's.
 RIM_CATCH = 2.0
 
-# Where along the bay the brush reaches full depth, as a fraction of the bay
-# south of its middle.
+# How far above Dip Depth the drive-in ends, in millimetres, so that the last
+# thing before the swipe is a straight descent onto the floor.
 #
-# The drive-in used to run all the way from outside the cup to the deep end as
-# one diagonal, which put the brush at Dip Depth for exactly one point of its
-# path: the corner where the swipe starts. A controller does not paint corners,
-# it blends them -- FluidNC and GRBL round a junction between two fed moves by
-# whatever the deviation setting allows -- so the one point the brush was meant
-# to be deepest is the one point it is guaranteed not to reach. What went into
-# the paint was the last millimetre or two of a brush still on its way down.
+# The drive-in used to finish at Dip Depth itself, at the far end of a long
+# shallow diagonal -- which put the brush at full depth for exactly one point
+# of its path, the corner where the swipe starts. A controller does not cut
+# corners, it blends them, and a shallow diagonal is still most of a
+# millimetre off the floor a millimetre before its end. What went into the
+# paint was the last of a brush still on its way down.
 #
-# It lands at full depth a tenth of the bay south of the middle now, which is
-# in front of the stairs on both design holders, and then runs along the floor
-# to the deep end before it swipes out. The depth is held over a straight
-# segment, so there is nothing for a blended corner to take away.
-DIP_SOUTH = 0.1
+# So the drive-in stops short, over the dipping position, and a move of its own
+# takes the brush the rest of the way down. A plunge straight down Z arrives
+# where it says it will: there is no long run left for the descent to be spread
+# over, and a blended junction costs it the deviation setting and nothing more.
+DIP_PLUNGE = 2.0
 
 # How many places across a rectangular bay the dips are spread over, when the
 # config does not say. Odd on purpose: the stride below wants a lane count it
@@ -247,6 +246,14 @@ class Copicograf:
             self.cup_dip_lanes = max(1, int(bg.get("cup_dip_lanes", DEFAULT_DIP_LANES)))
         except (TypeError, ValueError):
             self.cup_dip_lanes = DEFAULT_DIP_LANES
+        # Whether anything has been picked up yet in this job. The drive-in
+        # over the rim exists to bend a brush the swipe has set, and at the
+        # start of a run nothing has swiped it: the last job left it standing
+        # in water, or it has just been fitted. So the first trip to a cup goes
+        # straight in over the mouth, the way every trip used to, and every one
+        # after it comes in over the rim.
+        self._picked_up = False
+
         # Which lane each cup is due next, keyed by where the cup is. Per cup,
         # so every one of them works its own paint evenly however often the
         # job visits it — the water is dipped three times a wash and a colour
@@ -617,10 +624,17 @@ class Copicograf:
             # is a brush that is not bent by it. Held above the floor and below
             # the tray lift, so a config whose figures do not describe a cup
             # gets an approach that is at worst the dip it used to make.
+            # Whether this trip comes in over the rim, and so where it has to
+            # arrive: outside the cup for a drive-in, over the mouth for the
+            # plain drop the first trip of a job still makes.
+            bend = self._picked_up and self.cup_shape in ("modern", "custom")
             rise = ((self.cup_swipe_exit_z - self.dip_depth)
                     / max(exit_y - entry_y, 1e-6))
-            approach_y = tray_y + self.cup_depth / 2 + margin \
-                if self.cup_shape in ("modern", "custom") else tray_y
+            approach_y = tray_y + self.cup_depth / 2 + margin if bend else entry_y
+            # The line it drives in on ends DIP_PLUNGE above the floor, so it
+            # is a shade shallower than the swipe's own -- which is the line it
+            # is drawn from, dropped by RIM_CATCH so the bristles meet the rim
+            # instead of clearing it.
             approach_z = min(self.go_in_tray_lift,
                              max(self.dip_depth + 0.5,
                                  self.dip_depth + rise * (approach_y - entry_y) - RIM_CATCH))
@@ -690,6 +704,17 @@ class Copicograf:
                     # bays are open, the floor is not part of that model.     #
                     ###########################################################
                     far = exit_y
+                    if not bend:
+                        # The first trip of a job: nothing has set the brush
+                        # yet, so it goes in over the mouth and straight down,
+                        # which is what every trip did before the rim bend.
+                        self.gcodes.append(DIP_MARKER)
+                        self.gcodes.append(GCodeRapidMove(Z=self.dip_depth))
+                        self.gcodes.append(GCodeLinearMove(
+                            X=_mm(dip_x), Y=_mm(far), Z=self.cup_swipe_exit_z))
+                        self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
+                        continue
+
                     # Down outside the cup first. Nothing is under the brush
                     # here -- it is past the back wall of the holder, over bare
                     # bed or the near edge of the paper -- and coming down out
@@ -715,15 +740,15 @@ class Copicograf:
                     # sideways scrub at a fixed height splays a brush,      #
                     # which is the thing this is trying to undo.           #
                     #######################################################
-                    # Down to full depth south of the middle, then along the
-                    # floor to the deep end: in the paint for the length of
-                    # that run rather than for the instant of a corner.
-                    land_y = max(entry_y, tray_y - self.cup_depth * DIP_SOUTH)
+                    # Over the rim and on to the dipping position, stopping
+                    # DIP_PLUNGE short of the floor, and then straight down.
+                    # Three things in the order they have to happen in: the
+                    # bend, the place, the depth. Rolling the last two into the
+                    # end of the diagonal is what left the brush skimming the
+                    # paint instead of standing in it.
                     self.gcodes.append(GCodeLinearMove(
-                        X=_mm(dip_x), Y=_mm(land_y), Z=self.dip_depth))
-                    if land_y - entry_y > 0.05:
-                        self.gcodes.append(GCodeLinearMove(
-                            X=_mm(dip_x), Y=_mm(entry_y), Z=self.dip_depth))
+                        X=_mm(dip_x), Y=_mm(entry_y), Z=self.dip_depth + DIP_PLUNGE))
+                    self.gcodes.append(GCodeLinearMove(Z=self.dip_depth))
 
                     #######################################################
                     # Straight down and straight up the stairs, and       #
@@ -764,6 +789,7 @@ class Copicograf:
                     self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
 
             self._next_lane[cup] = lane_at % len(lanes)
+            self._picked_up = True
 
             # The rim wipe is for a round cup, where the brush comes straight
             # up out of the paint carrying a drop. A modern bay has already
