@@ -226,13 +226,60 @@ def _park_at_origin(park_z: float) -> list[str]:
     ]
 
 
-def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> list[str]:
+def _brim_wipe(conf: dict, tray_x: float, at_y: float, width: float,
+               z: float, lift: float) -> list[str]:
+    """One drag over the left wall of the cup and one over the right.
+
+    The swipe up the stairs wipes the brush along one line of it, and it is
+    the same line every time. A rinsed brush still carries water in the sides
+    of the bristles, and what takes that out is an edge drawn across them --
+    which is what the two side walls are, and they are the only edges of a
+    rectangular bay that the swipe never touches.
+
+    Out over the wall and back, at the height the brush comes in at, which is
+    under the rim: the bristles meet the wall and are drawn over it rather than
+    lifted off it. Left first and then right, because a wipe on one side alone
+    takes the water off one side alone -- the same argument the round cups'
+    two rim wipes have always made.
+
+    Held inside the ground a job covers, the way the dips are: the water
+    crucible is the wide one and it sits at the near end of the row, so its
+    left wall can be off the machine. A side with no room to reach past is not
+    wiped, rather than wiped at the endstop.
+    """
+    lo, hi = 0.0, workable_x(conf)
+    over = RIM_CATCH          # how far past the wall the bristles are drawn
+    left = tray_x - width / 2 - over
+    right = tray_x + width / 2 + over
+    # Back over the middle of the cup at the tray lift, and only then down:
+    # the swipe leaves the brush at whichever lane it dipped in, and dropping
+    # there would put the bristles under the rim somewhere they then have to
+    # cross the bay to get out of.
+    lines = [f"G00 X{_fmt(tray_x)} Y{_fmt(at_y)}",
+             f"G00 Z{_fmt(z)} ; back under the rim, to wipe on the walls"]
+    for side, at in (("left", left), ("right", right)):
+        if not lo <= at <= hi:
+            lines.append(f"; no room to wipe on the {side} wall -- it is off the bed")
+            continue
+        lines += [
+            f"G01 X{_fmt(at)} Y{_fmt(at_y)} ; out over the {side} wall",
+            f"G01 X{_fmt(tray_x)} Y{_fmt(at_y)} ; and back in",
+        ]
+    lines.append(f"G00 Z{_fmt(lift)} ; Go In Tray Lift")
+    return lines
+
+
+def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int,
+                      brim_wipe: bool = False) -> list[str]:
     """`reps` dips or swipes at (tray_x, tray_y), classic or modern.
 
-    No rim wipe: the only caller is clean.g's wash, which — like copicograf's
-    own wash_the_brush() — passes remove_drop=False, because a brush being
-    rinsed has nothing to shed on the way out. A modern bay's swipe wipes
-    itself regardless, on the way up the stairs.
+    No rim wipe on the way out of a dip: the callers are a wash and a tick's
+    pickup, and — like copicograf's own wash_the_brush() — a brush being rinsed
+    has nothing to shed. A modern bay's swipe wipes itself regardless, on the
+    way up the stairs.
+
+    `brim_wipe` is the other thing: one drag over each side wall after the
+    first swipe, which clean.g asks for. That one is not about drips.
     """
     bg = conf.get("brushograph", {})
     shape = str(bg.get("cup_shape", "classic")).strip().lower()
@@ -281,6 +328,9 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
                 f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs -- wipes itself",
                 f"G00 Z{_fmt(lift)}",
             ]
+            if brim_wipe and i == 0:
+                lines += _brim_wipe(conf, tray_x, far, holder["water_bay_width"],
+                                    approach_z, lift)
         return lines
 
     # Classic: down the middle, a diagonal sweep, back up. The real dance
@@ -467,7 +517,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         # from; going to the centre first crossed the mouth for no reason, and
         # on a holder whose cups sit south of the origin it was a move into the
         # Y endstop -- Brushparang's water cup is at Y -3.
-        *_container_motion(conf, wx, wy, reps=_WASH_REPS),
+        *_container_motion(conf, wx, wy, reps=_WASH_REPS, brim_wipe=True),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         *_park_at_origin(park_z),
     ]

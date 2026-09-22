@@ -1675,6 +1675,22 @@ chord they sweep already runs both ways.
 clean.g and containercenter.g dip the same way, so the macro and a job still
 agree on what a dip is — except for the first-pickup exemption, which a macro
 has no run to be the start of.
+
+**clean.g also wipes the brush on the two side walls**, once, after its first
+swipe. The swipe up the stairs wipes along one line of the brush and it is the
+same line every time; a rinsed brush still carries water in the sides of the
+bristles, and what takes that out is an edge drawn across them. The side walls
+are the only edges of a rectangular bay the swipe never touches. So the brush
+comes back down under the rim and is drawn out over the left wall and back,
+then out over the right and back — both, because a wipe on one side takes the
+water off one side, which is the argument the round cups' two rim wipes have
+always made.
+
+It is held inside the ground a job covers, the way the dips are. The water
+crucible is the wide one and it stands at the near end of the row, so its left
+wall can be off the machine: on Pinkograph, whose water cup is 39.2 mm across
+at X 15, the left wall wants X −6.6. That side is not wiped, and the file says
+so rather than wiping at the endstop.
  clean.g lost a move doing it: it used to go to the
 middle of the cup first and then let the motion make its own approach, which
 crossed the mouth for no reason and, on a holder whose cups sit south of the
