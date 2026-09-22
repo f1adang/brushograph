@@ -20,6 +20,18 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.12.1](https://github.com/f1adang/brushograph/releases/tag/v2.12.1) — 2026-09-22
+
+- **The brush goes properly into the paint on its way into the cup.** The new
+  drive-in reached full depth at a single point — the corner where the swipe
+  starts — and a controller blends a corner between two moves rather than
+  cutting it, so that was the one point the brush was guaranteed not to reach:
+  what went in the paint was the last millimetre of a brush still on its way
+  down. It now reaches Dip Depth a tenth of the bay south of the middle and runs
+  along the floor to the deep end from there, which is 3 to 7.5 mm of travel in
+  the paint at full depth depending on the holder. It still catches the rim on
+  the way in.
+
 ## [v2.12.0](https://github.com/f1adang/brushograph/releases/tag/v2.12.0) — 2026-09-22
 
 - **A photograph is cut into long strokes now, not into shapes to fill in.** The
