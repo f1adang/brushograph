@@ -22,6 +22,28 @@ version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.14.0](https://github.com/f1adang/brushograph/releases/tag/v2.14.0) — 2026-09-22
 
+- **A painting keeps 2 mm clear of the far end of each axis.** Max Width and
+  Max Height are where the machine stops, and a painting that ran to one of
+  them ended on the endstop: a photograph at full size on a 140 mm axis put 142
+  strokes at exactly Y 140, and the machine hit the upper Y stop. The two size
+  boxes are capped short of the limit now, and a machine file that asks for
+  more has its painting scaled down to fit — both sides by the same amount, so
+  the picture keeps its shape — with the run log saying so.
+
+- **A concentric fill spirals inwards instead of painting a stack of separate
+  rings.** Each ring used to cost a brush-down, and after outlining a big shape
+  the machine would go and pick at the rings of a sliver beside it rather than
+  work inwards, because that sliver was nearer. A shape is now one stroke that
+  winds in to the middle: on a test photograph, 191 fewer brush-downs for the
+  same picture and slightly less paint.
+
+- **Clean Brush goes into the water in one move and presses 2 mm below Dip
+  Depth.** It used to come down outside the cup and drive in across the rim,
+  which is what a *pickup* does to bend the bristles back — needless for a
+  brush that is about to be rinsed four times and wiped on three edges. And it
+  stopped at Dip Depth, which rinses the tip; water gets into a brush that is
+  bent against something, so it now leans on the floor for a moment each dip.
+
 - **Four new macros stir the paint: mix-c, mix-m, mix-y and mix-k.** Watercolour
   in a crucible separates — pigment to the floor, water and methylcellulose
   above — and a cup that has stood overnight paints pale until the brush has
