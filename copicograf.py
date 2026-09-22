@@ -44,6 +44,23 @@ RAMP_CHORDS = 12
 # 4 under the Mikro's and 2 under Pinkograph's.
 RIM_CATCH = 2.0
 
+# Where along the bay the brush reaches full depth, as a fraction of the bay
+# south of its middle.
+#
+# The drive-in used to run all the way from outside the cup to the deep end as
+# one diagonal, which put the brush at Dip Depth for exactly one point of its
+# path: the corner where the swipe starts. A controller does not paint corners,
+# it blends them -- FluidNC and GRBL round a junction between two fed moves by
+# whatever the deviation setting allows -- so the one point the brush was meant
+# to be deepest is the one point it is guaranteed not to reach. What went into
+# the paint was the last millimetre or two of a brush still on its way down.
+#
+# It lands at full depth a tenth of the bay south of the middle now, which is
+# in front of the stairs on both design holders, and then runs along the floor
+# to the deep end before it swipes out. The depth is held over a straight
+# segment, so there is nothing for a blended corner to take away.
+DIP_SOUTH = 0.1
+
 # How many places across a rectangular bay the dips are spread over, when the
 # config does not say. Odd on purpose: the stride below wants a lane count it
 # is coprime with, and an odd one always has 2 to hand.
@@ -698,8 +715,15 @@ class Copicograf:
                     # sideways scrub at a fixed height splays a brush,      #
                     # which is the thing this is trying to undo.           #
                     #######################################################
+                    # Down to full depth south of the middle, then along the
+                    # floor to the deep end: in the paint for the length of
+                    # that run rather than for the instant of a corner.
+                    land_y = max(entry_y, tray_y - self.cup_depth * DIP_SOUTH)
                     self.gcodes.append(GCodeLinearMove(
-                        X=_mm(dip_x), Y=_mm(entry_y), Z=self.dip_depth))
+                        X=_mm(dip_x), Y=_mm(land_y), Z=self.dip_depth))
+                    if land_y - entry_y > 0.05:
+                        self.gcodes.append(GCodeLinearMove(
+                            X=_mm(dip_x), Y=_mm(entry_y), Z=self.dip_depth))
 
                     #######################################################
                     # Straight down and straight up the stairs, and       #

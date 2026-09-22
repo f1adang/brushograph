@@ -48,7 +48,8 @@ from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
 from gcode_pipeline import to_ascii
 # After gcode_pipeline, which is what puts the repo root on sys.path: the
 # choreographer lives a directory up, beside the command-line ancestors.
-from copicograf import DEFAULT_DIP_LANES, RIM_CATCH, dip_lanes  # noqa: E402
+from copicograf import (DEFAULT_DIP_LANES, DIP_SOUTH,  # noqa: E402
+                        RIM_CATCH, dip_lanes)
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
@@ -266,6 +267,10 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
         # against the rim rather than dropped in over the mouth. See
         # copicograf.RIM_CATCH.
         approach = tray_y + depth / 2 + margin
+        # Full depth a tenth of the bay south of the middle, then along the
+        # floor to the deep end: a corner is blended by the controller, a
+        # straight run at Dip Depth is not. See copicograf.DIP_SOUTH.
+        land = max(near, tray_y - depth * DIP_SOUTH)
         rise = (exit_z - dip) / max(far - near, 1e-6)
         approach_z = min(lift, max(dip + 0.5,
                                    dip + rise * (approach - near) - RIM_CATCH))
@@ -274,8 +279,13 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int) -> li
             lines += [
                 f"G00 X{_fmt(dip_x)} Y{_fmt(approach)}",
                 f"G00 Z{_fmt(approach_z)} ; under the rim, still outside the cup",
-                f"G01 X{_fmt(dip_x)} Y{_fmt(near)} Z{_fmt(dip)}"
+                f"G01 X{_fmt(dip_x)} Y{_fmt(land)} Z{_fmt(dip)}"
                 " ; driven in over the rim -- bends the brush the other way",
+            ]
+            if land - near > 0.05:
+                lines.append(f"G01 X{_fmt(dip_x)} Y{_fmt(near)} Z{_fmt(dip)}"
+                             " ; along the floor to the deep end, at Dip Depth")
+            lines += [
                 f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)} ; up the stairs -- wipes itself",
                 f"G00 Z{_fmt(lift)}",
             ]

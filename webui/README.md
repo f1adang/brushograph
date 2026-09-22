@@ -1623,6 +1623,27 @@ because the trip had to arrive somewhere anyway:
     G01 X111.78 Y5.5 Z-1         ; driven in over the rim
     G01 X111.78 Y26.5 Z5.9       ; the swipe out, as before
 
+**It reaches full depth before the end, not at it.** The first version ran the
+whole way from outside the cup to the deep end as one diagonal, which put the
+brush at Dip Depth for exactly one point of its path: the corner where the swipe
+starts. A controller does not cut corners, it blends them — FluidNC and GRBL
+round a junction between two fed moves by whatever the deviation setting allows
+— so the one point the brush was meant to be deepest is the one point it is
+guaranteed not to reach, and what went into the paint was the last millimetre or
+two of a brush still on its way down. It lands at Dip Depth **a tenth of the bay
+south of the middle** (`DIP_SOUTH`) and then runs along the floor to the deep
+end, so the depth is held over a straight segment with nothing for a blended
+corner to take away:
+
+| | lands at | south of centre | then runs at depth |
+|---|---|---|---|
+| Mini | Y 3.6 | 2.4 mm | 3.1 mm |
+| 𝔐𝔦𝔨𝔯𝔬 | Y 4.2 | 1.8 mm | 3.8 mm |
+| Pinkograph | Y 13.0 | 3.0 mm | 7.5 mm |
+
+A tenth of the bay is also in front of the stairs on both design holders, so the
+brush is on flat floor when it arrives at depth.
+
 **The line it drives in on is the swipe's own**, run backwards and extended out
 past the wall, dropped by `copicograf.RIM_CATCH` (2 mm). Taking the swipe's line
 matters: the far 40% of a design crucible is a staircase rising to the rim, so
