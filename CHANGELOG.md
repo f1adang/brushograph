@@ -22,6 +22,17 @@ version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.13.0](https://github.com/f1adang/brushograph/releases/tag/v2.13.0) — 2026-09-22
 
+- **Clean Brush washes in four dips, leaving the cup a different way each
+  time**: up the stairs, over the left wall, over the right wall, up the stairs,
+  and then the park at X0 Y0. The stairs are the wipe a job gives the brush at
+  every pickup, so the wash begins and ends with it shaped the way a job expects
+  to find it; the two in the middle are the wipe it never gets, since the swipe
+  draws the same one line of the bristles every time. Note that on every machine
+  here the water cup's **left** wall is off the end of the bed — it is the
+  widest cup and it stands hard against the X origin — so that dip leaves up the
+  stairs and the file says why. Moving the water cup a few millimetres to the
+  right brings it in reach.
+
 - **The rough time is the time the machine will actually take.** It was
   distance divided by feedrate, which is out by a factor of three on a real
   bed: a job reported at an hour and a half took about five. Almost nothing in
