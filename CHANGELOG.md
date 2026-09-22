@@ -37,6 +37,15 @@ version's heading appears with its first bullet and grows until it is tagged.
   slightly less paint. **Hatching at 0** still fills the shadows in, since with
   no strokes to draw one with that is all that is left.
 
+- **No macro drives faster than the machine's own Fast feedrate.** zero.g swept
+  to the far corner at F2100 whatever the machine was set to — that figure came
+  off the hardware it was first tuned on — and a sweep that ends in the
+  endstops on purpose is the last move that should be going quicker than the
+  rest. Every feedrate in every macro is now held at or below the Fast speed
+  group's. Anything already slower keeps its own figure, and a machine whose
+  Fast rate is higher than the macro was written with is left alone. A macro
+  that had a feed lowered says so in its header.
+
 - **A photo is turned a quarter turn when that fills more of the paper.** The
   picture is painted onto the width and height whatever their proportions, so a
   portrait photograph on a wide bed used to come out narrow — and stretched. It
