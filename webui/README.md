@@ -2663,6 +2663,27 @@ under whatever it says about itself and above its first move, because a macro
 is read, and a feed that is not the one it was written with is exactly the kind
 of thing somebody goes looking for later.
 
+#### Eleven files is more than seven
+
+Uploading the macros started failing part way through as soon as there were
+eleven of them to send rather than seven: three or four would land and the next
+would come back with a bare `NetworkError`. It is not the size — the ones that
+landed were not the small ones — and it is not the network, since the same
+machine takes a megabyte of G-code without complaint. It is that the thing at
+the other end is an ESP32 closing a file on its flash and freeing a socket, and
+it was being asked for the next file before it had finished with the last.
+
+So there is a **breath of `MACRO_PAUSE_MS` (400 ms) between one file and the
+next**, and each file gets **`MACRO_TRIES` (3) goes**, waiting longer each time
+— re-sending a macro only writes the same bytes over the top, so a retry costs
+nothing but the wait. Eleven files take about four seconds rather than one.
+
+The message when it still gives up **names the file it stopped at**, and says
+the other thing it might be: a board whose flash filesystem is full will fail
+at the same file every time however long the pause, and the fix for that is in
+its own file list rather than here. The eleven macros are 33 KB together on
+Pinkograph, of which the four mixing files are 14.
+
 ## Sessions outlive a restart
 
 An uploaded config is written to `webui_sessions/<session id>/` and addressed by

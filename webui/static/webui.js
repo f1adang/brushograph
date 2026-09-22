@@ -2117,6 +2117,19 @@ const SD_SYNC_MS = 2000;
 const WS_OPEN_MS = 6000;
 const WS_LISTEN_MS = 2500;
 
+/* A breath between one macro and the next, and how many goes each gets.
+ *
+ * The macros go up one file at a time, and the fourth of them started failing
+ * with a bare NetworkError as soon as there were eleven to send rather than
+ * seven. Three land, the next does not: it is not the size -- the three that
+ * land are the three smallest -- it is that the thing at the other end is an
+ * ESP32 closing a file on its flash and freeing a socket, and it is being
+ * asked for the next one before it has finished the last. A pause fixes it,
+ * and a retry covers the one that still lands badly, since re-sending a macro
+ * only writes the same bytes over the top. */
+const MACRO_PAUSE_MS = 400;
+const MACRO_TRIES = 3;
+
 /* FluidNC will not take a command unless a websocket session is live: ask it
  * to run a file with none open and /command answers 500 "WebSocket dead",
  * which is exactly what an upload that lands but never starts looks like. So
@@ -2280,24 +2293,44 @@ async function uploadMacrosToMachine() {
   const label = labelOf(upBtn);
   upBtn.disabled = true;
   const names = Object.keys(pendingMacros);
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
   let sent = 0;
+  let failed = null;
   try {
     for (const name of names) {
       report("Sending {name} to {base} (flash)… ({sent}/{total})",
              { name, base, sent, total: names.length });
-      const fd = new FormData();
-      fd.append("path", "/");
-      fd.append("myfile", new Blob([pendingMacros[name]], { type: "text/plain" }), name);
-      await fetch(`${base}/files`, { method: "POST", body: fd, mode: "no-cors" });
+      failed = name;
+      for (let go = 1; ; go++) {
+        try {
+          const fd = new FormData();
+          fd.append("path", "/");
+          fd.append("myfile", new Blob([pendingMacros[name]], { type: "text/plain" }), name);
+          await fetch(`${base}/files`, { method: "POST", body: fd, mode: "no-cors" });
+          break;
+        } catch (again) {
+          if (go >= MACRO_TRIES) throw again;
+          // Longer each time: whatever the board is still busy with, it is
+          // busy with it for longer than the pause that was not enough.
+          report("{name} did not go: waiting and trying again ({go}/{tries})…",
+                 { name, go, tries: MACRO_TRIES });
+          await pause(MACRO_PAUSE_MS * go * 3);
+        }
+      }
       sent += 1;
+      if (sent < names.length) await pause(MACRO_PAUSE_MS);
     }
+    failed = null;
     report("Sent {count} macros to {base}'s flash filesystem. The reply is opaque, so "
       + "check the machine's own file list to be sure.", { count: sent, base });
   } catch (e) {
-    report("Could not reach {base}: {error}. Sent {sent}/{total} before that. Check the "
-      + "hostname under Machine setup, Connection, and that this page and the machine "
-      + "are on the same network.",
-      { base, error: t(String(e.message || e)), sent, total: names.length }, true);
+    report("{base} stopped taking files at {name}: {error}. Sent {sent}/{total}, each "
+      + "tried {tries} times. Check the hostname under Machine setup, Connection, and "
+      + "that this page and the machine are on the same network \u2014 and if the ones that "
+      + "landed are the first few every time, the board's flash filesystem may be full: "
+      + "look at its file list and clear out what is not a macro.",
+      { base, name: failed || names[sent] || "?", error: t(String(e.message || e)),
+        sent, total: names.length, tries: MACRO_TRIES }, true);
   } finally {
     upBtn.disabled = false;
     say(upBtn, label);
