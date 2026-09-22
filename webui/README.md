@@ -2282,6 +2282,41 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   the Y endstop — moving there first is a move into the stop. It ends washed
   and parked in the water, like `clean.g`, because there is black paint in the
   brush.
+- **mix-c.g, mix-m.g, mix-y.g, mix-k.g** each stir one colour cup. Watercolour
+  in a crucible separates: pigment to the floor, water and the methylcellulose
+  that thickens it above, and a job painted from a cup that has stood overnight
+  starts pale and comes up to colour somewhere in its first strokes. The brush
+  goes in the way it goes in for a pickup, hops about the floor of the cup
+  **60 times at the Fast rate** (`MIX_HOPS`), comes out up the stairs, and is
+  then rinsed in the water and parked — because what is on it by then is a
+  cupful of paint, and the routine that leaves the brush clean is the one a job
+  would run next anyway.
+
+  **Quickly and randomly**, which is what was asked for and what the job is: a
+  slow sweep pushes the paint aside where a fast one rolls it over, and a
+  pattern stirs the ground it covers and leaves the rest. The seed is fixed, the
+  way the roughening noise in a woodcut is, so the same config writes the same
+  file — and each hop is thrown again until it lands at least **a third of the
+  way across the cup** from the last, because an even scatter of *points* is not
+  an even scatter of *moves*, and it is the moves that do the mixing. Sixty of
+  them is about 750 mm of travel, a minute and a half at 20 mm/s².
+
+  **The stairs are left out of it.** They take the back 40% of a bay, and a
+  brush hurried up them is a brush climbing out of the cup rather than stirring
+  what is in it, so the hopping keeps to the flat floor in front of them — and
+  to the 15% the dips already keep off each side wall. A round dish has no
+  stairs and the hops take its whole chord square.
+
+  One file a colour rather than one file with four cups in it, because mixing is
+  a thing you do to the cup you have just topped up. A machine with no black cup
+  gets a mix-k.g that says so and does nothing, the way containercenter.g does;
+  so does a cup the machine cannot reach.
+
+  It is hard on a brush, which is worth saying: dragging bristles sideways
+  through settled pigment is the motion the pickup stopped making, for that
+  reason. The difference is that this is done to a cup on purpose, once, rather
+  than a hundred times a job.
+
 - **backlash.g** draws the sheet the play in each axis is measured off —
   the macro that puts the most on the paper. It is
   drawn with a **pen fitted where the brush goes**: it visits no cup and dips

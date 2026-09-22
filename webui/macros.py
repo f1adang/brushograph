@@ -1,4 +1,4 @@
-"""Seven small utility routines.
+"""Eleven small utility routines.
 
 home.g parks the brush, paper.g moves it out of the way for replacing the
 paper, and clean.g washes the brush the way a real job does before parking
@@ -25,6 +25,12 @@ one, whose four dishes hold water and three colours -- gets a file that says
 so and paints nothing. Its file name keeps the spelling it was asked for;
 renaming it now would strand the copy already sitting in a machine's flash.
 
+mix-c.g, mix-m.g, mix-y.g and mix-k.g each stir one colour cup: the brush goes
+in, hops about the floor at the Fast rate to put the settled pigment back
+through the water and methylcellulose above it, comes out, and is rinsed and
+parked. The stairs at the back of a bay are left out of the hopping -- a brush
+hurried up them is climbing out of the cup rather than stirring what is in it.
+
 backlash.g is the one that draws: a sheet of paired strokes for
 reading the play in each axis off, one pair arriving from each side, against a
 gauge of known gaps. It is drawn with a pen fitted where the brush goes, so it
@@ -33,15 +39,18 @@ stations, each answering both axes where it stands: the four corners of
 everything the machine can paint, which is wider than the canvas a job uses,
 and the middle. It wants a pen in the holder and paper under all of it.
 
-None of the seven carries an M-code or a G28, so none needs the controller
+None of the eleven carries an M-code or a G28, so none needs the controller
 dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
 G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
 from __future__ import annotations
 
+import math
+import random
 import re
 
-from configspec import (CMYK_TO_TRAY, MODELS, RECTANGULAR_SHAPES,
+from configspec import (CMYK_LABEL, CMYK_TO_TRAY, MODELS,  # noqa: E501
+                        RECTANGULAR_SHAPES,
                         canvas_origin, feed_line, fit_cups_to_shape, holder_of,
                         in_cup_order, model_of, tray_entries, with_defaults,
                         workable_x)
@@ -53,7 +62,16 @@ from copicograf import (DEFAULT_DIP_LANES, DIP_DWELL,  # noqa: E402
 from version import gcode_note
 
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
-               "containercenter.g", "backlash.g"]
+               "containercenter.g",
+               "mix-c.g", "mix-m.g", "mix-y.g", "mix-k.g",
+               "backlash.g"]
+
+# How many hops around the floor of a cup a mixing macro makes. Sixty is about
+# a minute on a machine that accelerates at 20 mm/s^2, which is long enough to
+# see it working and short enough to run again -- and running it again is how
+# it is meant to be made longer, rather than by a figure nobody can judge from
+# the form.
+MIX_HOPS = 60
 
 # The gauges of backlash.g, in millimetres. A half-millimetre gap between
 # two drawn lines is not something a ruler settles, whether they were drawn
@@ -234,9 +252,51 @@ def _park_at_origin(park_z: float) -> list[str]:
     ]
 
 
+def _stir(hops: int, seed: int, xs: tuple[float, float],
+          ys: tuple[float, float], from_x: float, from_y: float) -> list[str]:
+    """`hops` jumps around the floor of a cup, and back where it started.
+
+    Paint settles, and the water and methylcellulose that were stirred into it
+    sit on top; what puts them back together is something dragged through the
+    lot of it, and on this machine the only thing there is to drag is the
+    brush. So it goes down to Dip Depth and hops about the floor at the Fast
+    rate -- quickly, because a slow sweep pushes the paint aside where a fast
+    one rolls it over, and randomly, because a pattern stirs the ground it
+    covers and leaves the rest.
+
+    Random, but not different every time the macro is generated: the seed is
+    fixed, the way the roughening noise in a woodcut is, so the same config
+    writes the same file. Each hop is thrown until it lands at least a third of
+    the way across the cup from the last one, which is what keeps them from
+    being a shiver in one corner -- an even scatter of points is not an even
+    scatter of *moves*, and it is the moves that do the mixing.
+
+    It ends where it started, so whatever the caller does next -- the swipe up
+    the stairs, a wall -- it does from the place it would have anyway.
+    """
+    lo_x, hi_x = xs
+    lo_y, hi_y = ys
+    span = math.hypot(hi_x - lo_x, hi_y - lo_y)
+    if hops <= 0 or span < 1.0:
+        return []
+    rng = random.Random(seed)
+    lines, at_x, at_y = [], from_x, from_y
+    for _ in range(max(0, hops)):
+        for _try in range(12):
+            x = rng.uniform(lo_x, hi_x)
+            y = rng.uniform(lo_y, hi_y)
+            if math.hypot(x - at_x, y - at_y) >= span / 3:
+                break
+        lines.append(f"G01 X{_fmt(x)} Y{_fmt(y)}")
+        at_x, at_y = x, y
+    lines.append(f"G01 X{_fmt(from_x)} Y{_fmt(from_y)} ; back to where the dip left off")
+    return lines
+
+
 def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
                       exits: list[str] | None = None,
-                      width: float | None = None) -> list[str]:
+                      width: float | None = None, stir: int = 0,
+                      seed: int = 0) -> list[str]:
     """Dips at (tray_x, tray_y), classic or modern, each leaving the way `exits` says.
 
     A dip is the same wherever it is made: in over the rim, down onto the floor,
@@ -252,6 +312,11 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
 
     Absent, every dip leaves up the stairs, which is what a wash was before
     clean.g asked for the walls.
+
+    `stir` is how many hops the brush makes around the floor of the cup while
+    it is down there, which is what the mixing macros are: paint settles, and
+    water and methylcellulose sit on top of it, and the only thing on this
+    machine that can put them back together is the brush. Nought is a dip.
 
     No rim wipe on the way out either way: the callers are a wash and a tick's
     pickup, and — like copicograf's own wash_the_brush() — a brush being rinsed
@@ -329,6 +394,16 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
                 f"G01 Z{_fmt(dip)} ; straight down, at Dip Depth",
                 f"G4 P{DIP_DWELL:g} ; stand on the floor",
             ]
+            if stir:
+                # The flat floor of the bay, which is all of it in front of the
+                # stairs: they take the back 40%, and a brush hurried up and
+                # down them is a brush climbing out of the cup rather than
+                # stirring what is in it.
+                lines += _stir(
+                    stir, seed + i,
+                    (max(0.0, tray_x - bay / 2 + bay * 0.15),
+                     min(workable_x(conf), tray_x + bay / 2 - bay * 0.15)),
+                    (near, tray_y + depth * 0.1), dip_x, near)
             if leaves in walls:
                 # Out and up over the side wall from where it stands, the way
                 # the swipe goes out and up over the stairs: the bristles are
@@ -362,7 +437,13 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
             f"G00 X{_fmt(tray_x)} Y{_fmt(tray_y)}",
             f"G00 Z{_fmt(dip)}",
         ]
-        if d >= 0.5:
+        if stir and d >= 0.5:
+            # A dish is round and has no stairs, so the whole of the chord's
+            # square is fair ground -- corners and all, since the dish is wider
+            # than the chord the sweep keeps to.
+            lines += _stir(stir, seed + i, (tray_x - d, tray_x + d),
+                           (tray_y - d, tray_y + d), tray_x, tray_y)
+        elif d >= 0.5:
             lines += [
                 f"G00 X{_fmt(tray_x + qx * d)} Y{_fmt(tray_y + qy * d)}",
                 f"G00 X{_fmt(tray_x - qx * d)} Y{_fmt(tray_y - qy * d)}",
@@ -434,6 +515,85 @@ def _comb_stroke(bg: dict, vertical: bool, pos: float, start: float, end: float,
     return [*travel, _feed(bg, "normal") + " ; the rate a job paints at",
             f"G01 Z{_fmt(canvas_z)}", draw,
             _feed(bg, "fast") + " ; back to travel speed", f"G00 Z{_fmt(lift)}"]
+
+
+def _mix_macro(conf: dict, channel: str, tray: str) -> str:
+    """Stir one colour cup, then wash the brush and park it.
+
+    The brush goes in the way it goes in for a pickup, hops about the floor of
+    the cup at the Fast rate (`_stir`), comes out up the stairs and is then
+    rinsed in the water and parked -- because what is on it at the end of this
+    is a brushful of paint, and the routine that leaves it clean is the one a
+    job would run next anyway.
+
+    It is hard on a brush, which is the honest thing to say about it: dragging
+    bristles sideways through settled pigment is exactly the motion the pickup
+    stopped making, for exactly that reason. The difference is that this is a
+    thing done on purpose to a cup, once, rather than a hundred times a job.
+    """
+    bg = conf.get("brushograph", {})
+    trays = conf.get("trays", {})
+    holder = holder_of(conf)
+    cup = trays.get(tray) if isinstance(trays, dict) else None
+    label = CMYK_LABEL.get(channel, tray)
+    go_lift = _num(bg, "go_in_tray_lift", 8)
+    park_z = _num(bg, "dip_depth", -4) + 1
+    water = trays.get("water", {}) if isinstance(trays, dict) else {}
+    wx, wy = _num(water, "x", 0), _num(water, "y", 0)
+
+    head = [
+        f"; mix-{channel.lower()}.g -- stir the {label} cup, then wash and park",
+        ";",
+        "; Watercolour in a crucible separates: pigment to the floor, water and",
+        "; the methylcellulose that thickens it above. This drags the brush",
+        f"; about the floor of the cup {MIX_HOPS} times at the Fast rate, which is",
+        "; as quick and as untidy as this machine can be asked to be, and the",
+        "; two together are what mix rather than merely swirl. About 750 mm of",
+        "; travel: a minute and a half on a machine that accelerates at",
+        "; 20 mm/s^2, and less on a quicker one.",
+        ";",
+        "; The stairs at the back are left out of it: a brush hurried up them",
+        "; is a brush climbing out of the cup, not stirring what is in it.",
+        ";",
+        "; It ends by rinsing the brush in the water and parking it, because",
+        "; what is on it by then is a cupful of paint. Run it again for a",
+        "; longer stir -- it is the same file twice.",
+    ]
+
+    if not isinstance(cup, dict) or "x" not in cup:
+        return "\n".join(head + [
+            ";",
+            f"; This machine has no {label} container, so there is nothing here",
+            "; to stir and this file does nothing. The petri dish holder has",
+            "; four places -- water and three colours -- and black is the one",
+            "; it does not have.",
+            *_preamble(bg),
+        ]) + "\n"
+
+    cx, cy = _num(cup, "x"), _num(cup, "y")
+    if not 0 <= cx <= workable_x(conf):
+        return "\n".join(head + [
+            ";",
+            f"; The {label} cup is at X{_fmt(cx)}, which is past the ground this",
+            "; machine covers, so this file does nothing rather than stirring",
+            "; somewhere that is not the cup.",
+            *_preamble(bg),
+        ]) + "\n"
+
+    return "\n".join(head + [
+        ";",
+        f"; {label} at X{_fmt(cx)} Y{_fmt(cy)}.",
+        *_preamble(bg),
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
+        *_container_motion(conf, cx, cy, reps=1, width=holder["bay_width"],
+                           stir=MIX_HOPS, seed=sum(map(ord, tray))),
+        "; wash and park, the way a job leaves the brush",
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the water cup",
+        *_container_motion(conf, wx, wy, reps=_WASH_REPS,
+                           width=holder["water_bay_width"]),
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
+        *_park_at_origin(park_z),
+    ]) + "\n"
 
 
 def generate_macros(conf: dict) -> dict[str, str]:
@@ -710,6 +870,19 @@ def generate_macros(conf: dict) -> dict[str, str]:
             *_park_at_origin(park_z),
         ]
     out["containercenter.g"] = "\n".join(lines) + "\n"
+
+    # mix-c.g, mix-m.g, mix-y.g, mix-k.g -- stir one colour cup.
+    #
+    # Watercolour in a crucible separates: pigment to the floor, water and the
+    # methylcellulose that thickens it above. A job painted from a cup that has
+    # stood overnight starts pale and comes up to colour somewhere in its first
+    # strokes, which is the same fault the opening pickup was given
+    # prepare_paint_count dips for, one cup further back.
+    #
+    # One file a colour rather than one file with four cups in it, because
+    # mixing is a thing you do to the cup you have just topped up.
+    for channel, tray in CMYK_TO_TRAY.items():
+        out[f"mix-{channel.lower()}.g"] = _mix_macro(conf, channel, tray)
 
     # backlash.g -- the calibration sheet for Backlash X and Backlash Y,
     # drawn dry with a pen fitted in the holder in place of the brush.
