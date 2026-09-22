@@ -445,14 +445,20 @@ def _offer_far_backlash(conf: dict) -> None:
         bg.setdefault(f"backlash_{axis}_far", bg.get(f"backlash_{axis}", 0.5))
 
 
-# A feedrate setting that is nothing but a rapid and an F word. Anything else a
-# config puts in that box -- a compound line, a G1, a comment -- is somebody
-# meaning it, and is left exactly as it is.
+# A feedrate setting that is nothing but a rapid and an F word, and an
+# acceleration setting that is nothing but an M204 and its two figures.
+# Anything else a config puts in those boxes -- a compound line, a G1, a
+# comment -- is somebody meaning it, and is left exactly as it is.
 _PLAIN_FEED = re.compile(r"^G0?0\s+F(\d+(?:\.\d+)?)$", re.IGNORECASE)
+_PLAIN_ACCEL = re.compile(
+    r"^M204\s+P(\d+(?:\.\d+)?)\s+T(\d+(?:\.\d+)?)$", re.IGNORECASE)
 
-# The speed groups' three settings. Only the first is a plain rate; the other
-# two are Marlin commands, and are hidden for any other controller.
+# The speed group settings that hold a figure rather than a line of G-code.
+# feedrate_2 is the third, and it is an M203 with a word per axis: three
+# figures, no single number to reduce it to, and Marlin-only besides.
 FEED_KEYS = ("feedrate_1",)
+ACCEL_KEYS = ("acc",)
+PLAIN_KEYS = FEED_KEYS + ACCEL_KEYS
 
 
 def feed_rate(value) -> float | None:
@@ -463,6 +469,32 @@ def feed_rate(value) -> float | None:
         return float(value)
     found = _PLAIN_FEED.match(str(value).strip())
     return float(found.group(1)) if found else None
+
+
+def accel_rate(value) -> float | None:
+    """The millimetres a second squared in an acceleration setting.
+
+    An M204 carries two: P for a move that extrudes and T for one that does
+    not. These machines have no extruder, so only one of the two can ever
+    apply, and where a config's pair differ it is because somebody set one of
+    them and left the other. The larger is taken, which is the figure a real
+    run matches: a job estimated at 1.5 hours on Pinkograph, whose groups read
+    P20 T10 and P20 T20, took about five, and 20 is what predicts that.
+    """
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return float(value)
+    found = _PLAIN_ACCEL.match(str(value).strip())
+    return max(float(found.group(1)), float(found.group(2))) if found else None
+
+
+def accel_line(value, fallback: str = "M204 P500 T500") -> str:
+    """An acceleration setting as the line that goes in the file."""
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return f"M204 P{value:g} T{value:g}"
+    text = str(value or "").strip()
+    return text or fallback
 
 
 def feed_line(value, fallback: str = "G0 F1000") -> str:
@@ -499,11 +531,23 @@ def _offer_plain_feeds(conf: dict) -> None:
     for group in moves.values():
         if not isinstance(group, dict):
             continue
-        for key in FEED_KEYS:
-            found = _PLAIN_FEED.match(str(group.get(key, "")).strip())
-            if found:
-                rate = float(found.group(1))
-                group[key] = int(rate) if rate.is_integer() else rate
+        for key, read in ((k, feed_rate) for k in FEED_KEYS):
+            _plainly(group, key, read)
+        for key, read in ((k, accel_rate) for k in ACCEL_KEYS):
+            _plainly(group, key, read)
+
+
+def _plainly(group: dict, key: str, read) -> None:
+    """Store what `read` makes of a setting, if it can make anything of it."""
+    value = group.get(key, "")
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return
+    pattern = _PLAIN_FEED if read is feed_rate else _PLAIN_ACCEL
+    if not pattern.match(str(value).strip()):
+        return
+    rate = read(value)
+    if rate is not None:
+        group[key] = int(rate) if float(rate).is_integer() else rate
 
 
 def _offer_canvas_start(conf: dict) -> None:
@@ -695,6 +739,9 @@ HELP = {
     "brushograph-canvas_start_y": "Where the paintable area begins in Y (mm): the far edge of the strip the containers stand in, and a fact about the machine rather than about this painting. Nothing is painted below it, and the painted height is measured from it — with Offset Y at 0 the canvas starts exactly here. Choosing a model sets it: 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬.",
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
     "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
+    "brushograph-moves-normal-acc": "How hard this machine accelerates while painting, in millimetres a second squared. Almost no stroke in a picture is long enough to reach the feedrate, so this figure decides how long a job takes far more than the feedrate does \u2014 the page's estimate is built on it. Marlin is sent it as an M204; GRBL and FluidNC hold their own figure and have that line stripped, so set this to match what the controller is configured with.",
+    "brushograph-moves-fast-acc": "How hard this machine accelerates while travelling, in millimetres a second squared. The same figure as the painting one on every machine here, and used the same way \u2014 see the note on that one.",
+    "brushograph-moves-remove_drops-acc": "How hard this machine accelerates while wiping a round cup's rim, in millimetres a second squared. Nothing reads it for a rectangular bay.",
     "brushograph-moves-normal-feedrate_1": "How fast the brush paints, in millimetres a minute. This is the rate a stroke is laid at, and the macros drop to it for the marks they put on the paper.",
     "brushograph-moves-fast-feedrate_1": "How fast the machine crosses the bed, in millimetres a minute \u2014 the trips to the containers and back, and the whole of every macro. Nothing the generator writes goes faster than this.",
     "brushograph-moves-remove_drops-feedrate_1": "How fast the brush is drawn over the rim of a round cup to shed its drop, in millimetres a minute. Nothing reads it for a rectangular bay, which wipes itself on the way up its stairs.",
@@ -741,6 +788,7 @@ LABELS = {
     # Only right while the box holds a figure. A config that keeps a whole line
     # of G-code in there gets the old label back, in _field.
     "feedrate_1": "Feedrate (mm/minute)",
+    "acc": "Acceleration (mm/s\u00b2)",
     # Backlash X and Backlash Y are the near end, and keep the names they were
     # given when they were the only figures there were.
     "backlash_x_far": "Backlash X far end",
@@ -765,7 +813,7 @@ def _field(path: list[str], value) -> dict:
     # where the box holds a figure. A config whose speed group still carries a
     # line of G-code -- because it carries something this cannot read as a
     # plain rate -- is asking for that line, and says so.
-    if path[-1] in FEED_KEYS and not isinstance(value, (int, float)):
+    if path[-1] in PLAIN_KEYS and not isinstance(value, (int, float)):
         label = label_for(path[-1])
     f = {"name": name, "label": label, "help": HELP.get(name), "value": value}
     if name in ENUMS:

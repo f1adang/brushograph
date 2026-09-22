@@ -116,6 +116,22 @@ def _feed_line(value, fallback="G0 F1000"):
     return text or fallback
 
 
+def _accel_line(value, fallback="M204 P500 T500"):
+    """A speed group's acceleration as the line that goes in the file.
+
+    The WebUI's box holds millimetres a second squared, so the M204 is written
+    around it here -- and only a Marlin board reads it at all; for every other
+    controller the sanitiser drops the line, and the figure is there for the
+    page's estimate of how long a job will take.
+    """
+    if isinstance(value, bool):
+        return fallback
+    if isinstance(value, (int, float)):
+        return f"M204 P{value:g} T{value:g}"
+    text = str(value or "").strip()
+    return text or fallback
+
+
 def _read_plain_move(line_text):
     """(text, xy) for a plain move, as the pygcode path would have seen it.
 
@@ -269,17 +285,20 @@ class Copicograf:
 
         self.prepare_paint_count = int(self.conf["brushograph"]["prepare_paint_count"])
 
-        self.initial_gcode_acc = self.conf["brushograph"]["moves"]["normal"]["acc"]
+        self.initial_gcode_acc = _accel_line(
+            self.conf["brushograph"]["moves"]["normal"]["acc"])
         self.initial_gcode_feedrate_1 = _feed_line(
             self.conf["brushograph"]["moves"]["normal"]["feedrate_1"])
         self.initial_gcode_feedrate_2 = self.conf["brushograph"]["moves"]["normal"]["feedrate_2"]
 
-        self.paint_gcode_acc = self.conf["brushograph"]["moves"]["fast"]["acc"]
+        self.paint_gcode_acc = _accel_line(
+            self.conf["brushograph"]["moves"]["fast"]["acc"])
         self.paint_gcode_feedrate_1 = _feed_line(
             self.conf["brushograph"]["moves"]["fast"]["feedrate_1"])
         self.paint_gcode_feedrate_2 = self.conf["brushograph"]["moves"]["fast"]["feedrate_2"]
 
-        self.remove_drops_gcode_acc = self.conf["brushograph"]["moves"]["remove_drops"]["acc"]
+        self.remove_drops_gcode_acc = _accel_line(
+            self.conf["brushograph"]["moves"]["remove_drops"]["acc"])
         self.remove_drops_gcode_feedrate_1 = _feed_line(
             self.conf["brushograph"]["moves"]["remove_drops"]["feedrate_1"])
         self.remove_drops_gcode_feedrate_2 = self.conf["brushograph"]["moves"]["remove_drops"]["feedrate_2"]

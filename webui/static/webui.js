@@ -695,14 +695,20 @@ function wireForm() {
     });
   }
 
-  /* Each speed group's Acc (M204) and Feedrate 2 (M203) are Marlin commands,
-     stripped from the G-code for any other controller, so only Marlin shows
-     them. A config with no controller is treated as GRBL, as the pipeline does.
-     Hidden, not disabled, so the figures survive a switch to another controller. */
+  /* Feedrate 2 (M203) is a Marlin command, stripped from the G-code for any
+     other controller, so only Marlin shows it. A config with no controller is
+     treated as GRBL, as the pipeline does. Hidden, not disabled, so the figures
+     survive a switch to another controller.
+
+     Acceleration used to be hidden the same way, and is not any more. The M204
+     it is written into is Marlin's, but the figure is the machine's, and the
+     page needs it whatever the controller: how long a job takes is decided by
+     how fast this machine gets up to speed far more than by the speed it is
+     asked for, and on a GRBL or FluidNC board nothing in the file says. */
   const controllerSelect = form.querySelector('[name="controller-controller_type"]');
   const showForController = () => {
     const marlin = !!controllerSelect && controllerSelect.value.trim().toLowerCase() === "marlin";
-    for (const input of form.querySelectorAll('[name^="brushograph-moves-"][name$="-acc"], [name^="brushograph-moves-"][name$="-feedrate_2"]')) {
+    for (const input of form.querySelectorAll('[name^="brushograph-moves-"][name$="-feedrate_2"]')) {
       const field = input.closest(".field");
       if (field) field.hidden = !marlin;
     }
@@ -1529,6 +1535,10 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
   let cmdX = 0, cmdY = 0, offX = 0, offY = 0;
   const trays = [];
   let paintMM = 0, travelMM = 0, dips = 0, strokes = 0, wasDown = false, dipping = false;
+  // What a time estimate needs and the drawing does not: how long each move
+  // really is (Z counts), how fast it was asked to go, and which way it points.
+  const plan = { len: [], v: [], ux: [], uy: [], uz: [], paint: [] };
+  let feed = 1000, dwell = 0;
 
   for (const rawLine of text.split("\n")) {
     if (marked && /^\s*;\s*dip\b/i.test(rawLine)) { dipping = true; dips++; continue; }
@@ -1557,7 +1567,17 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
     const shift = rawLine.match(/shift\s*X(-?[\d.]+)\s*Y(-?[\d.]+)/i);
     if (shift) { offX = parseFloat(shift[1]); offY = parseFloat(shift[2]); }
     const line = rawLine.split(";")[0].trim();
+    if (/^G0*4\b/.test(line)) {
+      // A dwell. Seconds here, as GRBL and FluidNC read P; a Marlin board
+      // reads it as milliseconds and waits a thousandth as long, which the
+      // estimate would rather overstate than miss.
+      const wait = line.match(/P\s*(-?\d*\.?\d+)/);
+      if (wait) dwell += parseFloat(wait[1]);
+      continue;
+    }
     if (!/^G0*[01](?![0-9])/.test(line)) continue;
+    const asked = line.match(/F\s*(\d*\.?\d+)/);
+    if (asked) feed = parseFloat(asked[1]) || feed;
     let ncx = cmdX, ncy = cmdY, nz = z;
     const words = line.matchAll(/([XYZ])\s*(-?\d*\.?\d+)/g);
     for (const [, axis, value] of words) {
@@ -1565,6 +1585,18 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
       if (axis === "X") ncx = v; else if (axis === "Y") ncy = v; else nz = v;
     }
     if (takeUp) {
+      // Not drawn -- it is the machine's slack, not the artwork -- but it is
+      // moved, and a take-up is a millimetre or so from a standstill to a
+      // standstill. There are thousands of them in a job and at 20 mm/s² each
+      // one costs half a second, so a time that left them out was an hour
+      // short on the file that showed this up.
+      const step = Math.hypot(ncx - cmdX, ncy - cmdY);
+      if (step > 1e-9) {
+        plan.len.push(step);
+        plan.v.push(feed / 60);
+        plan.ux.push((ncx - cmdX) / step); plan.uy.push((ncy - cmdY) / step); plan.uz.push(0);
+        plan.paint.push(false);
+      }
       // A file from before the shift was written down says only where the
       // take-up went, so the step it makes is all there is to go on.
       if (!shift) { offX += ncx - cmdX; offY += ncy - cmdY; }
@@ -1591,9 +1623,17 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
     if (!marked && (dip === null ? inCup && z >= canvas - 0.001
       : inCup && near(nz, dip) && z > nz + 0.001)) dips++;
     moves.push({ x1: x, y1: y, x2: nx, y2: ny, down: down && wasDown, cup: inCup, tray: trayIndex });
+    const dz = nz - z;
+    const len = Math.hypot(d, dz);
+    if (len > 1e-9) {
+      plan.len.push(len);
+      plan.v.push(feed / 60);            // the file speaks mm a minute
+      plan.ux.push((nx - x) / len); plan.uy.push((ny - y) / len); plan.uz.push(dz / len);
+      plan.paint.push(down && wasDown);
+    }
     wasDown = down; x = nx; y = ny; z = nz;
   }
-  return { moves, trays, paintMM, travelMM, dips, strokes };
+  return { moves, trays, paintMM, travelMM, dips, strokes, plan, dwell };
 }
 
 function trayColour(name, index) {
@@ -1747,12 +1787,71 @@ function drawGcode() {
   }
 }
 
+/* How long the machine will really be at it.
+
+   Distance over feedrate is the obvious sum and it is wrong by a factor of
+   three on a real machine, because almost nothing here is long enough to reach
+   the feedrate. Pinkograph accelerates at 20 mm/s²: from a standstill it needs
+   1.7 seconds and 28 millimetres to reach the 2000 mm/min its config asks for,
+   and the median stroke in a photograph is 6 mm. A job estimated at an hour and
+   a half that way took about five.
+
+   So this is the arithmetic a controller's own planner does. Every junction
+   between two moves can carry some speed — all of it where the direction
+   barely changes, none of it where the path doubles back — and then two passes
+   hold those speeds to what can be braked from and what can be reached:
+   backwards so nothing arrives faster than it can stop, forwards so nothing
+   leaves faster than it can get to. What is left is a trapezoid per move, and
+   its area is the time.
+
+   The acceleration comes from the speed groups, where it is the figure the
+   machine is set up with rather than anything in the file: GRBL and FluidNC
+   strip the M204 the painting group carries, so the file cannot say. */
+function machineFigure(key, fallback) {
+  const el = document.querySelector(`[name="brushograph-${key}"]`);
+  const n = parseFloat(el && el.value);
+  if (isFinite(n) && n > 0) return n;
+  // A config still carrying the G-code line has its figure inside it.
+  const inside = String((el && el.value) || "").match(/[FPT]\s*(\d*\.?\d+)/);
+  const m = parseFloat(inside && inside[1]);
+  return isFinite(m) && m > 0 ? m : fallback;
+}
+
+function runSeconds(plan, dwell) {
+  const n = plan.len.length;
+  if (!n) return 0;
+  const paintA = machineFigure("moves-normal-acc", 500);
+  const travelA = machineFigure("moves-fast-acc", paintA);
+  const accel = (i) => (plan.paint[i] ? paintA : travelA);
+  // What each junction could carry, before either pass holds it down.
+  const j = new Float64Array(n + 1);
+  for (let i = 1; i < n; i++) {
+    const cos = plan.ux[i - 1] * plan.ux[i] + plan.uy[i - 1] * plan.uy[i]
+      + plan.uz[i - 1] * plan.uz[i];
+    j[i] = Math.min(plan.v[i - 1], plan.v[i]) * Math.max(0, cos);
+  }
+  for (let i = n - 1; i >= 0; i--) {
+    j[i] = Math.min(j[i], Math.sqrt(j[i + 1] * j[i + 1] + 2 * accel(i) * plan.len[i]));
+  }
+  let total = dwell || 0;
+  for (let i = 0; i < n; i++) {
+    const a = accel(i), d = plan.len[i];
+    j[i + 1] = Math.min(j[i + 1], Math.sqrt(j[i] * j[i] + 2 * a * d));
+    const entry = j[i], exit = j[i + 1];
+    const peak = Math.min(plan.v[i], Math.sqrt((2 * a * d + entry * entry + exit * exit) / 2));
+    if (peak <= 0) continue;
+    const up = Math.max(0, (peak * peak - entry * entry) / (2 * a));
+    const down = Math.max(0, (peak * peak - exit * exit) / (2 * a));
+    total += (peak - entry) / a + (peak - exit) / a + Math.max(0, d - up - down) / peak;
+  }
+  return total;
+}
+
 function renderSimStats() {
   const box = $("sim-stats");
   if (!box || !sim.data) return;
-  const { paintMM, travelMM, dips, strokes, trays, moves } = sim.data;
-  // copicograf's feed rates: painting is the slow one, travel the fast one.
-  const minutes = paintMM / 1000 + travelMM / 1500 + dips * 0.06;
+  const { paintMM, travelMM, dips, strokes, trays, moves, plan, dwell } = sim.data;
+  const minutes = runSeconds(plan, dwell) / 60;
   const rough = minutes < 60
     ? t("{n} min", { n: minutes.toFixed(0) })
     : t("{n} h", { n: (minutes / 60).toFixed(1) });

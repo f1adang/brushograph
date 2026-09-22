@@ -922,6 +922,61 @@ tray trip costs far more than a lift.
 
 **Strokes are ordered** nearest-first so the brush travels less between them.
 
+### The rough time, and why it was three times out
+
+A job reported at **an hour and a half** took about **five**: an hour in, the
+machine was a fifth of the way through. The figure came from
+
+    minutes = painted / 1000 + travel / 1500 + dips × 0.06
+
+— distance over feedrate, with the feedrates hardcoded at that. Distance over
+feedrate is the obvious sum and it is wrong by a factor of three on this
+machine, for one reason: **almost nothing in a painting is long enough to reach
+the feedrate.**
+
+Pinkograph accelerates at **20 mm/s²**. From a standstill that is 1.7 seconds
+and **28 millimetres** to reach the 2000 mm/min its config asks for. The median
+stroke in a photograph is **6 mm**. Nothing gets up to speed; every move is a
+triangle, and the time is set by the acceleration, not by the rate.
+
+So the estimate is the arithmetic a controller's own planner does. Each
+junction between two moves can carry some speed — all of it where the direction
+barely changes, none where the path doubles back — and two passes hold those
+speeds down to what can be braked from and what can be reached: backwards so
+nothing arrives faster than it can stop, forwards so nothing leaves faster than
+it can be got to. What is left is a trapezoid per move, and its area is the
+time.
+
+On the job that showed this up, 45,609 moves:
+
+| | |
+|---|---|
+| distance over feedrate | 0.91 h |
+| with the machine's 20 mm/s² | **2.83 h** |
+| the same at 50 mm/s² | 1.86 h |
+| at 200 | 1.10 h |
+| at 1000 | 0.77 h |
+
+3.1× at the figure the machine actually carries, against the **3.3×** measured
+on the bed. The same model in the page and in a scratch script agree to two
+decimal places.
+
+**Backlash take-ups count.** The preview drops them from the drawing, rightly —
+they are the machine's slack, not the artwork — and it used to drop them from
+the time as well. There are 6,000 of them in that job, each a millimetre or so
+from a standstill to a standstill, and at 20 mm/s² that is an hour. Leaving
+them out put the estimate at 1.7 h where it should have been 2.8.
+
+**The acceleration is a setting now, and it is shown for every controller.** It
+lives where it always did, in the speed groups, but as a figure in mm/s² rather
+than as the `M204` it is written into — the same treatment the feedrates got.
+Marlin is still sent the `M204`; GRBL and FluidNC have that line stripped and
+hold their own acceleration, which is exactly why the box has to be visible to
+them: nothing in the file can say, and how long a job takes turns on it more
+than on any other figure in the config. If the page's estimate is out on your
+machine, this is the box to correct, and one timed run is enough to work out by
+how much.
+
 ### Where the time actually goes
 
 Measured on the SGMK logo at 5 mm spacing: 4.0 m painted, 7.2 m travelled. The
