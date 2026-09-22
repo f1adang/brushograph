@@ -10,14 +10,7 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **MINOR** for a feature you would notice from the page or the paper — a new
   control, a new macro, a way of painting that was not there before.
 - **PATCH** for work on a feature already released: a fault in it, a figure
-  corrected, a motion made safer. Patches start at v2.7.1; before that there
-  were none, and a version with nothing after the minor, such as v2.8, is one
-  of those rather than a `.0` written short.
-
-A version collects however many features are released together, one bullet
-each, and is tagged once they are all agreed rather than per commit. Every
-feature commit is followed by the commit that adds its bullet here, so a
-version's heading appears with its first bullet and grows until it is tagged.
+  corrected, a motion made safer. 
 
 ## [v2.14.0](https://github.com/f1adang/brushograph/releases/tag/v2.14.0) — 2026-09-22
 
