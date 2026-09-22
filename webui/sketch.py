@@ -8,7 +8,7 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_origin,
-                        cup_shape_of, holder_of, tray_entries)
+                        cup_shape_of, holder_of, level_points, tray_entries)
 
 W, H = 760, 480
 PAD = 46
@@ -251,6 +251,23 @@ def render(conf: dict, theme: str = "default") -> bytes:
         tx, ty = px(ox, oy + ch)
         d.text((tx + 5, ty + 4), words["image"].format(w=cw, h=ch, x=ox, y=oy),
                font=fs, fill=TEXT)
+
+    # Where the bed-levelling readings are taken, when the machine is being
+    # levelled: five crosses on the paper, because a figure typed into a box
+    # is no use unless it is known which spot it belongs to.
+    if bg.get("level_compensation") and cw and ch:
+        for key, (lx, ly) in level_points(conf).items():
+            mx, my = px(lx, ly)
+            d.line([(mx - 4, my), (mx + 4, my)], fill=(*ACCENT, 200))
+            d.line([(mx, my - 4), (mx, my + 4)], fill=(*ACCENT, 200))
+            z = _num(bg, key, 0)
+            if z:
+                # Away from the edge the cross sits against: the canvas caption
+                # is along the top of it, and the containers are under the
+                # bottom of it.
+                above = ly > (oy + ch / 2)
+                d.text((mx + 5, my + (2 if above else -11)), f"{z:+g}",
+                       font=fs, fill=ACCENT)
 
     if plate:
         d.rectangle([px(plate[0], plate[3]), px(plate[2], plate[1])],

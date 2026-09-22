@@ -30,7 +30,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, CMYK_TO_TRAY,  # noqa: E402
                         RECTANGULAR_SHAPES, canvas_origin, cup_shape_of,
-                        EDGE_HEADROOM, feed_line, holder_of,
+                        EDGE_HEADROOM, feed_line, holder_of, level_offset,
                         paintable_size, tray_entries, workable_x)
 
 FALLBACK_PATTERN = "concentric"
@@ -752,6 +752,83 @@ def _play_across_x(near: float, far: float | None,
     return at
 
 
+def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
+    """Write every painting move at the Z the paper is at, not the Z the config says.
+
+    Canvas Height is one number, and a sheet of paper taped to a bed is not one
+    height. A brush set to touch at the middle rides above the paper at one
+    corner and digs into it at another, and a watercolour brush shows the
+    difference at a tenth of a millimetre: the stroke goes thin and dry where it
+    is high and wide and wet where it is low.
+
+    So the five readings -- the corners of the canvas and its middle, taken
+    where `configspec.level_points` says -- become a Z added to every move made
+    on the paper. This is openBrushograph Studio's scheme, four triangles about
+    the middle reading rather than one plane through all five, and the reason
+    for it is the twist: three points fit a plane and can say nothing about a
+    corner that sits high, which is exactly what a taped sheet does.
+
+    Only moves on the paper. A trip to the containers is outside the canvas in
+    X or Y and reads as the nearest edge of it, which would be wrong for a cup
+    and is not wanted anyway -- a cup's floor is where it is, and Dip Depth
+    already says so. Only moves at or under the between-shapes clearance, too,
+    so the travel that crosses the bed at the tray lift is left alone.
+
+    A move that carries no Z of its own gets one: Z is modal in the file, and
+    what this does is make it not be. That is most of the painting moves, and
+    it is what the file grows by.
+    """
+    bg = conf.get("brushograph", {})
+    if not bg.get("level_compensation", False):
+        return lines
+
+    readings = [_figure(bg, key) for key in
+                ("level_tl", "level_tr", "level_c", "level_bl", "level_br")]
+    if max(readings) - min(readings) < 1e-9:
+        if log:
+            log("bed levelling is on with five readings the same: nothing to correct")
+        return lines
+
+    ox, oy = canvas_origin(conf)
+    width, height = _figure(bg, "width"), _figure(bg, "height")
+    paper_z = _figure(bg, "canvas_height")
+    ceiling = paper_z + _figure(bg, "move_to_other_shape_lift") + 1e-6
+
+    def on_paper(x, y):
+        return ox - 1e-9 <= x <= ox + width + 1e-9 and oy - 1e-9 <= y <= oy + height + 1e-9
+
+    out: list[str] = []
+    x = y = 0.0
+    want_z = 1e9            # the Z the path asked for, before any correction
+    touched = 0
+    for line in lines:
+        body, sep, rest = line.partition(";")
+        stripped = body.strip()
+        if not (_G1.match(stripped) or _G0.match(stripped)):
+            out.append(line)
+            continue
+        words = dict(_WORD.findall(stripped))
+        x = float(words["X"]) if "X" in words else x
+        y = float(words["Y"]) if "Y" in words else y
+        want_z = float(words["Z"]) if "Z" in words else want_z
+        if want_z > ceiling or not on_paper(x, y):
+            out.append(line)
+            continue
+        at = want_z + level_offset(conf, x, y)
+        if "Z" in words:
+            fixed = re.sub(r"Z\s*-?\d*\.?\d+", f"Z{_coord(at)}", stripped, count=1)
+        else:
+            fixed = f"{stripped} Z{_coord(at)}"
+        out.append(fixed + (sep + rest if sep else ""))
+        touched += 1
+
+    if log:
+        lo, hi = min(readings), max(readings)
+        log(f"bed levelling: {touched} moves written to the paper's own height, "
+            f"which runs from {lo:+.2f} to {hi:+.2f} mm across the canvas")
+    return out
+
+
 def apply_backlash(lines: list[str], bx: float, by: float,
                    x_range: tuple[float, float] | None = None,
                    y_range: tuple[float, float] | None = None,
@@ -1281,6 +1358,11 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     stats["controller"] = controller
 
     # On unless the config turns it off. A config carrying no backlash figures
+    # Before the backlash pass, which shifts X and Y and leaves Z alone: the
+    # paper's height is a fact about where the path goes, not about where the
+    # axis is asked to go to get there.
+    lines = apply_levelling(lines, conf, log)
+
     # at all still passes through here, but compensating by zero is a no-op.
     if bg.get("backlash_compensation", True):
         before = len(lines)

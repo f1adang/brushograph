@@ -365,6 +365,15 @@ ALWAYS_OFFERED = {
     # then mirrored onto the near figures by with_defaults, because a config
     # that never named them is a config whose play was measured once: filling
     # in 0.5 beside a stated 2.3 would invent a slope nobody read off a sheet.
+    # Bed levelling. Off until somebody measures: with all five readings at
+    # zero it is a no-op anyway, but a machine that has not been measured
+    # should say so rather than quietly compensating by nothing.
+    ("brushograph", "level_compensation"): False,
+    ("brushograph", "level_tl"): 0.0,
+    ("brushograph", "level_tr"): 0.0,
+    ("brushograph", "level_c"): 0.0,
+    ("brushograph", "level_bl"): 0.0,
+    ("brushograph", "level_br"): 0.0,
     ("connection", "hostname"): "fluidnc.local",
 }
 
@@ -593,6 +602,96 @@ def _offer_canvas_start(conf: dict) -> None:
 EDGE_HEADROOM = 2.0
 
 
+# How far inside the corners of the canvas the levelling points sit, in
+# millimetres, and at most this fraction of a side -- a small canvas still
+# wants five points that are properly apart.
+LEVEL_INSET = 5.0
+LEVEL_INSET_MAX = 0.4
+
+
+def level_points(conf: dict) -> dict[str, tuple[float, float]]:
+    """Where the five bed-levelling readings are taken, in machine coordinates.
+
+    The four corners of the canvas and its middle, held LEVEL_INSET inside the
+    corners so the brush is on paper rather than over its edge. Studio takes
+    its five off the machine's own travel; the canvas is the better frame here,
+    because what is being levelled is the paper and the paper is where the
+    canvas is.
+    """
+    ox, oy = canvas_origin(conf)
+    bg = conf.get("brushograph", {}) if isinstance(conf.get("brushograph"), dict) else {}
+
+    def num(key):
+        try:
+            return float(bg.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    w, h = num("width"), num("height")
+    in_x = min(LEVEL_INSET, w * LEVEL_INSET_MAX)
+    in_y = min(LEVEL_INSET, h * LEVEL_INSET_MAX)
+    lo_x, hi_x = ox + in_x, ox + w - in_x
+    lo_y, hi_y = oy + in_y, oy + h - in_y
+    return {
+        "level_bl": (lo_x, lo_y), "level_br": (hi_x, lo_y),
+        "level_tl": (lo_x, hi_y), "level_tr": (hi_x, hi_y),
+        "level_c": ((lo_x + hi_x) / 2, (lo_y + hi_y) / 2),
+    }
+
+
+def level_offset(conf: dict, x: float, y: float) -> float:
+    """How much higher the paper is at (x, y) than where Z0 was set.
+
+    Studio's scheme, and the shape of it is the point: five readings, and the
+    rectangle between them split into four triangles about the middle one. A
+    point is found in whichever triangle holds it and its height read off that
+    triangle's plane, by barycentric weights.
+    
+    Four triangles rather than one plane because paper is not flat and a bed is
+    not either. Three points fit a plane and can say nothing about a twist; a
+    corner that sits high, which is what a sheet taped at its edges does, is
+    exactly what three points average away and what the fifth reading in the
+    middle catches.
+
+    A point outside the rectangle is clamped into it, so the containers and the
+    margin beyond the canvas read as the nearest edge rather than as an
+    extrapolation off the end of the paper.
+    """
+    bg = conf.get("brushograph", {}) if isinstance(conf.get("brushograph"), dict) else {}
+    points = level_points(conf)
+
+    def z(key):
+        try:
+            return float(bg.get(key, 0) or 0)
+        except (TypeError, ValueError):
+            return 0.0
+
+    corners = {k: (points[k][0], points[k][1], z(k)) for k in points}
+    lo_x, hi_x = corners["level_bl"][0], corners["level_br"][0]
+    lo_y, hi_y = corners["level_bl"][1], corners["level_tl"][1]
+    px = min(max(x, lo_x), hi_x)
+    py = min(max(y, lo_y), hi_y)
+
+    def on_triangle(a, b, c):
+        det = (b[1] - c[1]) * (a[0] - c[0]) + (c[0] - b[0]) * (a[1] - c[1])
+        if abs(det) < 1e-9:
+            return None
+        w1 = ((b[1] - c[1]) * (px - c[0]) + (c[0] - b[0]) * (py - c[1])) / det
+        w2 = ((c[1] - a[1]) * (px - c[0]) + (a[0] - c[0]) * (py - c[1])) / det
+        w3 = 1.0 - w1 - w2
+        if min(w1, w2, w3) < -0.01:
+            return None
+        return w1 * a[2] + w2 * b[2] + w3 * c[2]
+
+    mid = corners["level_c"]
+    for a, b in (("level_tl", "level_tr"), ("level_tr", "level_br"),
+                 ("level_br", "level_bl"), ("level_bl", "level_tl")):
+        found = on_triangle(corners[a], corners[b], mid)
+        if found is not None:
+            return found
+    return mid[2]
+
+
 def paintable_size(conf: dict) -> tuple[float, float]:
     """The widest and tallest a painting can be on this machine.
 
@@ -724,6 +823,9 @@ BRUSHOGRAPH_GROUPS = [
     ("Paint management",
      ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
       "tray_enter_radius", "remove_drops_radius"], False),
+    ("Bed levelling",
+     ["level_compensation", "level_tl", "level_tr", "level_c",
+      "level_bl", "level_br"], False),
     ("Backlash",
      ["backlash_compensation", "backlash_x", "backlash_x_far", "backlash_y",
       "backlash_y_far"], False),
@@ -777,6 +879,12 @@ HELP = {
     "brushograph-canvas_start_y": "Where the paintable area begins in Y (mm): the far edge of the strip the containers stand in, and a fact about the machine rather than about this painting. Nothing is painted below it, and the painted height is measured from it — with Offset Y at 0 the canvas starts exactly here. Choosing a model sets it: 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬.",
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
     "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
+    "brushograph-level_compensation": "Write every move made on the paper at the height the paper is at there, from the five readings below. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured \u2014 with all five the same it does nothing anyway.",
+    "brushograph-level_tl": "How much higher the paper is at the top-left of the canvas than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.",
+    "brushograph-level_tr": "The same reading at the top-right corner of the canvas. The plan view marks the spot.",
+    "brushograph-level_c": "The same reading at the middle of the canvas. This is the one that catches a twist: three corners fit a plane and can say nothing about a sheet that bellies or a bed that is not flat.",
+    "brushograph-level_bl": "The same reading at the bottom-left corner of the canvas, the corner nearest the containers. The plan view marks the spot.",
+    "brushograph-level_br": "The same reading at the bottom-right corner of the canvas. The plan view marks the spot.",
     "brushograph-moves-normal-acc": "How hard this machine accelerates while painting, in millimetres a second squared. Almost no stroke in a picture is long enough to reach the feedrate, so this figure decides how long a job takes far more than the feedrate does \u2014 the page's estimate is built on it. Marlin is sent it as an M204; GRBL and FluidNC hold their own figure and have that line stripped, so set this to match what the controller is configured with.",
     "brushograph-moves-fast-acc": "How hard this machine accelerates while travelling, in millimetres a second squared. The same figure as the painting one on every machine here, and used the same way \u2014 see the note on that one.",
     "brushograph-moves-remove_drops-acc": "How hard this machine accelerates while wiping a round cup's rim, in millimetres a second squared. Nothing reads it for a rectangular bay.",
@@ -823,6 +931,14 @@ HELP = {
 # Where a key's own name is not what the form should call it.
 LABELS = {
     "cup_shape": "Container setup",
+    # Named for the plan view, which draws Y upwards the way the bed is
+    # looked at, and marks these five where they are.
+    "level_compensation": "Bed levelling",
+    "level_tl": "Z top-left",
+    "level_tr": "Z top-right",
+    "level_c": "Z middle",
+    "level_bl": "Z bottom-left",
+    "level_br": "Z bottom-right",
     # Only right while the box holds a figure. A config that keeps a whole line
     # of G-code in there gets the old label back, in _field.
     "feedrate_1": "Feedrate (mm/minute)",

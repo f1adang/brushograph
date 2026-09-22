@@ -1057,6 +1057,49 @@ usefully draw. They collapse onto the two that mean something here —
 ordered with the ones
 best suited to a brush first.
 
+### Bed levelling
+
+Canvas Height is one figure, and a sheet of paper taped to a bed is not one
+height. A brush set to touch in the middle rides over the paper at one corner
+and digs into it at another, and a watercolour brush shows the difference at a
+tenth of a millimetre: the stroke goes thin and dry where the paper is high,
+wide and wet where it is low.
+
+**Five readings**, taken at the four corners of the canvas and its middle, held
+`LEVEL_INSET` (5 mm) inside the corners so the brush is on paper and not over
+its edge. Take the brush to each, lower it until it just touches, and type the
+difference from Canvas Height. The **plan view marks the five spots** and prints
+each reading beside its cross, because a figure in a box is no use unless it is
+known which spot it belongs to. **Bed levelling** turns the lot on; with all
+five the same it does nothing anyway.
+
+**This is openBrushograph Studio's scheme**, and the shape of it is the point.
+The rectangle between the readings is split into **four triangles about the
+middle one**, and a point is found in whichever triangle holds it and its height
+read off that triangle's plane by barycentric weights. Four triangles rather
+than one plane through all five: three points fit a plane and can say nothing
+about a twist, and a corner that sits high is exactly what a sheet taped at its
+edges does and what three points average away. Studio takes its five off the
+machine's own travel; the canvas is the better frame here, because what is being
+levelled is the paper and the paper is where the canvas is.
+
+`apply_levelling` is a pass over the finished file, the way `apply_backlash` is,
+and it runs first — the paper's height is a fact about where the path goes, not
+about where the axis is asked to go to get there, and the two do not interact.
+
+**Only moves on the paper.** A trip to the containers is outside the canvas and
+would read as the nearest edge of it, which is wrong for a cup and not wanted
+besides: a cup's floor is where it is and Dip Depth already says so. And only
+moves at or under the between-shapes clearance, so the travel that crosses the
+bed at the tray lift is left alone. What is left — the pen-down, the painting,
+and the short lift over the paper — gets a Z of its own, which is what the file
+grows by: Z is modal in G-code and this makes it not be. On a test job that is
+1431 moves given a Z between −0.02 and +0.32 mm.
+
+A point outside the rectangle is clamped into it rather than extrapolated: past
+the last reading there is nothing measured, and a plane run out beyond its own
+evidence is a plane that lifts the brush off the paper at the edge of the sheet.
+
 ### Backlash compensation
 
 An axis with slack in it does not go where it is told the moment it turns round.
