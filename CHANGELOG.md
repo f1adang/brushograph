@@ -20,6 +20,25 @@ each, and is tagged once they are all agreed rather than per commit. Every
 feature commit is followed by the commit that adds its bullet here, so a
 version's heading appears with its first bullet and grows until it is tagged.
 
+## [v2.13.0](https://github.com/f1adang/brushograph/releases/tag/v2.13.0) — 2026-09-22
+
+- **The rough time is the time the machine will actually take.** It was
+  distance divided by feedrate, which is out by a factor of three on a real
+  bed: a job reported at an hour and a half took about five. Almost nothing in
+  a painting is long enough to reach the feedrate — at 20 mm/s² the machine
+  needs 28 mm to get up to 2000 mm/min, and the middle stroke of a photograph
+  is 6 mm — so what decides the time is how hard the machine accelerates. The
+  estimate now does the arithmetic a controller's planner does, corner by
+  corner, and counts the backlash take-ups, which are thousands of short
+  stop-start moves and were being left out altogether.
+
+- **Acceleration is a setting in mm/s², and every machine shows it.** It used
+  to be the `M204` line it is written into, and it was hidden unless the
+  controller was Marlin — but GRBL and FluidNC hold their own acceleration and
+  have that line stripped, and it is the figure the time estimate turns on more
+  than any other. If the estimate is out on your machine, that is the box to
+  correct: one timed run tells you by how much.
+
 ## [v2.12.1](https://github.com/f1adang/brushograph/releases/tag/v2.12.1) — 2026-09-22
 
 - **Clean Brush wipes the brush on the sides of the water cup.** The swipe up
