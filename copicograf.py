@@ -48,19 +48,28 @@ def dip_lanes(tray_x, width, lanes, x_limits=(0.0, float("inf"))):
     is the largest one coprime with the count, so every lane is still visited
     once per cycle: five lanes go 0 2 4 1 3, which is -r, 0, +r, -r/2, +r/2.
 
-    Kept inside x_limits the way the stir was, and by shrinking rather than
-    clipping: a bay at the end of the axis gives up the same distance on each
-    side, so its lanes stay centred on the cup instead of bunching against the
-    near rim. Under half a millimetre of reach there is nothing to spread, and
-    every pickup goes down the middle.
+    They are held inside x_limits, and where that bites they take **whatever
+    ground is left on each side** rather than giving up the same distance on
+    both. The stir did the opposite, and was right to: a stir is one sweep, so
+    cutting one end of it left the brush working one side of the crucible and
+    leaving the rest of the paint alone. Lanes are a set of places, and the
+    shorter side setting both ends meant the cup nearest the end of the axis
+    got no spread at all — black sits at the far end of every holder, and
+    `workable_x` is black, so `hi - tray_x` was exactly zero and every pickup
+    from it went down the same line. One half of the bay worked is more of it
+    than one line of it.
+
+    Under half a millimetre of window there is nothing to spread over, and
+    every pickup goes down the middle of the cup.
     """
     lanes = max(1, int(lanes))
     lo, hi = x_limits
-    reach = min(width / 2 * 0.7, tray_x - lo, hi - tray_x)
-    if lanes == 1 or reach < 0.5:
+    half = width / 2 * 0.7
+    left, right = max(lo, tray_x - half), min(hi, tray_x + half)
+    if lanes == 1 or right - left < 0.5:
         return [tray_x]
     stride = next(s for s in range(lanes // 2, 0, -1) if math.gcd(s, lanes) == 1)
-    return [tray_x - reach + 2 * reach * ((i * stride) % lanes) / (lanes - 1)
+    return [left + (right - left) * ((i * stride) % lanes) / (lanes - 1)
             for i in range(lanes)]
 
 

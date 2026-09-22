@@ -1597,15 +1597,35 @@ Each cup counts its own lanes, in a dict keyed by where the cup is, so a colour
 dipped once a pickup and the water dipped three times a wash each work their
 way evenly across themselves however often the job visits them.
 
-They are clipped like the stir was and for the same reason, by shrinking rather
-than by cutting one end off: `x_limits` holds them inside the ground a job
-already covers, the near end off the endstop by the backlash take-up. On
-Pinkograph that gives cyan five lanes 5.11 mm apart over 20.4 mm of a 29.2 mm
-cup; the 39.2 mm water crucible at X 15 is clipped to 26.2 mm of its 27.4, and
-black at X 156 — the outermost thing the machine goes to — has no room at all,
-so every dip in it goes down the middle and the run log says so. On the Mini's
-CMYK holder the colours' 16.2 mm crucibles give 11.3 mm of spread, 2.8 mm
-between lanes.
+They are held inside `x_limits`, the ground a job already covers, with the near
+end off the endstop by the backlash take-up. On Pinkograph that gives cyan five
+lanes 5.11 mm apart over 20.4 mm of a 29.2 mm cup. On the Mini's CMYK holder
+the colours' 16.2 mm crucibles give 11.3 mm of spread, 2.8 mm between lanes.
+
+#### Black got no spread at all
+
+Where the limit bites, the lanes take **whatever ground is left on each side**
+rather than giving up the same distance on both. That is the opposite of what
+the stir did, and the stir was right to: a stir is one sweep, so cutting one end
+of it left the brush working one side of the crucible and leaving the rest of
+the paint alone, which is the fault it existed to fix.
+
+Lanes are not a sweep, they are a set of places, and the shorter side setting
+both ends had a consequence nobody looked for: the cup nearest the end of the
+axis got **no spread at all**. Black sits at the far end of every holder, and
+`workable_x` — the furthest right a job already asks the machine to go — *is*
+black, so `hi − tray_x` was exactly zero, the window collapsed, and every
+pickup from the black crucible went down the same line. On Pinkograph, whose
+black crucible is at X 156 with the canvas ending at 132, that was every black
+dip of every job since the lanes were added. The run log said so, in as many
+words, and it took a person noticing that the black dips all looked alike.
+
+One half of a bay worked is more of it than one line of it, so the window is
+now `[max(lo, x − half), min(hi, x + half)]`. Black's five lanes on Pinkograph
+come out at X 145.78, 148.34, 150.89, 153.44 and 156.0 — 10.2 mm of its 20.4,
+all of it at or left of centre, and none of it further right than the dip
+already went. The file's extremes are unchanged at X −1.89 to 156.00. The water
+crucible gains the 0.6 mm it was giving up on its right, 26.8 mm of its 27.4.
 
 The same job, three plates on that config, painted from the same seed so the
 two files are comparable move for move:
