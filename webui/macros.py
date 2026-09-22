@@ -235,7 +235,8 @@ def _park_at_origin(park_z: float) -> list[str]:
 
 
 def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
-                      exits: list[str] | None = None) -> list[str]:
+                      exits: list[str] | None = None,
+                      width: float | None = None) -> list[str]:
     """Dips at (tray_x, tray_y), classic or modern, each leaving the way `exits` says.
 
     A dip is the same wherever it is made: in over the rim, down onto the floor,
@@ -277,11 +278,19 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
         # loses for the whole of the rest of the file.
         near = max(near, 0.0)
         # The lanes copicograf spreads its dips over, worked out the same way
-        # and kept on the bed the same way — the water crucible is the wide
-        # one, and wide enough on some holders to hang over the endstop. The
-        # macro's own dips walk along them the way a job's do, so a wash works
-        # the width of the water rather than the same line of it three times.
-        lanes = dip_lanes(tray_x, holder["water_bay_width"],
+        # and kept on the bed the same way — the water crucible is wider than
+        # the colours', and wide enough on some holders to hang over the
+        # endstop. The macro's own dips walk along them the way a job's do, so
+        # a wash works the width of the water rather than the same line of it
+        # three times.
+        #
+        # The caller says which cup this is, because the two widths are not the
+        # same figure and this was reading the water's for every cup. On
+        # Pinkograph that spread the black cup's dips over +/-13.7 mm of a bay
+        # 29.2 mm across: not into the wall -- the inside half-width is 14.6 --
+        # but 0.9 mm off it, where the 15% margin means to leave 4.4.
+        bay = holder["water_bay_width"] if width is None else width
+        lanes = dip_lanes(tray_x, bay,
                           _num(bg, "cup_dip_lanes", DEFAULT_DIP_LANES),
                           (0.0, workable_x(conf)))
         # In over the far wall and down, the way a job does it: the swipe runs
@@ -302,8 +311,8 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
         # that cannot be reached is not wiped on; that dip leaves up the
         # stairs instead, so the brush still comes out of the cup properly.
         walls = {}
-        for side, at in (("left", tray_x - holder["water_bay_width"] / 2 - RIM_CATCH),
-                         ("right", tray_x + holder["water_bay_width"] / 2 + RIM_CATCH)):
+        for side, at in (("left", tray_x - bay / 2 - RIM_CATCH),
+                         ("right", tray_x + bay / 2 + RIM_CATCH)):
             if 0.0 <= at <= workable_x(conf):
                 walls[side] = at
 
@@ -519,7 +528,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
         # from; going to the centre first crossed the mouth for no reason, and
         # on a holder whose cups sit south of the origin it was a move into the
         # Y endstop -- Brushparang's water cup is at Y -3.
-        *_container_motion(conf, wx, wy, exits=_WASH_ROUTINE),
+        *_container_motion(conf, wx, wy, exits=_WASH_ROUTINE,
+                           width=holder_of(conf)["water_bay_width"]),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         *_park_at_origin(park_z),
     ]
@@ -683,7 +693,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
             # the clamp inside that helper exists precisely because a cup can
             # be configured south of the ground there is.
             lines += [f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the black cup",
-                      *_container_motion(conf, bx, by, reps=1)]
+                      *_container_motion(conf, bx, by, reps=1,
+                                         width=holder_of(conf)["bay_width"])]
             lines += _comb_stroke(bg, True, ex, oy, oy + tick, 1,
                                   _run_up(ex, 1, 0.0, wx_lim), cz, go_lift)
         # Washed and parked in the water, the way a job leaves the brush:
@@ -693,7 +704,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
         lines += [
             "; wash and park",
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the water cup",
-            *_container_motion(conf, wx, wy, reps=_WASH_REPS),
+            *_container_motion(conf, wx, wy, reps=_WASH_REPS,
+                               width=holder_of(conf)["water_bay_width"]),
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
             *_park_at_origin(park_z),
         ]
