@@ -22,6 +22,12 @@ version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.14.0](https://github.com/f1adang/brushograph/releases/tag/v2.14.0) — 2026-09-22
 
+- **The preview draws a stroke as wide as the brush lays it.** It used to draw
+  every stroke at the same hairline width whatever the brush, so a filled shape
+  came out as a bundle of separate lines with paper between them — the path was
+  all there, and the picture looked hollow. Whether the fill covers is the one
+  thing a preview is for.
+
 - **Bed levelling, copied from openBrushograph Studio.** Canvas Height is one
   figure and a sheet of paper is not one height, and a watercolour brush shows
   the difference at a tenth of a millimetre — thin and dry where the paper is
