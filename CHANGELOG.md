@@ -22,6 +22,17 @@ version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.14.0](https://github.com/f1adang/brushograph/releases/tag/v2.14.0) — 2026-09-22
 
+- **Bed levelling, copied from openBrushograph Studio.** Canvas Height is one
+  figure and a sheet of paper is not one height, and a watercolour brush shows
+  the difference at a tenth of a millimetre — thin and dry where the paper is
+  high, wide and wet where it is low. Take five readings, at the corners of the
+  canvas and its middle, type each as its difference from Canvas Height, and
+  every move made on the paper is written at the height the paper is at there.
+  The plan view marks the five spots and prints the readings beside them. It is
+  Studio's own scheme: four triangles about the middle reading rather than one
+  plane through all five, because three points cannot see a twist and a corner
+  that sits high is what a taped sheet does. Off until the five are measured.
+
 - **Uploading the macros waits a moment between files, and tries a file again
   if it drops.** With eleven macros to send rather than seven, the machine
   started refusing part way through: it is an ESP32 finishing one file on its
