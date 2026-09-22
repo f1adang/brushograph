@@ -2052,8 +2052,8 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   endstop, which they otherwise hit.
   Fixed and tuned on the actual hardware, except its very last line, which is
   not: it ends the same way `home.g` and `clean.g` do, parked at X0 Y0,
-  Z = Dip Depth + 1. Its feedrates are not verbatim either — see **No macro
-  goes faster than Fast**, below.
+  Z = Dip Depth + 1. Its feedrates are not verbatim either — see **Nothing in a
+  macro goes faster than Fast**, below.
 - **home.g** parks at X0 Y0, Z at `dip_depth + 1` — a literal reading of that
   spec, so it lands just above dipping depth rather than at travel height. It
   still lifts to `go_in_tray_lift` *before* crossing the bed, and only
@@ -2320,28 +2320,69 @@ G-code is not meant to survive that, but these seven are. There is no
 `$SD/Run` here either: these are routines an operator runs by hand from the
 controller's own interface, not a job meant to start the moment it lands.
 
-#### No macro goes faster than Fast
+#### How fast a macro moves
 
-Every feedrate a macro writes is held at or below the **Fast** speed group's,
-`brushograph.moves.fast.feedrate_1`. Fast is the quickest the config says this
-machine is to be driven, and a macro is the machine being driven: there is no
-reason for one to cross the bed faster than a job does.
+**Travel at the top speed the config names, marks at the rate a job paints
+at.** That is the division copicograf already makes — `set_fast_speed()` for
+the trips to the containers and `set_normal_speed()` for the painting — and the
+macros make it now too.
+
+They used to run the whole way at the **Normal** group, six of the seven of
+them. A macro is not a painting: it parks the brush, moves the gantry out of
+the way for a sheet of paper, washes, zeroes, and puts one dot or a row of
+ticks down. All of that is waiting, and there was no reason to wait at the rate
+a stroke is painted at — F1200 on Pinkograph — when the config says the machine
+is driven at F2000.
+
+What actually changes depends on the controller, and it is worth knowing which:
+
+- **Marlin** takes G0 as G1 and feeds both from F, so every move in these files
+  runs at this rate.
+- **GRBL and FluidNC** run G0 at their own configured maximum and read F for G1
+  alone, so there it is the fed moves that change: the swipe out of a cup, a
+  drawn tick, a gauge line. `home.g` on a FluidNC machine has no G1 in it at
+  all, and its feed line is a line that does nothing — which is the shape of
+  the whole fault: the figure was being written without much thought about what
+  reads it.
+
+**The marks are the exception, and in both directions.** `_comb_stroke` — the
+one place either of the drawing macros puts a line down — drops to the Normal
+group for the plunge and the stroke and goes back to Fast for the lift:
+
+    G00 X15 Y32 ; arrive from the left
+    G0 F1200 ; the rate a job paints at
+    G01 Z0
+    G01 X15 Y52
+    G0 F2000 ; back to travel speed
+    G00 Z11
+
+A painted tick laid at travel speed is a thinner mark than the same tick in a
+job, and `backlash.g`'s lines are a measuring instrument whose figures are
+applied to painting moves — measuring at one speed to compensate moves made at
+another is the kind of tidiness worth two lines in a file.
+
+#### Nothing in a macro goes faster than Fast
+
+Fast is also a ceiling: every feedrate a macro writes is held at or below
+`brushograph.moves.fast.feedrate_1`, in the one place all seven pass through on
+their way out.
 
 It was not a hypothetical. zero.g swept to the far corner at **F2100** on
 Pinkograph, whose fast group says **F2000** — the 2100 came off the hardware
-zero.g was first tuned on and has been carried verbatim ever since. A sweep
-that ends in the endstops on purpose is the last move that wants to be going
-quicker than the machine was set up for.
+zero.g was first tuned on and has been carried verbatim ever since. A sweep that
+ends in the endstops on purpose is the last move that wants to be going quicker
+than the machine was set up for. It is the same rule that catches a config whose
+Fast is *slower* than the rate a job paints at: set Fast to F800 and the ticks
+come down to 800 with everything else.
 
-**Held, not scaled.** A macro already running slower keeps its own figure:
-zero.g's F1000 Z moves and F1200 jog stay where they are, and clean.g, which
-takes the fast group's figure to begin with, is untouched. Only what is over
-the ceiling comes down, which on Pinkograph is three lines of zero.g and
-nothing else in any of the seven.
+**Held, not raised.** zero.g keeps its own tuned figures where they are below
+the ceiling — the F1000 Z moves and the F1200 jog into the corner, which is a
+move into the stops and not one to hurry. Only what is over the ceiling comes
+down, which on Pinkograph is three lines of zero.g.
 
-A config whose fast rate is *higher* than a macro's literals changes nothing —
+A config whose Fast is *higher* than a macro's literals changes nothing —
 F5000 leaves zero.g's 2100 alone — and a config with no `moves` section, or a
-fast feedrate with no F in it, is left alone altogether: the literals are the
+Fast feedrate with no F in it, is left alone altogether: the literals are the
 figures the routine was tuned with, and inventing a ceiling for a machine that
 has not named one would be worse than the fault this fixes.
 

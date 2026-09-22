@@ -187,8 +187,24 @@ def _cap_feeds(text: str, ceiling: float) -> tuple[str, bool]:
     return _FEED_WORD.sub(hold, text), lowered
 
 
-def _preamble(bg: dict, feed_group: str = "normal") -> list[str]:
-    return ["G90 ; absolute positioning", "G21 ; millimetres", _feed(bg, feed_group)]
+def _preamble(bg: dict) -> list[str]:
+    """Absolute, millimetres, and the fastest this machine is configured to move.
+
+    The Fast group, not Normal, for every one of these. A macro is not a
+    painting: it parks the brush, moves the gantry out of the way for a sheet
+    of paper, washes, zeroes, and puts one dot or a row of ticks down. All of
+    that is waiting, and there is no reason to wait at the rate a stroke is
+    painted at when the config says the machine is driven half as fast again.
+
+    What it changes depends on the controller. Marlin takes G0 as G1 and feeds
+    both from F, so everything here moves at this rate. GRBL and FluidNC run G0
+    at their own configured maximum and read F for G1 alone, so there it is the
+    fed moves that change: the swipe out of a cup, a drawn tick, a gauge line.
+    home.g on a FluidNC machine has no G1 in it at all, and its feed line is a
+    line that does nothing -- which is the shape of the whole fault: the figure
+    was being written without much thought about what reads it.
+    """
+    return ["G90 ; absolute positioning", "G21 ; millimetres", _feed(bg, "fast")]
 
 
 def _park_at_origin(park_z: float) -> list[str]:
@@ -290,10 +306,19 @@ def _run_up(pos: float, approach: int, lo: float, hi: float) -> float:
     return max(0.0, min(_RUN_UP, room))
 
 
-def _comb_stroke(vertical: bool, pos: float, start: float, end: float,
+def _comb_stroke(bg: dict, vertical: bool, pos: float, start: float, end: float,
                  approach: int, run_up: float, canvas_z: float,
                  lift: float) -> list[str]:
     """One stroke of the comb, arrived at from the side `approach` names.
+
+    Got to at the machine's top speed and drawn at the rate a job paints at,
+    which is the same division copicograf makes: travel on the Fast group,
+    strokes on Normal. It matters in both directions here. A painted tick laid
+    at travel speed is a thinner mark than the same tick in a job, and the
+    lines on the backlash sheet are a measuring instrument whose figures are
+    applied to painting moves -- measuring them at one speed to compensate
+    moves made at another is the kind of tidiness that is worth the two extra
+    lines in the file.
 
     The last move before the brush goes down is along the axis under test, so
     that axis is definitely travelling the way this stroke wants it to. The
@@ -328,7 +353,9 @@ def _comb_stroke(vertical: bool, pos: float, start: float, end: float,
             + ("below" if approach > 0 else "above"),
         ]
         draw = f"G01 X{_fmt(end)} Y{_fmt(pos)}"
-    return [*travel, f"G01 Z{_fmt(canvas_z)}", draw, f"G00 Z{_fmt(lift)}"]
+    return [*travel, _feed(bg, "normal") + " ; the rate a job paints at",
+            f"G01 Z{_fmt(canvas_z)}", draw,
+            _feed(bg, "fast") + " ; back to travel speed", f"G00 Z{_fmt(lift)}"]
 
 
 def generate_macros(conf: dict) -> dict[str, str]:
@@ -394,7 +421,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # home.g — park at X0 Y0, Z = Dip Depth + 1.
     lines = [
         "; home.g — park over the origin, just above dipping depth",
-        *_preamble(bg, "normal"),
+        *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
         *_park_at_origin(park_z),
     ]
@@ -404,7 +431,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     px, py = max_w / 2, max_h
     lines = [
         "; paper.g — move the brush out of the way for replacing paper",
-        *_preamble(bg, "normal"),
+        *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
         f"G00 X{_fmt(px)} Y{_fmt(py)} ; half of Max Width, all of Max Height",
     ]
@@ -416,7 +443,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     lines = [
         "; clean.g — wash the brush in the water container, then park",
         f"; containers: {shape}",
-        *_preamble(bg, "fast"),
+        *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
         f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
         *_container_motion(conf, wx, wy, reps=_WASH_REPS),
@@ -437,7 +464,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # park is only high enough to see it.
     lines = [
         "; calibrate.g — place the dot, then park over it",
-        *_preamble(bg, "normal"),
+        *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
         f"G00 X{_fmt(ox)} Y{_fmt(oy)} ; the canvas origin",
         "G00 Z0 ; touch down — the single dot",
@@ -525,14 +552,14 @@ def generate_macros(conf: dict) -> dict[str, str]:
             "; holder has four places, water and three colours -- so there is",
             "; nothing to paint the ticks with and this file does nothing.",
             "; Select the CMYK holder under Containers and generate again.",
-            *_preamble(bg, "normal"),
+            *_preamble(bg),
         ]
     elif tick < _TICK_MIN:
         lines += [
             ";",
             f"; The canvas is {_fmt(can_h)} mm deep, which is not enough to",
             "; paint a tick in, so this file does nothing.",
-            *_preamble(bg, "normal"),
+            *_preamble(bg),
         ]
     else:
         bx, by = _num(black, "x"), _num(black, "y")
@@ -558,7 +585,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
             f"; {len(cups)} containers, in the order they stand on the bed.",
             f"; Painted from the black cup at X{_fmt(bx)} Y{_fmt(by)},"
             f" {_fmt(tick)} mm a tick.",
-            *_preamble(bg, "normal"),
+            *_preamble(bg),
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
         ]
         for entry, ex in cups:
@@ -584,7 +611,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
             # be configured south of the ground there is.
             lines += [f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the black cup",
                       *_container_motion(conf, bx, by, reps=1)]
-            lines += _comb_stroke(True, ex, oy, oy + tick, 1,
+            lines += _comb_stroke(bg, True, ex, oy, oy + tick, 1,
                                   _run_up(ex, 1, 0.0, wx_lim), cz, go_lift)
         # Washed and parked in the water, the way a job leaves the brush:
         # there is black paint in it, and the shared park at Dip Depth + 1 is
@@ -650,7 +677,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         arriving from each side, so the gap between the marks is the play."""
         lines = []
         for approach in (1, -1):
-            lines += _comb_stroke(vertical, pos, start, end, approach,
+            lines += _comb_stroke(bg, vertical, pos, start, end, approach,
                                   _run_up(pos, approach, lo, hi), cz, go_lift)
         return lines
 
@@ -660,7 +687,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         play."""
         lines = []
         for edge in (at, at + gap):
-            lines += _comb_stroke(vertical, edge, start, end, 1,
+            lines += _comb_stroke(bg, vertical, edge, start, end, 1,
                                   _run_up(edge, 1, lo, hi), cz, go_lift)
         return lines
 
@@ -815,7 +842,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "; where there is 12 mm of ground beyond it, and nothing here is",
         "; commanded within 3 mm of either far end. A move that finishes",
         "; against a stop loses what it loses for the rest of the file.",
-        *_preamble(bg, "normal"),
+        *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
     ]
 
