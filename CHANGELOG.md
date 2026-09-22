@@ -22,6 +22,21 @@ version's heading appears with its first bullet and grows until it is tagged.
 
 ## [v2.12.1](https://github.com/f1adang/brushograph/releases/tag/v2.12.1) — 2026-09-22
 
+- **Clean Brush wipes the brush on the sides of the water cup.** The swipe up
+  the stairs wipes one line of the brush, the same line every time, and a
+  rinsed brush still holds water in the sides of the bristles. After its first
+  swipe the wash now draws the brush out over the left wall and back, then the
+  right — the two edges of a rectangular cup the swipe never touches. A wall
+  that is off the end of the machine is not wiped, and the file says so.
+
+- **The bending motion goes over the rim, to the dipping position, and then
+  straight down** to Dip Depth before the swipe out, instead of reaching full
+  depth at the corner where the swipe starts — which is the one point a
+  controller blends away, so the brush was skimming the paint rather than
+  standing in it. **And it is left off the first pickup of a run**: the bend
+  undoes a set the swipe puts in, and at the start of a job nothing has swiped
+  the brush.
+
 - **The brush goes properly into the paint on its way into the cup.** The new
   drive-in reached full depth at a single point — the corner where the swipe
   starts — and a controller blends a corner between two moves rather than
