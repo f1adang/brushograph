@@ -576,6 +576,44 @@ def _offer_canvas_start(conf: dict) -> None:
     bg.setdefault("offset_y", 0)
 
 
+# How much of the travel a painting keeps clear of, at the far end of each
+# axis, in millimetres.
+#
+# Max Width and Max Height are where the machine stops, and where a machine
+# stops is a stop: an endstop triggers a little before the mechanical end of
+# the travel, and a figure somebody measured with a rule is right to about a
+# millimetre. Painting to the limit is therefore painting into the switch.
+#
+# It was not theoretical. A photograph painted at full size on Brushparang put
+# 142 strokes at exactly Y 140 against a Max Height of exactly 140, and the
+# machine hit the upper Y endstop -- the same lesson X learned from zero_sweep,
+# which drives into the stops on purpose and is no use as a working limit. Two
+# millimetres is a little more than the millimetre a rule leaves in doubt, and
+# on a 140 mm axis it is 1.4% of the picture.
+EDGE_HEADROOM = 2.0
+
+
+def paintable_size(conf: dict) -> tuple[float, float]:
+    """The widest and tallest a painting can be on this machine.
+
+    The travel limits, less where the canvas starts, less the headroom that
+    keeps the last stroke off the endstop. Both ends read this: the form caps
+    the two size boxes with it, and the pipeline holds a config that asks for
+    more down to it and says so, the way a clipped dip is said.
+    """
+    bg = conf.get("brushograph", {}) if isinstance(conf.get("brushograph"), dict) else {}
+
+    def num(key, default=0.0):
+        try:
+            return float(bg.get(key, default) or default)
+        except (TypeError, ValueError):
+            return default
+
+    origin_x, origin_y = canvas_origin(conf)
+    return (max(1.0, num("max_width") - origin_x - EDGE_HEADROOM),
+            max(1.0, num("max_height") - origin_y - EDGE_HEADROOM))
+
+
 def canvas_origin(conf: dict) -> tuple[float, float]:
     """Where the picture's own (0,0) corner lands on the bed.
 

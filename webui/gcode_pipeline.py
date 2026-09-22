@@ -30,7 +30,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, CMYK_TO_TRAY,  # noqa: E402
                         RECTANGULAR_SHAPES, canvas_origin, cup_shape_of,
-                        feed_line, holder_of, tray_entries, workable_x)
+                        EDGE_HEADROOM, feed_line, holder_of,
+                        paintable_size, tray_entries, workable_x)
 
 FALLBACK_PATTERN = "concentric"
 
@@ -982,6 +983,26 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
             f"the painted size is {_mm_size(width_mm)} x {_mm_size(height_mm)} mm: "
             f"both sides have to be more than nothing before anything can be "
             f"painted at them")
+
+    # And held off the far end of each axis. Max Width and Max Height are where
+    # the machine stops, and a painting that runs to one of them is a painting
+    # that ends on the endstop -- a photograph at full size on Brushparang put
+    # 142 strokes at exactly Y 140 against a Max Height of exactly 140, and the
+    # machine hit the upper Y stop. Scaled rather than cropped, and both sides
+    # by the same amount, so what comes out is the picture and not a squashed
+    # one; said out loud, because a painting that is not the size that was
+    # asked for is a thing to know about before the paper goes on.
+    room_w, room_h = paintable_size(conf)
+    fit = min(1.0, room_w / width_mm, room_h / height_mm)
+    if fit < 1.0:
+        was = (width_mm, height_mm)
+        width_mm, height_mm = width_mm * fit, height_mm * fit
+        log(f"painted size brought in to {width_mm:.1f} x {height_mm:.1f} mm from "
+            f"{was[0]:g} x {was[1]:g}: the canvas starts at "
+            f"({canvas_origin(conf)[0]:g}, {canvas_origin(conf)[1]:g}) and the travel "
+            f"ends at {_figure(bg, 'max_width'):g} x {_figure(bg, 'max_height'):g}, "
+            f"and a painting keeps {EDGE_HEADROOM:g} mm off that -- the far end of an "
+            f"axis is where the endstop is")
     slicer_conf = conf.get("slicer", {})
 
     # infill_line_distance is the gap between brush strokes, which is to say

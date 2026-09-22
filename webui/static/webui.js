@@ -574,13 +574,21 @@ function wireForm() {
      the start alone is 156 less 32: a 149 mm painting was 18 mm past the end of
      the bed. Infinity when the config carries no limit, which leaves the size
      alone; an offset the config does not carry is nothing. */
+  // How much of the travel a painting keeps clear of at the far end of an
+  // axis. configspec.EDGE_HEADROOM, written here as well because the form has
+  // to cap the two size boxes before anything is posted: Max Width and Max
+  // Height are where the machine stops, and a painting that runs to one of
+  // them ends on the endstop. A photograph at full size on Brushparang put 142
+  // strokes at exactly Y 140 against a Max Height of exactly 140, and the
+  // machine hit the upper Y stop.
+  const EDGE_HEADROOM = 2;
   const machineLimit = (limitKey, ...offsetKeys) => {
     const limit = parseFloat((machineInput(limitKey) || {}).value);
     if (!isFinite(limit)) return Infinity;
     return offsetKeys.reduce((left, key) => {
       const offset = parseFloat((machineInput(key) || {}).value);
       return left - (isFinite(offset) ? offset : 0);
-    }, limit);
+    }, limit) - EDGE_HEADROOM;
   };
   // Custom cups are spaced from the form's own figures: spacing is centre to
   // centre between colours, and the water cup is parted from cyan by the same
