@@ -62,8 +62,30 @@ SIMPLIFY_PX = 0.75
 
 
 def _distance(ink: np.ndarray) -> np.ndarray:
-    """Every pixel's distance, in pixels, to the nearest bare paper."""
-    return cv2.distanceTransform(ink.astype(np.uint8), cv2.DIST_L2, 5)
+    """Every pixel's distance, in pixels, to the nearest bare paper.
+
+    The picture is bordered with a ring of paper first, because the edge of
+    the picture is an edge of the shape. Without it `distanceTransform`
+    measures the distance to the nearest zero *pixel*, and a shape that runs
+    off the side of the picture has none over there: it is read as carrying on
+    for ever, so the ring at every depth still hugs the picture's border and
+    the brush runs down the same side of the painting once per ring.
+
+    A plate that is all ink is the same fault at its worst. With no bare pixel
+    anywhere the transform saturates -- 65533.8 px, which is 10,922 mm on a
+    100 mm picture -- and the fill asks for 3,641 rings, every one of them the
+    border of the picture. That is 1.2 km of stroke laid on one rectangle, and
+    nothing at all inside it.
+
+    Bordered, the deepest point is the shape's true inscribed radius, half the
+    shorter side at most, the outermost ring sits EDGE_BIAS inside the
+    picture's edge the way it sits inside any other edge, and the rings work
+    inward. The brush is a stroke wide, so a shape cut off by the edge is
+    still painted out to it.
+    """
+    padded = cv2.copyMakeBorder(ink.astype(np.uint8), 1, 1, 1, 1,
+                                cv2.BORDER_CONSTANT, value=0)
+    return cv2.distanceTransform(padded, cv2.DIST_L2, 5)[1:-1, 1:-1]
 
 
 def _spiral(by_depth: list[list[list[tuple[float, float]]]],

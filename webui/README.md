@@ -1000,6 +1000,52 @@ It changes nothing for the `lines` style, which has one depth of rings and its
 scanlines besides, and nothing for a shape only one ring deep — which is most
 of a photograph, and why the figures move by a fifth rather than by a half.
 
+### The edge of the picture is an edge
+
+`cv2.distanceTransform` gives every ink pixel its distance to the nearest
+**zero pixel**, and a shape that runs off the side of the picture has no zero
+pixel over there. So it was read as carrying on for ever: the region at every
+depth still reached the picture's border, and every ring's contour ran along
+it. The brush went down the same side of the painting once per ring and the
+strokes that should have been working inwards were spent on the frame.
+
+A plate that is all ink is the same fault at its worst. With no bare pixel
+anywhere, the transform saturates — **65,533.8 px**, which is 10,922 mm on a
+100 mm picture — so `deepest_mm` asks for **3,641 rings**, every one of them
+the border of the picture: **1.2 km of stroke on one rectangle, and nothing
+inside it**.
+
+The ink is bordered with a ring of paper before the transform and cropped back
+after. The picture's edge then counts as the shape's edge, like any other: the
+deepest point is the true inscribed radius, the outermost ring sits
+`EDGE_BIAS` inside the frame, and the rings work inward. The brush is a stroke
+wide, so a shape cut off by the frame is still painted out to it — that is what
+`EDGE_BIAS` is for.
+
+Measured on a poster-like plate, 84% ink with lettering knocked out of it,
+150 mm wide at a 3 mm stroke, through the whole pipeline with backlash off so
+the raster lines up:
+
+| | depths | painted | ink covered |
+|---|---|---|---|
+| before | 16 | 10.31 m | 99.7% |
+| bordered | 7 | 4.70 m | 99.5% |
+
+**Less than half the painting for the same coverage.** Counting passes over
+the fill alone, the worst-painted spot went from **42 strokes to 9**, and the
+mean from 1.86 to 1.46. The all-ink plate goes from 3,641 rings and 1.2 km to
+12 rings and 2.4 m.
+
+A photograph barely notices — its cut is strokes, which are rarely deep enough
+at the frame for a second ring: the black plate of the Marilyn cut goes 8.09 m
+to 7.86 m, with the same coverage. It is solid artwork that runs to the edge —
+a poster, a logo, a dark background, any CMYK plate of a dark photograph — that
+was paying for it.
+
+What is left unpainted after this is the ridge where two ring fronts meet, and
+that is not new and not this pass's job: `centrelines_for_missed` measures the
+residual and lays a stroke down the middle of whatever is left.
+
 ### Long brush strokes
 
 A watercolour brush wants few long strokes, not raster fill: every extra stroke
