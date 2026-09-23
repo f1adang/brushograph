@@ -1128,9 +1128,12 @@ and digs into it at another, and a watercolour brush shows the difference at a
 tenth of a millimetre: the stroke goes thin and dry where the paper is high,
 wide and wet where it is low.
 
-**Five readings**, taken at the four corners of the canvas and its middle, held
+**Five readings**, taken at the four corners of **the bed** and its middle, held
 `LEVEL_INSET` (5 mm) inside the corners so the brush is on paper and not over
-its edge. Take the brush to each, lower it until it just touches, and type the
+its edge — and clear of the endstops, which is why the inset is larger than
+`EDGE_HEADROOM`. The bed here is `level_area()`: the origin out to the travel
+limits in X, and from Canvas Start Y, where the containers' strip ends, to the
+limit in Y. Take the brush to each, lower it until it just touches, and type the
 difference from Canvas Height. The **plan view marks the five spots** and prints
 each reading beside its cross, because a figure in a box is no use unless it is
 known which spot it belongs to. **Bed levelling** turns the lot on; with all
@@ -1143,16 +1146,29 @@ read off that triangle's plane by barycentric weights. Four triangles rather
 than one plane through all five: three points fit a plane and can say nothing
 about a twist, and a corner that sits high is exactly what a sheet taped at its
 edges does and what three points average away. Studio takes its five off the
-machine's own travel; the canvas is the better frame here, because what is being
-levelled is the paper and the paper is where the canvas is.
+machine's own travel, and this is the same frame less the containers' strip.
+
+**The frame is the bed, not the painting**, and that was wrong for one release.
+Taking the readings at the canvas's corners made every figure mean something
+different from one job to the next: five typed for a full-bed painting, then
+reused for a 50 mm one sitting in the middle of the bed, were read as *that
+small square's* corners — the whole tilt of the sheet, on Pinkograph −0.20 to
++0.40 mm, crammed into 50 mm instead of 150. Measured on that exact case, the
+correction came out **up to 0.235 mm** from what the paper actually does there,
+against the 0.1 mm a watercolour brush already shows; the middle reading was the
+only point that landed right. The sheet does not move when the picture is made
+smaller or offset into a corner, so neither do the spots. They are measured once
+with the paper taped down, which is also why the plan draws the five crosses
+whether or not a picture is loaded.
 
 `apply_levelling` is a pass over the finished file, the way `apply_backlash` is,
 and it runs first — the paper's height is a fact about where the path goes, not
 about where the axis is asked to go to get there, and the two do not interact.
 
-**Only moves on the paper.** A trip to the containers is outside the canvas and
-would read as the nearest edge of it, which is wrong for a cup and not wanted
-besides: a cup's floor is where it is and Dip Depth already says so. And only
+**Only moves on the paper** — the whole bed past Canvas Start Y, not the
+rectangle this particular painting occupies. A trip to the containers is below
+that line and is left alone: a cup's floor is where it is and Dip Depth already
+says so. And only
 moves at or under the between-shapes clearance, so the travel that crosses the
 bed at the tray lift is left alone. What is left — the pen-down, the painting,
 and the short lift over the paper — gets a Z of its own, which is what the file
@@ -1162,6 +1178,14 @@ grows by: Z is modal in G-code and this makes it not be. On a test job that is
 A point outside the rectangle is clamped into it rather than extrapolated: past
 the last reading there is nothing measured, and a plane run out beyond its own
 evidence is a plane that lifts the brush off the paper at the edge of the sheet.
+With the bed as the frame the painting is always inside it, and only the 5 mm
+inset at the edges is ever clamped.
+
+Two kinds of move end up a few microns off the plane, both harmlessly. A
+descent that carries only a Z keeps the height worked out for the *previous*
+XY, and a backlash take-up shifts a move's coordinates after levelling has run.
+Measured over a levelled job: 7 µm at worst, against a sheet that varies by
+600.
 
 ### Backlash compensation
 

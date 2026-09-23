@@ -602,23 +602,29 @@ def _offer_canvas_start(conf: dict) -> None:
 EDGE_HEADROOM = 2.0
 
 
-# How far inside the corners of the canvas the levelling points sit, in
-# millimetres, and at most this fraction of a side -- a small canvas still
-# wants five points that are properly apart.
+# How far inside the corners of the bed the levelling points sit, in
+# millimetres, and at most this fraction of a side -- a small bed still wants
+# five points that are properly apart.
 LEVEL_INSET = 5.0
 LEVEL_INSET_MAX = 0.4
 
 
-def level_points(conf: dict) -> dict[str, tuple[float, float]]:
-    """Where the five bed-levelling readings are taken, in machine coordinates.
+def level_area(conf: dict) -> tuple[float, float, float, float]:
+    """The bed the levelling covers, as (lo_x, lo_y, hi_x, hi_y) in mm.
 
-    The four corners of the canvas and its middle, held LEVEL_INSET inside the
-    corners so the brush is on paper rather than over its edge. Studio takes
-    its five off the machine's own travel; the canvas is the better frame here,
-    because what is being levelled is the paper and the paper is where the
-    canvas is.
+    Everything the machine can reach that is paper: from the origin out to the
+    travel limits in X, and from Canvas Start Y -- where the strip the
+    containers stand in ends -- to the limit in Y. Not the painting. Levelling
+    is a fact about how the sheet lies on the bed, and the sheet does not move
+    when the picture is made smaller or offset into a corner.
+
+    It used to be the canvas, which made every reading mean something
+    different from one job to the next: five figures measured for a full-bed
+    painting, reused for a 50 mm one in the middle, were being read as that
+    small square's own corners -- a tilt of a tenth over 150 mm applied as a
+    tenth over 50. The readings are typed once, after taping the paper down,
+    and they have to keep meaning the same spots.
     """
-    ox, oy = canvas_origin(conf)
     bg = conf.get("brushograph", {}) if isinstance(conf.get("brushograph"), dict) else {}
 
     def num(key):
@@ -627,11 +633,23 @@ def level_points(conf: dict) -> dict[str, tuple[float, float]]:
         except (TypeError, ValueError):
             return 0.0
 
-    w, h = num("width"), num("height")
-    in_x = min(LEVEL_INSET, w * LEVEL_INSET_MAX)
-    in_y = min(LEVEL_INSET, h * LEVEL_INSET_MAX)
-    lo_x, hi_x = ox + in_x, ox + w - in_x
-    lo_y, hi_y = oy + in_y, oy + h - in_y
+    return 0.0, num("canvas_start_y"), num("max_width"), num("max_height")
+
+
+def level_points(conf: dict) -> dict[str, tuple[float, float]]:
+    """Where the five bed-levelling readings are taken, in machine coordinates.
+
+    The four corners of the bed's paper area and its middle, held LEVEL_INSET
+    inside the corners so the brush is on the bed rather than over its edge --
+    and clear of the endstops, which is why the inset is larger than
+    EDGE_HEADROOM. Studio takes its five off the machine's own travel, and this
+    is the same frame less the containers' strip.
+    """
+    lo_x, lo_y, hi_x, hi_y = level_area(conf)
+    in_x = min(LEVEL_INSET, max(0.0, hi_x - lo_x) * LEVEL_INSET_MAX)
+    in_y = min(LEVEL_INSET, max(0.0, hi_y - lo_y) * LEVEL_INSET_MAX)
+    lo_x, hi_x = lo_x + in_x, hi_x - in_x
+    lo_y, hi_y = lo_y + in_y, hi_y - in_y
     return {
         "level_bl": (lo_x, lo_y), "level_br": (hi_x, lo_y),
         "level_tl": (lo_x, hi_y), "level_tr": (hi_x, hi_y),
@@ -653,9 +671,10 @@ def level_offset(conf: dict, x: float, y: float) -> float:
     exactly what three points average away and what the fifth reading in the
     middle catches.
 
-    A point outside the rectangle is clamped into it, so the containers and the
-    margin beyond the canvas read as the nearest edge rather than as an
-    extrapolation off the end of the paper.
+    A point outside the rectangle is clamped into it, so the inset at the
+    bed's edges and the strip the containers stand in read as the nearest edge
+    rather than as an extrapolation off the end of the paper. The painting is
+    always inside it, wherever it is offset to.
     """
     bg = conf.get("brushograph", {}) if isinstance(conf.get("brushograph"), dict) else {}
     points = level_points(conf)
@@ -879,12 +898,12 @@ HELP = {
     "brushograph-canvas_start_y": "Where the paintable area begins in Y (mm): the far edge of the strip the containers stand in, and a fact about the machine rather than about this painting. Nothing is painted below it, and the painted height is measured from it — with Offset Y at 0 the canvas starts exactly here. Choosing a model sets it: 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬.",
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
     "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
-    "brushograph-level_compensation": "Write every move made on the paper at the height the paper is at there, from the five readings below. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured \u2014 with all five the same it does nothing anyway.",
-    "brushograph-level_tl": "How much higher the paper is at the top-left of the canvas than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.",
-    "brushograph-level_tr": "The same reading at the top-right corner of the canvas. The plan view marks the spot.",
-    "brushograph-level_c": "The same reading at the middle of the canvas. This is the one that catches a twist: three corners fit a plane and can say nothing about a sheet that bellies or a bed that is not flat.",
-    "brushograph-level_bl": "The same reading at the bottom-left corner of the canvas, the corner nearest the containers. The plan view marks the spot.",
-    "brushograph-level_br": "The same reading at the bottom-right corner of the canvas. The plan view marks the spot.",
+    "brushograph-level_compensation": "Write every move made on the paper at the height the paper is at there, from the five readings below, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured \u2014 with all five the same it does nothing anyway.",
+    "brushograph-level_tl": "How much higher the paper is at the top-left of the bed than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.",
+    "brushograph-level_tr": "The same reading at the top-right corner of the bed. The plan view marks the spot.",
+    "brushograph-level_c": "The same reading at the middle of the bed. This is the one that catches a twist: three corners fit a plane and can say nothing about a sheet that bellies or a bed that is not flat.",
+    "brushograph-level_bl": "The same reading at the bottom-left corner of the bed, the corner nearest the containers. The plan view marks the spot.",
+    "brushograph-level_br": "The same reading at the bottom-right corner of the bed. The plan view marks the spot.",
     "brushograph-moves-normal-acc": "How hard this machine accelerates while painting, in millimetres a second squared. Almost no stroke in a picture is long enough to reach the feedrate, so this figure decides how long a job takes far more than the feedrate does \u2014 the page's estimate is built on it. Marlin is sent it as an M204; GRBL and FluidNC hold their own figure and have that line stripped, so set this to match what the controller is configured with.",
     "brushograph-moves-fast-acc": "How hard this machine accelerates while travelling, in millimetres a second squared. The same figure as the painting one on every machine here, and used the same way \u2014 see the note on that one.",
     "brushograph-moves-remove_drops-acc": "How hard this machine accelerates while wiping a round cup's rim, in millimetres a second squared. Nothing reads it for a rectangular bay.",

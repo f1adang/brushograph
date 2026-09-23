@@ -30,7 +30,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, CMYK_TO_TRAY,  # noqa: E402
                         RECTANGULAR_SHAPES, canvas_origin, cup_shape_of,
-                        EDGE_HEADROOM, feed_line, holder_of, level_offset,
+                        EDGE_HEADROOM, feed_line, holder_of, level_area, level_offset,
                         paintable_size, tray_entries, workable_x)
 
 FALLBACK_PATTERN = "concentric"
@@ -761,18 +761,20 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
     difference at a tenth of a millimetre: the stroke goes thin and dry where it
     is high and wide and wet where it is low.
 
-    So the five readings -- the corners of the canvas and its middle, taken
-    where `configspec.level_points` says -- become a Z added to every move made
-    on the paper. This is openBrushograph Studio's scheme, four triangles about
+    So the five readings -- the corners of the bed and its middle, taken where
+    `configspec.level_points` says -- become a Z added to every move made on
+    the paper. This is openBrushograph Studio's scheme, four triangles about
     the middle reading rather than one plane through all five, and the reason
     for it is the twist: three points fit a plane and can say nothing about a
     corner that sits high, which is exactly what a taped sheet does.
 
-    Only moves on the paper. A trip to the containers is outside the canvas in
-    X or Y and reads as the nearest edge of it, which would be wrong for a cup
-    and is not wanted anyway -- a cup's floor is where it is, and Dip Depth
-    already says so. Only moves at or under the between-shapes clearance, too,
-    so the travel that crosses the bed at the tray lift is left alone.
+    Only moves on the paper, which is the whole bed past Canvas Start Y and
+    not merely the rectangle this particular painting occupies: what is being
+    corrected is where the sheet lies, and a painting offset into a corner is
+    on the same sheet. A trip to the containers is below Canvas Start Y and is
+    left alone -- a cup's floor is where it is, and Dip Depth already says so.
+    Only moves at or under the between-shapes clearance, too, so the travel
+    that crosses the bed at the tray lift is left alone.
 
     A move that carries no Z of its own gets one: Z is modal in the file, and
     what this does is make it not be. That is most of the painting moves, and
@@ -789,13 +791,12 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
             log("bed levelling is on with five readings the same: nothing to correct")
         return lines
 
-    ox, oy = canvas_origin(conf)
-    width, height = _figure(bg, "width"), _figure(bg, "height")
+    lo_x, lo_y, hi_x, hi_y = level_area(conf)
     paper_z = _figure(bg, "canvas_height")
     ceiling = paper_z + _figure(bg, "move_to_other_shape_lift") + 1e-6
 
     def on_paper(x, y):
-        return ox - 1e-9 <= x <= ox + width + 1e-9 and oy - 1e-9 <= y <= oy + height + 1e-9
+        return lo_x - 1e-9 <= x <= hi_x + 1e-9 and lo_y - 1e-9 <= y <= hi_y + 1e-9
 
     out: list[str] = []
     x = y = 0.0
@@ -825,7 +826,7 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
     if log:
         lo, hi = min(readings), max(readings)
         log(f"bed levelling: {touched} moves written to the paper's own height, "
-            f"which runs from {lo:+.2f} to {hi:+.2f} mm across the canvas")
+            f"which runs from {lo:+.2f} to {hi:+.2f} mm across the bed")
     return out
 
 

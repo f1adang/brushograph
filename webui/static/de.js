@@ -184,18 +184,18 @@ text: {
   "Z unten links",
 "Z bottom-right":
   "Z unten rechts",
-"Write every move made on the paper at the height the paper is at there, from the five readings below. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured — with all five the same it does nothing anyway.":
-  "Schreibt jede Bewegung auf dem Papier in der Höhe, die das Papier dort hat, nach den fünf Messwerten unten. Die Unterlagenhöhe ist eine einzige Zahl, ein aufgeklebtes Blatt aber nicht: ein Pinsel, der in der Mitte aufsetzt, schwebt an der einen Ecke über dem Papier und gräbt sich an der anderen hinein — ein Aquarellpinsel zeigt das schon bei einem Zehntelmillimeter. Aus, bis die fünf gemessen sind; sind alle gleich, bewirkt es ohnehin nichts.",
-"How much higher the paper is at the top-left of the canvas than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.":
-  "Um wie viel höher das Papier oben links auf der Unterlage liegt als dort, wo die Unterlagenhöhe gesetzt wurde (mm). Fahren Sie den Pinsel hin, senken Sie ihn, bis er eben aufsetzt, und tragen Sie die Differenz zur Unterlagenhöhe ein. Die Planansicht zeigt die Stelle.",
-"The same reading at the top-right corner of the canvas. The plan view marks the spot.":
-  "Derselbe Messwert an der oberen rechten Ecke der Unterlage. Die Planansicht zeigt die Stelle.",
-"The same reading at the middle of the canvas. This is the one that catches a twist: three corners fit a plane and can say nothing about a sheet that bellies or a bed that is not flat.":
-  "Derselbe Messwert in der Mitte der Unterlage. Dieser fängt die Verwindung ein: drei Ecken legen eine Ebene fest und können nichts über ein durchhängendes Blatt oder ein unebenes Bett sagen.",
-"The same reading at the bottom-left corner of the canvas, the corner nearest the containers. The plan view marks the spot.":
-  "Derselbe Messwert an der unteren linken Ecke der Unterlage, der Ecke, die den Behältern am nächsten liegt. Die Planansicht zeigt die Stelle.",
-"The same reading at the bottom-right corner of the canvas. The plan view marks the spot.":
-  "Derselbe Messwert an der unteren rechten Ecke der Unterlage. Die Planansicht zeigt die Stelle.",
+"Write every move made on the paper at the height the paper is at there, from the five readings below, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured — with all five the same it does nothing anyway.":
+  "Schreibt jede Bewegung auf dem Papier in der Höhe, die das Papier dort hat, nach den fünf Messwerten unten, die an den Ecken und in der Mitte der Arbeitsfläche selbst genommen werden, nicht des Bildes. Die Unterlagenhöhe ist eine einzige Zahl, ein aufgeklebtes Blatt aber nicht: ein Pinsel, der in der Mitte aufsetzt, schwebt an der einen Ecke über dem Papier und gräbt sich an der anderen hinein — ein Aquarellpinsel zeigt das schon bei einem Zehntelmillimeter. Aus, bis die fünf gemessen sind; sind alle gleich, bewirkt es ohnehin nichts.",
+"How much higher the paper is at the top-left of the bed than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.":
+  "Um wie viel höher das Papier oben links auf der Arbeitsfläche liegt als dort, wo die Unterlagenhöhe gesetzt wurde (mm). Fahren Sie den Pinsel hin, senken Sie ihn, bis er eben aufsetzt, und tragen Sie die Differenz zur Unterlagenhöhe ein. Die Planansicht zeigt die Stelle.",
+"The same reading at the top-right corner of the bed. The plan view marks the spot.":
+  "Derselbe Messwert an der oberen rechten Ecke der Arbeitsfläche. Die Planansicht zeigt die Stelle.",
+"The same reading at the middle of the bed. This is the one that catches a twist: three corners fit a plane and can say nothing about a sheet that bellies or a bed that is not flat.":
+  "Derselbe Messwert in der Mitte der Arbeitsfläche. Dieser fängt die Verwindung ein: drei Ecken legen eine Ebene fest und können nichts über ein durchhängendes Blatt oder ein unebenes Bett sagen.",
+"The same reading at the bottom-left corner of the bed, the corner nearest the containers. The plan view marks the spot.":
+  "Derselbe Messwert an der unteren linken Ecke der Arbeitsfläche, der Ecke, die den Behältern am nächsten liegt. Die Planansicht zeigt die Stelle.",
+"The same reading at the bottom-right corner of the bed. The plan view marks the spot.":
+  "Derselbe Messwert an der unteren rechten Ecke der Arbeitsfläche. Die Planansicht zeigt die Stelle.",
 "Other settings": "Weitere Einstellungen",
 "Moves": "Bewegungen",
 "Fast": "Schnell",

@@ -8,7 +8,8 @@ import os
 from PIL import Image, ImageDraw, ImageFont
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_origin,
-                        cup_shape_of, holder_of, level_points, tray_entries)
+                        cup_shape_of, holder_of, level_area, level_points,
+                        tray_entries)
 
 W, H = 760, 480
 PAD = 46
@@ -253,20 +254,27 @@ def render(conf: dict, theme: str = "default") -> bytes:
                font=fs, fill=TEXT)
 
     # Where the bed-levelling readings are taken, when the machine is being
-    # levelled: five crosses on the paper, because a figure typed into a box
-    # is no use unless it is known which spot it belongs to.
-    if bg.get("level_compensation") and cw and ch:
+    # levelled: five crosses, because a figure typed into a box is no use
+    # unless it is known which spot it belongs to. They are the bed's corners,
+    # not the picture's, and they are drawn whether or not there is a picture
+    # -- levelling is done once, with the paper taped down and nothing loaded.
+    if bg.get("level_compensation"):
+        lv_x0, lv_y0, lv_x1, lv_y1 = level_area(conf)
         for key, (lx, ly) in level_points(conf).items():
             mx, my = px(lx, ly)
             d.line([(mx - 4, my), (mx + 4, my)], fill=(*ACCENT, 200))
             d.line([(mx, my - 4), (mx, my + 4)], fill=(*ACCENT, 200))
             z = _num(bg, key, 0)
             if z:
-                # Away from the edge the cross sits against: the canvas caption
-                # is along the top of it, and the containers are under the
-                # bottom of it.
-                above = ly > (oy + ch / 2)
-                d.text((mx + 5, my + (2 if above else -11)), f"{z:+g}",
+                # Into the bed rather than out of it, on both axes: the bed's
+                # own caption runs along the top edge and the containers sit
+                # under the bottom one, and a figure at the right-hand corners
+                # would otherwise be written off the side of the drawing.
+                txt = f"{z:+g}"
+                below = ly < (lv_y0 + lv_y1) / 2
+                left = lx < (lv_x0 + lv_x1) / 2
+                dx = 5 if left else -5 - d.textlength(txt, font=fs)
+                d.text((mx + dx, my + (-11 if below else 2)), txt,
                        font=fs, fill=ACCENT)
 
     if plate:
