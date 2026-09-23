@@ -12,6 +12,17 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.14.2](https://github.com/f1adang/brushograph/releases/tag/v2.14.2) — 2026-09-23
+
+- **Bed levelling covers the whole bed, not just the painting.** The five
+  readings used to be taken at the corners of the picture, so they meant
+  different spots every time the picture changed size or moved — a small
+  painting in the middle of the bed had the sheet's whole tilt squeezed into
+  it, out by up to 0.235 mm where a brush shows a tenth. They are the bed's
+  four corners and its middle now, measured once with the paper taped down,
+  and the plan marks them whether or not a picture is loaded. **Readings in an
+  existing config mean the new spots: re-measure them.**
+
 ## [v2.14.1](https://github.com/f1adang/brushograph/releases/tag/v2.14.1) — 2026-09-23
 
 - **The picture cards are listed C, M, Y, K.** They used to follow painting
