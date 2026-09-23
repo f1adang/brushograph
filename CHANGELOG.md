@@ -12,6 +12,17 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.14.1](https://github.com/f1adang/brushograph/releases/tag/v2.14.1) — 2026-09-23
+
+- **With bed levelling on, the preview no longer loses the high side of the
+  picture.** Levelling writes the painting at whatever height the paper
+  actually is, so over a corner that sits proud the strokes are written above
+  Canvas Height — and the preview counted only what was at or below it, drawing
+  the rest as travel. On a canvas running from −0.5 mm to +0.2 mm that hollowed
+  out the whole top of the painting: six of nineteen metres were there in the
+  file and drawn as air. The file was always right; only the picture of it was
+  wrong.
+
 ## [v2.14.0](https://github.com/f1adang/brushograph/releases/tag/v2.14.0) — 2026-09-22
 
 - **The preview draws a stroke as wide as the brush lays it.** It used to draw
