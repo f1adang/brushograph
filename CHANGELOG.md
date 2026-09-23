@@ -12,6 +12,23 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.15.1](https://github.com/f1adang/brushograph/releases/tag/v2.15.1) — 2026-09-24
+
+- **The CMYK containers are the new standard ones.** openBrushograph
+  redrew the Mini's crucibles and its holder, and the machine now knows
+  the new sizes: a 38 mm water pan and four of 28, 32 mm apart, with
+  black 133 mm from the water instead of 100.1. Choosing **CMYK** or
+  pressing **Auto-space containers** puts the cups where that holder
+  puts them, and the plan view draws them at their real size. The brush
+  works far more of each cup than it did — 17.9 mm across a colour
+  against 11.3, and a 27.7 mm swipe up the stairs against 23.5 — so the
+  paint is mixed better and the brush loads with more of it. Two figures
+  that follow from the print changed with them: the brush now leaves a
+  cup at Z 6.5 rather than 5.9, and lifts to 12 rather than 11.
+  **If your holder was printed before this change, choose Custom rather
+  than CMYK** — its defaults are much closer to the old crucibles. The
+  𝔐𝔦𝔨𝔯𝔬's containers were not redrawn and have not moved.
+
 ## [v2.15.0](https://github.com/f1adang/brushograph/releases/tag/v2.15.0) — 2026-09-23
 
 - **A colour photograph can be given black contours.** A new slider on the
