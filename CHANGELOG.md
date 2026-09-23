@@ -14,6 +14,12 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 
 ## [v2.14.1](https://github.com/f1adang/brushograph/releases/tag/v2.14.1) — 2026-09-23
 
+- **The picture cards are listed C, M, Y, K.** They used to follow painting
+  order — Yellow, Magenta, Cyan, Black — which is the order the machine lays
+  the colours down, not the order the plates are named in or the order the
+  separation hands its four files over. Choosing the right file for each card
+  meant reading every heading. The painting still goes on lightest first.
+
 - **With bed levelling on, the preview no longer loses the high side of the
   picture.** Levelling writes the painting at whatever height the paper
   actually is, so over a corner that sits proud the strokes are written above
