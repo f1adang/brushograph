@@ -566,6 +566,72 @@ neither rule can overrule the other whichever changes last. Disabling stays with
 the holder alone: a card hidden under a photograph is not posted because the run
 drops the file inputs of hidden cards, which is the mechanism above.
 
+#### Black contours
+
+A cutoff says where an ink is solid and nothing whatever about where one thing
+stops and the next starts. On a photograph of flat colour — a hillside against
+a sky, a bridge against water — that comes out as fields meeting with no line
+between them, and the painting reads as a puzzle rather than a picture. **Black
+contours** draws the picture's own edges into the black plate. 0 leaves the
+plate as the separation made it.
+
+**The edges are taken from the four ink channels, not from brightness.** A red
+shape on a green ground of the same lightness has no edge at all in a grey copy
+of the picture, and that is precisely the shape the colour plates leave
+unexplained: both of them are solid, and neither says where one ends. Each ink
+is differentiated with a Scharr kernel and, at every pixel, the ink with the
+most to say supplies the gradient. Running Canny on each of the four and
+OR-ing the results was tried first and thrown away: two plates notice the same
+boundary a pixel apart, so it comes out as a double line, and a double line is
+a second brush pass over ground already painted.
+
+**Blurred first, at two thousandths of the diagonal.** A photograph's grain and
+a wall's texture hold edges as strong as the edge of a face, and at a brush's
+width neither is a mark worth making. That figure loses the grain and keeps a
+cheek.
+
+**The slider is a percentile of the picture's own edges, not a gradient.** What
+counts as a strong edge in a foggy photograph is nothing at all in a bright one,
+so a figure in ink units would mean a different amount of drawing in every
+picture. The slider runs from the 100th percentile down to the 55th; Canny's
+own thinning and hysteresis then do the rest, the low threshold at two fifths
+of the high one, which is what carries a line through a stretch where an edge
+fades without starting new ones in the noise.
+
+**A contour shorter than 1.5% of the diagonal is dropped.** Every separate run
+is a brush-down, a trip for paint and a blot where the brush lands again, so a
+three-pixel fleck off the side of a rock costs what a skyline costs and says
+nothing. On the test photograph at 25 that throws away 234 flecks and keeps 338
+contours; at 60 it throws away 1,055 and keeps 619.
+
+**The line is left one pixel wide.** The brush gives a contour its weight: the
+pipeline enlarges a raster until a stroke is several pixels across — see
+*Small pictures are enlarged before the geometry is worked out*, above — so a
+hairline here arrives as one brush width on the paper,
+which is the thinnest mark the machine has.
+
+**They go in after the knockout, never before.** A contour crosses every
+boundary in the picture, so knocking the colours out along it would cut each
+field into pieces and leave a brush-wide lane of bare paper between them —
+which is the halo a press gets when it trips. Black is painted last of the
+four, so a line laid over the colour is a line over the colour, and it is one
+plate's worth of drawing either way.
+
+**It is close to free.** Measured on a 1200 px landscape photograph, painted
+150 mm wide at a 0.5 mm stroke on Brushparang:
+
+| contours | K plate | painted | travel | dips | rough time |
+|---|---|---|---|---|---|
+| off | 24.6% ink | 21.25 m | 47.00 m | 180 | 3.10 h |
+| 25 | 26.3% ink | 22.37 m | 49.00 m | 186 | 3.22 h |
+| 60 | 27.6% ink | 23.37 m | 51.30 m | 192 | 3.37 h |
+
+Contours at 25 are 3.18 m of line but cost 1.12 m of painting, because most of
+a contour lands on ground the black plate already covers — an edge in a
+photograph is usually the edge of something dark. Finding them takes about two
+tenths of a second, which is why the slider redraws the plates the way the
+cutoff does.
+
 ### Photo to woodcut
 
 Set a tray's *Image Type* to **Photo** and the upload is converted to woodcut /

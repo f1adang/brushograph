@@ -117,6 +117,9 @@ text: {
 "Ink cutoff": "Farbschwelle",
 "A tint below the cutoff is left as paper; at or above it becomes that tray's ink. 0 keeps any non-zero tint.":
   "Ein Ton unterhalb der Schwelle bleibt Papier; ab der Schwelle wird er zur Farbe dieses Behälters. 0 behält jeden Ton, der nicht Null ist.",
+"Black contours": "Schwarze Umrisse",
+"Draw the picture's edges into the black plate. The cutoff says where an ink is solid and nothing about where one thing stops and the next starts, so flat colours come out as fields that meet with no line between them. 0 leaves the black plate as the separation made it; higher takes in weaker edges, until at 100 every ripple is drawn.":
+  "Die Kanten des Bildes in die schwarze Druckplatte zeichnen. Die Schwelle sagt, wo eine Farbe deckt, und nichts darüber, wo ein Ding aufhört und das nächste anfängt; flache Farben geraten so zu Feldern, die ohne Linie dazwischen aneinanderstoßen. 0 lässt die schwarze Platte, wie die Zerlegung sie gemacht hat; höher nimmt schwächere Kanten hinzu, bis bei 100 jede Kräuselung gezeichnet wird.",
 "Black knocks out the colours": "Schwarz spart die Farben aus",
 "Leave cyan, magenta and yellow off wherever black paints. The conversion beds dark tones on all three, the way a press does, and the black pass then covers them: half the painting for no visible change. Untick it to lay that bed anyway, so a black pass slightly out of register shows colour at its edge rather than bare paper.":
   "Cyan, Magenta und Gelb überall dort weglassen, wo Schwarz malt. Die Umwandlung unterlegt dunkle Töne mit allen dreien, wie es eine Druckmaschine tut, und der schwarze Durchgang deckt sie dann zu: die halbe Malarbeit ohne sichtbaren Unterschied. Abwählen, um diese Unterlage dennoch zu malen, damit ein leicht versetzter schwarzer Durchgang an seiner Kante Farbe zeigt statt blankem Papier.",

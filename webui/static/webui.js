@@ -1159,6 +1159,7 @@ function wireForm() {
   const cmykNote = $("cmyk-note");
   const cmykCutoff = $("cmyk-cutoff");
   const cmykKnockout = $("cmyk-knockout");
+  const cmykContours = $("cmyk-contours");
   let cmykPreviewTimer = null;
 
   function cmykFile() {
@@ -1177,6 +1178,7 @@ function wireForm() {
     }
     if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
     if (cmykKnockout) fd.append("cmyk_knockout", cmykKnockout.checked ? "true" : "false");
+    if (cmykContours) fd.append("cmyk_contours", cmykContours.value);
     fd.append("theme", document.documentElement.dataset.theme || "default");
 
     const label = labelOf(cmykBtn);
@@ -1210,10 +1212,14 @@ function wireForm() {
   }
 
   if (cmykInput && cmykControls) {
-    const cutoffOut = $("cmyk-cutoff-out");
-    if (cmykCutoff && cutoffOut) {
-      cmykCutoff.addEventListener("input", () => {
-        cutoffOut.value = cmykCutoff.value;
+    // Both sliders redraw the plates, and neither redraws them per pixel of
+    // travel: finding the contours is a second's work on a large photograph,
+    // so the request waits until the thumb has stopped.
+    for (const [slider, out] of [[cmykCutoff, $("cmyk-cutoff-out")],
+                                 [cmykContours, $("cmyk-contours-out")]]) {
+      if (!slider || !out) continue;
+      slider.addEventListener("input", () => {
+        out.value = slider.value;
         if (!cmykFile()) return;
         clearTimeout(cmykPreviewTimer);
         cmykPreviewTimer = setTimeout(previewCmyk, 180);

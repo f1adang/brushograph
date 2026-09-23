@@ -202,6 +202,14 @@
         </label>
         <p class="note">A tint below the cutoff is left as paper; at or above it becomes
           that tray's ink. 0 keeps any non-zero tint.</p>
+        <label class="field"><span class="field-label">Black contours <output id="cmyk-contours-out">0</output></span>
+          <input type="range" name="cmyk_contours" id="cmyk-contours" min="0" max="100" value="0">
+        </label>
+        <p class="note">Draw the picture's edges into the black plate. The cutoff says
+          where an ink is solid and nothing about where one thing stops and the next
+          starts, so flat colours come out as fields that meet with no line between
+          them. 0 leaves the black plate as the separation made it; higher takes in
+          weaker edges, until at 100 every ripple is drawn.</p>
         <div class="switches">
           <label class="switch">
             <input type="hidden" name="cmyk_knockout" value="false">

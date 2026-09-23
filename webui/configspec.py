@@ -1227,7 +1227,7 @@ def apply_form(conf: dict, form) -> tuple[dict, list[str]]:
     for name in form.keys():
         if name in {"session_id", "machine_config_name", "machine_config_mode",
                     "machine_config_version", "config_only", "sketch_only", "cmyk_photo",
-                    "cmyk_threshold", "cmyk_knockout"}:
+                    "cmyk_threshold", "cmyk_knockout", "cmyk_contours"}:
             continue
         parts = name.split("-")
         node = out

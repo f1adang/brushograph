@@ -12,6 +12,10 @@ as already-thresholded pictures.
 Dithering is not used. A Floyd–Steinberg plate is thousands of specks, and the
 brush cannot lay those down; a hard cutoff is the same kind of image the
 pipeline already traces.
+
+The black plate can also be given the picture's contours, because a cutoff
+tells you where an ink is solid and nothing at all about where one object
+stops and the next begins.
 """
 from __future__ import annotations
 
@@ -50,6 +54,75 @@ _SRGB = _PROFILES / "sRGB_v4_ICC_preference.icc"
 _CMYK = _PROFILES / "SC_paper_eci.icc"
 
 
+# The edge finding, in fractions of the picture's diagonal so a photograph is
+# read the same whatever size it arrives at.
+#
+# Blurred first: a photograph's grain and a wall's texture have edges in them
+# as strong as the edge of a face, and at a brush's width neither is a mark
+# worth making. Two thousandths of the diagonal is enough to lose the grain
+# and keep a cheek.
+CONTOUR_BLUR_FRAC = 0.002
+# And a contour shorter than this is dropped. Every separate run is a
+# brush-down, a trip for paint and a blot where the brush lands, so a
+# three-pixel fleck off the side of a rock costs the same as a skyline and
+# says nothing.
+CONTOUR_MIN_RUN_FRAC = 0.015
+
+
+def contour_mask(cmyk: Image.Image, strength: float) -> np.ndarray:
+    """Where the picture's objects have their edges, as one-pixel lines.
+
+    Taken from the four ink channels rather than from brightness: a red shape
+    on a green ground of the same lightness has no edge in a grey copy of the
+    picture, and it is exactly that shape the colour plates leave unexplained.
+    Each ink is differentiated, and at every pixel the ink with the most to say
+    supplies the gradient, so a boundary is drawn once rather than once per
+    plate that notices it.
+
+    The line is left one pixel wide. It is the brush that gives a contour its
+    weight -- the pipeline enlarges a raster until a stroke is several pixels
+    across, so a hairline here arrives as one brush width on the paper, which
+    is the thinnest mark the machine has.
+    """
+    import cv2  # imported late: only a contoured separation needs OpenCV
+
+    planes = np.asarray(cmyk, dtype=np.float32)
+    h, w = planes.shape[:2]
+    diag = float(np.hypot(w, h))
+    sigma = max(1.0, CONTOUR_BLUR_FRAC * diag)
+    soft = cv2.GaussianBlur(planes, (int(sigma * 4) | 1, int(sigma * 4) | 1), sigma)
+
+    gx = np.stack([cv2.Scharr(soft[..., c], cv2.CV_32F, 1, 0) for c in range(4)], -1)
+    gy = np.stack([cv2.Scharr(soft[..., c], cv2.CV_32F, 0, 1) for c in range(4)], -1)
+    mag = np.hypot(gx, gy)
+    loudest = mag.argmax(-1)
+    rows, cols = np.indices(loudest.shape)
+    dx = gx[rows, cols, loudest]
+    dy = gy[rows, cols, loudest]
+
+    # The slider is a percentile of the picture's own edges, not a fixed
+    # gradient: what counts as a strong edge in a foggy photograph is nothing
+    # at all in a bright one, and a figure in ink units would mean a different
+    # amount of drawing in each.
+    keep = min(max(float(strength), 0.0), 100.0)
+    high = float(np.percentile(mag.max(-1), 100.0 - 0.45 * keep))
+    if high <= 0:
+        return np.zeros((h, w), bool)
+    # Canny's own thinning and hysteresis, fed the gradient worked out above
+    # rather than letting it take its own off a grey copy. The low threshold at
+    # two fifths of the high one is Canny's usual ratio: it is what carries a
+    # line on through the stretch where an edge fades without starting new ones
+    # in the noise.
+    edges = cv2.Canny(dx.astype(np.int16), dy.astype(np.int16),
+                      high * 0.4, high, L2gradient=True)
+
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        (edges > 0).astype(np.uint8), 8)
+    short = stats[:, cv2.CC_STAT_AREA] < CONTOUR_MIN_RUN_FRAC * diag
+    short[0] = True  # label 0 is the paper
+    return ~short[labels]
+
+
 def _cutoff_level(cutoff: float) -> int:
     """Channel value that just counts as ink.
 
@@ -77,8 +150,15 @@ def to_cmyk(image: Image.Image) -> Image.Image:
 
 
 def threshold_plates(image: Image.Image, cutoff: float = 40.0,
-                     knockout: bool = True) -> dict[str, Image.Image]:
+                     knockout: bool = True,
+                     contours: float = 0.0) -> dict[str, Image.Image]:
     """1-bit images keyed C/M/Y/K, black where that ink should paint.
+
+    `contours` adds the picture's own edges to the black plate, nought for none
+    and a hundred for every edge the picture holds. A cutoff says where an ink
+    is solid and nothing about where one object stops and the next starts, so a
+    photograph of flat colours separates into fields that meet with no line
+    between them and read as a puzzle rather than a picture.
 
     `knockout` drops the colour inks wherever the black plate already paints.
     The profile writes a press black: pure black comes out C 60% M 50% Y 54%
@@ -103,6 +183,14 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     if knockout:
         for name in ("C", "M", "Y"):
             ink[name] = ink[name] & ~ink["K"]
+    # After the knockout, never before it. A contour crosses every boundary in
+    # the picture, so knocking the colours out along it would cut each field
+    # into pieces and leave a brush-wide lane of bare paper between them — the
+    # halo a press gets when it trips. Black is painted last of the four, so a
+    # line laid over the colour is a line over the colour, which is what a
+    # contour is for; and it is one plate's worth of drawing either way.
+    if contours > 0:
+        ink["K"] = ink["K"] | contour_mask(cmyk, contours)
     return {name: Image.fromarray(
         np.where(mask, 0, 255).astype(np.uint8), "L").convert("1")
         for name, mask in ink.items()}
@@ -113,10 +201,12 @@ def ink_fraction(img: Image.Image) -> float:
 
 
 def plates_for_trays(image: Image.Image, cutoff: float = 40.0,
-                     knockout: bool = True) -> dict[str, Image.Image]:
+                     knockout: bool = True,
+                     contours: float = 0.0) -> dict[str, Image.Image]:
     """Plates keyed by tray name (cyan, magenta, yellow, kroma)."""
     return {CMYK_TO_TRAY[ch]: plate
-            for ch, plate in threshold_plates(image, cutoff, knockout).items()}
+            for ch, plate in threshold_plates(
+                image, cutoff, knockout, contours).items()}
 
 
 def _ink_mask(plate: Image.Image) -> np.ndarray:
