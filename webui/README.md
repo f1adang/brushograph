@@ -306,6 +306,34 @@ it, which is what the pipeline does with the same figure.
 
 Travel stays a hairline. It is not paint and should not look like it.
 
+### The paper the preview measures against
+
+A stroke counts as paint when its Z is at or below **Canvas height**. Bed
+levelling breaks that test, because its whole purpose is to write the strokes
+somewhere else: over a corner that sits 0.2 mm proud, the painting is written at
+Canvas height plus 0.2, and the preview read every one of those as travel.
+
+It shows up as a picture with a hole in it. On `brushparang`, whose canvas runs
+from −0.50 mm at the bottom right to +0.20 mm at the top left, Marilyn's head —
+at the top of the canvas, which is the high side — was drawn in the travel
+colour while her shoulders were solid black. The file was right: a coverage
+raster of the same job against its own cut left 3.5% of the ink unpainted,
+which is the ordinary figure for a brush that wide.
+
+The ceiling is Canvas height plus the highest reading now, so the paper's own
+shape is what the preview measures against, and nought when levelling is off —
+which is the test it always made. The same job on the same config: **13.2 m
+painted and 741 brush-downs before, 19.1 m and 1,092 after**, with travel down
+from 37.6 m to 31.8 m. Nothing about the G-code changed; six metres of painting
+had simply been drawn as air.
+
+The reading comes from the levelling checkbox, and it has to be asked for by
+type. Every checkbox in this form is paired with a hidden `false` so an unticked
+box still posts something, the hidden one comes first in the document, and
+`querySelector` by name alone finds *that* — which has no `checked` and reads as
+off however the box is set. The server has the same trap and answers it the same
+way, with `getlist()[-1]`.
+
 ### What the preview leaves out
 
 Backlash compensation injects a corrective move at every reversal — 148 of them

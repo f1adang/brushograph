@@ -1528,7 +1528,7 @@ const PREVIEW_INK = {
 // paint. Heights cannot tell, because a dip depth equal to the canvas height
 // puts both at the same Z. A file without markers (from before them) falls back
 // to the heights: canvas and dip are the config's canvas_height and dip_depth.
-function parseGcode(text, { canvas = 0, dip = null } = {}) {
+function parseGcode(text, { canvas = 0, dip = null, paperAbove = 0 } = {}) {
   const near = (a, b) => Math.abs(a - b) < 0.001;
   const marked = /^\s*;\s*dip\b/im.test(text);
   const moves = [];
@@ -1623,7 +1623,10 @@ function parseGcode(text, { canvas = 0, dip = null } = {}) {
       inCup = dip === null ? nz < canvas - 0.001
         : !near(dip, canvas) && (near(nz, dip) || near(z, dip));
     }
-    const down = !inCup && (near(nz, canvas) || nz < canvas);
+    // The paper, not the figure: with bed levelling on it reaches `paperAbove`
+    // over Canvas Height at its highest corner, and a stroke up there is still
+    // a stroke. Nought without levelling, which is the test this always made.
+    const down = !inCup && nz <= canvas + paperAbove + 0.001;
     const d = Math.hypot(nx - x, ny - y);
     if (down && wasDown) paintMM += d; else travelMM += d;
     if (down && !wasDown) strokes++;
@@ -1990,7 +1993,23 @@ function showGcode(text) {
   stopSim();
   const height = (key) => parseFloat((document.querySelector('[name="brushograph-' + key + '"]') || {}).value);
   const canvas = height("canvas_height"), dip = height("dip_depth");
-  sim.data = parseGcode(text, { canvas: isFinite(canvas) ? canvas : 0, dip: isFinite(dip) ? dip : null });
+  // How far above Canvas Height the paper itself reaches. With bed levelling
+  // on, a stroke over a high corner is written above Canvas Height -- that is
+  // the whole point of it -- and a preview that takes Canvas Height as the
+  // ceiling of what counts as painting draws those strokes as travel. On the
+  // config that showed this up the top of the canvas reads +0.2, and Marilyn's
+  // head, which is at the top of the canvas, came out in the travel colour.
+  // The checkbox, not the hidden `false` that is posted beside it: every
+  // checkbox in this form has one, it comes first in the document, and a bare
+  // name selector finds that one and reads it as unticked every time.
+  const levelled = (document.querySelector(
+    'input[type="checkbox"][name="brushograph-level_compensation"]') || {}).checked;
+  const readings = ["level_tl", "level_tr", "level_c", "level_bl", "level_br"]
+    .map(height).filter(isFinite);
+  const paperAbove = levelled && readings.length ? Math.max(0, ...readings) : 0;
+  sim.data = parseGcode(text, { canvas: isFinite(canvas) ? canvas : 0,
+                                dip: isFinite(dip) ? dip : null,
+                                paperAbove });
   sim.view = sim.drawn = null;
   // With no moves the bounds come out infinite, the scale NaN, and every draw
   // call is quietly ignored — an empty box and no complaint. Say so instead.
