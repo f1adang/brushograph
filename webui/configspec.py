@@ -1113,6 +1113,31 @@ def in_cup_order(entries: list[dict]) -> list[dict]:
                   if e["tray"] in CUP_ORDER else len(CUP_ORDER))
 
 
+# The separation's own order, which is the one the letters are said in and the
+# one every plate is labelled with: C, M, Y, K.
+CARD_ORDER = ("C", "M", "Y", "K")
+
+
+def in_channel_order(entries: list[dict]) -> list[dict]:
+    """tray_entries sorted the way the plates are named, C M Y K.
+
+    The cards are where a picture is chosen for each plate, and a picture is
+    chosen against the plate's letter — the file from the separation is called
+    `-c1`, the card says "Cyan (C)". Painting order is a fact about the job,
+    not about the pictures: listing the cards Yellow, Magenta, Cyan, Black put
+    them in the reverse of the order they are spoken and of the order the
+    separation hands the four files over, so picking the right file for the
+    right card meant reading every heading.
+
+    Painting order is still what the job runs in and what the plan's legend
+    shows; only the cards are sorted. Sorted rather than rebuilt, so each entry
+    keeps its label, index and picture flag, and an additional colour, which is
+    no CMYK channel, sorts last in its painting order — the sort is stable.
+    """
+    return sorted(entries, key=lambda e: CARD_ORDER.index(e["color"])
+                  if e["color"] in CARD_ORDER else len(CARD_ORDER))
+
+
 def _regroup(fields: list[dict], groups) -> list[dict]:
     """Sort flat fields into named groups, keeping anything unlisted."""
     loose, nested = {}, []
@@ -1141,11 +1166,13 @@ def build_schema(conf: dict) -> list[dict]:
         if key not in conf:
             continue
         if key == "trays":
-            # Two orders of the same trays: painting order for the picture
-            # cards, the holder's own row for the positions.
+            # Three orders of the same trays: painting order, which is the
+            # job's; the holder's own row for the positions; and C M Y K for
+            # the picture cards, which is how the plates are named.
             entries = tray_entries(conf)
             schema.append({"key": key, "title": title, "trays": entries,
-                           "cups": in_cup_order(entries)})
+                           "cups": in_cup_order(entries),
+                           "cards": in_channel_order(entries)})
         else:
             fields = _walk([key], conf[key])
             if key == "brushograph":

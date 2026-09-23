@@ -224,7 +224,7 @@
 
     {% if trays %}
     <div class="tray-list">
-      {% for t in trays.trays if t.image %}
+      {% for t in trays.cards if t.image %}
       <article class="tray" data-tray="{{ t.tray }}" data-channel="{{ t.color }}">
         <header>
           <span class="dot" data-tray="{{ t.tray }}" style="{% if t.tray.startswith('#') %}background:{{ t.tray }}{% endif %}"></span>
