@@ -139,9 +139,9 @@ the back of a bay or the rim of a dish, and says so:
 
 What it measures is the **holder**, not the swipe: a design holder is a plate
 the crucibles stand in, and it is the plate the paper would be laid over. Its
-back edge is known from where the water crucible sits in it — Y 21 on a Mini,
+back edge is known from where the water crucible sits in it — Y 23.5 on a Mini,
 17.5 on a 𝔐𝔦𝔨𝔯𝔬 — while a custom holder, being nobody's design, has no plate and
-is measured by its bays. Clearance at the stock figures is 4 mm on the Mini,
+is measured by its bays. Clearance at the stock figures is 1.5 mm on the Mini,
 1.5 on the 𝔐𝔦𝔨𝔯𝔬 and 1 on Pinkograph, so it fires on a mistake rather than on a
 tight machine.
 
@@ -193,12 +193,12 @@ What differs, from the parts in the release's `Standard_STLs.zip` and
 | pinion | 14 mm, 11 teeth | 11 mm, 8 teeth |
 | racks X / Y | 46 / 46 teeth, 183.9 / 183.9 mm | 23 / 34 teeth, 99.3 / 146.9 mm |
 | Z travel | 18 mm | 12 mm |
-| CMYK holder (`colourContainers.scad` preset) | `Standard_CMYK`: 30 / 18.6 mm crucibles (27.6 / 16.2 inside) on 23.6 mm centres, in a 144.4 × 39.2 mm plate | `mikro_container`: 22 / 13 mm crucibles (19.6 / 10.6 inside) on 16 mm centres, in a 96 × 30.2 mm plate |
+| CMYK holder (`colourContainers.scad` preset) | `CMYK_standard`: 38 / 28 mm crucibles (35.6 / 25.6 inside) on 32 mm centres, in a 182 × 46.2 mm plate | `mikro_container`: 22 / 13 mm crucibles (19.6 / 10.6 inside) on 16 mm centres, in a 96 × 30.2 mm plate |
 | painting area (max width × height) | 151 × 156 | 65 × 100 |
 | canvas start Y | 25 | 19 |
 | water container at | X12 Y6 | X2 Y6 |
-| swipe | 23.5 mm | 17.5 mm |
-| go in tray lift / dip depth / swipe exit Z | 11 / 1.0 / 5.9 | 10 / 1.0 / 5.3 |
+| swipe | 27.7 mm | 17.5 mm |
+| go in tray lift / dip depth / swipe exit Z | 12 / 1.0 / 6.5 | 10 / 1.0 / 5.3 |
 | zero.g far corner | X160 Y160 Z32 | X75 Y123 Z21 |
 | petri dish holder | yes | none |
 
@@ -209,8 +209,8 @@ the X rack that was printed at 99.3 — taking it at its word promised 88 mm
 across. Its holder is the `mikro_container`
 preset of `Extras/colourContainers.scad`, checked against
 `Extras/CMYK_ColourContainers/mikro_CMYK_holder.stl` and `mikro_containers_steps.stl`; the
-swipe is 17.5 mm, the same proportion of its 20.6 mm crucible as the Mini's 23.5 mm
-is of 27.6. Water and black are 68.5 mm apart on a machine with about 66 mm
+swipe is 17.5 mm, the same proportion of its 20.6 mm crucible as the Mini's 27.7 mm
+is of 32.6. Water and black are 68.5 mm apart on a machine with about 66 mm
 of X, so the water starts at X 2 rather than the Mini's 12, where black came
 out at 80.5, out of reach. zero.g's sweep is shortened by the racks and scaled to the Z
 travel. Apart from the painting area, these are derived rather than measured on
@@ -1850,7 +1850,8 @@ reason: it has already been wiped. The swipe up the stairs drags the bristles
 along the floor and out of the paint over the length of the bay, which is the
 rim wipe's own motion over a better edge. Two more passes over the rim
 afterwards put paint back on a brush that has just been drawn clean — and on
-23.6 mm centres they reach into the crucible next door to do it. So `remove_drop` is
+32 mm centres, with only 4 mm of wall between crucibles, they reach into the one
+next door to do it. So `remove_drop` is
 ignored when the containers are modern, and `remove_drops_radius` is a
 round-cup setting that nothing else reads.
 
@@ -1867,31 +1868,51 @@ middle and lifts.
 with stairs in their floors, in a holder labelled W C M Y K. The design is
 `Extras/colourContainers.scad` in openBrushograph_hardware (once
 `mini_petri.scad`), with its presets in `colourContainers.json`, one per model —
-`Standard_CMYK` for the Mini, `mikro_container` for the 𝔐𝔦𝔨𝔯𝔬 (see **Model**
-above). For the Mini that is a **30 mm** water crucible and four of **18.6**,
-5 mm apart: centres 23.6 mm apart and the first colour 29.3 mm from the water.
-Slicing `Extras/CMYK_ColourContainers/standard_CMYK_holder.stl` (once
-`Gandi_petri_holder.stl`) finds its slots centred at 25.0, 54.3, 77.9, 101.5 and
-125.1, which is those figures exactly. Inside their 1.2 mm walls the crucibles
-are **27.6** and **16.2 mm** across and 27.6 long. The 𝔐𝔦𝔨𝔯𝔬's are 22 and 13 mm
-on 16 mm centres, 19.6 and 10.6 inside, 23 long.
+`CMYK_standard` for the Mini, `mikro_container` for the 𝔐𝔦𝔨𝔯𝔬 (see **Model**
+above). For the Mini that is a **38 mm** water crucible and four of **28**,
+4 mm apart: centres 32 mm apart and the first colour 37 mm from the water.
+Slicing `Extras/CMYK_ColourContainers/CMYK_standard_holder.stl` finds its slots
+centred at 2.0, 39, 71, 103 and 135, which is those figures exactly. Inside
+their 1.2 mm walls the crucibles are **35.6** and **25.6 mm** across and 32.6
+long. The 𝔐𝔦𝔨𝔯𝔬's are 22 and 13 mm on 16 mm centres, 19.6 and 10.6 inside, 23
+long.
 
-The crucibles stand in a plate: 144.4 × 39.2 mm on the Mini, its slots opening
-9 mm back from the front edge, and 96 × 30.2 on the 𝔐𝔦𝔨𝔯𝔬, 7 mm back. The plan
+The crucibles stand in a plate: 182 × 46.2 mm on the Mini, its slots opening
+11 mm back from the front edge, and 96 × 30.2 on the 𝔐𝔦𝔨𝔯𝔬, 7 mm back. The plan
 draws the plate under the crucibles, placed off the water container.
 
-An earlier, bigger holder, `CMYK_holder_big.stl`, had 39.2 and 29.2 mm bays on
-34 mm centres, and the Mini used its figures until they were checked against
-the design.
+#### The Mini's crucibles were redrawn
+
+They were **30 and 18.6 mm on 23.6 mm centres**, 27.6 long, 9 tall, in a
+144.4 × 39.2 mm plate, under the preset name `Standard_CMYK`. In September 2026
+openBrushograph_hardware replaced the lot — *"resized containers to make it all
+a bit narrower. the NEW STANDARD"* — and renamed the preset and every STL with
+it, so `standard_CMYK_holder.stl` is not a file that exists any more and there
+is nothing upstream left to check the old figures against. The pans grew, the
+gap between them shrank from 5 mm to 4, the inside corner radius went from 1.4
+to **4 mm** so a crucible is a bowl rather than a box, and the first draft of
+the new ones (40 and 30 mm) was itself narrowed to 38 and 28 before release.
+
+The figures here are the release: read from `colourContainers.json` and checked
+by slicing the STLs, the way the old ones were. A machine carrying a holder
+printed before the change wants **custom** cups, which is what both kept
+configs already use — neither has ever read this preset, so nothing on disk
+moved when it changed.
+
+An earlier, bigger holder still, `CMYK_holder_big.stl`, had 39.2 and 29.2 mm
+bays on 34 mm centres, and the Mini used its figures until they were checked
+against the design. It has gone the same way, though its figures live on as the
+`custom` defaults.
 
 The water crucible is the wide one so that the brush has room to be rinsed.
-The plan view draws each at its own outside size — 30 × 30 and 18.6 × 30 mm on
+The plan view draws each at its own outside size — 38 × 35 and 28 × 35 mm on
 the Mini, 22 × 23 and 13 × 23 on the 𝔐𝔦𝔨𝔯𝔬 — with its five stairs across the back
 and the swipe as an arrow at its own length. Drawn at the inside size and only
 as long as the swipe, the crucibles came out well short of what sits on the
 bed; drawn alike, the one cup that is a different size was the one you could
-not pick out. The swipe is 23.5 mm, which
-keeps it inside the 27.6 mm crucible.
+not pick out. The swipe is 27.7 mm, 85% of the 32.6 mm crucible: the same share
+of its bay the 𝔐𝔦𝔨𝔯𝔬's 17.5 takes of its 20.6, and the share the old 23.5 took
+of 27.6.
 
 For CMYK the print fixes these sizes, so they are not settings: they come from
 the model's holder in `MODELS`. The round cups have theirs from the dish,
@@ -1910,7 +1931,9 @@ size and lay them out:
 | `cup_spacing` | 34 | centre to centre between colour cups |
 
 The defaults are Pinkograph's holder, `CMYK_holder_big.stl`, the one the CMYK
-setup used before the design holders. The water cup is parted from cyan by the
+setup used before the design holders. They are also the nearest thing to a Mini
+carrying the superseded `Standard_CMYK` crucibles, which is why that machine is
+better off custom than modern. The water cup is parted from cyan by the
 same wall as the colours are from each other, so cyan sits half of each width
 plus `cup_spacing − cup_width` from the water — 39 mm on those figures, then 34,
 which is that holder exactly. **Auto-space containers** spaces custom cups that
@@ -1932,9 +1955,24 @@ heights — which the holder STL does not carry, since its slots are open throug
 the plate. The crucibles' SCAD does: five steps over the back 40% of the
 crucible, rising to the rim. The swipe's far end, 35% of its length past the
 centre, is over the third step on both models, so **Auto-space containers** sets
-`cup_swipe_exit_z` to that step's top — 5.9 mm on the Mini, 5.3 on the 𝔐𝔦𝔨𝔯𝔬.
-With them it sets the tray lift 2 mm over the rim (11 and 10) and the dip just
-under the 1.2 mm floor (1.0 on both), bristles flexing, as the petri dish does. A config
+`cup_swipe_exit_z` to that step's top — 6.5 mm on the Mini, 5.3 on the 𝔐𝔦𝔨𝔯𝔬.
+With them it sets the tray lift 2 mm over the rim (12 and 10) and the dip just
+under the 1.2 mm floor (1.0 on both), bristles flexing, as the petri dish does.
+
+The 40% is the design's and it is worth re-checking against a print, because
+it is the one figure here that is read off a curve rather than stated. Slicing
+`CMYK_standard_containers_steps.stl` every 0.4 mm finds the staircase beginning
+13.8 mm from the back of a 32.6 mm bay — 42% — in five equal risers of 1.76 mm
+from the 1.2 floor to the 10 rim, and `mikro_containers_steps.stl` five of 1.36
+over 39%. The model is right to within the sampling on both.
+
+**Print the stepped crucible.** The new standard ships four variants of the same
+pan — plain, stepped, and two rippled — and the plain one is the file named
+`CMYK_standard_containers.stl`, with no wipe in it at all; the preset in
+`colourContainers.json` names the ripples. A swipe that climbs to
+`cup_swipe_exit_z` wants stairs to climb, so it is `_steps.stl` this expects. A
+bowl or a ripple plane loads a brush differently and its exit height would have
+to be re-derived from that surface. A config
 that names none of it still defaults the exit to 1 mm rather than 0, because 0
 is `canvas_height` here, and a brush leaving the cup at paper level is both wrong
 physically and drawn as painting in the preview.
@@ -2048,8 +2086,10 @@ the brush rather than lifted off them.
 
 **On every machine here the left wall is off the bed.** The water crucible is
 the wide one and it stands at the near end of the row, hard against the X
-origin: the Mini's 27.6 mm bay at X 12 puts that wall at X −3.8, the 𝔐𝔦𝔨𝔯𝔬's at
-X −9.8, Pinkograph's 39.2 mm bay at X 15 at X −6.6. That dip leaves up the
+origin: the Mini's 35.6 mm bay at X 12 puts that wall at X −5.8, the 𝔐𝔦𝔨𝔯𝔬's at
+X −9.8, Pinkograph's 39.2 mm bay at X 15 at X −6.6. The Mini's went from −3.8
+to −5.8 when the crucibles were redrawn, which is 2 mm more of the same fault
+and no new one. That dip leaves up the
 stairs instead and the file says why, in the file, because it is a fact about
 where the cup is and moving the cup five millimetres to the right fixes it.
 
@@ -2094,7 +2134,10 @@ way evenly across themselves however often the job visits them.
 They are held inside `x_limits`, the ground a job already covers, with the near
 end off the endstop by the backlash take-up. On Pinkograph that gives cyan five
 lanes 5.11 mm apart over 20.4 mm of a 29.2 mm cup. On the Mini's CMYK holder
-the colours' 16.2 mm crucibles give 11.3 mm of spread, 2.8 mm between lanes.
+the colours' 25.6 mm crucibles give 17.9 mm of spread, 4.5 mm between lanes,
+and the 35.6 mm water cup 24.0 of its 24.9 — the missing 0.9 is the left wall
+being off the bed. The crucibles that were redrawn gained most of that: on the
+18.6 mm ones it was 11.3 mm of spread and 2.8 between lanes.
 
 #### Black got no spread at all
 
@@ -2249,6 +2292,14 @@ swipe is off the bed, so it is clipped, and by how much. On Brushparang that is
 13 mm of 21 — the brush works less of the bay and loads with less paint — and
 that is a fact about the machine rather than a guess about the holder.
 
+The Mini's redrawn crucibles are 35 mm long against 30, and the bed did not
+grow with them, so at the stock water Y of 6 the clip went from 2.7 mm to 4.2:
+the swipe is **15.2 mm of the 19.4** it wants, where the old crucible gave 13.7
+of 16.4. It is a worse fraction and 1.5 mm more bay actually worked, which is
+the number that matters. Moving the row back would recover the rest and cannot:
+the swipe needs the water at Y 10.2 or further to clear the take-up, and at
+Y 10.2 the plate's back edge stands at 27.7, under a canvas that starts at 25.
+
 #### The round-cup figures are optional
 
 `tray_enter_radius`, `remove_drops_radius` and `remove_drops_lift` describe a
@@ -2298,8 +2349,8 @@ uploaded for it — a tray in `color_order` with no image is skipped — so an
 unused black cup costs one row in the setup and nothing else.
 
 The spacing is not a machine measurement, because the holder is one piece:
-on the Mini its crucibles are 23.6 mm apart centre to centre, the first colour
-29.3 mm from the water, and only where the whole thing sits is anyone's to
+on the Mini its crucibles are 32 mm apart centre to centre, the first colour
+37 mm from the water, and only where the whole thing sits is anyone's to
 decide. Those offsets
 are `MODERN_BAY_OFFSETS`, and **Auto-space containers** under the container
 positions applies them from wherever the water cup has been put — these, or the
@@ -2345,9 +2396,17 @@ figures behind. A config that opens already set up keeps its own figures;
 
 Five cups on the old holder's 34 mm centres spanned 141 mm, which is why the
 `pinkograph.conf` preset started its water bay at X 8: the bed is 151 mm wide,
-so anything past 10 put the black cup out of reach. The design holder spans
-100.1 mm, so the Mini's water starts at X 12 with room to spare. (The presets have since gone — see **Keeping a
-config on the server** — but a Pinkograph config kept there wants the same.)
+so anything past 10 put the black cup out of reach. (The presets have since gone
+— see **Keeping a config on the server** — but a Pinkograph config kept there
+wants the same.) The design holder used to span 100.1 mm, which left the Mini's
+water at X 12 with room to spare; the redrawn crucibles span **133**, so black
+now lands at X 145 against a canvas that ends at 151. That still fits — the
+painting already goes further right than the black cup does, so `workable_x` is
+unchanged — but the room to spare has gone, and black is now the cup the limit
+bites. Its dips spread over 15.0 mm of the 17.9 they want on a full-width
+painting, and 9.0 — half the bay, the floor the lanes were given when they
+stopped collapsing — on anything narrower than the cup row. Every other
+crucible gets the whole of its spread.
 
 Three things had been written for CMY alone and are not any more:
 
