@@ -12,6 +12,19 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.14.3](https://github.com/f1adang/brushograph/releases/tag/v2.14.3) — 2026-09-23
+
+- **A concentric fill no longer paints the edge of the picture over and over.**
+  Where a shape ran off the side of the picture, the fill treated it as
+  carrying on past the frame, so every ring in the shape ran along that same
+  edge — the brush went down the side of the painting once per ring, and those
+  strokes were not going into the area that needed filling. A poster-like plate
+  now paints in 4.70 m what took 10.31 m, covering the same ink; the worst-hit
+  spot goes from 42 strokes over it to 9. A plate that was entirely ink asked
+  for 3,641 laps of the border and 1.2 km of painting, and now fills properly
+  in 2.4 m. Photographs are barely affected — it is solid artwork running to
+  the edge that was paying for it.
+
 ## [v2.14.2](https://github.com/f1adang/brushograph/releases/tag/v2.14.2) — 2026-09-23
 
 - **Bed levelling covers the whole bed, not just the painting.** The five
