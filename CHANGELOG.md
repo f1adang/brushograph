@@ -12,6 +12,20 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.15.0](https://github.com/f1adang/brushograph/releases/tag/v2.15.0) — 2026-09-23
+
+- **A colour photograph can be given black contours.** A new slider on the
+  colour-photograph panel draws the picture's own edges into the black plate.
+  The ink cutoff says where a colour is solid and nothing about where one thing
+  stops and the next starts, so a photograph of flat colour — a hillside
+  against a sky, a bridge against water — came out as fields meeting with no
+  line between them, and it was hard to make out what was going on. The edges
+  are read off all four inks rather than off brightness, so a red shape on an
+  equally light green ground is outlined too. It costs very little: on a
+  landscape photograph painted 150 mm wide, contours at 25 added 1.12 m of
+  painting to 21.25 m, about four minutes on a three-hour run. The slider
+  starts at 0, which paints exactly what it painted before.
+
 ## [v2.14.3](https://github.com/f1adang/brushograph/releases/tag/v2.14.3) — 2026-09-23
 
 - **A concentric fill no longer paints the edge of the picture over and over.**
