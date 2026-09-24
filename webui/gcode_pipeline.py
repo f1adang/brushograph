@@ -1105,6 +1105,13 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     if want not in planar.PATTERNS:
         log(f"unknown infill pattern {want!r} — using {pattern}")
 
+    angles_str = str(slicer_conf.get("infill_angles", "45")).strip(" []")
+    try:
+        infill_angle = float(angles_str.split(",")[0])
+    except ValueError:
+        infill_angle = 45.0
+
+
     entries = [e for e in tray_entries(conf) if e["image"]]
     todo = [e for e in entries if e["tray"] in images]
     if not todo:
@@ -1273,6 +1280,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                              pattern=pattern,
                              infill=infill,
                              perimeters=int(float(slicer_conf.get("wall_line_count", 1) or 1)),
+                             angle=infill_angle,
                              log=log)
         try:
             n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)

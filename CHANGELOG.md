@@ -12,6 +12,14 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.16.0](https://github.com/f1adang/brushograph/releases/tag/v2.16.0) — 2026-09-24
+
+- **A new scanline pattern has been added.** The infill pattern dropdown
+  now offers `scanline`. Additionally, the new engine now respects the
+  `Infill Angles` configuration setting for both `lines` and `scanline`
+  patterns, so you can draw parallel lines at any angle rather than
+  defaulting strictly to 45 degrees.
+
 ## [v2.15.1](https://github.com/f1adang/brushograph/releases/tag/v2.15.1) — 2026-09-24
 
 - **The CMYK containers are the new standard ones.** openBrushograph

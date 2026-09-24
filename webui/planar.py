@@ -36,6 +36,7 @@ PATTERNS = {
     "zigzag": "lines",
     "cross": "lines",
     "cross_3d": "lines",
+    "scanline": "scanline",
 }
 FALLBACK_PATTERN = "concentric"
 
@@ -220,7 +221,7 @@ def _scanlines(dt: np.ndarray, depth_px: float, line_w: float, sx: float, sy: fl
 
 def build(ink: np.ndarray, width_mm: float, height_mm: float, line_w: float,
           pattern: str = "concentric", infill: bool = True,
-          perimeters: int = 1, log=None) -> list[list[tuple[float, float]]]:
+          perimeters: int = 1, angle: float = 45.0, log=None) -> list[list[tuple[float, float]]]:
     """Outline every painted shape, and fill it if asked.
 
     Shapes narrower than a stroke hold no ring at all — there is nothing to
@@ -261,11 +262,11 @@ def build(ink: np.ndarray, width_mm: float, height_mm: float, line_w: float,
             by_depth = [ring(depths[0])]
         paths.extend(_spiral(by_depth, line_w * SPIRAL_REACH))
 
-    if infill and style == "lines":
+    if infill and style in ("lines", "scanline"):
         inner = first_mm + walls * line_w
         if inner <= deepest_mm:
             paths.extend(_scanlines(dt, inner * px_per_mm, line_w, sx, sy,
-                                    height_mm, 45.0))
+                                    height_mm, angle))
 
     paths = [p for p in paths if len(p) > 1]
     if log:

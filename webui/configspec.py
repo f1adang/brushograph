@@ -883,7 +883,7 @@ ENUMS = {
     # Ordered by how well
     # they suit a brush: long flowing strokes first, raster last.
     "slicer-infill_pattern": [
-        "concentric", "archimedeanchords", "alignedrectilinear", "rectilinear", "hilbertcurve",
+        "concentric", "archimedeanchords", "alignedrectilinear", "rectilinear", "hilbertcurve", "scanline",
     ],
     "controller-controller_type": ["GRBL", "Marlin", "FluidNC"],
     "brushograph-cup_shape": ["classic", "modern", "custom"],
