@@ -1378,7 +1378,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         paper = (float(bg.get("offset_x", 0) or 0),
                  float(bg.get("offset_x", 0) or 0) + width_mm)
         lines = apply_backlash(lines, near_x, near_y, x_range=span,
-                               y_range=(0.0, float("inf")),
+                               y_range=(copicograf.y_floor, float("inf")),
                                bx_far=far_x, by_far=far_y, play_range=paper)
         moves = sum(1 for line in lines if "; backlash take-up" in line)
         log(f"backlash compensation: {moves} corrective moves, "
