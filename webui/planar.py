@@ -237,7 +237,7 @@ def build(ink: np.ndarray, width_mm: float, height_mm: float, line_w: float,
     deepest_mm = float(dt.max()) / px_per_mm
     first_mm = line_w * EDGE_BIAS / 2.0
 
-    walls = max(1, int(perimeters))
+    walls = 0 if style == "scanline" else max(1, int(perimeters))
     depths = [first_mm + k * line_w for k in range(walls)]
     if infill and style == "concentric":
         k = walls

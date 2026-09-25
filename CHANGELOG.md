@@ -12,6 +12,15 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.16.2](https://github.com/f1adang/brushograph/releases/tag/v2.16.2) — 2026-09-25
+
+- **The `scanline` pattern now disables perimeters and centrelines.** Previously, 
+  even though scanlines were drawn as straight lines, the shape's outlines (perimeters) 
+  and centerlines were still being drawn, which followed the jagged contours of the 
+  shape and created unwanted diagonal/zig-zag painted lines around the edges. 
+  Selecting `scanline` now produces a pure scanline effect with absolutely no 
+  contour or centerline tracing.
+
 ## [v2.16.1](https://github.com/f1adang/brushograph/releases/tag/v2.16.1) — 2026-09-25
 
 - **The `scanline` pattern now creates straight independent lines.** Previously, it 

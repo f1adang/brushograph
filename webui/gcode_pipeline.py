@@ -1285,7 +1285,8 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                              angle=infill_angle,
                              log=log)
         try:
-            n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas,
+            n = write_brush_paths(paths, adapted, log, line_w=line_w,
+                                  mask=None if pattern == "scanline" else canvas,
                                   bridge_lines=(pattern != "scanline"))
         except PipelineError:
             # Nothing on this plate survives at this size with this stroke.
