@@ -489,7 +489,8 @@ def last_stroke_point(path: Path) -> tuple[float, float] | None:
 
 
 def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
-                      mask: "InkMask | None" = None) -> int:
+                      mask: "InkMask | None" = None,
+                      bridge_lines: bool = True) -> int:
     """Chain, tidy and write paths in the pen-up/pen-down form copicograf reads.
 
     Takes paths from either source — the external slicer or the planar
@@ -517,8 +518,9 @@ def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
     # The bridge is only taken where the move between the two ends stays inside
     # the ink, so joining never draws across bare paper and the shape is
     # preserved exactly.
-    polys = chain_polylines(polys, tol=line_w * BRIDGE_MULTIPLE,
-                            permit=mask.segment_inside if mask else None)
+    if bridge_lines:
+        polys = chain_polylines(polys, tol=line_w * BRIDGE_MULTIPLE,
+                                permit=mask.segment_inside if mask else None)
     polys = [simplify(p, tol=min(line_w * 0.1, 0.15)) for p in polys]
     # A dab far shorter than the brush is wide is not a stroke; it is a blot,
     # and it costs a lift and a re-ink to place.
@@ -1283,7 +1285,8 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                              angle=infill_angle,
                              log=log)
         try:
-            n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas)
+            n = write_brush_paths(paths, adapted, log, line_w=line_w, mask=canvas,
+                                  bridge_lines=(pattern != "scanline"))
         except PipelineError:
             # Nothing on this plate survives at this size with this stroke.
             # Not the run's problem to die of: it is one tray of several, and

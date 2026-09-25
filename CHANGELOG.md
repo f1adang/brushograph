@@ -12,6 +12,13 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.16.1](https://github.com/f1adang/brushograph/releases/tag/v2.16.1) — 2026-09-25
+
+- **The `scanline` pattern now creates straight independent lines.** Previously, it 
+  was bridged into a continuous zig-zag path in order to save on brush lifts. It now
+  strictly produces straight lines, lifting the brush between each line, which matches
+  the intended behavior of a scanline effect.
+
 ## [v2.16.0](https://github.com/f1adang/brushograph/releases/tag/v2.16.0) — 2026-09-24
 
 - **A new scanline pattern has been added.** The infill pattern dropdown
