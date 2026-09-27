@@ -256,12 +256,12 @@ def _woodcut_params(form) -> dict:
 def _gcode_name(images: dict, entries: list, cmyk: bool) -> str:
     """Name the file after the picture and the colours that painted it.
 
-    `vali_letten-c1_c2.gcode`: the source image, then the tray numbers the form
-    showed for each colour used. The numbers are the ones on screen, so a file
+    `vali_letten-CM.gcode`: the source image, then the colours the form
+    showed for each colour used. The colours are the ones on screen, so a file
     can be matched to the run that made it without opening it.
 
     A photograph separated into all four process plates is named
-    `vali_letten-cmyk.gcode` instead. Four tray numbers would say which cups
+    `vali_letten-cmyk.gcode` instead. Four colour codes would say which cups
     were dipped but not what the run was, and the separation is the thing worth
     reading off the card.
 
@@ -273,7 +273,7 @@ def _gcode_name(images: dict, entries: list, cmyk: bool) -> str:
     first = images[used[0]["tray"]].filename if used else ""
     stem = "".join(c for c in Path(first).stem if c.isalnum() or c in "-_") or "brushograph"
     process = {e["tray"] for e in used} == set(CMYK_TO_TRAY.values())
-    colours = "cmyk" if cmyk and process else "_".join(f"c{e['index']}" for e in used)
+    colours = "cmyk" if cmyk and process else "".join(str(e.get("color") or e.get("index", "")) for e in used)
     return f"{stem}-{colours}.gcode" if colours else f"{stem}.gcode"
 
 
