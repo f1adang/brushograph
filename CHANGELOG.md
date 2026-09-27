@@ -12,6 +12,13 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.17.0](https://github.com/f1adang/brushograph/releases/tag/v2.17.0) — 2026-09-27
+
+- **Aquarell-style GCode Preview:** The WebUI GCode preview now renders colors translucently and blends overlapping strokes to simulate a real watercolor effect.
+- **Cleaner GCode Filenames:** Downloaded GCode filenames now use their actual color labels (e.g., `C`, `M`) instead of UI tray indices (e.g., `c1`, `c2`) and drop underscores between them.
+- **Pen-Optimized Container Centering:** The `containercenter.g` calibration macro has been completely overhauled. It now uses a dry pen instead of a brush, dropping the slow color pickup and wash sequences in favor of a single rapid Z move to mark the container centers.
+- **Dynamic Water Cup Parking:** The machine now physically parks the brush at the center of the water cup (based on your configuration) at the end of jobs and macros, rather than defaulting to `X0 Y0`.
+
 ## [v2.16.3](https://github.com/f1adang/brushograph/releases/tag/v2.16.3) — 2026-09-27
 
 - **Swipe full length of CMYK standard containers.** The brush wiping sequence 
