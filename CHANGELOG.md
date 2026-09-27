@@ -12,6 +12,10 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.17.2](https://github.com/f1adang/brushograph/releases/tag/v2.17.2) — 2026-09-27
+
+- **Update `calibrate.g` dot position:** The calibration macro now places its alignment dot precisely at `X5` and 5mm above the configured Canvas Start Y, rather than relying on the general canvas origin.
+
 ## [v2.17.1](https://github.com/f1adang/brushograph/releases/tag/v2.17.1) — 2026-09-27
 
 - **Fix Aquarell Preview Blending:** Fixed an issue where the GCode preview would render travel paths through the translucent paint and cause dark blobs. The preview now uses a true multiply blend mode for a much better simulation of physical watercolor.

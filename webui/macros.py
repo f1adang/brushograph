@@ -739,7 +739,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "; calibrate.g — place the dot, then park over it",
         *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
-        f"G00 X{_fmt(ox)} Y{_fmt(oy)} ; the canvas origin",
+        f"G00 X5 Y{_fmt(_num(bg, 'canvas_start_y', 0) + 5)} ; 5mm above Canvas Start Y",
         "G00 Z0 ; touch down — the single dot",
         "G00 Z10 ; park over the dot",
     ]
