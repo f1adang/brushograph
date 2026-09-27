@@ -4,7 +4,7 @@ home.g parks the brush, paper.g moves it out of the way for replacing the
 paper, and clean.g washes the brush the way a real job does before parking
 too. The wash in clean.g follows whichever container shape
 `brushograph.cup_shape` names, classic, modern or custom. All three, plus zero.g's
-own last line, end the same way — parked at X0 Y0, Z = Dip Depth + 1 — via
+own last line, end the same way — parked at the water cup, Z = Dip Depth + 1 — via
 the shared `_park_at_origin()`.
 
 zero.g is the machine's own self-zero dance — a fixed sequence tuned on the
@@ -247,15 +247,15 @@ def _preamble(bg: dict) -> list[str]:
     return ["G90 ; absolute positioning", "G21 ; millimetres", _feed(bg, "fast")]
 
 
-def _park_at_origin(park_z: float) -> list[str]:
-    """Park at X0 Y0, Z = Dip Depth + 1.
+def _park(wx: float, wy: float, park_z: float) -> list[str]:
+    """Park at the water cup center, Z = Dip Depth + 1.
 
     How home.g, clean.g and zero.g all finish once whatever they were doing is
     done and the brush is already lifted clear — a shared ending rather than
     three copies of the same two lines.
     """
     return [
-        "G00 X0 Y0",
+        f"G00 X{_fmt(wx)} Y{_fmt(wy)}",
         f"G00 Z{_fmt(park_z)} ; Dip Depth + 1",
     ]
 
@@ -621,7 +621,7 @@ def _mix_macro(conf: dict, channel: str, tray: str) -> str:
                            width=holder["water_bay_width"],
                            bend=False, press=WASH_PRESS),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
-        *_park_at_origin(park_z),
+        *_park(wx, wy, park_z),
     ]) + "\n"
 
 
@@ -665,7 +665,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # actual hardware, not derived from the config, except for three things: the
     # far corner is the model's — a Micro's racks end well short of the Mini's
     # 160 — its very last line finishes the same way home.g and clean.g do,
-    # parked at X0 Y0, Z = Dip Depth + 1, and its feedrates are held under the
+    # parked at the water cup, Z = Dip Depth + 1, and its feedrates are held under the
     # Fast group's on the way out, which is what takes these F2100s down to
     # whatever the machine is actually set up to be driven at.
     sweep_x, sweep_y, sweep_z = MODELS[model_of(conf)]["zero_sweep"]
@@ -682,15 +682,15 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "G0 X+2 Y-8 F2100;",
         "G0 Y-7 F2100;",
         "G10 P0 L20 X10 Y0 Z10;",
-        f"G0 X0 Y0 Z{_fmt(park_z)} F2100;",
+        f"G0 X{_fmt(wx)} Y{_fmt(wy)} Z{_fmt(park_z)} F2100;",
     ]) + "\n"
 
-    # home.g — park at X0 Y0, Z = Dip Depth + 1.
+    # home.g — park at the water cup, Z = Dip Depth + 1.
     lines = [
-        "; home.g — park over the origin, just above dipping depth",
+        "; home.g — park over the water cup, just above dipping depth",
         *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
-        *_park_at_origin(park_z),
+        *_park(wx, wy, park_z),
     ]
     out["home.g"] = "\n".join(lines) + "\n"
 
@@ -721,14 +721,14 @@ def generate_macros(conf: dict) -> dict[str, str]:
                            width=holder_of(conf)["water_bay_width"],
                            bend=False, press=WASH_PRESS),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
-        *_park_at_origin(park_z),
+        *_park(wx, wy, park_z),
     ]
     out["clean.g"] = "\n".join(lines) + "\n"
 
     # calibrate.g — place the dot and park over it. No wash and nothing else:
     # this one is meant to do only the dot. It lifts first all the same, the
     # way every other macro here does, because it is run from wherever the
-    # brush was left and where these macros leave it is X0 Y0 at Dip Depth + 1
+    # brush was left and where these macros leave it is the water cup at Dip Depth + 1
     # — inside the water container, under its rim. Crossing to the canvas
     # origin from there at that height drags the brush through the container
     # wall, so the trip starts at Go In Tray Lift, the height that clears the
@@ -847,7 +847,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
         lines += [
             "; park",
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
-            *_park_at_origin(park_z),
+            *_park(wx, wy, park_z),
         ]
     out["containercenter.g"] = "\n".join(lines) + "\n"
 
@@ -1107,7 +1107,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # paper, and on a holder whose water crucible covers the origin it is
     # under the rim. A brush left there is a brush kept wet; a pen left there
     # is a pen pressed into whatever is under it.
-    lines.append("G00 X0 Y0 ; park lifted -- a pen has no cup to hang in")
+    lines.append(f"G00 X{_fmt(wx)} Y{_fmt(wy)} ; park lifted -- a pen has no cup to hang in")
     out["backlash.g"] = "\n".join(lines) + "\n"
 
     # Nothing here crosses the bed faster than the config's Fast group says the
