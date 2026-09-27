@@ -774,14 +774,10 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # painted where a job paints, on paper that is already there, with no
     # container lifted out and nothing dismantled.
     #
-    # Black paints them because black is the colour that shows on every paper
-    # the six themes are drawn on, and because a machine with a black cup has
-    # a CMYK holder: fit_cups_to_shape takes the black cup away from a classic
-    # machine, whose four petri dishes hold water and three colours. That
-    # machine gets a file that says so and paints nothing, rather than one
-    # that dips into a cup which is not there.
+    # Drawn with a pen fitted in the holder in place of the brush. This way
+    # there is no need to pick up paint or wash the brush, and the macro
+    # can mark every container regardless of which holder is in use.
     trays = conf.get("trays", {})
-    black = trays.get(CMYK_TO_TRAY["K"]) if isinstance(trays, dict) else None
     cups = [(e, _num(e, "x")) for e in in_cup_order(tray_entries(conf))]
     # The canvas: where the paper is, and the near edge of it is where the
     # ticks stand. That edge is the closest the paper comes to the containers,
@@ -791,11 +787,11 @@ def generate_macros(conf: dict) -> dict[str, str]:
     tick = min(_TICK, max(0.0, can_h))
 
     lines = [
-        "; containercenter.g -- paint the X of every container on the canvas,",
+        "; containercenter.g -- draw the X of every container on the canvas,",
         "; to check the container positions in the form against the holder.",
         ";",
-        "; Black paints the ticks, so put paint in the black cup and paper on",
-        "; the canvas. Nothing is lifted out and nothing is dismantled: the",
+        "; Drawn with a pen fitted in the holder in place of the brush.",
+        "; Nothing is lifted out and nothing is dismantled: the",
         "; marks go where a job paints. Each tick stands at one container's X,",
         "; on the near edge of the canvas, which is the closest the paper comes",
         "; to the containers.",
@@ -811,44 +807,24 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "; misses by is the correction, in millimetres, into that container's",
         "; X. Water is ticked too, and it is the one to correct first: every",
         "; other cup is spaced from it.",
-        ";",
-        "; The brush is dipped once per tick and washed and parked at the end,",
-        "; the way a job leaves it.",
     ]
 
-    # Two ways there is nothing to paint, each said in the file rather than
-    # left to be guessed at from a sheet that came out blank.
-    if black is None:
-        lines += [
-            ";",
-            "; This machine has no black container -- the Classic petri dish",
-            "; holder has four places, water and three colours -- so there is",
-            "; nothing to paint the ticks with and this file does nothing.",
-            "; Select the CMYK holder under Containers and generate again.",
-            *_preamble(bg),
-        ]
-    elif tick < _TICK_MIN:
+    if tick < _TICK_MIN:
         lines += [
             ";",
             f"; The canvas is {_fmt(can_h)} mm deep, which is not enough to",
-            "; paint a tick in, so this file does nothing.",
+            "; draw a tick in, so this file does nothing.",
             *_preamble(bg),
         ]
     else:
-        bx, by = _num(black, "x"), _num(black, "y")
         off_canvas = [e["label"] for e, ex in cups
                       if not ox <= ex <= ox + can_w]
         if off_canvas:
-            # Painted all the same, because the machine can reach them, and a
-            # row of ticks missing its end says least about the end -- which is
-            # where the spacing has had furthest to drift. Pinkograph's black
-            # cup stands at X 156 against a canvas that ends at 132: that tick
-            # wants paper of its own, or it is painted on the bed.
             lines += [
                 ";",
                 "; One tick or more stands past the end of the canvas and",
                 "; lands off the paper unless a wider sheet is laid for it.",
-                "; They are painted anyway: a row of ticks missing its last one",
+                "; They are drawn anyway: a row of ticks missing its last one",
                 "; says least about the end of the row, which is where the",
                 "; spacing has had furthest to drift. Past the end here: "
                 + ", ".join(off_canvas) + ".",
@@ -856,47 +832,20 @@ def generate_macros(conf: dict) -> dict[str, str]:
         lines += [
             ";",
             f"; {len(cups)} containers, in the order they stand on the bed.",
-            f"; Painted from the black cup at X{_fmt(bx)} Y{_fmt(by)},"
-            f" {_fmt(tick)} mm a tick.",
+            f"; {_fmt(tick)} mm a tick.",
             *_preamble(bg),
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
         ]
         for entry, ex in cups:
             head = f"; {entry['label']} [{entry['tray']}] -- X{_fmt(ex)}"
             if not 0 <= ex <= wx_lim:
-                # A container the config puts somewhere the machine cannot go.
-                # Painting the nearest reachable X instead would put a tick
-                # that is not where it says it is, which is the one thing this
-                # file must not do.
-                lines.append(head + " -- out of reach, not painted")
+                lines.append(head + " -- out of reach, not drawn")
                 continue
             lines.append(head)
-            # A pickup per tick. A job works a brushful across 150 mm and more
-            # of painting, so 20 mm of tick is nowhere near a dry brush -- but
-            # the cup is passed anyway between one tick and the next, and a
-            # tick painted with a full brush is the same width as the one
-            # before it, which is what makes the row worth looking along.
-            # _container_motion makes its own approach to the cup, and makes
-            # it to the clamped near edge of the bay rather than to the centre
-            # the config names. Moving to the centre first, the way clean.g
-            # does, is a move to Y -3 on Brushparang, which is the Y endstop:
-            # the clamp inside that helper exists precisely because a cup can
-            # be configured south of the ground there is.
-            lines += [f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the black cup",
-                      *_container_motion(conf, bx, by, reps=1,
-                                         width=holder_of(conf)["bay_width"])]
             lines += _comb_stroke(bg, True, ex, oy, oy + tick, 1,
                                   _run_up(ex, 1, 0.0, wx_lim), cz, go_lift)
-        # Washed and parked in the water, the way a job leaves the brush:
-        # there is black paint in it, and the shared park at Dip Depth + 1 is
-        # inside the water cup on a holder whose water crucible covers the
-        # origin.
         lines += [
-            "; wash and park",
-            f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- the water cup",
-            *_container_motion(conf, wx, wy, reps=_WASH_REPS,
-                               width=holder_of(conf)["water_bay_width"],
-                               bend=False, press=WASH_PRESS),
+            "; park",
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
             *_park_at_origin(park_z),
         ]
