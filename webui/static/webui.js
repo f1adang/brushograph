@@ -1508,14 +1508,14 @@ function wireForm() {
    machine itself does with the file. */
 
 const TRAY_COLOURS = {
-  cyan: "#00a6d680", magenta: "#d6008a80", yellow: "#c8a80080", kroma: "#1b1f2680",
-  water: "#7fb2d980", black: "#1b1f2680",
+  cyan: "#00a6d6", magenta: "#d6008a", yellow: "#c8a800", kroma: "#1b1f26",
+  water: "#7fb2d9", black: "#1b1f26",
 };
-const FALLBACK_COLOURS = ["#2f7fd080", "#c85a2b80", "#3f9c6d80", "#8a5bd680", "#c0392b80"];
+const FALLBACK_COLOURS = ["#2f7fd0", "#c85a2b", "#3f9c6d", "#8a5bd6", "#c0392b"];
 // The trips down into the paint and water cups, drawn in the colour of paint
 // rather than of a warning. Named because it is wanted in two places — the
 // strokes and the legend — and they must not drift apart.
-const CUP_COLOUR = "#8b3e2f80";
+const CUP_COLOUR = "#8b3e2f";
 
 /* The preview is drawn on white paper whatever the theme. It stands for the
  * painting, and paint colours only read true against paper: on a dark theme's
@@ -1764,6 +1764,11 @@ function drawGcode() {
   const { skin, colours, px, py, paintPx } = sim.view;
   if (!sim.drawn || cut < sim.drawn.upto) {
     sim.drawn = { upto: 0, travel: simLayer(canvas), paint: simLayer(canvas) };
+    
+    // For aquarell blending, the paint layer needs a white background and multiply blending
+    sim.drawn.paint.ctx.fillStyle = skin.paper;
+    sim.drawn.paint.ctx.fillRect(0, 0, canvas.width, canvas.height);
+    sim.drawn.paint.ctx.globalCompositeOperation = "multiply";
   }
   const { travel, paint } = sim.drawn;
 
@@ -1812,7 +1817,10 @@ function drawGcode() {
   ctx.fillStyle = skin.paper;
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(travel.layer, 0, 0);
+  
+  ctx.globalCompositeOperation = "multiply";
   ctx.drawImage(paint.layer, 0, 0);
+  ctx.globalCompositeOperation = "source-over";
 
   // Where the brush is right now.
   if (cut > 0 && cut < moves.length) {
