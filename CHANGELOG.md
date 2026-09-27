@@ -12,6 +12,12 @@ Versions are `vMAJOR.MINOR.PATCH`, and what moves says what changed:
 - **PATCH** for work on a feature already released: a fault in it, a figure
   corrected, a motion made safer. 
 
+## [v2.16.3](https://github.com/f1adang/brushograph/releases/tag/v2.16.3) — 2026-09-27
+
+- **Swipe full length of CMYK standard containers.** The brush wiping sequence 
+  now extends to the very back wall of the CMYK and custom containers, utilizing 
+  the full length of the steeper stairs before exiting the cup.
+
 ## [v2.16.2](https://github.com/f1adang/brushograph/releases/tag/v2.16.2) — 2026-09-25
 
 - **The `scanline` pattern now disables perimeters and centrelines.** Previously, 

@@ -616,7 +616,7 @@ class Copicograf:
             if self.cup_shape in ("modern", "custom"):
                 margin = self.cup_depth * 0.15
                 entry_y = tray_y - self.cup_depth / 2 + margin
-                exit_y = tray_y + self.cup_depth / 2 - margin
+                exit_y = tray_y + self.cup_depth / 2
             else:
                 entry_y = exit_y = tray_y
             # Kept on the bed, the way the stir across X is. The brush then
