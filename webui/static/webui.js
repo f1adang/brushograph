@@ -1508,14 +1508,14 @@ function wireForm() {
    machine itself does with the file. */
 
 const TRAY_COLOURS = {
-  cyan: "#00a6d6", magenta: "#d6008a", yellow: "#c8a800", kroma: "#1b1f26",
-  water: "#7fb2d9", black: "#1b1f26",
+  cyan: "#00a6d680", magenta: "#d6008a80", yellow: "#c8a80080", kroma: "#1b1f2680",
+  water: "#7fb2d980", black: "#1b1f2680",
 };
-const FALLBACK_COLOURS = ["#2f7fd0", "#c85a2b", "#3f9c6d", "#8a5bd6", "#c0392b"];
+const FALLBACK_COLOURS = ["#2f7fd080", "#c85a2b80", "#3f9c6d80", "#8a5bd680", "#c0392b80"];
 // The trips down into the paint and water cups, drawn in the colour of paint
 // rather than of a warning. Named because it is wanted in two places — the
 // strokes and the legend — and they must not drift apart.
-const CUP_COLOUR = "#8b3e2f";
+const CUP_COLOUR = "#8b3e2f80";
 
 /* The preview is drawn on white paper whatever the theme. It stands for the
  * painting, and paint colours only read true against paper: on a dark theme's
@@ -1782,18 +1782,26 @@ function drawGcode() {
 
     const p = paint.ctx;
     let current = null;
+    let strokeBroken = true;
     p.lineWidth = paintPx;
+    // Set line cap and join to round to avoid dark dots at joints and make it look more like watercolor
+    p.lineCap = "round";
+    p.lineJoin = "round";
     for (let i = from; i < cut; i++) {
       const m = moves[i];
-      if (!m.down) continue;
+      if (!m.down) {
+        strokeBroken = true;
+        continue;
+      }
       const colour = m.cup ? skin.cup : colours.get(m.tray);
-      if (colour !== current) {
+      if (colour !== current || strokeBroken) {
         if (current !== null) p.stroke();
         p.strokeStyle = colour;
         p.beginPath();
+        p.moveTo(px(m.x1), py(m.y1));
         current = colour;
+        strokeBroken = false;
       }
-      p.moveTo(px(m.x1), py(m.y1));
       p.lineTo(px(m.x2), py(m.y2));
     }
     if (current !== null) p.stroke();
