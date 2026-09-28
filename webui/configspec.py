@@ -158,7 +158,9 @@ MODELS = OrderedDict([
             # water crucible's centre is from its left and front edges. Its
             # slots open 11 mm back from the front, 35.0 mm deep.
             "plate": (182.0, 46.2, 27.0, 28.7),
-            # 10 mm crucibles with a 1.2 mm floor, 35 mm long.
+            # 10 mm crucibles with a 1.2 mm floor, 35 mm long: rim, floor,
+            # length, which is also what a wash climbs the stairs by.
+            "crucible": (10, 1.2, 35),
             "settings": _crucible_settings(10, 1.2, 35, MODERN_SWIPE_LENGTH),
         },
         "classic": True,
@@ -188,6 +190,7 @@ MODELS = OrderedDict([
             # Slots open 7 mm back from the front.
             "plate": (96.0, 30.2, 16.0, 18.7),
             # 8 mm crucibles with a 1.2 mm floor, 23 mm long.
+            "crucible": (8, 1.2, 23),
             "settings": _crucible_settings(8, 1.2, 23, 17.5),
         },
         "classic": False,
@@ -341,6 +344,8 @@ def holder_of(conf: dict) -> dict:
         "swipe_length": depth,
         "outside": (water, width, depth),
         "plate": None,
+        # No stairs anyone drew, so nothing for a wash to follow.
+        "crucible": None,
         "settings": OrderedDict(),
     }
 

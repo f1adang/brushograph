@@ -2076,6 +2076,43 @@ held there for the same `DIP_DWELL` and then drawn out.
 
 Between the two, clean.g went from 44 lines to 31 for the same four dips.
 
+**A wash climbs the stairs step by step instead of in one line.** It used
+to leave the water the way a pickup leaves a cup: a single G01 from the floor
+to `cup_swipe_exit_z`. That line is right for a pickup, which wants to draw the
+brush lightly out of the paint. For a wash it barely touches the stairs. On the
+Mini (35 mm crucible, 1.2 mm floor, 10 mm rim, five steps of 2.8 × 1.76 mm
+across the back 40%), the line from Y −9.7 Z −1 to Y +9.7 Z 6.48 relative to
+the centre:
+
+| where | the line | the stairs | |
+|---|---|---|---|
+| centre of the floor | Z 2.75 | 1.2 | already 1.5 mm off the floor |
+| foot of the stairs, Y +3.5 | 4.09 | 2.96 (step 1) | 1.1 mm clear of step 1 |
+| edge of step 2, Y +6.3 | 5.17 | 4.72 | 0.45 mm clear |
+| edge of step 3, Y +9.1 | 6.25 | 6.48 | 0.23 mm into it |
+| end, Y +9.7 | 6.48 | 6.48 | touching, no pressure |
+
+So for nearly all of its length the brush was touching nothing, and the wipe
+that was meant to do the work happened on one step edge at a quarter of a
+millimetre. Now, whenever the holder was drawn (Mini and 𝔐𝔦𝔨𝔯𝔬 CMYK), a wash
+leaving up the stairs (`_stair_climb`) runs along the floor at the wash press
+to the foot of the stairs, then passes through the front edge of **every**
+step `WASH_PRESS` (2 mm) below its top, and ends halfway along the top step,
+level with the rim. A step rises 1.76 mm on the Mini and 1.36 mm on the
+𝔐𝔦𝔨𝔯𝔬, both less than the press, so between one edge and the next the line is
+still below the tread it crosses: the brush is on the stairs all the way up
+and is drawn over five edges instead of one.
+
+The heights are counted from the config's Dip Depth, not from the drawing. The
+design puts Dip Depth 0.2 mm under the floor, and a machine whose Z was set up
+differently will have moved Dip Depth to match, which moves the floor with it.
+The Y figures use the same back-40%, five-step arithmetic that
+`_crucible_settings` sets `cup_swipe_exit_z` by, so each holder now carries
+its `crucible` (rim, floor, length) as well as the settings derived from it.
+Custom containers have no stairs anyone drew, so they keep the straight line.
+A job's pickup keeps the straight line too: this changes washes only, which
+means clean.g and the rinse at the end of each mix macro.
+
 The stairs are the wipe a job gives the brush at every pickup, so the wash
 begins and ends with the brush shaped the way a job expects to find it. The two
 in the middle are the wipe it never gets: the swipe draws the same one line of

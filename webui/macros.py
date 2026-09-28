@@ -301,6 +301,52 @@ def _stir(hops: int, seed: int, xs: tuple[float, float],
     return lines
 
 
+def _stair_climb(holder: dict, tray_y: float, dip: float,
+                 press: float) -> list[tuple[float, float, str]]:
+    """A wash's way up the stairs: along each step, `press` into it, to the top.
+
+    A pickup leaves a bay in one straight line from the floor to
+    cup_swipe_exit_z, and that is right for a pickup, which wants the brush
+    drawn lightly out of the paint. A wash does not. On the Mini that line is
+    1.1 mm clear of the first step, only just touches the edge of the second, and
+    finishes on the third at no pressure at all. It lifts off the floor almost
+    as soon as it starts moving, so for most of its length the brush is not
+    touching anything.
+
+    So this follows the steps instead. Along the floor to the foot of the
+    stairs, then through the front edge of every step `press` below its top,
+    and out along the top step, which is level with the rim. Each edge is
+    dragged across the bristles with them bent against it, and between edges
+    the line is still below the tread it crosses (a step rises 1.76 mm on the
+    Mini, 1.36 on the Mikro, both less than the 2 mm press), so the brush is on
+    the stairs from the bottom to the top.
+
+    The heights are counted from the config's Dip Depth, not the holder's
+    drawing: the design puts Dip Depth 0.2 mm under the floor, and a machine
+    whose Z was set up differently has moved Dip Depth to suit and moved the
+    floor with it. The Y figures are the same back-40%, five-step arithmetic
+    `configspec._crucible_settings` sets cup_swipe_exit_z by.
+
+    Empty for a holder nobody drew stairs for (custom containers); the caller
+    then leaves the way a pickup does.
+    """
+    crucible = holder.get("crucible")
+    if not crucible:
+        return []
+    rim, floor, length = crucible
+    floor_z = dip + (floor - round(floor - 0.2, 1))
+    rise = (rim - floor) / 5
+    tread = length * 0.4 / 5
+    foot = tray_y + length / 2 - length * 0.4
+    points = [(foot, dip - press, "along the floor to the foot of the stairs, pressed")]
+    for k in range(1, 6):
+        points.append((foot + (k - 1) * tread, floor_z + k * rise - press,
+                       f"over the edge of step {k}, {_fmt(press)} mm into it"))
+    points.append((foot + 4.5 * tread, floor_z + 5 * rise - press,
+                   "along the top step, level with the rim"))
+    return points
+
+
 def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
                       exits: list[str] | None = None,
                       width: float | None = None, stir: int = 0,
@@ -336,7 +382,8 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
     `press` is how far below Dip Depth the brush is pushed, in millimetres.
     Nought for a pickup, which wants the paint that is on the floor and not the
     floor. A wash wants the floor: water gets into a brush that is bent against
-    something.
+    something. For the same reason a pressed dip leaves up the stairs by
+    following them (`_stair_climb`) rather than in a pickup's straight line.
 
     No rim wipe on the way out either way: the callers are a wash and a tick's
     pickup, and — like copicograf's own wash_the_brush() — a brush being rinsed
@@ -442,8 +489,13 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
                 if leaves in ("left", "right"):
                     lines.append(f"; no room to wipe on the {leaves} wall --"
                                  " it is off the bed, so this one leaves up the stairs")
-                lines.append(f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)}"
-                             " ; up the stairs -- wipes itself")
+                climb = _stair_climb(holder, tray_y, dip, press) if press else []
+                if climb:
+                    lines += [f"G01 X{_fmt(dip_x)} Y{_fmt(y)} Z{_fmt(z)} ; {why}"
+                              for y, z, why in climb]
+                else:
+                    lines.append(f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)}"
+                                 " ; up the stairs -- wipes itself")
             lines.append(f"G00 Z{_fmt(lift)}")
         return lines
 
