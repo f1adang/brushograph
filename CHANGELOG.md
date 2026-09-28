@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## v2.18.0 — unreleased
+
+- **New `speedtest.g` macro:** checks whether the motors keep up when the machine is driven as hard as its settings allow. Nothing needs fitting: no brush, pen, paint or paper. It sweeps the whole bed, runs both diagonals, reverses at full speed and hops Z, and between each part it stops over the water cup for 3 seconds. Home or zero first, put a strip of tape across carriage and rail with a line drawn over both, and watch: if the line no longer meets at a stop, steps were lost in the part just before it. About 5 minutes on a Mini.
+
 ## [v2.17.3](https://github.com/f1adang/brushograph/releases/tag/v2.17.3) — 2026-09-28
 
 - **`clean.g` scrubs the brush up the stairs:** In the CMYK crucibles, the wash used to leave the water in one straight line that barely touched the stairs. It now follows them: along the floor, then over the edge of every step with the brush pressed 2 mm into it, and out along the top step. The rinse at the end of the mix macros does the same. A job's pickup is unchanged, and so are custom containers.
