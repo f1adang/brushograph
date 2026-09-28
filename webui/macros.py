@@ -1,4 +1,4 @@
-"""Eleven small utility routines.
+"""Twelve small utility routines.
 
 home.g parks the brush, paper.g moves it out of the way for replacing the
 paper, and clean.g washes the brush the way a real job does before parking
@@ -31,7 +31,7 @@ through the water and methylcellulose above it, comes out, and is rinsed and
 parked. The stairs at the back of a bay are left out of the hopping -- a brush
 hurried up them is climbing out of the cup rather than stirring what is in it.
 
-backlash.g is the one that draws: a sheet of paired strokes for
+backlash.g is one of the two drawn with a pen: a sheet of paired strokes for
 reading the play in each axis off, one pair arriving from each side, against a
 gauge of known gaps. It is drawn with a pen fitted where the brush goes, so it
 visits no cup and dips for nothing -- the machine needs no paint in it. Five
@@ -39,7 +39,18 @@ stations, each answering both axes where it stands: the four corners of
 everything the machine can paint, which is wider than the canvas a job uses,
 and the middle. It wants a pen in the holder and paper under all of it.
 
-None of the eleven carries an M-code or a G28, so none needs the controller
+speedtest.g asks whether the motors keep up when the machine is driven as hard
+as its config allows, and it is the one macro that fits nothing at all: no
+brush, no pen, no paint, no paper, nothing below the canvas height. It sweeps
+end to end, runs both diagonals, reverses at full speed, and hops Z with X and
+Y crossing the bed through it; between every leg it returns to the water cup
+and stands still for a few seconds. What moved between one stop and the next is
+steps -- read off a tape mark the operator puts across carriage and rail, which
+is a tool-free instrument better than a millimetre. Where backlash.g needs a
+printed gauge because play does not accumulate, this needs none because steps
+do.
+
+None of the twelve carries an M-code or a G28, so none needs the controller
 dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
 G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
@@ -50,8 +61,9 @@ import random
 import re
 
 from configspec import (CMYK_LABEL, CMYK_TO_TRAY, MODELS,  # noqa: E501
-                        RECTANGULAR_SHAPES,
-                        canvas_origin, feed_line, fit_cups_to_shape, holder_of,
+                        RECTANGULAR_SHAPES, accel_rate,
+                        canvas_origin, feed_line, feed_rate, fit_cups_to_shape,
+                        holder_of,
                         in_cup_order, model_of, tray_entries, with_defaults,
                         workable_x)
 from gcode_pipeline import to_ascii
@@ -64,7 +76,7 @@ from version import gcode_note
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
                "containercenter.g",
                "mix-c.g", "mix-m.g", "mix-y.g", "mix-k.g",
-               "backlash.g"]
+               "backlash.g", "speedtest.g"]
 
 # How many hops around the floor of a cup a mixing macro makes. Sixty is about
 # a minute on a machine that accelerates at 20 mm/s^2, which is long enough to
@@ -118,6 +130,93 @@ _RUN_UP = 12.0
 # well as in the brush.
 _TICK = 20.0
 _TICK_MIN = 2.0
+
+# speedtest.g's legs, in the order it runs them. Each figure is the number of
+# times that leg is repeated, and none of them is an endurance test: a motor
+# that cannot hold the rate it is being driven at gives up in the first dozen
+# reversals, not the hundredth. They are sized to be long enough to see a loss
+# and short enough that the whole file is about seven minutes of machine time
+# on Pinkograph -- ten on a config that accelerates at 20 mm/s^2 rather than
+# 100 -- which is what gets it run again after a belt is tightened, rather than
+# put off.
+#
+# The two traverse legs are the cheapest to lengthen and the least worth
+# lengthening, so they are the shortest: ten full-length accelerations to top
+# speed an axis either survive or they do not, and going round twenty more
+# times only spends the four minutes that were what stopped anyone running it.
+# The reversals were forty while each one was a 2 mm twitch and cost nothing.
+# Now that each is a full run up to the feedrate and back, five of them in each
+# of three directions is the right number and not a compromise: a block of five
+# is a block you can count and put a watch on, and the reversal is the one leg
+# whose duration means something -- each is a known distance covered by
+# accelerating to the feedrate and stopping again, so timing the block is
+# measuring the acceleration. Forty of them measured nothing forty times and
+# took four of the file's seven minutes doing it.
+_SPEED_SWEEPS = 3
+_SPEED_JABS = 3
+_SPEED_HOPS = 50
+
+# How many times the approach to the reference point is made at the opening
+# stop. Everywhere else it is made once, which is all it takes to fix the side
+# the carriage arrives from; at the opening it is made five times because that
+# short back-off and arrival is the best acceleration measurement in the file,
+# and one block of it at the top is a measurement rather than a tic the machine
+# has developed. Five of them in front of every leg was the same figure read
+# five times over, and mostly it was the file taking longer.
+#
+# Every other move here is long enough to reach the Fast feedrate, so its
+# duration is a run-up plus a cruise plus a stop and the cruise is the larger
+# part of it. The approach is _RUN_UP on each axis -- 17 mm of diagonal -- which
+# is short enough to be all getting up to speed and slowing down again, or very
+# nearly: a Mikro at 20 mm/s^2 peaks at 18.4 mm/s against a Fast rate of 25 and
+# never cruises at all, so its 1.84 s is 2*sqrt(d/a) and nothing else. Time five
+# of those and the acceleration falls out with no feedrate term in it.
+#
+# Five costs nothing -- 85 mm of travel a stop, against the thousands each leg
+# covers -- and the last arrival is still from the same side as every other, so
+# the play cancels exactly as it did when there was one.
+_SPEED_APPROACHES = 5
+
+# How long one reversal of speedtest.g's third leg is, and it is worked out
+# rather than chosen. The first version of this used a flat 2 mm, on the
+# argument that a move too short to reach the feedrate is all acceleration and
+# so all torque -- which is true of the profile and wrong about the motor. A
+# stepper's torque falls with speed, and steps are lost where the demand meets
+# that falling curve: at speed. Two millimetres at Pinkograph's 100 mm/s^2
+# peaks at 14 mm/s against a Fast rate of 35, so the motor never leaves the
+# flat part of its curve and the leg could not have failed if the machine were
+# in pieces.
+#
+# The shortest move that does reach the feedrate is v^2/a -- v^2/2a to get
+# there and as much again to stop -- and _SPEED_JAB_MARGIN over that buys a
+# moment of holding it before the reversal. Pinkograph: 35 mm/s and
+# 100 mm/s^2 make 12.3 mm, and 18.4 with the margin. A Mikro at 25 mm/s and
+# 20 mm/s^2 wants 31.3, and 46.9 with it, which is most of its X -- so it is
+# clamped to the ground there is, and the header says the figure it used.
+_SPEED_JAB_MARGIN = 1.5
+
+# What a reversal falls back to where the config names no acceleration for it
+# to be worked out from. Long enough to be a run rather than a twitch on every
+# machine here, and short enough to fit across a Mikro.
+_SPEED_JAB_MIN = 20.0
+
+# How long speedtest.g stands still at its reference point, in seconds, so
+# there is time to look at it. G4 P is seconds to GRBL and FluidNC, which is
+# the reading copicograf's own dip dwell is written for, and milliseconds to
+# Marlin -- a whole number here so a Marlin machine's three milliseconds is at
+# least harmless rather than a long stop nobody asked for.
+_SPEED_DWELL = 3
+
+# What each dash of a speedtest.g comb after the first one says, in the order
+# the legs run. There is one dash a leg plus the reference, and the combs are
+# sized from the count, so the two are one list rather than two figures that
+# have to be kept agreeing.
+_SPEED_LEG_NOTES = (
+    "after end to end on each axis",
+    "after both diagonals",
+    "after the reversals",
+    "after Z and all three together",
+)
 
 # The classic dip sweep in copicograf picks a random quadrant each time, which
 # suits a real job's hundreds of pickups — spreading the wear across the cup —
@@ -1161,6 +1260,316 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # is a pen pressed into whatever is under it.
     lines.append(f"G00 X{_fmt(wx)} Y{_fmt(wy)} ; park lifted -- a pen has no cup to hang in")
     out["backlash.g"] = "\n".join(lines) + "\n"
+
+    # speedtest.g -- drive all three axes as hard as this config allows and
+    # show whether the motors kept up.
+    #
+    # It fits nothing, touches nothing and marks nothing. The holder is empty:
+    # no brush, no pen, no paint, no paper. That is the whole difference from
+    # the first version of this, which drew two combs of dashes with a pen and
+    # read the loss off the paper -- a fine instrument, and the wrong one for a
+    # test whose whole point is that something is wrong with the machine. A
+    # machine that is losing steps is a machine you do not want carrying a
+    # loaded brush across a sheet, and asking for a pen and a full sheet before
+    # it will tell you anything is asking for the setting-up you are in the
+    # middle of failing at.
+    #
+    # A motor asked for more than it can give does not stop. It slips a step
+    # and carries on, the controller never learns of it, and every move after
+    # that lands short by whatever was lost -- for the rest of the file. That
+    # is the fault behind a job whose last tray sits a few millimetres off its
+    # first, and behind the black plate that moved 3 mm when a move in the cups
+    # ran the carriage into the stop.
+    #
+    # Lost steps accumulate, which is what makes them readable without an
+    # instrument. Play is given up at a reversal and handed back at the next,
+    # so no arrangement of moves turns half a millimetre into a visible ten and
+    # reading it needs the printed gauge backlash.g draws. Steps do not come
+    # back. So this drives the machine hard, returns to one commanded position
+    # and stands there long enough to be looked at; drives it hard again, and
+    # comes back to the same place. What moved between one stop and the next is
+    # steps.
+    #
+    # The reference is the water cup, because it is a thing on the bed to sight
+    # the holder against and it is where every other macro parks anyway. The
+    # precise reading is a mark the operator makes: a strip of tape across the
+    # join of carriage and rail, one line drawn over both, on each axis. That
+    # is a tool-free instrument better than a millimetre, and it is why the
+    # macro stands still for _SPEED_DWELL seconds at every return rather than
+    # touching the reference and moving on.
+    #
+    # Every return is arrived at from the same side over the same run-up, the
+    # way backlash.g's gauge pairs are, so the play is identical at every stop
+    # and cancels. Without that the reference would wander by the backlash on
+    # each axis -- 0.9 mm on Pinkograph's X -- which is larger than most of what
+    # this is looking for.
+    #
+    # Z never goes below `canvas_height`, the height the machine already holds
+    # the tool at over the paper, and `dip_depth` -- the one height that wants a
+    # crucible under it -- appears nowhere in the file. The legs stop at the
+    # canvas origin in Y and so never cross the container strip; the return to
+    # the water cup does cross it, at Go In Tray Lift, which is the height
+    # home.g and clean.g already go to the same cup at.
+    sx0, sx1 = _CLEAR, reach_x
+    sy0, sy1 = max(oy, _CLEAR), reach_y
+    smx, smy = (sx0 + sx1) / 2, (sy0 + sy1) / 2
+
+    # The Y above which no container reaches, with clear air over it. The Z leg
+    # is the only one that goes below Go In Tray Lift, so it is the only one
+    # that has to be sure of this -- and the canvas origin is not the line to
+    # be sure of. On a Mikro the bays are 26 mm deep about Y6 and so reach
+    # Y21, while the paper starts at Y19: the first two millimetres of canvas
+    # are over the lip of a crucible, and a hop that began there would come
+    # down on it.
+    cup_top = max((_num(e, "y") + _num(bg, "cup_depth", 26) / 2
+                   for e in tray_entries(conf)), default=0.0)
+    zy0 = min(sy1, max(sy0, cup_top + _CLEAR))
+
+    # How long a reversal is. Worked out from the Fast group -- the shortest
+    # move that reaches that feedrate is v^2/a, and the margin buys a moment of
+    # holding it -- and then clamped to the ground each axis has, since a jab
+    # that will not fit is not a jab.
+    fast_v = (feed_rate(bg.get("moves", {}).get("fast", {}).get("feedrate_1", ""))
+              if isinstance(bg.get("moves"), dict) else None)
+    fast_a = (accel_rate(bg.get("moves", {}).get("fast", {}).get("acc", ""))
+              if isinstance(bg.get("moves"), dict) else None)
+    if fast_v and fast_a:
+        want_jab = _SPEED_JAB_MARGIN * (fast_v / 60.0) ** 2 / fast_a
+        jab_why = (f"v^2/a from F{_fmt(fast_v)} and {_fmt(fast_a)} mm/s^2, "
+                   f"x{_fmt(_SPEED_JAB_MARGIN)}")
+    else:
+        want_jab = _SPEED_JAB_MIN
+        jab_why = "the fallback -- this config names no Fast acceleration"
+    jab_x = max(1.0, min(want_jab, sx1 - sx0))
+    jab_y = max(1.0, min(want_jab, sy1 - sy0))
+    short = [name for name, got in (("X", jab_x), ("Y", jab_y)) if got < want_jab - 1e-6]
+
+    def at(x: float, y: float, times: int = 1) -> list[str]:
+        """Back off and arrive, `times` over.
+
+        Both run-ups come down from above so no approach has to back off past
+        the origin end of an axis: the water cup sits at Y2 on Pinkograph, and
+        a run-up below it would be a move into the Y stop.
+
+        Once is enough to fix the side the carriage arrives from, which is
+        what makes the play cancel between one stop and the next, and that is
+        what every stop but the first gets. The opening stop gets
+        _SPEED_APPROACHES of them, which is the acceleration measurement.
+        """
+        rx = _run_up(x, -1, 0.0, reach_x)
+        ry = _run_up(y, -1, 0.0, reach_y)
+        out = []
+        for _ in range(max(1, times)):
+            out.append(f"G00 X{_fmt(x + rx)} Y{_fmt(y + ry)}")
+            out.append(f"G00 X{_fmt(x)} Y{_fmt(y)}")
+        out[-1] += " ; arrive from the far side, as always"
+        return out
+
+    def reference(note: str, times: int = 1) -> list[str]:
+        """Back to the water cup and stand there long enough to be read."""
+        out = [
+            f"; reference -- {note}",
+            f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
+        ]
+        if times > 1:
+            out += [
+                f"; {times} back-offs and arrivals -- short enough to be all",
+                "; acceleration, so put a watch on them",
+            ]
+        return out + at(wx, wy, times) + [
+            f"G4 P{_SPEED_DWELL} ; stand still -- look at the marks",
+        ]
+
+    def shuttle(a: tuple[float, float], b: tuple[float, float],
+                trips: int) -> list[str]:
+        """`trips` round trips between two points, at the machine's top rate.
+
+        The first move carries both words, because it arrives from wherever the
+        last leg finished. The round trips carry only the words that change, so
+        a leg that works one axis says so -- `G00 Y153`, not `G00 X75.5 Y153`
+        with an X word that has read the same since the leg began. It makes no
+        difference to the motion; it makes the difference between a file that
+        describes what it is doing and one that leaves a reader wondering what
+        the X motor is being asked for.
+        """
+        moves = [i for i, (p, q) in enumerate(zip(a, b)) if abs(p - q) > 1e-9]
+        if not moves:
+            return []
+        out = [f"G00 X{_fmt(a[0])} Y{_fmt(a[1])}"]
+        for _ in range(trips):
+            for end in (b, a):
+                out.append("G00 " + " ".join(
+                    f"{'XY'[i]}{_fmt(end[i])}" for i in moves))
+        return out
+
+    def leg_sweeps() -> list[str]:
+        """End to end on each axis in turn: top speed, one motor at a time."""
+        return [
+            "; leg 1 -- end to end on X and then on Y, "
+            f"{_SPEED_SWEEPS} round trips each.",
+            "; The longest run either axis has in it, and the only leg that",
+            "; spends real time holding the feedrate rather than getting there",
+            "; and stopping again. On a Cartesian machine each half of it is",
+            "; one motor working while the other only holds its position --",
+            "; a stepper draws current standing still, which is what holding",
+            "; is. On a CoreXY both motors turn for either half, and it is the",
+            "; diagonals of leg 2 that single one of them out instead.",
+            *shuttle((sx0, smy), (sx1, smy), _SPEED_SWEEPS),
+            *shuttle((smx, sy0), (smx, sy1), _SPEED_SWEEPS),
+        ]
+
+    def leg_diagonals() -> list[str]:
+        """Both diagonals: the two motors together, and the corners."""
+        return [
+            f"; leg 2 -- both diagonals, {_SPEED_SWEEPS} round trips each.",
+            "; A corner to corner run is the longest move the bed holds, and",
+            "; it is both motors at once on a Cartesian machine -- the most",
+            "; current the supply is ever asked for. On one belted CoreXY it is",
+            "; instead one motor doing the whole of it while the other stands",
+            "; still, which is the harder half of the same question.",
+            *shuttle((sx0, sy0), (sx1, sy1), _SPEED_SWEEPS),
+            *shuttle((sx0, sy1), (sx1, sy0), _SPEED_SWEEPS),
+        ]
+
+    def leg_reversals() -> list[str]:
+        """Full-speed reversals: up to the feedrate and straight back down."""
+        out = [
+            f"; leg 3 -- {_SPEED_JABS} reversals on X, then on Y, then on both",
+            f"; together, {_fmt(jab_x)} mm on X and {_fmt(jab_y)} mm on Y ({jab_why}).",
+            "; Each one is long enough to reach the Fast feedrate and no",
+            "; longer, so the axis is at the top of its speed at the moment it",
+            "; is asked to turn round. That is where steps go: a stepper's",
+            "; torque falls away as it speeds up, and what loses them is the",
+            "; demand meeting that falling curve, not acceleration on its own.",
+            ";",
+            "; This is also the leg to put a watch on. Five is a number you can",
+            "; count, and every reversal is a known distance covered by getting",
+            "; to the feedrate and stopping again -- so the time a block takes",
+            "; is the acceleration, and it is the only leg here whose duration",
+            "; says anything. A block that runs long is an axis not reaching",
+            "; the figure the config claims for it.",
+        ]
+        for dx, dy in ((1, 0), (0, 1), (1, 1)):
+            lo = (smx - dx * jab_x / 2, smy - dy * jab_y / 2)
+            hi = (smx + dx * jab_x / 2, smy + dy * jab_y / 2)
+            out += shuttle(lo, hi, _SPEED_JABS)
+        return out
+
+    def leg_z() -> list[str]:
+        """Z hopped its full canvas range with X and Y moving through it."""
+        out = [
+            f"; leg 4 -- {_SPEED_HOPS} hops of Z between the canvas height and",
+            "; Go In Tray Lift, with X and Y crossing the bed through every one",
+            "; of them: all three motors in every single move, which is the",
+            "; most this machine is ever asked for at once. The holder is",
+            "; empty, so the low end of the hop is air.",
+            ";",
+            "; Out of the containers first, and only then down. The reference",
+            "; stop leaves the tool over the water cup, and a move that set off",
+            "; for the canvas while already dropping Z would be under the rim",
+            "; well before it had cleared it -- the bay is deep in Y and the",
+            "; first hop would cross its lip two thirds of the way down. This",
+            f"; leg therefore starts at Y{_fmt(zy0)}, which is clear of every cup",
+            "; rather than merely on the paper: the two are not the same line",
+            "; on every machine. Every Z below Go In Tray Lift in this file",
+            "; happens here, and these are the figures that keep it true.",
+            f"G00 X{_fmt(sx0)} Y{_fmt(zy0)} Z{_fmt(go_lift)} ; clear of the cups before any Z",
+        ]
+        for i in range(_SPEED_HOPS):
+            down = i / max(1, _SPEED_HOPS - 1)
+            up = min(1.0, (i + 0.5) / max(1, _SPEED_HOPS - 1))
+            out.append(f"G00 X{_fmt(sx0 + (sx1 - sx0) * down)} "
+                       f"Y{_fmt(zy0 + (sy1 - zy0) * down)} Z{_fmt(cz)}")
+            out.append(f"G00 X{_fmt(sx0 + (sx1 - sx0) * up)} "
+                       f"Y{_fmt(zy0 + (sy1 - zy0) * up)} Z{_fmt(go_lift)}")
+        return out
+
+    lines = [
+        "; speedtest.g -- drive all three axes as hard as this config allows,",
+        "; and show whether the motors kept up.",
+        ";",
+        "; Fit nothing. No brush, no pen, no paint, no paper: this marks",
+        "; nothing and touches nothing, and it is the one macro you want to be",
+        "; able to run on a machine you do not yet trust. Zero or home it",
+        "; first, though -- what this reads is where the machine believes it is",
+        "; against where it actually is, and that has to start out true.",
+        ";",
+        "; A motor asked for more than it can give does not stop. It slips a",
+        "; step and carries on, the controller never learns of it, and every",
+        "; move after that lands short by whatever was lost -- for the rest of",
+        "; the file. That is the fault behind a job whose last tray sits a few",
+        "; millimetres off its first.",
+        ";",
+        "; Before you start, mark the machine: a strip of tape across the join",
+        "; of carriage and rail on each axis, and one line drawn over both",
+        "; halves of it. That is the instrument, it costs nothing, and it reads",
+        "; better than a millimetre.",
+        ";",
+        f"; The macro then returns to the water cup at X{_fmt(wx)} Y{_fmt(wy)} and stands",
+        f"; still for {_SPEED_DWELL} seconds -- once before anything is asked of the",
+        "; machine, and once after each of the four legs. At every stop, look:",
+        "; the holder should sit over the middle of the cup and the two halves",
+        "; of each tape mark should still line up. The first stop where they do",
+        "; not names the leg that cost it, and every stop after it carries that",
+        "; loss as well, because nothing ever tells the machine it lost",
+        "; anything. Unlike play, steps do not come back.",
+        ";",
+        f"; The opening stop is reached {_SPEED_APPROACHES} times over -- back off and arrive,",
+        f"; {_SPEED_APPROACHES} times, and then the dwell. That short pair is the one motion",
+        "; in this file worth putting a watch on for acceleration: everything",
+        "; else is long enough to reach the Fast feedrate, so its time is a",
+        "; run-up plus a cruise plus a stop and the cruise is most of it, while",
+        "; the back-off and the arrival are short enough to be all getting up",
+        "; to speed and slowing down again. Time them at the top of the run and",
+        "; the acceleration falls out with no feedrate term in it. Every later",
+        "; stop is arrived at once, which is all that is needed to fix the side",
+        "; it comes from.",
+        ";",
+        "; Every return is arrived at from the same side over the same run-up,",
+        "; so the play is identical at every stop and cancels. What moves",
+        "; between one stop and the next is steps and not backlash -- read",
+        "; backlash.g's sheet for that, which is a different measurement and",
+        "; wants a pen and a gauge.",
+        ";",
+        "; Nothing here goes below the canvas height, and Dip Depth appears",
+        "; nowhere in this file: the one height that wants a crucible under it",
+        "; is the one height this never asks for. The legs stop at the canvas",
+        "; origin in Y and never cross the container strip; the trip back to",
+        "; the water cup does cross it, at Go In Tray Lift -- the height home.g",
+        "; and clean.g already reach that same cup at.",
+        ";",
+        "; The four legs are driven over all the ground the machine has, and",
+        f"; not over the canvas a job happens to be set to: here X{_fmt(sx0)} to",
+        f"; X{_fmt(sx1)}, and Y{_fmt(sy0)} to Y{_fmt(sy1)}. They stop {_fmt(_CLEAR)} mm short of the far end",
+        "; of each axis and no closer, because a move that finishes against a",
+        "; stop loses steps by definition and this file would then be reporting",
+        "; the very fault it came to look for.",
+        ";",
+        "; Nothing here is driven faster than the machine is configured for.",
+        "; On Marlin every move runs at the Fast feedrate. On GRBL and FluidNC",
+        "; a G0 runs at the controller's own rapid rate, whatever that is set",
+        "; to -- which is the real limit of the machine, and the honest thing to",
+        "; ask it for.",
+    ]
+    if short:
+        lines += [
+            ";",
+            f"; {' and '.join(short)} {'have' if len(short) > 1 else 'has'} less ground than a full-speed",
+            "; reversal wants, so the jabs there are as long as the bed allows.",
+            "; That axis is tested a little below its top speed, which is the",
+            "; most this machine can be asked for without finishing against a",
+            "; stop.",
+        ]
+    lines += [
+        *_preamble(bg),
+        f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
+        *reference("before anything is asked of the machine", _SPEED_APPROACHES),
+    ]
+    for leg, note in zip((leg_sweeps, leg_diagonals, leg_reversals, leg_z),
+                         _SPEED_LEG_NOTES):
+        lines += leg()
+        lines += reference(note)
+    out["speedtest.g"] = "\n".join(lines) + "\n"
 
     # Nothing here crosses the bed faster than the config's Fast group says the
     # machine is driven -- zero.g's own figures included, which is the whole

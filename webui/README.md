@@ -41,8 +41,8 @@ machine and left alone.
   **Brush control**, **Paint management**, backlash and the
   `moves` speed groups. Then **Download Machine Config**, which writes all of
   it back out as a `.conf`, and last the **Macro generator** — `zero.g`,
-  `home.g`, `paper.g`, `clean.g` and `calibrate.g`, built from the settings
-  above it (see below). A config carrying keys this map has never heard of
+  `home.g`, `paper.g`, `clean.g`, `calibrate.g` and the rest, built from the
+  settings above it (see below). A config carrying keys this map has never heard of
   still shows them, under **Other settings**.
 - **Artwork** — a **colour photograph** that is converted to CMYK and thresholded
   into the four process plates, and/or one card per colour in `color_order`, each
@@ -2568,13 +2568,13 @@ every other always-offered setting.
 
 At the end of Machine setup, below Save these settings — it is about the
 machine rather than about a picture, so it lives with its plan drawing rather
-than down by Run — the **Macro generator** builds seven small routines:
-`zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g`, `containercenter.g`
-and `backlash.g`.
-All seven come from `webui/macros.py`, a module the pipeline never imports and
+than down by Run — the **Macro generator** builds twelve small routines:
+`zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g`, `containercenter.g`,
+the four `mix-*.g` files, `backlash.g` and `speedtest.g`.
+All twelve come from `webui/macros.py`, a module the pipeline never imports and
 that never touches a tray image, so generating them needs none of the pictures
-a G-code run refuses to proceed without. Six of the seven are built from the
-config; `zero.g` is not (see below).
+a G-code run refuses to proceed without. Eleven of the twelve are built from
+the config; `zero.g` is not (see below).
 
 They are built from `fit_cups_to_shape(with_defaults(conf))`, the same pair
 `new_config` and `apply_form` normalise with, and not from `with_defaults`
@@ -2853,8 +2853,185 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   does — so the sheet is drawn raw whatever **Backlash compensation** is set
   to, and measures the machine rather than the setting.
 
-`home.g`, `paper.g`, `clean.g`, `calibrate.g`, `containercenter.g` and
-`backlash.g` share one
+- **speedtest.g** asks whether the motors keep up when the machine is driven as
+  hard as its config allows, and it is the one macro that **fits nothing at
+  all**: no brush, no pen, no paint, no paper. It marks nothing and touches
+  nothing, which is the point — a machine that is losing steps is a machine you
+  do not want carrying a loaded brush across a sheet, and a test that demands a
+  pen and a full sheet before it will tell you anything is asking for the
+  setting-up you are in the middle of failing at. Zero or home the machine
+  first, though: what it reads is where the machine *believes* it is against
+  where it actually is, and that has to start out true.
+
+  A motor asked for more than it can give does not stop. It slips a step and
+  carries on, the controller never learns of it, and every move after that
+  lands short by whatever was lost — for the rest of the file. That is the
+  fault behind a job whose last tray sits a few millimetres off its first, and
+  the same failure that moved Pinkograph's black plate 3 mm when a move in the
+  cups ran the carriage into the X stop.
+
+  **It needs no instrument, because lost steps accumulate.** That is the whole
+  difference between this and `backlash.g`: play is given up at a reversal and
+  handed back at the next, so no arrangement of moves turns half a millimetre
+  into a visible ten and reading it needs a printed gauge. Steps do not come
+  back. So this drives the machine hard, returns to **the water cup** and
+  stands still there for `_SPEED_DWELL` (3) seconds — once before anything is
+  asked of it, and once after each of the four legs — and what moved between
+  one stop and the next is steps. **The first stop that is out is the leg that
+  cost it.**
+
+  The reading is by eye, and the header says how to make it precise: **a strip
+  of tape across the join of carriage and rail on each axis, one line drawn
+  over both halves**. That is a tool-free instrument better than a millimetre,
+  and it is why the macro stands still rather than touching the reference and
+  moving on. The cup is the coarse reading beside it — the holder should sit
+  over the middle of it — and it is the reference because it is a thing on the
+  bed to sight against and where every other macro parks anyway.
+
+  **Every return is arrived at from the same side over the same run-up**, the
+  way `backlash.g`'s gauge pairs are. Without that the reference would wander
+  by the play on each axis — 0.9 mm on Pinkograph's X — which is larger than
+  most of what this is looking for.
+
+  **At the opening stop that approach is made five times, and it is the
+  acceleration measurement.** Once is all it takes to fix the side the carriage
+  arrives from, and that is what every later stop gets. Five at the top of the
+  file is what makes the pair worth timing: every other move in the file is long enough to
+  reach the Fast feedrate, so its duration is a run-up plus a cruise plus a
+  stop and the cruise is most of it, while the back-off and the arrival are
+  `_RUN_UP` on each axis — **17 mm of diagonal** — which is short enough to be
+  all getting up to speed and slowing down again. On a 𝔐𝔦𝔨𝔯𝔬 at 20 mm/s² it
+  peaks at 18.4 mm/s against a Fast rate of 25 and never cruises at all, so its
+  **1.84 s is 2√(d/a) and nothing else**; Pinkograph and Brushparang just touch
+  their feedrates at 41 and 37 mm/s. Time five of those and the acceleration
+  falls out with no feedrate term in it. The last arrival is from the same side
+  as every other, so the play cancels exactly as it did when there was one.
+
+  Five of them in front of *every* leg was the first try and it was the same
+  figure read five times over, mostly spent making the file longer — so the
+  block stays at the top, where a measurement belongs, and the other four stops
+  are arrived at once.
+
+  The four legs, in order:
+
+  1. **End to end on X and then on Y**, 3 round trips each — the longest run
+     either axis has, and the only leg that spends real time holding the
+     feedrate rather than getting there and stopping again. On a Cartesian
+     machine each half is one motor working while the other only holds; on a
+     CoreXY both turn for either half, and it is leg 2's diagonals that single
+     one of them out instead.
+  2. **Both diagonals**, 3 round trips each. Corner to corner is the longest
+     move the bed holds, and it is both motors at once on a Cartesian machine —
+     the most current the supply is ever asked for. On one belted CoreXY it is
+     instead one motor doing the whole of it while the other stands still,
+     which is the harder half of the same question, so both diagonals run.
+  3. **3 reversals on X, then on Y, then on both together**, each one long
+     enough to reach the Fast feedrate and no longer — a reversal at the top of
+     an axis's speed, which is where steps actually go.
+  4. **50 hops of Z between `canvas_height` and `go_in_tray_lift`, with X and Y
+     crossing the bed through every one of them** — all three motors in every
+     single move, which is the most the machine is ever asked for at once.
+
+  **The reversal length is worked out, and the first version of it was wrong.**
+  That leg used a flat 2 mm, on the argument that a move too short to reach the
+  feedrate is all acceleration and so all torque. True of the profile, wrong
+  about the motor: a stepper's torque *falls away* as it speeds up, and steps
+  are lost where the demand meets that falling curve — at speed. Two
+  millimetres at Pinkograph's 100 mm/s² peaks at **14 mm/s against a Fast rate
+  of 35**, so the motor never left the flat part of its curve and the leg could
+  not have failed if the machine had been in pieces.
+
+  The shortest move that does reach the feedrate is **v²/a** — v²/2a to get
+  there and as much again to stop — and `_SPEED_JAB_MARGIN` (1.5) over that
+  buys a moment of holding it before the reversal. Pinkograph's 35 mm/s and
+  100 mm/s² make 12.3 mm, **18.4 with the margin**; a 𝔐𝔦𝔨𝔯𝔬 at 25 mm/s and
+  20 mm/s² wants 31.3 and **46.9**, which is most of its X. So it is clamped to
+  the ground each axis has, and **the file states the figure it used and where
+  it came from** — `v^2/a from F2100 and 100 mm/s^2, x1.5` — because a derived
+  number in a file nobody can check is a number nobody will trust. Where the
+  config names no Fast acceleration there is nothing to derive it from and it
+  falls back to `_SPEED_JAB_MIN` (20 mm), which the header says too.
+
+  **Three of everything, because a test sequence is not an endurance run.** An
+  axis that cannot hold the rate it is being driven at gives up in the first
+  few reversals, not the fortieth, and every repetition past that is the file
+  taking longer for the same answer. The reversals carried forty while each was
+  a 2 mm twitch that cost nothing; that stressed nothing forty times and took
+  four of the file's seven minutes doing it. The acceleration block at the top
+  keeps its five, because that one *is* a measurement and a measurement wants
+  repeats to average.
+
+  **Nothing goes below `canvas_height` and `dip_depth` appears nowhere in the
+  file** — the one height that wants a crucible under it is the one height this
+  never asks for. The legs stop at the canvas origin in Y and so never cross
+  the container strip; the return to the water cup does cross it, at
+  `go_in_tray_lift`, which is the height `home.g` and `clean.g` already reach
+  that same cup at.
+
+  **Getting out of the cups before going down cost two fixes, and neither was
+  obvious.** The reference stop leaves the tool over the water cup, and leg 4's
+  first hop set off for the canvas *while already dropping Z* — the drop is
+  interpolated across the whole move, so on Pinkograph it crossed the bay's lip
+  at Y 15, by which point Z was at 4.6 of 12. It dragged across the rim every
+  time. The leg now moves clear at `go_in_tray_lift` first and only then
+  begins.
+
+  Clear of *what* was the second fix. The obvious line is the canvas origin —
+  where the paper starts — and on Pinkograph it is enough, because the bays are
+  26 mm deep about Y 2 and reach Y 15 against an origin of Y 23. On a 𝔐𝔦𝔨𝔯𝔬 it
+  is not: the bays sit at Y 6 and reach **Y 21**, while the paper starts at
+  **Y 19**, so the first two millimetres of canvas are over the lip of a
+  crucible. The leg's Y start is therefore `max(canvas origin, the furthest any
+  cup reaches + _CLEAR)` — Y 23 on Pinkograph, unchanged, and **Y 24 on a
+  𝔐𝔦𝔨𝔯𝔬**, where the origin alone would have put it down on the rim.
+
+  This is checkable rather than asserted: walking the file and testing every
+  interpolated point below `go_in_tray_lift` against every bay's footprint
+  comes back clear on all three configs. It is the one macro that can be
+  checked this way, since the others go into cups on purpose. The four legs otherwise cover all the ground the machine
+  has rather than the canvas a job is set to, stopping `_CLEAR` (3 mm) short of
+  the far end of each axis and no closer: a move that finishes against a stop
+  loses steps by definition, and the file would then be reporting the very
+  fault it came to look for.
+
+  **Nothing is driven faster than the machine is configured for**, and what
+  that means depends on the controller, which the header says outright: on
+  Marlin every move runs at the Fast feedrate; on GRBL and FluidNC a `G0` runs
+  at the controller's own rapid rate, whatever that is set to. The second is
+  the real limit of the machine and the honest thing to ask it for, which is
+  why the legs are `G0` throughout.
+
+  The dwell is `G4 P3`, following copicograf's own `G4 P{DIP_DWELL}` — **P is
+  seconds to GRBL and FluidNC and milliseconds to Marlin**, and there is no
+  word that means seconds to both. A whole number keeps a Marlin machine's
+  three milliseconds harmless rather than a long stop nobody asked for; on
+  Marlin the stops are there in the path but not in the clock, and the reading
+  is taken at the end instead of leg by leg.
+
+  **A single-axis leg writes a single axis word.** The round trips emit only
+  what changes — `G00 Y153`, not `G00 X75.5 Y153` with an X word that has read
+  the same since the leg began — while the move that *enters* a leg still
+  carries both, since it arrives from wherever the last one finished. It makes
+  no difference to the motion. It makes the difference between a file that
+  describes what it is doing and one that leaves a reader watching an X motor
+  through a Y leg and wondering what it has been asked for. (The answer, on
+  this machine, is nothing: a stepper draws current standing still, and that is
+  holding torque rather than work. On a CoreXY it would be turning, because
+  there a Y move is both motors.)
+
+  **The dwell is a stop, and it is meant to be noticed.** Five of them — before
+  leg 1 and after each leg — at 3 seconds each, 15 of the file's 4.5 minutes.
+  They are the whole reading; a macro that returned to the reference and swept
+  straight on would give nothing to look at.
+
+  As generated the file is **298 lines, 10.1 KB and about 4.5 minutes** on
+  Pinkograph — 4.9 on Brushparang, and 6.6 on a 𝔐𝔦𝔨𝔯𝔬 config accelerating at
+  20 mm/s² rather than 100, which is that machine's own setting talking and not
+  a longer test. The diagonals are the long leg, because a corner-to-corner run
+  is the longest move the bed holds.
+
+`home.g`, `paper.g`, `clean.g`, `calibrate.g`, `containercenter.g`,
+`backlash.g` and `speedtest.g` share one
 rule: every move to somewhere
 new — a tray, the canvas, the origin — is preceded by a lift to
 `go_in_tray_lift`, and only that: never the larger of it and
@@ -2878,14 +3055,14 @@ a macro generated once and kept, so `_container_motion()` cycles the same
 four quadrants by repetition index instead — the same coverage, without two
 downloads of the same config ever differing.
 
-None of the seven macros carries an M-code or a `G28`: no `sanitize_for_controller`
+None of the twelve macros carries an M-code or a `G28`: no `sanitize_for_controller`
 pass is needed, because `G90`/`G21`/`G0`/`G1`/`G10`/`G92` mean the same thing to
 Marlin, GRBL and FluidNC.
 
 **Generate macros** posts the form to `/macros` — the same `apply_form()` a
 config download goes through, so a macro reflects whatever is currently typed
 into the form, saved or not, the way Download Machine Config already does.
-**Download macros** saves them as separate files rather than a zip; seven
+**Download macros** saves them as separate files rather than a zip; a dozen
 small text files did not seem worth a new dependency. **Upload to machine**
 sends them the same shape `gcode-send` sends a job in — one `POST` per file,
 `multipart/form-data` carrying `path` (`/`) and `myfile`, `mode: "no-cors"`,
@@ -2897,7 +3074,7 @@ the SD card, which is where a job's G-code belongs and where `$SD/Run` looks;
 `/files` writes to the flash filesystem, which is where the controller's own
 dashboard theme already lives (see **Pinkograph**, above) and where a
 standing macro belongs — a card can be swapped or reformatted, and a job's
-G-code is not meant to survive that, but these seven are. There is no
+G-code is not meant to survive that, but these twelve are. There is no
 `$SD/Run` here either: these are routines an operator runs by hand from the
 controller's own interface, not a job meant to start the moment it lands.
 
@@ -2971,7 +3148,7 @@ another is the kind of tidiness worth two lines in a file.
 #### Nothing in a macro goes faster than Fast
 
 Fast is also a ceiling: every feedrate a macro writes is held at or below
-`brushograph.moves.fast.feedrate_1`, in the one place all seven pass through on
+`brushograph.moves.fast.feedrate_1`, in the one place all twelve pass through on
 their way out.
 
 It was not a hypothetical. zero.g swept to the far corner at **F2100** on
@@ -3014,13 +3191,15 @@ it was being asked for the next file before it had finished with the last.
 So there is a **breath of `MACRO_PAUSE_MS` (400 ms) between one file and the
 next**, and each file gets **`MACRO_TRIES` (3) goes**, waiting longer each time
 — re-sending a macro only writes the same bytes over the top, so a retry costs
-nothing but the wait. Eleven files take about four seconds rather than one.
+nothing but the wait. Twelve files take about four and a half seconds rather
+than one.
 
 The message when it still gives up **names the file it stopped at**, and says
 the other thing it might be: a board whose flash filesystem is full will fail
 at the same file every time however long the pause, and the fix for that is in
-its own file list rather than here. The eleven macros are 33 KB together on
-Pinkograph, of which the four mixing files are 14.
+its own file list rather than here. The twelve macros are 39 KB together on
+Pinkograph, of which the four mixing files are 13, `backlash.g` 11 and
+`speedtest.g` another 10.
 
 ## Sessions outlive a restart
 
