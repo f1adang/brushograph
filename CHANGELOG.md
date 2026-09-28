@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.17.3](https://github.com/f1adang/brushograph/releases/tag/v2.17.3) — 2026-09-28
+
+- **`clean.g` scrubs the brush up the stairs:** In the CMYK crucibles, the wash used to leave the water in one straight line that barely touched the stairs. It now follows them: along the floor, then over the edge of every step with the brush pressed 2 mm into it, and out along the top step. The rinse at the end of the mix macros does the same. A job's pickup is unchanged, and so are custom containers.
+
 ## [v2.17.2](https://github.com/f1adang/brushograph/releases/tag/v2.17.2) — 2026-09-27
 
 - **Update `calibrate.g` dot position:** The calibration macro now places its alignment dot precisely at `X5` and 5mm above the configured Canvas Start Y, rather than relying on the general canvas origin.
