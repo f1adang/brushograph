@@ -2,7 +2,7 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
-## v2.18.0 — unreleased
+## [v2.18.0](https://github.com/f1adang/brushograph/releases/tag/v2.18.0) — 2026-09-28
 
 - **New `speedtest.g` macro:** checks whether the motors keep up when the machine is driven as hard as its settings allow. Nothing needs fitting: no brush, pen, paint or paper. It sweeps the whole bed, runs both diagonals, reverses at full speed and hops Z, and between each part it stops over the water cup for 3 seconds. Home or zero first, put a strip of tape across carriage and rail with a line drawn over both, and watch: if the line no longer meets at a stop, steps were lost in the part just before it. About 5 minutes on a Mini.
 - **Choose which macros to send:** the macro generator now lists every macro with a tick box, a one-line description and its size, in two groups. **Operation** (zero, home, paper, clean, calibrate and the four mix files) is ticked by default. **Testing & calibration** (containercenter, backlash, speedtest) is for setting the machine up, and you tick it when you need it. Download and Upload send only what is ticked, so a controller with little flash no longer runs out partway through.
