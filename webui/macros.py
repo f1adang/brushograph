@@ -78,6 +78,64 @@ MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
                "mix-c.g", "mix-m.g", "mix-y.g", "mix-k.g",
                "backlash.g", "speedtest.g"]
 
+# The two kinds of macro, and which kind a machine is sent unless told
+# otherwise. The split is about the flash filesystem, which is small and is
+# already holding the controller's own dashboard: twelve macros is 42 KB on
+# Pinkograph and there are boards with no room for that, so the page asks which
+# of them to send rather than sending the lot and failing at the ninth.
+#
+# It divides on how often a file is wanted. The operation macros are what an
+# operator reaches for between jobs -- zero the machine, park it, get the
+# gantry out of the way of a sheet of paper, wash the brush, drop a dot to see
+# where the fresh sheet is sitting, stir a cup that has stood overnight -- and
+# they are wanted on every machine, always. The testing and calibration ones
+# are run when the machine is being set up or is under suspicion, and what they
+# produce is figures that then live in the config rather than on the machine.
+# There is no reason for them to be taking up flash between one setting-up and
+# the next, and every reason for the default not to be the twelve that will not
+# fit.
+#
+# calibrate.g is on the operation side of that line and not the calibration
+# side its name suggests. It is a dot, put down with the brush already fitted,
+# and it is put down every time a new sheet goes on the bed -- which is a thing
+# done between jobs and not when the machine is set up.
+# Each file carries its own line, and that line is the whole of what the page
+# says about it. The paragraph these replaced tried to describe all twelve in
+# one breath and read as a list of subordinate clauses; a sentence sitting
+# beside the box you tick is read, and is also the only place it could go
+# without being read twice.
+MACRO_SECTIONS = [
+    ("Operation", True, [
+        ("zero.g", "Zeroes the controller through its fixed sequence, then parks."),
+        ("home.g", "Parks over the water cup, just above dipping depth."),
+        ("paper.g", "Takes the gantry out of the way for changing the paper."),
+        ("clean.g", "Washes the brush in the water cup, then parks it."),
+        ("calibrate.g", "Puts one dot near the canvas origin, to check where the paper sits."),
+        ("mix-c.g", "Stirs settled pigment back through the cyan cup, then rinses and parks."),
+        ("mix-m.g", "Stirs settled pigment back through the magenta cup, then rinses and parks."),
+        ("mix-y.g", "Stirs settled pigment back through the yellow cup, then rinses and parks."),
+        ("mix-k.g", "Stirs settled pigment back through the black cup, then rinses and parks."),
+    ]),
+    ("Testing & calibration", False, [
+        ("containercenter.g",
+         "A tick at the X of every container, to check the positions. Pen."),
+        ("backlash.g", "The sheet the play in each axis is read off. Pen, full sheet."),
+        ("speedtest.g",
+         "Drives all three axes hard and stops where it started, so you can see "
+         "if steps were lost. Nothing fitted, 5 min."),
+    ]),
+]
+
+# Every macro in exactly one section, checked here rather than trusted. A
+# thirteenth macro added to MACRO_NAMES and forgotten here would generate
+# perfectly well and then never appear in the form for anyone to tick, which
+# is the kind of fault that is noticed a release later.
+_SECTIONED = [name for _, _, files in MACRO_SECTIONS for name, _blurb in files]
+assert sorted(_SECTIONED) == sorted(MACRO_NAMES), (
+    "every macro belongs in exactly one MACRO_SECTIONS entry; missing "
+    f"{sorted(set(MACRO_NAMES) - set(_SECTIONED))}, unknown "
+    f"{sorted(set(_SECTIONED) - set(MACRO_NAMES))}")
+
 # How many hops around the floor of a cup a mixing macro makes. Sixty is about
 # a minute on a machine that accelerates at 20 mm/s^2, which is long enough to
 # see it working and short enough to run again -- and running it again is how

@@ -3062,9 +3062,9 @@ Marlin, GRBL and FluidNC.
 **Generate macros** posts the form to `/macros` — the same `apply_form()` a
 config download goes through, so a macro reflects whatever is currently typed
 into the form, saved or not, the way Download Machine Config already does.
-**Download macros** saves them as separate files rather than a zip; a dozen
-small text files did not seem worth a new dependency. **Upload to machine**
-sends them the same shape `gcode-send` sends a job in — one `POST` per file,
+**Download selected** saves them as separate files rather than a zip; a dozen
+small text files did not seem worth a new dependency. **Upload selected to
+machine** sends them the same shape `gcode-send` sends a job in — one `POST` per file,
 `multipart/form-data` carrying `path` (`/`) and `myfile`, `mode: "no-cors"`,
 opaque reply — but to `<host>/files`, not `<host>/upload`. FluidNC's web
 server registers the two as separate routes onto the same handler
@@ -3077,6 +3077,113 @@ standing macro belongs — a card can be swapped or reformatted, and a job's
 G-code is not meant to survive that, but these twelve are. There is no
 `$SD/Run` here either: these are routines an operator runs by hand from the
 controller's own interface, not a job meant to start the moment it lands.
+
+#### Twelve macros, and not enough flash for them
+
+An ESP32's flash filesystem is small, and the controller's own dashboard is
+already on it. Twelve macros are **39.4 KB together on Pinkograph**, of which
+`backlash.g` is 11, `speedtest.g` 10 and the four mixing files another 13, and
+there are boards with no room for that. Sending the lot and finding out at the ninth is not a
+way to discover it: the upload's replies are opaque, so a board that has run
+out of room looks exactly like a board that is merely slow, which is the fault
+`MACRO_PAUSE_MS` was already covering for.
+
+So the macros are **ticked rather than sent wholesale**, in two sections:
+
+- **Operation** — `zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g` and
+  the four `mix-*.g`. What an operator reaches for between jobs: zero the
+  machine, park it, get the gantry out of the way of a sheet of paper, wash the
+  brush, drop a dot to see where the fresh sheet is sitting, stir a cup that has
+  stood overnight. Wanted on every machine, always, and **on by default**.
+  15.8 KB on Pinkograph — a little over a third of the twelve.
+- **Testing & calibration** — `containercenter.g`, `backlash.g` and
+  `speedtest.g`, 23.6 KB of the 39.4. Run when the machine is being set up or
+  is under suspicion, and what they produce is **figures that then live in the
+  config** rather than on the machine. There is no reason for them to be taking
+  up flash between one setting-up and the next, and every reason for the default
+  not to be the twelve that will not fit.
+
+The split is on **how often a file is wanted**, not on what it does, which is
+why `calibrate.g` is an operation macro and not a calibration one whatever its
+name says: it is a dot, put down with the brush already fitted, and it is put
+down every time a fresh sheet goes on the bed — a thing done between jobs, not
+when the machine is set up. What the three that remain have in common is not a
+tool — `containercenter.g` and `backlash.g` want a pen, `speedtest.g` wants the
+holder empty — but an occasion: none of them is run twice with the same answer
+expected, and all three hand their answer to the settings above rather than
+keeping it on the machine.
+
+**Ticking a section ticks everything under it, and anything under it can be
+unticked again** — at which point the section's own box goes *indeterminate*,
+which is the state that says "some of this" without pretending to be either
+answer. Download and Upload are named after the selection and go grey when
+nothing is ticked.
+
+**One line a macro, beside the box that ticks it.** What the section used to
+carry was a paragraph describing all twelve in one breath, and it read as a
+list of subordinate clauses — *zeroing the controller through a mostly fixed
+sequence, parking the brush, replacing paper, washing the brush then parking
+it, placing a single reference dot…* — which is a sentence nobody finishes and
+which had to name every file twice over, once in the prose and again in the
+list below it. Each file carries its own line now, in the shape a `.switch`
+already uses: the tick, the name, one line under it, the size out at the end.
+The paragraph above them is three sentences and says only what the sections are
+and how ticking one behaves.
+
+`macros.MACRO_SECTIONS` in `webui/macros.py` is the one place the split *and
+those lines* live, and the picker is **rendered from it** by
+`options_form.html` rather than from a copy of the list in `webui.js`: which
+macro belongs where, and what it does, is that module's business and the
+checkboxes are only how it is asked. A module-level assertion holds every name
+in `MACRO_NAMES` to exactly one section, because a thirteenth macro added to
+one list and forgotten in the other would generate perfectly well and then
+never appear in the form for anyone to tick — the kind of fault noticed a
+release later.
+
+**The size is shown beside every file and totalled on every section**, once
+Generate has been pressed, because the question the picker exists to answer is
+how much flash this will take. Before that it is a list of names and a set of
+choices, which is enough to make the choice with.
+
+#### Clearing the flash out
+
+**Delete all macros on `<host>`** is the other half of not having room for
+everything, and the button says which machine it is about to clear — it is
+written from the hostname field and follows it as it is typed, because a button
+that names the machine is the only warning this page can give before the
+dialog. It asks before it acts, through the same `askToConfirm()` a kept config
+is deleted with, and the dialog lists the files by name.
+
+**Which files those are is the hard half, and there are two answers.** FluidNC
+answers `GET /files?action=list&path=/` with a JSON listing — the same route the
+uploads go to, with an `action` instead of a body — but whether this page may
+*read* that reply is the firmware's decision. A build that sends no
+`Access-Control-Allow-Origin` hands the browser a reply it has to throw away,
+which is the same wall everything else here goes through `no-cors` to get
+around, and `no-cors` gives back an opaque response with nothing in it. So the
+listing is **attempted and not relied on**:
+
+- **Read.** The delete covers **every `.g` the machine itself named** — files
+  this generator never wrote, and names it no longer writes. Anything that is
+  not a `.g` is left alone, which is what keeps the dashboard's own
+  `index.html.gz` where it is. Afterwards the list is read a second time and
+  the message says what is actually left, which is the only thing on this page
+  that can report the machine's state rather than what it was told.
+- **Not read.** The fallback is **the twelve names in the picker**, which is
+  all this page can know without being told, and the message says so: "the 12
+  names this generator writes … check the machine's own file list to be sure,
+  and for any other `.g` this page does not know about." *Deleted twelve files*
+  and *deleted everything* are different claims, and only one of them was
+  checked.
+
+The deletes go out one at a time with the same `MACRO_PAUSE_MS` breath and the
+same `MACRO_TRIES` goes the uploads get, for the same reason: the thing at the
+other end is an ESP32 closing a file on its flash and freeing a socket, and it
+is no better at being asked twice in a row to delete than to write.
+
+There is no **Format** here, and that is deliberate. `$LocalFS/Format` would
+clear the flash in one command and take the controller's own dashboard with it,
+which is not what "delete all macros" means to anyone who presses it.
 
 #### The speed groups ask for a number
 

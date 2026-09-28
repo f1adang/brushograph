@@ -144,32 +144,54 @@
 
         <section class="group" id="macro-generator">
           <h3>Macro generator</h3>
-          <p class="note">Eleven small routines: zeroing the controller through a
-            mostly fixed sequence, parking the brush, replacing paper,
-            washing the brush then parking it, placing a single reference
-            dot on the canvas, painting a tick on the canvas at the X of
-            every container, stirring each colour cup in turn, and drawing the
-            sheet that the play in each
-            axis is measured off &mdash; that last one wants a pen fitted where the
-            brush goes and visits no cup, and the container ticks want paint
-            in the black cup, since black is what paints them. Clean
-            follows whichever container shape is
-            set under Containers; calibrate does neither, but it lifts clear
-            like the rest before it crosses &mdash; just the dot, and a park over
-            it. The four <b>mix</b> files drag the brush about the floor of one
-            cup to put settled pigment back through the water above it, then
-            rinse the brush and park it; run one again for a longer stir.</p>
+          <p class="note" data-i18n="macro-pick-note">A controller's flash is small
+            and its own dashboard is already on it, so pick what to send.
+            <b>Operation</b> is what you reach for between jobs and is on by
+            default; <b>Testing &amp; calibration</b> is run when the machine is
+            being set up or is under suspicion, and what it produces then lives
+            in the settings above rather than on the machine. Ticking a section
+            ticks everything under it.</p>
+
+          <div class="macro-picker" id="macro-list">
+            {% for title, on, files in macro_sections %}
+            <section class="macro-section" data-section="{{ title }}">
+              <label class="macro-head">
+                <input type="checkbox" class="macro-all" {{ 'checked' if on }}>
+                <b>{{ title }}</b>
+                <span class="macro-size" data-total></span>
+              </label>
+              <div class="macro-files">
+                {% for name, blurb in files %}
+                <label class="macro-file">
+                  <input type="checkbox" class="macro-one" value="{{ name }}" {{ 'checked' if on }}>
+                  <span><code>{{ name }}</code><i>{{ blurb }}</i></span>
+                  <span class="macro-size" data-size></span>
+                </label>
+                {% endfor %}
+              </div>
+            </section>
+            {% endfor %}
+          </div>
 
           <div class="actions">
             <button type="button" class="primary" id="macros-generate">Generate macros</button>
-            <button type="button" class="primary" id="macros-download" hidden>Download macros</button>
-            <button type="button" class="primary" id="macros-upload" hidden>Upload to machine</button>
+            <button type="button" class="primary" id="macros-download" hidden>Download selected</button>
+            <button type="button" class="primary" id="macros-upload" hidden>Upload selected to machine</button>
             <span class="note" id="macros-status" hidden></span>
           </div>
           <p class="error" id="macros-error" hidden></p>
-          <ul class="macro-list" id="macro-list" hidden></ul>
           <p class="note" id="macros-machine-note" hidden></p>
           <p class="error" id="macros-machine-error" hidden></p>
+
+          <p class="note" data-i18n="macro-delete-note">Asks the machine for its
+            file list and takes away every <code>.g</code> it names. Where the
+            firmware will not let this page read that list, it falls back to
+            the twelve names above, and says which of the two it did.</p>
+          <div class="actions">
+            <button type="button" class="danger" id="macros-delete">Delete all macros on the machine</button>
+          </div>
+          <p class="note" id="macros-delete-note" hidden></p>
+          <p class="error" id="macros-delete-error" hidden></p>
         </section>
 
       </div>

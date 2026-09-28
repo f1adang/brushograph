@@ -1933,22 +1933,79 @@ function renderSimStats() {
 }
 
 /* ------------------------------------------------------------ macros ---- */
-/* zero.g, home.g, paper.g, clean.g, calibrate.g, containercenter.g,
- * backlash.g — one round trip
- * to /macros, held
- * here as {name: text} so Download and Upload need no second request. Same
- * shape as the config download, minus the tray images that one refuses to
- * run without: /macros only reads the text fields. */
+/* The twelve files — one round trip to /macros, held here as {name: text} so
+ * Download and Upload need no second request. Same shape as the config
+ * download, minus the tray images that one refuses to run without: /macros
+ * only reads the text fields.
+ *
+ * Which of them go anywhere is the picker's business. The sections and their
+ * defaults are rendered into the page from macros.MACRO_SECTIONS, so this file
+ * holds no copy of the list: it reads the boxes that are ticked. */
 let pendingMacros = null;
+
+const MACRO_SECTION_SEL = ".macro-section";
+
+/* Every file tick in the picker, or just the ones under one section. */
+function macroBoxes(root) {
+  return Array.from((root || document).querySelectorAll(".macro-one"));
+}
+
+function macroSizeText(bytes) {
+  return bytes >= 1024 ? `${(bytes / 1024).toFixed(1)} KB` : `${bytes} B`;
+}
+
+/* The names ticked right now, in the order the page lists them — which is
+ * macros.MACRO_SECTIONS's order, and so the order the machine's own file list
+ * will show them in. */
+function selectedMacroNames() {
+  return macroBoxes().filter((b) => b.checked).map((b) => b.value);
+}
+
+/* A section's own tick follows its files: on when they all are, off when none
+ * is, and indeterminate in between — which is the state that says "some of
+ * this section" without pretending to be either. */
+function refreshMacroPicker() {
+  for (const section of document.querySelectorAll(MACRO_SECTION_SEL)) {
+    const boxes = macroBoxes(section);
+    const on = boxes.filter((b) => b.checked);
+    const all = section.querySelector(".macro-all");
+    if (all) {
+      all.checked = on.length === boxes.length && boxes.length > 0;
+      all.indeterminate = on.length > 0 && on.length < boxes.length;
+    }
+    const total = section.querySelector("[data-total]");
+    if (!total) continue;
+    if (!pendingMacros) { say(total, "{n} of {total}", { n: on.length, total: boxes.length }); continue; }
+    const bytes = on.reduce((sum, b) => sum + new Blob([pendingMacros[b.value] || ""]).size, 0);
+    say(total, "{n} of {total}, {size}",
+        { n: on.length, total: boxes.length, size: macroSizeText(bytes) });
+  }
+  const names = selectedMacroNames();
+  for (const btn of [$("macros-download"), $("macros-upload")]) {
+    if (btn) btn.disabled = names.length === 0;
+  }
+}
+
+/* The size beside each file, once there is a file to have a size. Until
+ * Generate is pressed the picker is a list of names and a set of choices,
+ * which is enough to make the choice with. */
+function showMacroSizes() {
+  for (const box of macroBoxes()) {
+    const cell = box.closest(".macro-file").querySelector("[data-size]");
+    const text = pendingMacros && pendingMacros[box.value];
+    if (cell) say(cell, text ? macroSizeText(new Blob([text]).size) : "");
+  }
+  refreshMacroPicker();
+}
 
 function wireMacros() {
   const form = $("options-form");
   const genBtn = $("macros-generate");
   const dlBtn = $("macros-download");
   const upBtn = $("macros-upload");
+  const delBtn = $("macros-delete");
   const status = $("macros-status");
   const errBox = $("macros-error");
-  const list = $("macro-list");
   if (!genBtn || !form) return;
 
   function report(english, vars, bad) {
@@ -1961,6 +2018,28 @@ function wireMacros() {
       status.hidden = false;
       errBox.hidden = true;
     }
+  }
+
+  // A section's tick sets every file under it; a file's tick sets the section
+  // back. Delegated from the picker rather than bound per box, so the handlers
+  // survive the form being fetched again.
+  const picker = $("macro-list");
+  if (picker) {
+    picker.addEventListener("change", (e) => {
+      const all = e.target.closest(".macro-all");
+      if (all) {
+        for (const box of macroBoxes(all.closest(MACRO_SECTION_SEL))) box.checked = all.checked;
+      }
+      refreshMacroPicker();
+    });
+  }
+  refreshMacroPicker();
+  if (delBtn) {
+    nameTheDeleteButton();
+    // The hostname is typed into a field further up the same form, and the
+    // button is a sentence about that machine, so it follows the typing.
+    const host = document.querySelector('[name="connection-hostname"]');
+    if (host) host.addEventListener("input", nameTheDeleteButton);
   }
 
   genBtn.addEventListener("click", async () => {
@@ -1978,16 +2057,10 @@ function wireMacros() {
       if (!res.ok) throw new Error(await serverError(res));
       const { macros } = await res.json();
       pendingMacros = macros;
-      list.innerHTML = "";
-      for (const [name, text] of Object.entries(macros)) {
-        const li = el("li");
-        say(li, "{name} ({bytes} B)", { name, bytes: new Blob([text]).size });
-        list.appendChild(li);
-      }
-      list.hidden = false;
+      showMacroSizes();
       dlBtn.hidden = false;
       upBtn.hidden = false;
-      report("Generated {count} macros from the settings above.",
+      report("Generated {count} macros from the settings above. Tick what to send.",
              { count: Object.keys(macros).length });
     } catch (err) {
       report(String(err.message || err), null, true);
@@ -1999,14 +2072,15 @@ function wireMacros() {
 
   dlBtn.addEventListener("click", () => {
     if (!pendingMacros) return;
-    // One save per file rather than a zip: no new dependency for five small
-    // text files, and each already has the name it should land under.
-    for (const [name, text] of Object.entries(pendingMacros)) {
-      saveBlob(new Blob([text], { type: "text/plain" }), name);
+    // One save per file rather than a zip: no new dependency for a handful of
+    // small text files, and each already has the name it should land under.
+    for (const name of selectedMacroNames()) {
+      if (pendingMacros[name]) saveBlob(new Blob([pendingMacros[name]], { type: "text/plain" }), name);
     }
   });
 
   upBtn.addEventListener("click", () => uploadMacrosToMachine());
+  if (delBtn) delBtn.addEventListener("click", () => deleteMacrosOnMachine());
 }
 
 function showGcode(text) {
@@ -2219,6 +2293,17 @@ function machineHost() {
   return field ? field.value.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
 }
 
+/* The delete button names the machine it is about to clear out, and keeps
+   naming it as the hostname is typed. A button that says what it will do to
+   which machine is the only warning this page can give before the dialog. */
+function nameTheDeleteButton() {
+  const btn = $("macros-delete");
+  if (!btn) return;
+  const host = machineHost();
+  if (host) say(btn, "Delete all macros on {host}", { host });
+  else say(btn, "Delete all macros on the machine");
+}
+
 /* Not every browser looks a `.local` name up. Chromium resolves them through
  * mDNS; Firefox returns a bare NetworkError. This server sits on the same
  * network and its resolver does know the name, so ask it and use the address
@@ -2343,9 +2428,13 @@ async function uploadMacrosToMachine() {
   }
 
   const upBtn = $("macros-upload");
+  const names = selectedMacroNames().filter((n) => pendingMacros[n]);
+  if (!names.length) {
+    report("Nothing is ticked, so there is nothing to send.", null, true);
+    return;
+  }
   const label = labelOf(upBtn);
   upBtn.disabled = true;
-  const names = Object.keys(pendingMacros);
   const pause = (ms) => new Promise((r) => setTimeout(r, ms));
   let sent = 0;
   let failed = null;
@@ -2387,6 +2476,146 @@ async function uploadMacrosToMachine() {
   } finally {
     upBtn.disabled = false;
     say(upBtn, label);
+  }
+}
+
+/* Every .g on the controller's flash, taken away.
+ *
+ * Which files those are is the hard half, and there are two ways of finding
+ * out. FluidNC answers `GET /files?action=list&path=/` with a JSON listing —
+ * the same route the macros are uploaded to, with an action instead of a body
+ * — but whether this page may *read* that reply is the firmware's decision. A
+ * build that sends no Access-Control-Allow-Origin hands the browser a reply it
+ * must throw away, which is the same wall every other request here goes
+ * through `no-cors` to get around, and `no-cors` gives an opaque response with
+ * nothing readable in it. So the listing is attempted rather than relied on.
+ *
+ * Where it comes back, the delete covers **every .g the machine itself named**,
+ * including files this generator never wrote and names it no longer writes.
+ * Where it does not, the fallback is the names in the picker, which is all this
+ * page can know without being told. The message says which of the two happened,
+ * because "deleted twelve files" and "deleted everything" are different claims
+ * and only one of them was checked.
+ */
+async function machineGcodeFiles(base) {
+  try {
+    const res = await fetch(`${base}/files?action=list&path=/`, { mode: "cors" });
+    if (!res.ok) return null;
+    const data = await res.json();
+    // ESP3D's shape is {files: [{name, size}], ...}; a build that answers
+    // something else is treated as a build that did not answer.
+    const files = Array.isArray(data.files) ? data.files : null;
+    if (!files) return null;
+    return files.map((f) => String(f.name || f.filename || ""))
+                .filter((n) => /\.g$/i.test(n));
+  } catch (e) {
+    return null;   // blocked, unreachable, or not JSON — fall back
+  }
+}
+
+async function deleteMacrosOnMachine() {
+  const note = $("macros-delete-note");
+  const err = $("macros-delete-error");
+  function report(english, vars, bad) {
+    if (note) note.hidden = true;
+    if (err) err.hidden = true;
+    const box = bad ? err : note;
+    if (box) { say(box, english, vars); box.hidden = false; }
+  }
+
+  const base = await machineBase();
+  if (!base) {
+    report("Set a hostname under Machine setup, Connection.", null, true);
+    return;
+  }
+  if (location.protocol === "https:" && base.startsWith("http:")) {
+    report("This page is on https and {base} is not, so the browser will block the "
+      + "connection. Open the WebUI over http on the same network as the machine.",
+      { base }, true);
+    return;
+  }
+
+  const btn = $("macros-delete");
+  btn.disabled = true;
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  let stuck = null;
+  try {
+    report("Asking {base} what is on its flash…", { base });
+    const listed = await machineGcodeFiles(base);
+    const names = listed || macroBoxes().map((b) => b.value);
+    if (!names.length) {
+      report("{base} says there is no .g file on its flash. Nothing to delete.", { base });
+      return;
+    }
+    // Asked before, not after: the reply to the delete itself is opaque, so
+    // this is the last point at which anyone can change their mind.
+    const ok = await askToConfirm(
+      listed
+        ? "Delete all {count} .g files on {host}? They are {names}. This cannot be undone "
+          + "from here — the macros can be generated again, but anything else on that list "
+          + "that ends in .g goes too."
+        : "Delete the {count} macro files this page writes from {host}? They are {names}. "
+          + "The machine's own file list could not be read from here, so any other .g on "
+          + "its flash is left alone. This cannot be undone from here.",
+      { count: names.length, host: machineHost() || base, names: names.join(", ") },
+      "Delete");
+    if (!ok) {
+      report("Nothing was deleted.");
+      return;
+    }
+
+    btn.textContent = t("Deleting…");
+    let gone = 0;
+    for (const name of names) {
+      report("Deleting {name} from {base}… ({gone}/{total})",
+             { name, base, gone, total: names.length });
+      stuck = name;
+      for (let go = 1; ; go++) {
+        try {
+          // no-cors, like every other request to the machine: delivered,
+          // and the reply unreadable. The same ESP32 that cannot take two
+          // uploads in a row cannot take two of these either.
+          await fetch(`${base}/files?action=delete&filename=${encodeURIComponent(name)}&path=/`,
+                      { mode: "no-cors" });
+          break;
+        } catch (again) {
+          if (go >= MACRO_TRIES) throw again;
+          report("{name} did not go: waiting and trying again ({go}/{tries})…",
+                 { name, go, tries: MACRO_TRIES });
+          await pause(MACRO_PAUSE_MS * go * 3);
+        }
+      }
+      gone += 1;
+      if (gone < names.length) await pause(MACRO_PAUSE_MS);
+    }
+    stuck = null;
+
+    // Worth one more look where the listing could be read at all: it is the
+    // only way this page can say what is there rather than what it asked for.
+    const left = await machineGcodeFiles(base);
+    if (left) {
+      if (left.length) {
+        report("Sent {count} deletes to {base}. It still lists {n} .g files: {names}. "
+          + "Try again, or clear them from the machine's own file list.",
+          { count: gone, base, n: left.length, names: left.join(", ") }, true);
+      } else {
+        report("Deleted {count} .g files from {base}'s flash. Its file list is now clear "
+          + "of them.", { count: gone, base });
+      }
+    } else {
+      report("Sent {count} deletes to {base}'s flash — the {count} names this generator "
+        + "writes. The replies are opaque and the file list could not be read from here, "
+        + "so check the machine's own file list to be sure, and for any other .g this "
+        + "page does not know about.", { count: gone, base });
+    }
+  } catch (e) {
+    report("{base} stopped taking deletes at {name}: {error}. Check the hostname under "
+      + "Machine setup, Connection, and that this page and the machine are on the same "
+      + "network.",
+      { base, name: stuck || "?", error: t(String(e.message || e)) }, true);
+  } finally {
+    btn.disabled = false;
+    nameTheDeleteButton();
   }
 }
 

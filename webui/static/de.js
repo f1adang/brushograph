@@ -99,11 +99,10 @@ text: {
 "Only a config kept on the server can be updated there.":
   "Nur eine auf dem Server hinterlegte Konfiguration kann dort aktualisiert werden.",
 "Macro generator": "Makrogenerator",
-"Seven small routines: zeroing the controller through a mostly fixed sequence, parking the brush, replacing paper, washing the brush then parking it, placing a single reference dot on the canvas, painting a tick on the canvas at the X of every container, and drawing the sheet that the play in each axis is measured off — that last one wants a pen fitted where the brush goes and visits no cup, and the container ticks want paint in the black cup, since black is what paints them. Clean follows whichever container shape is set under Containers; calibrate does neither, but it lifts clear like the rest before it crosses — just the dot, and a park over it.":
-  "Sieben kleine Abläufe: die Steuerung über eine weitgehend feste Folge auf Null setzen, den Pinsel abstellen, das Papier wechseln, den Pinsel waschen und abstellen, einen einzelnen Bezugspunkt auf den Druckbereich setzen, für jeden Behälter einen Strich bei dessen X auf den Druckbereich malen und das Blatt zeichnen, an dem sich das Spiel beider Achsen messen lässt — für das letzte gehört ein Stift dorthin, wo sonst der Pinsel sitzt, und es fährt keinen Behälter an; für die Behälterstriche gehört Farbe in den schwarzen Behälter, denn Schwarz malt sie. Die Reinigung richtet sich nach der unter „Behälter“ eingestellten Behälterform; die Kalibrierung tut das nicht, hebt aber wie die übrigen ab, ehe sie die Fläche quert — nur der Punkt und eine Ruhestellung darüber.",
 "Generate macros": "Steuermakros erzeugen",
-"Download macros": "Makros herunterladen",
-"Upload to machine": "Auf Maschine übertragen",
+"Download selected": "Auswahl herunterladen",
+"Upload selected to machine": "Auswahl auf Maschine übertragen",
+"Delete all macros on the machine": "Alle Makros auf der Maschine löschen",
 
 /* ---------------------------------------------------------------- artwork */
 "Artwork": "Bildvorlage",
@@ -408,9 +407,62 @@ text: {
 "in the cups": "in den Behältern",
 
 /* macros */
-"Generated {count} macros from the settings above.":
-  "{count} Makros aus den obigen Einstellungen erzeugt.",
-"{name} ({bytes} B)": "{name} ({bytes} B)",
+"Generated {count} macros from the settings above. Tick what to send.":
+  "{count} Makros aus den obigen Einstellungen erzeugt. Kreuzen Sie an, was gesendet werden soll.",
+"Operation": "Betrieb",
+"Testing & calibration": "Prüfung und Kalibrierung",
+"Zeroes the controller through its fixed sequence, then parks.":
+  "Setzt die Steuerung über ihre feste Folge auf Null und stellt dann ab.",
+"Parks over the water cup, just above dipping depth.":
+  "Stellt über dem Wasserbehälter ab, knapp oberhalb der Eintauchtiefe.",
+"Takes the gantry out of the way for changing the paper.":
+  "Fährt das Portal zum Papierwechsel aus dem Weg.",
+"Washes the brush in the water cup, then parks it.":
+  "Wäscht den Pinsel im Wasserbehälter und stellt ihn dann ab.",
+"Stirs settled pigment back through the cyan cup, then rinses and parks.":
+  "Rührt abgesetztes Pigment wieder durch den Cyan-Behälter, spült dann und stellt ab.",
+"Stirs settled pigment back through the magenta cup, then rinses and parks.":
+  "Rührt abgesetztes Pigment wieder durch den Magenta-Behälter, spült dann und stellt ab.",
+"Stirs settled pigment back through the yellow cup, then rinses and parks.":
+  "Rührt abgesetztes Pigment wieder durch den Gelb-Behälter, spült dann und stellt ab.",
+"Stirs settled pigment back through the black cup, then rinses and parks.":
+  "Rührt abgesetztes Pigment wieder durch den Schwarz-Behälter, spült dann und stellt ab.",
+"Puts one dot near the canvas origin, to check where the paper sits.":
+  "Setzt einen Punkt nahe dem Ursprung des Druckbereichs, um die Papierlage zu prüfen.",
+"A tick at the X of every container, to check the positions. Pen.":
+  "Ein Strich beim X jedes Behälters, um die Positionen zu prüfen. Stift.",
+"The sheet the play in each axis is read off. Pen, full sheet.":
+  "Das Blatt, an dem das Spiel jeder Achse abgelesen wird. Stift, voller Bogen.",
+"Drives all three axes hard and stops where it started, so you can see if steps were lost. Nothing fitted, 5 min.":
+  "Fährt alle drei Achsen hart und hält dort, wo es begann, sodass sich verlorene Schritte erkennen lassen. Nichts eingesetzt, 5 Min.",
+"{n} of {total}": "{n} von {total}",
+"{n} of {total}, {size}": "{n} von {total}, {size}",
+"Nothing is ticked, so there is nothing to send.":
+  "Es ist nichts angekreuzt, also ist nichts zu senden.",
+"Deleting…": "Wird gelöscht …",
+"Delete": "Löschen",
+"Delete all macros on {host}": "Alle Makros auf {host} löschen",
+"Asking {base} what is on its flash…":
+  "{base} wird gefragt, was auf seinem Flash-Speicher liegt …",
+"{base} says there is no .g file on its flash. Nothing to delete.":
+  "{base} meldet keine .g-Datei auf seinem Flash-Speicher. Es ist nichts zu löschen.",
+"Delete all {count} .g files on {host}? They are {names}. This cannot be undone from here — the macros can be generated again, but anything else on that list that ends in .g goes too.":
+  "Alle {count} .g-Dateien auf {host} löschen? Es sind {names}. Von hier aus ist das nicht rückgängig zu machen — die Makros lassen sich neu erzeugen, doch alles übrige auf dieser Liste, was auf .g endet, geht ebenfalls fort.",
+"Delete the {count} macro files this page writes from {host}? They are {names}. The machine's own file list could not be read from here, so any other .g on its flash is left alone. This cannot be undone from here.":
+  "Die {count} Makrodateien, die diese Seite schreibt, von {host} löschen? Es sind {names}. Die Dateiliste der Maschine ließ sich von hier aus nicht lesen, daher bleibt jede andere .g auf ihrem Flash-Speicher unangetastet. Von hier aus ist das nicht rückgängig zu machen.",
+"Nothing was deleted.": "Es wurde nichts gelöscht.",
+"Deleting {name} from {base}… ({gone}/{total})":
+  "{name} wird von {base} gelöscht … ({gone}/{total})",
+"Deleted {count} .g files from {base}'s flash. Its file list is now clear of them.":
+  "{count} .g-Dateien vom Flash-Speicher von {base} gelöscht. Seine Dateiliste führt sie nicht mehr.",
+"Sent {count} deletes to {base}. It still lists {n} .g files: {names}. Try again, or clear them from the machine's own file list.":
+  "{count} Löschbefehle an {base} gesendet. Es führt weiterhin {n} .g-Dateien: {names}. Versuchen Sie es noch einmal, oder räumen Sie sie über die Dateiliste der Maschine fort.",
+"Sent {count} deletes to {base}'s flash — the {count} names this generator writes. The replies are opaque and the file list could not be read from here, so check the machine's own file list to be sure, and for any other .g this page does not know about.":
+  "{count} Löschbefehle an den Flash-Speicher von {base} gesendet — die {count} Namen, die dieser Generator schreibt. Die Antworten bleiben verdeckt und die Dateiliste ließ sich von hier aus nicht lesen; prüfen Sie daher zur Sicherheit die Dateiliste der Maschine, auch auf jede andere .g, von der diese Seite nichts weiß.",
+"{base} stopped taking deletes at {name}: {error}. Check the hostname under Machine setup, Connection, and that this page and the machine are on the same network.":
+  "{base} nahm ab {name} keine Löschbefehle mehr an: {error}. Prüfen Sie den Netzwerknamen unter „Maschineneinrichtung“, „Verbindung“ und dass diese Seite und die Maschine im selben Netz liegen.",
+"This page is on https and {base} is not, so the browser will block the connection. Open the WebUI over http on the same network as the machine.":
+  "Diese Seite liegt auf https, {base} nicht, daher unterbindet der Browser die Verbindung. Rufen Sie die Weboberfläche über http im selben Netz wie die Maschine auf.",
 
 /* to the machine */
 "Set a hostname under Machine setup, Connection.":
@@ -474,11 +526,18 @@ html: {
   "Schreibt alles Obige samt den Fülleinstellungen wieder in eine <code>.conf</code> hinaus, " +
   "die Sie aufbewahren oder einer anderen Maschine übergeben können.",
 
-/* --------------------------------------------------------- the about page */
-"run-1": "Eine Maschinenkonfiguration (<code>.conf</code>) beschreibt die Maschine. Jede Einstellung darunter wird aus dieser Datei erzeugt.",
-"run-2": "Sie laden je Behälter ein geschwelltes Bild hoch, gemalt in der Reihenfolge Gelb, Magenta, Cyan, dann Schwarz &mdash; oder eine einzelne Farbfotografie, die in CMYK zerlegt und zu ebendiesen Druckplatten geschwellt wird.",
-"run-3": "Jedes Bild wird unmittelbar in Pinselstriche verwandelt. Jeder Farbpunkt wird mit seinem Abstand zum nächsten blanken Papier beschriftet, und eine um <i>d</i> eingerückte Kontur ist dann schlicht die Höhenlinie von &bdquo;mindestens <i>d</i> vom Rand entfernt&ldquo;. Eine konzentrische Füllung ist dasselbe bei einem halben Strich, anderthalb, zweieinhalb &hellip; also liefert eine einzige Abstandstransformation die ganze Füllung, und die Ringe werden nebeneinander gezeichnet, weil keiner vom anderen abhängt.",
-"run-4": "<b>copicograf</b> verwandelt diese Striche in die Choreographie des Pinsels: Eintauchen in den Farbbehälter, Abstreifen des mitgeführten Tropfens, Auswaschen im Wasser und Nachtauchen alle paar hundert Millimeter.",
+"macro-pick-note":
+  "Der Flash-Speicher einer Steuerung ist klein und ihre eigene Bedienoberfläche liegt " +
+  "bereits darauf; wählen Sie daher aus, was gesendet wird. <b>Betrieb</b> ist, wonach " +
+  "Sie zwischen zwei Aufträgen greifen, und ist voreingestellt; <b>Prüfung und " +
+  "Kalibrierung</b> läuft, wenn die Maschine eingerichtet wird oder unter Verdacht steht, " +
+  "und was dabei herauskommt, wohnt danach in den obigen Einstellungen und nicht auf der " +
+  "Maschine. Ein angekreuzter Abschnitt kreuzt alles darunter an.",
+
+"macro-delete-note":
+  "Fragt die Maschine nach ihrer Dateiliste und nimmt jede darin genannte <code>.g</code> " +
+  "fort. Lässt die Firmware diese Liste nicht lesen, so greift sie ersatzweise auf die " +
+  "zwölf Namen oben zurück und sagt, welches von beidem geschehen ist.",
 
 "note-kind": "Das Bild eines Behälters kann <b>bereits geschwellt</b> sein oder ein <b>Foto</b>. Ein Foto wird zunächst zum Holzschnitt, und der Holzschnitt besteht aus <b>Strichen</b>: langen, etwa eine Pinselbreite starken, die dort enger zusammenrücken, wo das Bild dunkler ist, und in den Lichtern ins Papier auslaufen. Sie folgen den Richtungen des Bildes selbst und legen sich um eine Form, wie es eine geschnittene Linie tut, statt als gerade Streifen oder Gitter darüberzuliegen. Nichts wird voll ausgefüllt — eine Fläche deckt der Pinsel, indem er in ihr im Kreis geht, und das sind hundert kurze Striche, wo ein Schatten gemeint war. Ein Foto wird zudem um eine Vierteldrehung gedreht, wenn seine lange Seite dann an der langen Seite der Unterlage liegt — auf einem breiten Bett malt das ein hochformatiges Bild um die Hälfte größer; ein bereits geschwelltes Bild wird so gemalt, wie es ankam. Sehen Sie sich das Ergebnis vor dem Lauf an.",
 "note-cmyk": "Eine <b>Farbfotografie</b> unter „Bildvorlage“ wird mit demselben Papierprofil nach CMYK gewandelt, das auch der Rest dieses Bestandes benutzt; dann wird jeder Auszug an einer Farbschwelle zu einer zweitönigen Platte geschnitten. Diese Platten werden genau so verfolgt wie bereits geschwellte Bilder. Die vier Farbkarten sind beiseitegeräumt, solange eine Fotografie geladen ist, sodass die Platten allein aus ihr stammen; nehmen Sie die Fotografie fort, um sie von Hand hochzuladen. Töne unterhalb der Schwelle bleiben Papier, damit der Pinsel keine Lasur malen soll, die er nicht legen kann. Das Profil unterlegt dunkle Töne mit Cyan, Magenta und Gelb, wie es eine Druckmaschine tut, unter dem nachfolgenden Schwarz; diese drei werden überall dort ausgespart, wo Schwarz malt, was die Malarbeit einer Fotografie halbiert und nichts Sichtbares ändert. Ein Schalter neben der Farbschwelle malt die Unterlage dennoch, für Behälter außer Passer.",
