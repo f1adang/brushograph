@@ -1933,7 +1933,7 @@ function renderSimStats() {
 }
 
 /* ------------------------------------------------------------ macros ---- */
-/* The twelve files — one round trip to /macros, held here as {name: text} so
+/* The thirteen files — one round trip to /macros, held here as {name: text} so
  * Download and Upload need no second request. Same shape as the config
  * download, minus the tray images that one refuses to run without: /macros
  * only reads the text fields.

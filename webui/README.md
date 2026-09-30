@@ -2568,12 +2568,12 @@ every other always-offered setting.
 
 At the end of Machine setup, below Save these settings — it is about the
 machine rather than about a picture, so it lives with its plan drawing rather
-than down by Run — the **Macro generator** builds twelve small routines:
+than down by Run — the **Macro generator** builds thirteen small routines:
 `zero.g`, `home.g`, `paper.g`, `clean.g`, `calibrate.g`, `containercenter.g`,
-the four `mix-*.g` files, `backlash.g` and `speedtest.g`.
-All twelve come from `webui/macros.py`, a module the pipeline never imports and
+the four `mix-*.g` files, `backlash.g`, `speedtest.g` and `trump.g`.
+All thirteen come from `webui/macros.py`, a module the pipeline never imports and
 that never touches a tray image, so generating them needs none of the pictures
-a G-code run refuses to proceed without. Eleven of the twelve are built from
+a G-code run refuses to proceed without. Twelve of the thirteen are built from
 the config; `zero.g` is not (see below).
 
 They are built from `fit_cups_to_shape(with_defaults(conf))`, the same pair
@@ -2620,6 +2620,19 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   `go_in_tray_lift` before crossing the bed, like the rest — it is run from
   where the other macros leave the brush, X0 Y0 at Dip Depth + 1, which on a
   holder whose water crucible covers the origin is under the rim.
+- **trump.g** signs the lower right corner of the canvas, with a pen fitted
+  where the brush goes, in the spiky upright hand of Donald Trump's autograph:
+  a tall first capital and then a picket fence of narrow spikes, three pen-down
+  strokes (first name, surname, the crossbar of the T). It is a stylised
+  impression from a dozen points a stroke in `_SIGNATURE`, not a traced
+  facsimile. It is drawn 40 mm wide or two-fifths of the canvas width,
+  whichever is less (19 mm tall at 40), 5 mm in from the far X edge and the
+  near Y edge — the edge nearest the containers, which is the bottom of the
+  painting as the plan and the preview show it. It touches down at
+  `canvas_height` like the other pen sheets, travels at `go_in_tray_lift`, and
+  parks at the water cup. A canvas too small to hold it gets a file that says
+  so and draws nothing. It sits under Testing & calibration, unticked by
+  default.
 - **containercenter.g** paints a tick on the canvas at the **X of every
   container** the config names, so the **container positions** — the one group
   of settings with nothing to check them against — can be held against the

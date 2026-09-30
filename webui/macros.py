@@ -1,4 +1,4 @@
-"""Twelve small utility routines.
+"""Thirteen small utility routines.
 
 home.g parks the brush, paper.g moves it out of the way for replacing the
 paper, and clean.g washes the brush the way a real job does before parking
@@ -50,7 +50,11 @@ is a tool-free instrument better than a millimetre. Where backlash.g needs a
 printed gauge because play does not accumulate, this needs none because steps
 do.
 
-None of the twelve carries an M-code or a G28, so none needs the controller
+trump.g signs the lower right corner of the canvas with a pen, in the spiky
+upright hand of Donald Trump's autograph -- a stylised impression drawn from a
+handful of polylines, not a traced facsimile.
+
+None of the thirteen carries an M-code or a G28, so none needs the controller
 dialect handling `gcode_pipeline.sanitize_for_controller` does for a real job:
 G90/G0/G1/G10 are understood the same way by Marlin, GRBL and FluidNC.
 """
@@ -76,7 +80,7 @@ from version import gcode_note
 MACRO_NAMES = ["zero.g", "home.g", "paper.g", "clean.g", "calibrate.g",
                "containercenter.g",
                "mix-c.g", "mix-m.g", "mix-y.g", "mix-k.g",
-               "backlash.g", "speedtest.g"]
+               "backlash.g", "speedtest.g", "trump.g"]
 
 # The two kinds of macro, and which kind a machine is sent unless told
 # otherwise. The split is about the flash filesystem, which is small and is
@@ -123,6 +127,7 @@ MACRO_SECTIONS = [
         ("speedtest.g",
          "Drives all three axes hard and stops where it started, so you can see "
          "if steps were lost. Nothing fitted, 5 min."),
+        ("trump.g", "Signs the lower right of the canvas in Donald Trump's hand. Pen."),
     ]),
 ]
 
@@ -243,6 +248,28 @@ _SPEED_RUN_UP = 12.0
 # well as in the brush.
 _TICK = 20.0
 _TICK_MIN = 2.0
+
+# trump.g's signature, as pen strokes in units of its own height: the first
+# name, the surname with its stem, and the crossbar of the T. Not a trace of
+# any real autograph -- a stylised impression of the one everybody knows, a
+# tall first capital and then a picket fence of narrow spikes, which is what
+# makes it read at a glance. Each stroke is one pen-down.
+_SIGNATURE = [
+    [(0.00, 0.10), (0.06, 1.00), (0.22, 0.70), (0.12, 0.08), (0.00, 0.20),
+     (0.30, 0.55), (0.36, 0.05), (0.42, 0.75), (0.48, 0.05), (0.54, 0.62),
+     (0.60, 0.05), (0.66, 0.85), (0.72, 0.05), (0.78, 0.55), (0.84, 0.10),
+     (0.92, 0.35)],
+    [(1.20, 0.05), (1.30, 1.10), (1.34, 0.05), (1.42, 0.60), (1.48, 0.05),
+     (1.56, 0.70), (1.62, 0.05), (1.70, 0.58), (1.76, 0.05), (1.84, 0.66),
+     (1.90, 0.05), (1.98, 0.50), (2.10, 0.15), (2.30, 0.25)],
+    [(1.05, 0.95), (1.60, 1.08)],
+]
+_SIGNATURE_W = max(x for stroke in _SIGNATURE for x, _ in stroke)
+# How wide the signature is drawn, at most, and how far in from the canvas
+# edges. Forty millimetres is a signature, not a slogan, and a fifth of the
+# canvas keeps it a corner mark on a Mikro's 65 mm width.
+_SIGN_MAX_W = 40.0
+_SIGN_MARGIN = 5.0
 
 # speedtest.g's legs, in the order it runs them. Each figure is the number of
 # times that leg is repeated, and none of them is an endurance test: a motor
@@ -1158,6 +1185,45 @@ def generate_macros(conf: dict) -> dict[str, str]:
         ]
     out["containercenter.g"] = "\n".join(lines) + "\n"
 
+    # trump.g -- sign the lower right corner of the canvas, with a pen fitted
+    # in the holder in place of the brush, like containercenter.g's ticks:
+    # nothing to pick up and nothing to wash. Lower right is the canvas's far
+    # X and its near Y, the edge nearest the containers, which is the bottom
+    # of the painting as the plan and the preview show it.
+    sign_w = min(_SIGN_MAX_W, can_w * 0.4)
+    sign_h = sign_w / _SIGNATURE_W
+    margin = min(_SIGN_MARGIN, can_w * 0.05, can_h * 0.05)
+    sx0 = min(ox + can_w - margin - sign_w, reach_x - sign_w)
+    sy0 = oy + margin
+    lines = [
+        "; trump.g -- sign the lower right of the canvas in Donald Trump's",
+        "; hand: a stylised impression, not a traced facsimile.",
+        ";",
+        "; Drawn with a pen fitted in the holder in place of the brush.",
+    ]
+    if sign_h * 1.1 + margin > can_h or sx0 < 0:
+        lines += [
+            ";",
+            "; The canvas is too small to sign, so this file does nothing.",
+            *_preamble(bg),
+        ]
+    else:
+        lines += [
+            f"; {_fmt(sign_w)} mm wide, {_fmt(sign_h * 1.1)} mm tall, its lower "
+            f"left at X{_fmt(sx0)} Y{_fmt(sy0)}.",
+            *_preamble(bg),
+            f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift -- clear before crossing the bed",
+        ]
+        for stroke in _SIGNATURE:
+            pts = [(sx0 + px * sign_h, sy0 + py * sign_h) for px, py in stroke]
+            lines += [f"G00 X{_fmt(pts[0][0])} Y{_fmt(pts[0][1])}",
+                      _feed(bg, "normal") + " ; the rate a job paints at",
+                      f"G01 Z{_fmt(cz)}",
+                      *(f"G01 X{_fmt(px)} Y{_fmt(py)}" for px, py in pts[1:]),
+                      _feed(bg, "fast"), f"G00 Z{_fmt(go_lift)}"]
+        lines += ["; park", *_park(wx, wy, park_z)]
+    out["trump.g"] = "\n".join(lines) + "\n"
+
     # mix-c.g, mix-m.g, mix-y.g, mix-k.g -- stir one colour cup.
     #
     # Watercolour in a crucible separates: pigment to the floor, water and the
@@ -1791,5 +1857,5 @@ def generate_macros(conf: dict) -> dict[str, str]:
 
     # Every macro, zero.g's fixed routine included, says what made it — and
     # goes out in ASCII, like everything else the machine is sent.
-    return {name: to_ascii(gcode_note() + "\n" + text)
-            for name, text in held.items()}
+    return {name: to_ascii(gcode_note() + "\n" + held[name])
+            for name in MACRO_NAMES}
