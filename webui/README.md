@@ -2835,6 +2835,41 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   and not at three. The header of each file names the gaps its own two gauges
   were drawn with.
 
+  **The X gauge's pairs have their gaps written under them** (`0.5`, `1`,
+  `1.5` …), so the ruler is read off the sheet rather than counted from the
+  narrow end. Only the X gauge's: the Y gauge draws the same gaps in the same
+  order. Figures beside the Y rows as well, and above the X columns, were
+  tried and were clutter, and so were 8 mm figures; they are 3 mm. They are
+  pen strokes in seven-segment digits, since a pen draws straight lines well
+  and a digit only has to be told from the other nine. The decimal point is
+  a small square, because a pen lowered and lifted at one spot leaves next to
+  nothing.
+
+  **The figures are written free of the play**, like everything else on a
+  sheet that is measuring it. Every stroke of a glyph runs only rightward,
+  upward or both, and the pen comes to each stroke's start from 12 mm below
+  and to the left. So both axes have last moved the positive way whenever the
+  pen is down, and the play shifts every mark by the same amount: it moves a
+  figure and leaves its shape alone. A "0" is therefore two L-shapes,
+  bottom-then-right and left-then-top, not one loop, which would reverse
+  on both axes on the way round and open its corners by the play. The module refuses to load if a
+  glyph stroke ever runs back on an axis. Across the five configs checked,
+  none of the 66–92 pen-down moves in the X gauge's section has either axis
+  last moving backwards.
+
+  The figures go in a single row under the columns where the pairs are far
+  enough apart, as on the Mini. Where they are not, every other figure goes a
+  row further down, so each sits beside the next but one. The 𝔐𝔦𝔨𝔯𝔬's
+  columns stand under 4 mm apart and take two rows, with its figures 2.7 mm
+  tall. Figures in a row keep a digit and a half of clear paper between them:
+  with half a digit the Mini's read "0.51.52.5", and with one digit the
+  𝔐𝔦𝔨𝔯𝔬's still read "0.51.5". A second row is used only when it makes the
+  figures a quarter larger. The columns start above the figures and give up
+  the room, down to the 10 mm floor a station's leg has: 47.5 mm on the Mini,
+  down from 52. Splitting every glyph into monotone strokes costs pen-downs:
+  the sheet goes from 40 to 67 on the Mini (392 → 601 lines) and from 38 to
+  57 on the 𝔐𝔦𝔨𝔯𝔬.
+
   As drawn on the Mini the sheet is **40 strokes, 1495 mm of line and 3347 mm
   of travel over 312 lines**, against the painted sheet's 32 strokes, 1242 mm
   of paint, 16 dips and 5310 mm of travel over 355 — more line over more of

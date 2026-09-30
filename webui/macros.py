@@ -174,6 +174,50 @@ _CLEAR = 3.0
 # rather than as long as it likes, with the gauges taking what is left.
 _GAUGE_MIN = sum(_GAUGE_GAPS) + 2.0 * (len(_GAUGE_GAPS) - 1)
 
+# The figure written under each X gauge pair, so the ruler is read off the
+# sheet and not counted from the narrowest end. Digits are drawn as strokes
+# of a seven-segment display, _LABEL_H tall at most and smaller where the
+# paper will not hold that, _LABEL_GAP clear of the lines they name.
+# Seven segments because a pen draws straight lines well and nothing else
+# needs to be read here: the figures are 0.5 to 2.5, and a digit that only
+# has to be told from nine others does not need a curve.
+_LABEL_H = 3.0
+_LABEL_GAP = 1.5
+_DIGIT_W = 0.6   # of the height
+_POINT_W = 0.15   # of the height; the decimal point is this square
+_GLYPH_SPACE = 0.35   # of the height, between one glyph and the next
+# Every stroke runs rightward, upward or both, and never back on either axis:
+# the figures are written on a sheet that measures the play, on a machine
+# whose play is not known yet, so they are drawn the way the gauge is -- with
+# the play taken up the same way on both axes at every mark (see `_text`).
+# A seven-segment glyph splits into such strokes naturally; a "0" is two
+# L-shapes, bottom-then-right and left-then-top, rather than one loop that
+# would reverse on both axes on the way round.
+_GLYPHS = {
+    "0": [[(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)]],
+    "1": [[(0.5, 0), (0.5, 1)], [(0.2, 0.8), (0.5, 1)]],
+    "2": [[(0, 0), (0, 0.5), (1, 0.5), (1, 1)], [(0, 0), (1, 0)],
+          [(0, 1), (1, 1)]],
+    "3": [[(0, 0), (1, 0), (1, 1)], [(0, 0.5), (1, 0.5)], [(0, 1), (1, 1)]],
+    "4": [[(0, 0.5), (0, 1)], [(0, 0.5), (1, 0.5)], [(1, 0), (1, 1)]],
+    "5": [[(0, 0), (1, 0), (1, 0.5)], [(0, 0.5), (1, 0.5)],
+          [(0, 0.5), (0, 1), (1, 1)]],
+    "6": [[(0, 0), (1, 0), (1, 0.5)], [(0, 0), (0, 1), (1, 1)],
+          [(0, 0.5), (1, 0.5)]],
+    "7": [[(0, 1), (1, 1)], [(0.4, 0), (1, 1)]],
+    "8": [[(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)],
+          [(0, 0.5), (1, 0.5)]],
+    "9": [[(0, 0), (1, 0), (1, 1)], [(0, 0.5), (0, 1), (1, 1)],
+          [(0, 0.5), (1, 0.5)]],
+    # A small square rather than a touch: a pen let down and lifted at one
+    # point leaves next to nothing with a fine tip.
+    ".": [[(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)]],
+}
+assert all(x1 >= x0 and y1 >= y0
+           for strokes in _GLYPHS.values() for stroke in strokes
+           for (x0, y0), (x1, y1) in zip(stroke, stroke[1:])), \
+    "a glyph stroke runs back on an axis, which lets the play into the figure"
+
 # How far a stroke backs off before it comes in, so the axis is certainly
 # travelling the way the test means it to when it arrives. It only has to
 # exceed the play itself; it is clamped to the bed for a machine with no room
@@ -754,6 +798,50 @@ def _comb_stroke(bg: dict, vertical: bool, pos: float, start: float, end: float,
             _feed(bg, "fast") + " ; back to travel speed", f"G00 Z{_fmt(lift)}"]
 
 
+def _glyph_w(ch: str) -> float:
+    """A glyph's width in units of the text height."""
+    return _POINT_W if ch == "." else _DIGIT_W
+
+
+def _text_w(text: str) -> float:
+    """How wide `text` is drawn, in units of its height."""
+    return sum(_glyph_w(ch) for ch in text) + _GLYPH_SPACE * (len(text) - 1)
+
+
+def _text(bg: dict, text: str, x: float, y: float, h: float,
+          canvas_z: float, lift: float, reach_x: float,
+          reach_y: float) -> list[str]:
+    """`text` written with the pen, `h` tall, its bottom left corner at (x, y).
+
+    Written free of the play. Every stroke of a glyph runs rightward and
+    upward only (`_GLYPHS`), and the pen comes to the start of each one from
+    below and to the left, backed off by the run-up on both axes. So when the
+    pen goes down, and all the way along the stroke, both axes have last
+    moved the positive way. The play then shifts every mark of every figure
+    by the same amount, which moves a figure and leaves its shape alone. A
+    loop would reverse on both axes on the way round and open its corners by
+    the play.
+
+    Drawn at the rate a job paints at, like the gauge strokes.
+    """
+    lines = []
+    for ch in text:
+        w = _glyph_w(ch) * h
+        for stroke in _GLYPHS[ch]:
+            tall = w if ch == "." else h
+            pts = [(x + px * w, y + py * tall) for px, py in stroke]
+            sx, sy = pts[0]
+            back_x = sx - _run_up(sx, 1, 0.0, reach_x)
+            back_y = sy - _run_up(sy, 1, 0.0, reach_y)
+            lines += [f"G00 X{_fmt(back_x)} Y{_fmt(back_y)}",
+                      f"G00 X{_fmt(sx)} Y{_fmt(sy)} ; arrive from below left",
+                      _feed(bg, "normal"), f"G01 Z{_fmt(canvas_z)}",
+                      *(f"G01 X{_fmt(px)} Y{_fmt(py)}" for px, py in pts[1:]),
+                      _feed(bg, "fast"), f"G00 Z{_fmt(lift)}"]
+        x += w + _GLYPH_SPACE * h
+    return lines
+
+
 def _mix_macro(conf: dict, channel: str, tray: str) -> str:
     """Stir one colour cup, then wash the brush and park it.
 
@@ -1233,6 +1321,46 @@ def generate_macros(conf: dict) -> dict[str, str]:
     xg_slots, xg_run = right, (band[0], min(band[1], band[0] + leg * 2))
     xg_gaps = gauge_gaps(xg_slots[1] - xg_slots[0])
     yg_gaps = gauge_gaps(yg_slots[1] - yg_slots[0])
+    xg_at = gauge_slots(*xg_slots, xg_gaps)
+    yg_at = gauge_slots(*yg_slots, yg_gaps)
+
+    # The figures, under the X gauge's columns only: the Y gauge's rows are
+    # the same pairs in the same order, and figures beside them and above the
+    # X columns as well were clutter. A row under the columns where the pairs
+    # stand far enough apart for that, as they do on a Mini; where they do
+    # not -- the Mikro's stand under 4 mm apart -- every other figure goes a
+    # row further down, so each is only beside the next but one. The columns
+    # start above the figures and give up the room, down to _LEG_MIN.
+    #
+    # A figure may reach past its own column sideways. To the left it stops
+    # short of the middle station's upright leg, which stands in the band; to
+    # the right, at the edge of the paint or 3 mm short of the end of travel.
+    x_names = [_fmt(g) for g in xg_gaps]
+    x_mid = [a + g / 2 for a, g in zip(xg_at, xg_gaps)]
+    x_w = [_text_w(n) for n in x_names]
+    x_lo, x_hi = cx + _CLEAR, min(ox + paint_w, reach_x)
+    band_h = band[1] - band[0]
+
+    def label_fit(rows: int) -> float:
+        """How tall the figures can be with `rows` rows under the columns."""
+        h = _LABEL_H
+        for i, (c, w) in enumerate(zip(x_mid, x_w)):
+            h = min(h, (c - x_lo) / (w / 2), (x_hi - c) / (w / 2))
+            j = i + rows   # the next figure in the same row
+            if j < len(x_mid):
+                # A digit and a half of clear paper between them, so two
+                # figures in a row are not read as one number: with one
+                # digit's width the Mikro's still read "0.51.5".
+                h = min(h, (x_mid[j] - c) / ((w + x_w[j]) / 2 + 1.5 * _DIGIT_W))
+        # The figures shrink before the columns drop below _LEG_MIN.
+        return max(0.5, min(h, (band_h - _LEG_MIN) / rows - _LABEL_GAP))
+
+    # Two rows only for figures a quarter larger, not for a hair: each row
+    # costs the columns a figure's height.
+    x_rows = 2 if label_fit(2) > 1.25 * label_fit(1) else 1
+    xh = label_fit(x_rows)
+    start = band[0] + x_rows * (xh + _LABEL_GAP)
+    xg_run = (start, min(band[1], start + 2 * leg))
 
     lines = [
         "; backlash.g -- measure the play in X and Y with a pen, to fill in",
@@ -1281,7 +1409,9 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "; across, which is what a gauge is for saving you from at half a",
         "; millimetre and not at three -- so where the paper is too narrow to",
         "; keep the widest pairs apart from their neighbours, they are the",
-        "; ones dropped.",
+        "; ones dropped. The X gauge's pairs have their gaps written under",
+        "; them, drawn so the play cannot bend the figures; the Y gauge's are",
+        "; the same gaps in the same order, counted from its narrowest pair.",
         ";",
         "; The corners stand as far out as the machine can measure, which is",
         "; not always the edge of the paint: every stroke backs off 12 mm and",
@@ -1304,10 +1434,15 @@ def generate_macros(conf: dict) -> dict[str, str]:
     ):
         lines += station(px, py, sx, sy, note)
 
-    for at, gap in zip(gauge_slots(*xg_slots, xg_gaps), xg_gaps):
-        lines.append(f"; X gauge pair {_fmt(gap)} mm")
+    for i, (at, gap, name) in enumerate(zip(xg_at, xg_gaps, x_names)):
+        lines.append(f"; X gauge pair {name} mm")
         lines += gauge(True, at, gap, xg_run[0], xg_run[1], 0.0, reach_x)
-    for at, gap in zip(gauge_slots(*yg_slots, yg_gaps), yg_gaps):
+        # Under the column, every other one a row further down when there
+        # are two rows.
+        ty = xg_run[0] - (i % x_rows + 1) * (xh + _LABEL_GAP)
+        lines += _text(bg, name, at + gap / 2 - _text_w(name) * xh / 2,
+                       ty, xh, cz, go_lift, reach_x, reach_y)
+    for at, gap in zip(yg_at, yg_gaps):
         lines.append(f"; Y gauge pair {_fmt(gap)} mm")
         lines += gauge(False, at, gap, yg_run[0], yg_run[1], 0.0, reach_y)
 
