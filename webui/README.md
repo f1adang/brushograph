@@ -1144,6 +1144,51 @@ tray trip costs far more than a lift.
 
 **Strokes are ordered** nearest-first so the brush travels less between them.
 
+### The brush stays down in its own ink
+
+A photograph painted as it was, *The Starry Night* at 149 mm on Pinkograph with
+a 0.3 mm stroke, was **9,610 strokes with a median of 1.2 to 2.2 mm** — a lift,
+a travel and a landing every millimetre and a half. Looking at the moves between
+them, **a third ran entirely through the plate's own ink**: a ring round a
+pinhole, and then on across the colour that surrounds it to the next ring. The
+brush lifted to cross ground that colour paints anyway.
+
+Those moves are not bridges. A bridge is painting added to join two ends, and
+it pays for itself in paint; this move is travelled whatever happens, and the
+only question is whether the brush is up or down for it. So the ordering pass
+asks: of the ends within `INK_HOP_REACH` (30) line widths, nearest first, is
+there one the brush can reach in a straight line **without leaving the ink**?
+If there is, it goes there ahead of a nearer one across paper, and the two
+strokes are one. The move is walked at half a stroke, because the bridge test's
+half millimetre steps clean over a gap of paper wider than a 0.3 mm stroke.
+
+| | strokes | dips | rough time |
+|---|---|---|---|
+| Pinkograph, 0.3 mm, before | 9,610 | 481 | 9.43 h |
+| brush kept down in the ink | 4,791 | 534 | 8.72 h |
+| Pinkograph, 1 mm, before | 2,785 | 185 | 2.58 h |
+| brush kept down in the ink | 1,650 | 210 | 2.45 h |
+| Brushparang, 0.4 mm, before | 5,628 | 228 | 4.98 h |
+| brush kept down in the ink | 3,140 | 255 | 4.57 h |
+
+Coverage of the plate is unchanged to a tenth of a point, and so is the paint
+on bare paper: nothing is painted that the plate does not paint.
+
+**This is not the bridge that did not pay**, above, and the difference is
+worth having straight. It does cost dips — about a tenth more, since painting
+over ink already painted still spends the brush. On a logo at a 5 mm stroke
+that trade is lost, because there are only a few dozen lifts to save. On a
+photograph there are thousands, and at 100 mm/s² a lift, a move from standstill
+and a landing cost more than their share of a dip: every configuration above
+comes out quicker. It is not only photographs, either. A line drawing of a
+hand went from 2,931 strokes to 1,557, and a logo from 51 to 14 with the same
+number of dips.
+
+Reach 10 gets most of it (5,093 strokes against 4,791 at 30) and past 30
+there is nothing left to reach. Asking only the nearest twelve ends is what
+keeps it quick: the test walks the move, and past a dozen refusals the ink
+round there is not joined up. Generation takes as long as it did.
+
 ### The rough time, and why it was three times out
 
 A job reported at **an hour and a half** took about **five**: an hour in, the

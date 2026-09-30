@@ -40,6 +40,19 @@ FALLBACK_PATTERN = "concentric"
 # cost of painting over slightly more bare paper.
 BRIDGE_MULTIPLE = 1.5
 
+# How far, in line widths, the brush carries on through its own ink to the next
+# stroke rather than lifting. Not a bridge: the move is travelled either way,
+# and a move that never leaves the ink paints only what that colour paints
+# anyway. On a thresholded photograph a third of all moves between strokes are
+# like that -- a ring round a pinhole, then on across the ink round it -- and
+# taking them halved the brush-downs with the coverage unchanged. 30 against
+# 10 is a few hundred fewer lifts for no more dips; past it there is nothing
+# left to reach. See the README's *The brush stays down in its own ink*.
+INK_HOP_REACH = 30.0
+
+# How many of the nearest ends are asked whether the ink reaches them.
+INK_HOP_TRIES = 12
+
 # How many pixels wide the brush must be in the raster the geometry is worked
 # on. Everything downstream — the distance transform, the contours, the rescue
 # pass — resolves to whole pixels, so when a stroke is barely one pixel across
@@ -182,10 +195,19 @@ class InkMask:
         return True
 
 
-def order_polylines(polys, tol_grid: float = 8.0):
-    """Emit strokes nearest-first so the brush spends less time travelling."""
-    if len(polys) < 3:
+def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.0):
+    """Emit strokes nearest-first so the brush spends less time travelling.
+
+    Given `permit` — a test that a straight move stays inside the ink — the
+    brush also stays down between two strokes wherever it can: an end within
+    `reach` that the move to it never leaves the ink is taken ahead of a nearer
+    one across paper, and the two strokes are handed back as one. See
+    INK_HOP_REACH for why, and what it measured.
+    """
+    if len(polys) < 3 and permit is None:
         return polys
+    if not polys:
+        return []
     cell = max(tol_grid, 1e-6)
     buckets: dict[tuple[int, int], list[tuple[int, int]]] = {}
 
@@ -196,11 +218,38 @@ def order_polylines(polys, tol_grid: float = 8.0):
         buckets.setdefault(key(poly[0]), []).append((i, 0))
         buckets.setdefault(key(poly[-1]), []).append((i, 1))
 
+    span = int(reach // cell) + 1 if permit is not None else 0
     used = [False] * len(polys)
-    out = [polys[0]]
+    out = [list(polys[0])] if permit is not None else [polys[0]]
     used[0] = True
     cur = polys[0][-1]
     for _ in range(len(polys) - 1):
+        if span:
+            # The ends within reach, nearest first, and the first of them the
+            # brush can get to without leaving the ink. Only the nearest dozen
+            # are asked: the test walks the move, and past a dozen refusals
+            # the ink round here is not joined up.
+            cx, cy = key(cur)
+            near = []
+            for dx in range(-span, span + 1):
+                for dy in range(-span, span + 1):
+                    for j, end in buckets.get((cx + dx, cy + dy), ()):
+                        if used[j]:
+                            continue
+                        pt = polys[j][0] if end == 0 else polys[j][-1]
+                        d = (pt[0] - cur[0]) ** 2 + (pt[1] - cur[1]) ** 2
+                        if d <= reach * reach:
+                            near.append((d, j, end, pt))
+            near.sort(key=lambda c: c[0])
+            hop = next(((j, end) for _d, j, end, pt in near[:INK_HOP_TRIES]
+                        if permit(cur, pt)), None)
+            if hop is not None:
+                j, end = hop
+                used[j] = True
+                nxt = polys[j] if end == 0 else polys[j][::-1]
+                out[-1].extend(nxt)
+                cur = nxt[-1]
+                continue
         best = None
         ring = 1
         while best is None and ring < 64:
@@ -227,7 +276,7 @@ def order_polylines(polys, tol_grid: float = 8.0):
         _, j, end = best
         used[j] = True
         nxt = polys[j] if end == 0 else polys[j][::-1]
-        out.append(nxt)
+        out.append(list(nxt) if permit is not None else nxt)
         cur = nxt[-1]
     return out
 
@@ -528,7 +577,19 @@ def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
     if not polys:
         raise PipelineError("nothing left to paint after removing sub-brush-width fragments")
 
-    polys = order_polylines(polys)
+    # Ordered with the brush kept down between strokes the ink joins. The move
+    # is walked at half a stroke, not the bridge's half millimetre: at a
+    # 0.3 mm brush that would step clean over a gap of paper wider than the
+    # stroke.
+    before = len(polys)
+    if mask is not None:
+        step = min(0.5, line_w / 2)
+        polys = order_polylines(polys, permit=lambda a, b: mask.segment_inside(a, b, step),
+                                reach=line_w * INK_HOP_REACH)
+    else:
+        polys = order_polylines(polys)
+    if len(polys) < before:
+        log(f"  brush kept down through the ink {before - len(polys)} times")
     lengths = sorted(_length(p) for p in polys)
     median = lengths[len(lengths) // 2]
     grew = (sum(lengths) - raw_len) / raw_len * 100 if raw_len else 0.0
