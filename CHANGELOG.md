@@ -5,6 +5,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 ## [v2.18.1](https://github.com/f1adang/brushograph/releases/tag/v2.18.1) — 2026-09-30
 
 - **`backlash.g` numbers its X gauge:** each pair of the X gauge now has its gap written under it (`0.5`, `1`, `1.5`, `2`, `2.5`), so you read the figure off the sheet instead of counting pairs from the narrow end. The numbers are drawn so the play being measured cannot distort them. The Y gauge has the same gaps in the same order.
+- **Shorter backlash take-up on the pen sheets:** `backlash.g` and `containercenter.g` now back off 4 mm before each stroke instead of 12, which is still more than the worst play a machine is likely to have. The backlash stations stand closer to the edges of the paper, the sheet travels less (about 30% less on a Mini), and on a 𝔐𝔦𝔨𝔯𝔬 the test lines are longer and the X gauge shows all five pairs. `speedtest.g` is unchanged.
 
 ## [v2.18.0](https://github.com/f1adang/brushograph/releases/tag/v2.18.0) — 2026-09-28
 
