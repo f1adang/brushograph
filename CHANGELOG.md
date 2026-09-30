@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.18.2](https://github.com/f1adang/brushograph/releases/tag/v2.18.2) — 2026-09-30
+
+- **New `trump.g` macro:** signs the lower right corner of the canvas in a stylised version of Donald Trump's spiky autograph. Fit a pen where the brush goes and run it on a finished painting. 40 mm wide on a Mini, smaller on a 𝔐𝔦𝔨𝔯𝔬. It is listed under Testing & calibration and is not ticked by default.
+
 ## [v2.18.1](https://github.com/f1adang/brushograph/releases/tag/v2.18.1) — 2026-09-30
 
 - **`backlash.g` numbers its X gauge:** each pair of the X gauge now has its gap written under it (`0.5`, `1`, `1.5`, `2`, `2.5`), so you read the figure off the sheet instead of counting pairs from the narrow end. The numbers are drawn so the play being measured cannot distort them. The Y gauge has the same gaps in the same order.
