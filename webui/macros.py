@@ -184,7 +184,7 @@ _GAUGE_MIN = sum(_GAUGE_GAPS) + 2.0 * (len(_GAUGE_GAPS) - 1)
 _LABEL_H = 3.0
 _LABEL_GAP = 1.5
 _DIGIT_W = 0.6   # of the height
-_POINT_W = 0.15   # of the height; the decimal point is this square
+_POINT_W = 0.15   # of the height; how wide the decimal comma leans
 _GLYPH_SPACE = 0.35   # of the height, between one glyph and the next
 # Every stroke runs rightward, upward or both, and never back on either axis:
 # the figures are written on a sheet that measures the play, on a machine
@@ -195,7 +195,9 @@ _GLYPH_SPACE = 0.35   # of the height, between one glyph and the next
 # would reverse on both axes on the way round.
 _GLYPHS = {
     "0": [[(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)]],
-    "1": [[(0.5, 0), (0.5, 1)], [(0.2, 0.8), (0.5, 1)]],
+    # "1" and "7" as a display shows them, the right-hand segments and no
+    # serif: one stroke for a "1" rather than two.
+    "1": [[(1, 0), (1, 1)]],
     "2": [[(0, 0), (0, 0.5), (1, 0.5), (1, 1)], [(0, 0), (1, 0)],
           [(0, 1), (1, 1)]],
     "3": [[(0, 0), (1, 0), (1, 1)], [(0, 0.5), (1, 0.5)], [(0, 1), (1, 1)]],
@@ -204,14 +206,15 @@ _GLYPHS = {
           [(0, 0.5), (0, 1), (1, 1)]],
     "6": [[(0, 0), (1, 0), (1, 0.5)], [(0, 0), (0, 1), (1, 1)],
           [(0, 0.5), (1, 0.5)]],
-    "7": [[(0, 1), (1, 1)], [(0.4, 0), (1, 1)]],
+    "7": [[(1, 0), (1, 1)], [(0, 1), (1, 1)]],
     "8": [[(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)],
           [(0, 0.5), (1, 0.5)]],
     "9": [[(0, 0), (1, 0), (1, 1)], [(0, 0.5), (0, 1), (1, 1)],
           [(0, 0.5), (1, 0.5)]],
-    # A small square rather than a touch: a pen let down and lifted at one
-    # point leaves next to nothing with a fine tip.
-    ".": [[(0, 0), (1, 0), (1, 1)], [(0, 0), (0, 1), (1, 1)]],
+    # The decimal point is written as a comma: one stroke, drawn upward from
+    # its tail, where a square point took two and a touch leaves next to
+    # nothing with a fine tip. Its x is in units of its own width.
+    ".": [[(0, -0.2), (1, 0.1)]],
 }
 assert all(x1 >= x0 and y1 >= y0
            for strokes in _GLYPHS.values() for stroke in strokes
@@ -828,8 +831,7 @@ def _text(bg: dict, text: str, x: float, y: float, h: float,
     for ch in text:
         w = _glyph_w(ch) * h
         for stroke in _GLYPHS[ch]:
-            tall = w if ch == "." else h
-            pts = [(x + px * w, y + py * tall) for px, py in stroke]
+            pts = [(x + px * w, y + py * h) for px, py in stroke]
             sx, sy = pts[0]
             back_x = sx - _run_up(sx, 1, 0.0, reach_x)
             back_y = sy - _run_up(sy, 1, 0.0, reach_y)
