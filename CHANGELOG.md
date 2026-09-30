@@ -5,6 +5,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 ## [v2.19.0](https://github.com/f1adang/brushograph/releases/tag/v2.19.0) — 2026-09-30
 
 - **Fewer brush lifts, longer strokes:** when the next stroke can be reached without leaving the colour being painted, the brush now stays down and carries on instead of lifting, travelling and landing again. Nothing is painted that was not painted before. On a colour photograph this halves the number of brush-downs; line drawings and logos gain too. It costs about a tenth more dips, and jobs still finish sooner.
+- **Colour photographs lose the specks:** tiny flecks of ink, smaller than about two brush widths across, are taken off the CMYK plates before painting. Each one cost a separate dab. With the change above, *The Starry Night* at 0.3 mm goes from 9,610 brush-downs to 3,352 and from about 9.4 hours to 8.2. The plate preview shows the plates tidied, and what counts as a speck follows the painted width and **Infill line distance**. Small light gaps in the colour are kept, since in a photograph they are its light strokes.
 
 ## [v2.18.2](https://github.com/f1adang/brushograph/releases/tag/v2.18.2) — 2026-09-30
 
