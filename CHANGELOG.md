@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.18.1](https://github.com/f1adang/brushograph/releases/tag/v2.18.1) — 2026-09-30
+
+- **`backlash.g` numbers its X gauge:** each pair of the X gauge now has its gap written under it (`0.5`, `1`, `1.5`, `2`, `2.5`), so you read the figure off the sheet instead of counting pairs from the narrow end. The numbers are drawn so the play being measured cannot distort them. The Y gauge has the same gaps in the same order.
+
 ## [v2.18.0](https://github.com/f1adang/brushograph/releases/tag/v2.18.0) — 2026-09-28
 
 - **New `speedtest.g` macro:** checks whether the motors keep up when the machine is driven as hard as its settings allow. Nothing needs fitting: no brush, pen, paint or paper. It sweeps the whole bed, runs both diagonals, reverses at full speed and hops Z, and between each part it stops over the water cup for 3 seconds. Home or zero first, put a strip of tape across carriage and rail with a line drawn over both, and watch: if the line no longer meets at a stop, steps were lost in the part just before it. About 5 minutes on a Mini.
