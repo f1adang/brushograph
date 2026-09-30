@@ -2776,29 +2776,29 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   bed it falls halfway between the corners.
 
   The corners stand **as far out as the machine can measure**, which is not
-  always as far as it can paint. Every stroke backs off `_RUN_UP` — 4 mm —
+  always as far as it can paint. Every stroke backs off `_RUN_UP` — 10 mm —
   and comes in along the axis under test, so that axis is certainly travelling
   the right way when it arrives; the move before that runs along the *other*
   axis in the same direction as the stroke, which keeps the play out of the
   ends of the lines. A stroke that began with a reversal would start 1.6 mm
-  short of where it says on Pinkograph. So a station needs 4 mm of ground
+  short of where it says on Pinkograph. So a station needs 10 mm of ground
   beyond it, and nothing in the file — run-ups included — is commanded within
   3 mm of either far end, because a move that finishes against a stop loses
   what it loses for the rest of the file and every line after it lands short
   of where it says. On a sheet whose whole content is where lines land, that
   would not look like a fault at all. Pinkograph's far corners therefore stand
-  at 144 rather than 151, and its near ones at 4 rather than 0. Every pair on
-  all three configs checked gets its full 4 mm from **both** sides — that is
+  at 138 rather than 151, and its near ones at 10 rather than 0. Every pair on
+  all three configs checked gets its full 10 mm from **both** sides — that is
   the constraint the layout is solved against, not a hope.
 
-  **The run-up is 4 mm because it only has to exceed the play**, and 3 mm is
-  what a very poor machine has. It was 12 — the play three times over — and
-  that cost every station 8 mm of ground at each edge of the bed and every
-  stroke a back-off three times longer than it needed. At 4 mm Pinkograph's corners move
-  out from X12–141 to X4–144, its sheet's travel drops from 4048 mm to
-  2849 mm, and the 𝔐𝔦𝔨𝔯𝔬 gets room back for longer legs and a full gauge.
-  `containercenter.g`'s ticks settle over the same 4 mm (438 → 366 mm of
-  travel on Pinkograph). `speedtest.g` keeps 12 mm, as `_SPEED_RUN_UP`: its
+  **The run-up is 10 mm.** It only has to exceed the play, and 3 mm is what a
+  very poor machine has. It was 12, and was cut to 4 — which moved
+  Pinkograph's corners out to X4–144, took its sheet's travel from 4048 mm to
+  2849 mm and gave the 𝔐𝔦𝔨𝔯𝔬 16 mm legs and a full X gauge — but a millimetre
+  over the worst play expected was too thin a margin to trust a measurement
+  to. At 10 mm Pinkograph's corners stand at X10–138, its travel is 3738 mm,
+  and `containercenter.g`'s is 419 mm against 438.
+  `speedtest.g` keeps 12 mm, as `_SPEED_RUN_UP`: its
   approach is not a take-up of the play but the timed distance the
   acceleration is read from, and a shorter one would be over too quickly to
   time by hand.
@@ -2835,13 +2835,13 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   — their own gaps plus 2 mm between each pair — and the legs take the rest,
   between a cap of 30 mm, where more length stops telling you anything, and a
   floor of 10, where a pair of lines stops being a pair you can look along.
-  The Mini's legs come out at the cap and the 𝔐𝔦𝔨𝔯𝔬's at a quarter of its
-  paintable width, 16.25 mm. Where the floor binds, the **widest gauge pairs
-  are dropped** until the clear space is at least as wide as the widest gap
-  drawn. With 12 mm run-ups the 𝔐𝔦𝔨𝔯𝔬 was held to the floor — 65 mm of X less
-  two run-ups was 41 mm to hold two gauges and a station — and its X gauge
-  showed only four pairs, with 2.2 mm of clear paper between them. With 4 mm
-  it shows all five, 2.8 mm apart. The pairs always run from the narrowest in half-millimetre
+  The Mini's legs come out at the cap and the 𝔐𝔦𝔨𝔯𝔬's just over the floor, at
+  10.5 mm: 65 mm of X less two 10 mm run-ups is 45 mm to hold two gauges and a
+  station besides. Where the floor binds, the **widest gauge pairs are
+  dropped** until the clear space is at least as wide as the widest gap
+  drawn: the 𝔐𝔦𝔨𝔯𝔬's X gauge shows four pairs, 0.5 to 2 mm, with 3.5 mm of
+  clear paper between them, and its Y gauge five. (With 4 mm run-ups it had
+  room for all five.) The pairs always run from the narrowest in half-millimetre
   steps, so they are counted from that end and none is ambiguous, and the gaps
   that go are the ones least needed — 2.5 mm is wide enough to lay a rule
   across, which is what a gauge is for saving you from at half a millimetre
@@ -2862,7 +2862,7 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
 
   **The figures are written free of the play**, like everything else on a
   sheet that is measuring it. Every stroke of a glyph runs only rightward,
-  upward or both, and the pen comes to each stroke's start from 4 mm below
+  upward or both, and the pen comes to each stroke's start from 10 mm below
   and to the left. So both axes have last moved the positive way whenever the
   pen is down (the comma is drawn upward from its tail), and the play
   shifts every mark by the same amount: it moves a figure and leaves its
@@ -2876,7 +2876,7 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   The figures go in a single row under the columns where the pairs are far
   enough apart, as on the Mini. Where they are not, every other figure goes a
   row further down, so each sits beside the next but one. The 𝔐𝔦𝔨𝔯𝔬's
-  columns stand under 4 mm apart and take two rows, with its figures 2.6 mm
+  columns stand 4 to 5 mm apart and take two rows, with its figures 3 mm
   tall. Figures in a row keep a digit and a half of clear paper between them:
   with half a digit the Mini's read "0.51.52.5", and with one digit the
   𝔐𝔦𝔨𝔯𝔬's still read "0.51.5". A second row is used only when it makes the
@@ -2884,8 +2884,7 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   the room, down to the 10 mm floor a station's leg has: 47.5 mm on the Mini,
   down from 52. Splitting every glyph into monotone strokes costs pen-downs:
   the sheet goes from 40 to 62 on the Mini (392 → 560 lines). It was 67
-  with a serifed "1" and a square point. The 𝔐𝔦𝔨𝔯𝔬's is 62 too, now that it
-  draws the fifth X gauge pair.
+  with a serifed "1" and a square point. The 𝔐𝔦𝔨𝔯𝔬's goes from 38 to 53.
 
   As drawn on the Mini the sheet is **40 strokes, 1495 mm of line and 3347 mm
   of travel over 312 lines**, against the painted sheet's 32 strokes, 1242 mm

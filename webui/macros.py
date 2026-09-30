@@ -159,8 +159,8 @@ _GAUGE_GAPS = (0.5, 1.0, 1.5, 2.0, 2.5)
 # telling you anything; the floor is where a pair of lines stops being a pair
 # you can look along, and it is the one figure here allowed to push the
 # gauges into showing fewer pairs. Between them the legs take what is left
-# once both gauges have their room -- 30 mm on a Mini, and a quarter of the
-# paintable width on a Mikro, 16.25 mm of its 65.
+# once both gauges have their room -- 30 mm on a Mini, and just over the
+# floor on a Mikro, whose 65 mm of X has to hold two gauges and a station.
 _TEST_LEG = 30.0
 _LEG_MIN = 10.0
 
@@ -223,12 +223,12 @@ assert all(x1 >= x0 and y1 >= y0
 
 # How far a stroke backs off before it comes in, so the axis is certainly
 # travelling the way the test means it to when it arrives. It only has to
-# exceed the play itself, and 3 mm is what a very poor machine has, so 4 mm
-# covers any machine this is likely to meet with a millimetre to spare. It
-# was 12, which was the play three times over and cost every station 8 mm of
-# ground at each edge of the bed. It is clamped to the bed for a machine with
-# no room to give it, and the test still holds as long as something is left.
-_RUN_UP = 4.0
+# exceed the play itself, and 3 mm is what a very poor machine has. 10 mm is
+# that with plenty to spare, and 2 mm less at each edge of the bed than the
+# 12 it was; 4 mm was tried and was too tight a margin to trust. It is
+# clamped to the bed for a machine with no room to give it, and the test
+# still holds as long as something is left.
+_RUN_UP = 10.0
 
 # speedtest.g's approach, which is not a take-up of the play but a timed
 # distance: the acceleration is read off five of them (_SPEED_APPROACHES), and
@@ -1275,9 +1275,9 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # station can stand at the very edge of the paintable area only where the
     # machine can reach that far past it: the outermost ones go to the corners
     # and are pulled in exactly as far as the run-up needs, and no further.
-    # Pinkograph's stations come out at X4 and X144 of a bed that paints 0 to
+    # Pinkograph's stations come out at X10 and X138 of a bed that paints 0 to
     # 151, and at Y33 -- the bottom of the paper, with the containers in the
-    # Y below it -- and Y149 of 156.
+    # Y below it -- and Y143 of 156.
     x0 = max(ox, _RUN_UP)
     x1 = max(x0, min(ox + paint_w, reach_x - _RUN_UP))
     y0 = max(oy, _RUN_UP)
@@ -1312,9 +1312,9 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # them, either side of the middle station. Both rulers get their room
     # first and the legs take what remains, so the answer on a small machine
     # is short legs and a legible gauge rather than the reverse. The Mini's
-    # legs come out at the 30 mm cap and the Mikro's at a quarter of its
-    # width, 16.25 mm. With 12 mm run-ups they were at the 10 mm floor, and
-    # its X gauge had to drop its 2.5 mm pair; with 4 mm it keeps all five.
+    # legs come out at the 30 mm cap and the Mikro's just over the 10 mm
+    # floor, and on the Mikro it is the gauges that then give way: its X
+    # gauge shows four pairs where the Mini's shows five.
     usable_w, usable_h = x1 - x0, y1 - y0
     leg = max(_LEG_MIN, min(_TEST_LEG,
                             0.25 * min(paint_w, paint_h),
@@ -1338,7 +1338,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # the same pairs in the same order, and figures beside them and above the
     # X columns as well were clutter. A row under the columns where the pairs
     # stand far enough apart for that, as they do on a Mini; where they do
-    # not -- the Mikro's stand under 4 mm apart -- every other figure goes a
+    # not -- the Mikro's stand 4 to 5 mm apart -- every other figure goes a
     # row further down, so each is only beside the next but one. The columns
     # start above the figures and give up the room, down to _LEG_MIN.
     #
@@ -1424,9 +1424,9 @@ def generate_macros(conf: dict) -> dict[str, str]:
         "; the same gaps in the same order, counted from its narrowest pair.",
         ";",
         "; The corners stand as far out as the machine can measure, which is",
-        "; not always the edge of the paint: every stroke backs off 4 mm and",
+        "; not always the edge of the paint: every stroke backs off 10 mm and",
         "; comes in along the axis under test, so a station can only stand",
-        "; where there is 4 mm of ground beyond it, and nothing here is",
+        "; where there is 10 mm of ground beyond it, and nothing here is",
         "; commanded within 3 mm of either far end. A move that finishes",
         "; against a stop loses what it loses for the rest of the file.",
         *_preamble(bg),
