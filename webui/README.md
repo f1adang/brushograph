@@ -632,6 +632,48 @@ photograph is usually the edge of something dark. Finding them takes about two
 tenths of a second, which is why the slider redraws the plates the way the
 cutoff does.
 
+#### Specks the brush cannot paint
+
+A thresholded photograph is not clean. *The Starry Night* at 768 px comes out
+of the cutoff as **7,700 separate islands of ink across the four plates**, two
+thirds of them smaller than half a square millimetre on the paper, and every
+one is at least one brush-down: a dab, and a blot where the brush lands. The
+plates are tidied of any speck smaller than `SPECK_BRUSH_AREAS` (4) brush
+areas — about two brushes across — before they are traced. It is measured in
+the stroke's width in the photograph's own pixels, so the painted width and
+**Infill line distance** decide what counts as small, and the plate preview is
+sent both so it shows what will be painted.
+
+After the knockout, which leaves slivers of its own, and before the contours,
+which are a pixel wide and would be tidied away whole.
+
+**Pinholes are left alone**, and that was measured, not assumed. Filling paper
+holes the same size looked like the same tidy the other way round, and on
+stroke counts it was the bigger one: 4,679 strokes to the specks' 8,185 on
+their own. Painted out, it flattened the sky. The light strokes inside a dark
+blue are pinholes in the magenta plate, so filling them turned them dark blue
+too, and the swirl became one field. The brush keeping down through its own
+ink already absorbs most of what a pinhole costs — the ring round it is
+reached across the ink around it.
+
+With the brush kept down, as above, on the same painting:
+
+| | strokes | dips | rough time |
+|---|---|---|---|
+| Pinkograph, 0.3 mm, before either | 9,610 | 481 | 9.43 h |
+| specks tidied at 4 brush areas | **3,352** | 528 | **8.17 h** |
+| at 9 | 2,824 | 518 | 7.88 h |
+| Pinkograph, 1 mm, before either | 2,785 | 185 | 2.58 h |
+| specks tidied at 4 | **1,049** | 199 | **2.17 h** |
+| Brushparang, 0.4 mm, before either | 5,628 | 228 | 4.98 h |
+| specks tidied at 4 | **2,032** | 247 | **4.16 h** |
+
+Nine brush areas saves a sixth more strokes but takes off flecks round the
+stars and in the village that the painting visibly misses, so it stops at four.
+A second photograph at 1 mm goes from 1,613 strokes to 485 and from 1.91 h to
+1.60.
+Generation is quicker for it, too: 20 s to 18 on the 0.3 mm run.
+
 ### Photo to woodcut
 
 Set a tray's *Image Type* to **Photo** and the upload is converted to woodcut /

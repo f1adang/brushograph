@@ -1171,8 +1171,10 @@ function wireForm() {
     if (!file || !cmykBtn) return;
     const fd = new FormData();
     fd.append("image", file);
-    // The canvas, so the plates are laid out the way the run will lay them.
-    for (const n of ["brushograph-width", "brushograph-height"]) {
+    // The canvas, so the plates are laid out the way the run will lay them,
+    // and the stroke, so they lose the specks too small for it to paint.
+    for (const n of ["brushograph-width", "brushograph-height",
+                     "slicer-infill_line_distance"]) {
       const el = form.querySelector(`[name="${n}"]`);
       if (el) fd.append(n, el.value);
     }

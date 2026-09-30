@@ -68,6 +68,16 @@ CONTOUR_BLUR_FRAC = 0.002
 # says nothing.
 CONTOUR_MIN_RUN_FRAC = 0.015
 
+# A speck of ink smaller than this many brush areas is not a mark the brush can
+# make, and it is tidied off the plate before the plate is traced. Each one was
+# a brush-down of its own -- a dab, and a blot where the brush landed -- and a
+# thresholded photograph holds thousands. Pinholes of paper the same size are
+# left alone: in a painted photograph they are its light strokes, and filling
+# them turned the sky of the test painting to one flat blue. Four areas is a
+# speck two brushes across; at nine the painting keeps losing flecks for few
+# more brush-downs saved. See the README's *Specks the brush cannot paint*.
+SPECK_BRUSH_AREAS = 4.0
+
 
 def contour_mask(cmyk: Image.Image, strength: float) -> np.ndarray:
     """Where the picture's objects have their edges, as one-pixel lines.
@@ -123,6 +133,25 @@ def contour_mask(cmyk: Image.Image, strength: float) -> np.ndarray:
     return ~short[labels]
 
 
+def tidy(ink: np.ndarray, brush_px: float) -> np.ndarray:
+    """The plate without the specks of ink too small for the brush to paint.
+
+    Measured against SPECK_BRUSH_AREAS brush areas, `brush_px` being the
+    stroke's width in this picture's pixels. Only ink is tidied, never paper:
+    see SPECK_BRUSH_AREAS for the pinholes, and why they stay.
+    """
+    import cv2  # imported late, as contour_mask does
+
+    area = SPECK_BRUSH_AREAS * brush_px * brush_px
+    if area < 1:
+        return ink
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(
+        ink.astype(np.uint8), connectivity=8)
+    small = stats[:, cv2.CC_STAT_AREA] < area
+    small[0] = False  # label 0 is the paper
+    return ink & ~small[labels]
+
+
 def _cutoff_level(cutoff: float) -> int:
     """Channel value that just counts as ink.
 
@@ -151,7 +180,8 @@ def to_cmyk(image: Image.Image) -> Image.Image:
 
 def threshold_plates(image: Image.Image, cutoff: float = 40.0,
                      knockout: bool = True,
-                     contours: float = 0.0) -> dict[str, Image.Image]:
+                     contours: float = 0.0,
+                     brush_px: float = 0.0) -> dict[str, Image.Image]:
     """1-bit images keyed C/M/Y/K, black where that ink should paint.
 
     `contours` adds the picture's own edges to the black plate, nought for none
@@ -172,6 +202,10 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     the better black where the trays are out of register, since a black pass
     that lands a little off then shows colour at its edge rather than bare
     paper.
+
+    `brush_px`, the stroke's width in this picture's pixels, tidies away the
+    specks of ink too small for it (`tidy`). Nought leaves the plates as
+    the cutoff made them.
     """
     # Already upright and already turned to lie along the canvas if it needed
     # to be: that is images.lay_along, and the caller does it, because the
@@ -183,6 +217,10 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     if knockout:
         for name in ("C", "M", "Y"):
             ink[name] = ink[name] & ~ink["K"]
+    # After the knockout, which leaves slivers of its own, and before the
+    # contours, which are a pixel wide and would be tidied away whole.
+    if brush_px > 0:
+        ink = {name: tidy(mask, brush_px) for name, mask in ink.items()}
     # After the knockout, never before it. A contour crosses every boundary in
     # the picture, so knocking the colours out along it would cut each field
     # into pieces and leave a brush-wide lane of bare paper between them — the
@@ -202,11 +240,12 @@ def ink_fraction(img: Image.Image) -> float:
 
 def plates_for_trays(image: Image.Image, cutoff: float = 40.0,
                      knockout: bool = True,
-                     contours: float = 0.0) -> dict[str, Image.Image]:
+                     contours: float = 0.0,
+                     brush_px: float = 0.0) -> dict[str, Image.Image]:
     """Plates keyed by tray name (cyan, magenta, yellow, kroma)."""
     return {CMYK_TO_TRAY[ch]: plate
             for ch, plate in threshold_plates(
-                image, cutoff, knockout, contours).items()}
+                image, cutoff, knockout, contours, brush_px).items()}
 
 
 def _ink_mask(plate: Image.Image) -> np.ndarray:

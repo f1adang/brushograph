@@ -243,6 +243,12 @@ def _cmyk_contours(form) -> float:
     return _num(form, "cmyk_contours", 0.0)
 
 
+def _cmyk_brush_px(form, photo: Image.Image) -> float:
+    """The stroke's width in the photograph's own pixels, for tidying its plates."""
+    scale = _scale_params(form)
+    return scale["brush_mm"] / scale["width_mm"] * photo.width if scale["width_mm"] > 0 else 0.0
+
+
 def _woodcut_params(form) -> dict:
     return {
         "detail": _num(form, "woodcut_detail", 78.0),
@@ -374,7 +380,8 @@ def cmyk_preview():
             photo = _lay_for_canvas(request.form, uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
         plates = cmyk_sep.threshold_plates(photo, _cmyk_cutoff(request.form),
                                            _cmyk_knockout(request.form),
-                                           _cmyk_contours(request.form))
+                                           _cmyk_contours(request.form),
+                                           _cmyk_brush_px(request.form, photo))
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not separate that image: {exc}"), 400
     # White paper and the light theme's lettering in every theme: the plates
@@ -764,7 +771,8 @@ def options_form_post():
                                         f"{cmyk_upload.filename}: ")
                 plates = cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form),
                                                    _cmyk_knockout(request.form),
-                                                   _cmyk_contours(request.form))
+                                                   _cmyk_contours(request.form),
+                                                   _cmyk_brush_px(request.form, photo))
                 wanted = {e["tray"] for e in entries if e["image"]}
                 for tray, plate in plates.items():
                     if tray not in wanted or tray in images:
