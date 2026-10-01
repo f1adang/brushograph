@@ -174,6 +174,7 @@ text: {
 "Containers": "Behälter",
 "Paint management": "Farbverwaltung",
 "Brush configuration": "Pinseleinrichtung",
+"Brush & Paint settings": "Pinsel und Farbe",
 "Backlash": "Umkehrspiel",
 "Bed levelling":
   "Nivellierung der Unterlage",

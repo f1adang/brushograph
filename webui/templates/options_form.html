@@ -21,7 +21,7 @@
 {% macro group(g, id=none) %}
 <section class="group"{% if id %} id="{{ id }}"{% endif %}>
   <h3>{{ g.group }}{% if g.help %} <button type="button" class="info-btn" title="{{ g.help }}" aria-label="{{ g.help }}">ⓘ</button>{% endif %}</h3>
-  <div class="grid">{% for f in g.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
+  {% if g.fields | rejectattr('group') | list %}<div class="grid">{% for f in g.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>{% endif %}
   {% for gg in g.fields %}{% if gg.group %}
   <section class="group nested">
     <h4>{{ gg.group }}</h4>
@@ -46,27 +46,9 @@
       <h2>The machine</h2>
       <p>Bed, canvas and trays drawn to scale, redrawn as you edit{% if generator != 'copicograf' %}. Running the {{ generator }} generator{% endif %}.</p>
     </div>
-    <figure class="plan">
-      <img id="machine-sketch" alt="Plan view of the machine bed and its trays" src="">
-    </figure>
 
-    {% if machine %}{% for g in machine.fields if g.group and g.job %}
-    <section class="group tight" id="painting-dimensions">
-      <h3>{{ g.group }}</h3>
-      <div class="grid">{% for f in g.fields %}{{ field(f) }}{% endfor %}</div>
-      <p class="note" id="size-note">The picture is scaled to fit this. The height follows the width and the
-        aspect ratio of the first picture you loaded; a portrait colour photograph is
-        turned on its side first.</p>
-      <p class="note" id="size-note-photo" hidden>Picture auto-rotated and scaled as needed to
-        maximize printing area</p>
-      <p class="note" id="ratio-note" hidden></p>
-    </section>
-    {% endfor %}{% endif %}
-
-    {# The brush: between the painting and the machine, because it is changed
-       more often than the machine and less often than the picture. #}
-    {% if machine %}{% for g in machine.fields if g.group and g.brush %}{{ group(g, 'brush-configuration') }}{% endfor %}{% endif %}
-
+    {# Machine setup first, folded: it is opened once per machine, and what it
+       sets — model, containers, travel — is what the plan below draws. #}
     <!-- -------------------------------------------------------------- setup -->
     <details class="setup" id="machine-setup">
       <summary><span>Machine setup</span><i>Model, connection, containers, brush heights, speeds, macros — set once per machine</i></summary>
@@ -200,6 +182,27 @@
 
       </div>
     </details>
+
+    <figure class="plan">
+      <img id="machine-sketch" alt="Plan view of the machine bed and its trays" src="">
+    </figure>
+
+    {% if machine %}{% for g in machine.fields if g.group and g.job %}
+    <section class="group tight" id="painting-dimensions">
+      <h3>{{ g.group }}</h3>
+      <div class="grid">{% for f in g.fields %}{{ field(f) }}{% endfor %}</div>
+      <p class="note" id="size-note">The picture is scaled to fit this. The height follows the width and the
+        aspect ratio of the first picture you loaded; a portrait colour photograph is
+        turned on its side first.</p>
+      <p class="note" id="size-note-photo" hidden>Picture auto-rotated and scaled as needed to
+        maximize printing area</p>
+      <p class="note" id="ratio-note" hidden></p>
+    </section>
+    {% endfor %}{% endif %}
+
+    {# The brush and its paint: after the painting, because they are changed
+       more often than the machine and less often than the picture. #}
+    {% if machine %}{% for g in machine.fields if g.group and g.brush %}{{ group(g, 'brush-paint') }}{% endfor %}{% endif %}
 
   </section>
 

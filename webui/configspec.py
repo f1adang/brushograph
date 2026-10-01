@@ -878,8 +878,8 @@ BRUSHOGRAPH_GROUPS = [
     # The brush, and how far it goes on one load of paint: how long a run it
     # paints before going back to the cups depends on how much the brush
     # holds, so Paint management belongs with it rather than with the cups.
-    ("Brush configuration",
-     ["brush_size",
+    ("Brush & Paint settings",
+     [("Brush configuration", ["brush_size"]),
       ("Paint management",
        ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
         "tray_enter_radius", "remove_drops_radius"])], "brush"),

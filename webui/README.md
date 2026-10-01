@@ -28,23 +28,27 @@ it is painted and how the brush fills a shape change every run; tray positions,
 brush heights, dip depth, radii, backlash and feedrates are set once for a
 machine and left alone.
 
-- **The machine** — a to-scale plan of bed, image area and trays with their
-  entry and drip radii, redrawn as you edit. Trays parked outside the bed are
-  called out rather than quietly cropped. **Painting dimensions** sits directly
-  under the plan, outside the fold, because it is the one group that changes
-  from one run to the next and it is what the picture above it draws: the
-  painted width and height, the offsets that say where on the bed the painting
-  lands, and the canvas height. **Brush configuration** follows it, also
-  outside the fold, because the brush is changed more often than the machine
-  and less often than the picture: the **Brush size**, and **Paint management**
-  nested under it (see *Brush size sets the stroke*). Then one collapsed panel,
-  **Machine setup**, which is about the machine rather than about a picture:
-  the **Model** first, then the connection and controller type, containers,
-  their positions, **Canvas** (where the paintable area begins and how far the
-  machine goes), **Brush control**, backlash and the `moves` speed groups. Then **Download Machine Config**, which writes all of
-  it back out as a `.conf`, and last the **Macro generator** — `zero.g`,
-  `home.g`, `paper.g`, `clean.g`, `calibrate.g` and the rest, built from the
-  settings above it (see below). A config carrying keys this map has never heard of
+- **The machine** — opens with one collapsed panel, **Machine setup**, which
+  is about the machine rather than about a picture: the **Model** first, then
+  the connection and controller type, containers, their positions, **Canvas**
+  (where the paintable area begins and how far the machine goes), **Brush
+  control**, backlash and the `moves` speed groups. Then **Download Machine
+  Config**, which writes all of it back out as a `.conf`, and last the
+  **Macro generator** — `zero.g`, `home.g`, `paper.g`, `clean.g`,
+  `calibrate.g` and the rest, built from the settings above it (see below).
+  It comes first, above the plan, because it is opened once for a machine and
+  what it sets is what the plan draws; folded, it is one line. Below it a
+  to-scale plan of bed, image area and trays with their entry and drip radii,
+  redrawn as you edit. Trays parked outside the bed are called out rather than
+  quietly cropped. **Painting dimensions** sits directly under the plan,
+  outside the fold, because it is the one group that changes from one run to
+  the next and it is what the picture above it draws: the painted width and
+  height, the offsets that say where on the bed the painting lands, and the
+  canvas height. **Brush & Paint settings** follows it, also outside the
+  fold, because the brush is changed more often than the machine and less
+  often than the picture: **Brush configuration**, which holds the **Brush
+  size**, and **Paint management** (see *Brush size sets the stroke*). A
+  config carrying keys this map has never heard of
   still shows them, under **Other settings**.
 - **Artwork** — a **colour photograph** that is converted to CMYK and thresholded
   into the four process plates, and/or one card per colour in `color_order`, each
@@ -297,9 +301,9 @@ wrong figure costs). That made it a fact about the brush typed into the Run
 step under a slicer's name, where nobody changing brushes thought to look.
 
 **Brush size** (`brushograph.brush_size`, millimetres, decimals allowed) is
-where the brush is described now, in its own **Brush configuration** group in
-the machine step. Changing it copies the figure into Infill line distance. Only
-a change by hand does: opening a config leaves both as it states them, and the
+where the brush is described now, under **Brush configuration** in the
+machine step's **Brush & Paint settings**. Changing it copies the figure
+into Infill line distance. Only a change by hand does: opening a config leaves both as it states them, and the
 line distance stays editable, because a fill laid closer or looser than the
 brush is a choice somebody may have made on purpose. Nothing in the pipeline
 reads Brush size; it decides nothing the line distance did not already decide.
@@ -312,7 +316,7 @@ millimetre the pipeline stands in for a zero stroke: on the three configs kept
 on the server that gave 0.4 mm (`parang`), 0.3 mm (`pinkograph`) and 1 mm
 (`testikel`).
 
-**Paint management** moved in under it, out of Machine setup. How far the brush
+**Paint management** moved in beside it, out of Machine setup. How far the brush
 paints on one load (`paint_per_run_min`/`max`) depends on how much paint the
 brush holds, so it is changed with the brush rather than with the machine.
 `tray_enter_radius` and `remove_drops_radius` came along because they are part

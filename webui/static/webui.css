@@ -928,6 +928,9 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
 .setup > summary span::before { content: "▸ "; color: var(--ink-faint); }
 .setup[open] > summary span::before { content: "▾ "; }
 .setup > summary i { font-style: normal; font-size: 13px; color: var(--ink-dim); }
+/* Machine setup opens the machine step, so the plan follows it. */
+.setup + .plan { margin-top: 18px; }
+.step-head + .setup { margin-top: 0; }
 .setup-body { padding: 4px 0 22px; border-top: 1px solid var(--line-soft); }
 .setup-body > .group { margin-top: 24px; }
 .tray-coords { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
