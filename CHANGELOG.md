@@ -4,7 +4,8 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 
 ## v2.20.0 — unreleased
 
-- **Brush size sets the stroke width:** a new **Brush configuration** section in the machine step, under Painting dimensions, has a **Brush size** setting in millimetres (decimals such as 0.5 or 1.2 are fine). Changing it sets **Infill line distance** to the same figure, since the gap between fill strokes should match the width the brush paints. You can still change Infill line distance by hand afterwards. **Paint management** has moved out of Machine setup and into this section, since how far the brush paints on one load depends on the brush. Existing configs open with Brush size equal to the line distance they already use, so they paint exactly as before.
+- **Brush size sets the stroke width:** a new **Brush & Paint settings** section in the machine step, under Painting dimensions, has a **Brush size** setting under **Brush configuration**, in millimetres (decimals such as 0.5 or 1.2 are fine). Changing it sets **Infill line distance** to the same figure, since the gap between fill strokes should match the width the brush paints. You can still change Infill line distance by hand afterwards. **Paint management** has moved out of Machine setup and into this section beside it, since how far the brush paints on one load depends on the brush. Existing configs open with Brush size equal to the line distance they already use, so they paint exactly as before.
+- **Machine setup comes first:** the folded Machine setup panel now opens the machine step, above the plan, instead of sitting at the bottom of it.
 
 ## [v2.19.2](https://github.com/f1adang/brushograph/releases/tag/v2.19.2) — 2026-10-01
 
