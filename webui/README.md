@@ -2580,6 +2580,50 @@ is missing, the run log says which and what it costs, rather than leaving a
 shape-defining number at zero quietly. In the G-code it would show up as a
 move that is simply not there, which is not something anyone finds by reading.
 
+#### Clear of the walls on the way back
+
+A trip between the cups and the paper changes Z on the way rather than standing
+still for it (`travel_with_z`): level at the tray lift while the brush is over
+the containers, eased down to the paper over open bed. Where "over the
+containers" ends was a box per cup — the inside of the bay, grown by 15% — and
+on a painting that starts close to the holder the brush still hit a wall on
+the way back.
+
+Two things were wrong with the box. **It was the swipe, not the crucible.**
+`cup_depth` is the length the brush swipes, 27.7 mm on the Mini, against a
+crucible 35 mm long from outside wall to outside wall, so the box ended
+1.6 mm short of the back wall. And **it took the brush for a point.** The
+coordinates are the tip; the belly above it is as wide as the stroke the brush
+lays, and on a shallow diagonal home it is the belly that is dragged over a rim.
+On a Mini with the CMYK holder, the trip from the yellow crucible to a stroke at
+X 142 Y 28.7 passed the yellow crucible's back corner 0.5 mm off at Z 8.8 under
+a 10 mm rim, then came down beside black's back wall 1.7 mm off at Z 7.
+
+What the trip steers round now is the containers from the **outside** of their
+walls (`holder["outside"]`, the dish's rim for a round cup), the **plate** the
+CMYK crucibles stand in, placed off the water crucible as the plan draws it,
+and around all of it **the reach of the brush**: half the stroke width of the
+Brush size fitted, plus 2 mm for play and wet bristles that have splayed —
+4.25 mm for a No. 6. The ramp begins only once the brush is that far from all
+of it. A stroke that itself starts inside that margin — the Mini's canvas
+begins 1.5 mm behind its crucibles — is flown to at the tray lift and dropped
+onto straight down: there is no diagonal descent beside a wall at all.
+
+Measured on jobs of small shapes along the near edge of the canvas, counting
+diagonal moves below the rim within the brush's reach of a container:
+
+| Setup | Before | Lowest Z | After |
+|---|---|---|---|
+| Mini, CMYK holder | 12 | 5.76 | 0 |
+| 𝔐𝔦𝔨𝔯𝔬 | 8 | 5.01 | 0 |
+| Pinkograph (custom cups) | 18 | 8.24 | 0 |
+| Mini, Classic dishes | 0 | — | 0 |
+
+The path is the same line it was, to the tenth of a millimetre of XY and of Z
+on all three; only where along it Z comes down has moved. Nothing has been made
+slower except that a stroke right beside the holder now ends its trip with a
+short drop rather than arriving already low.
+
 ### The fifth cup
 
 The holder has a bay for black, so the machine paints CMYK rather than CMY. Very

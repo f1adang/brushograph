@@ -28,7 +28,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS,  # noqa: E402
-                        RECTANGULAR_SHAPES, canvas_origin, cup_shape_of,
+                        RECTANGULAR_SHAPES, brush_width, canvas_origin, cup_shape_of,
                         EDGE_HEADROOM, feed_line, holder_of, level_area, level_offset,
                         paintable_size, tray_entries, workable_x)
 
@@ -1188,6 +1188,23 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     copicograf.cup_depth = holder["swipe_length"]
     copicograf.cup_width = holder["bay_width"]
     copicograf.water_cup_width = holder["water_bay_width"]
+    # And what the trips across the bed steer round while the brush is below
+    # the rims: the containers from outside their walls, the CMYK plate they
+    # stand in, and the reach of the brush fitted — half the stroke it lays,
+    # plus two millimetres for play and splayed wet bristles. A dish is its
+    # rim. The plate is placed off the water crucible, as the plan draws it.
+    if cup_shape_of(conf) in RECTANGULAR_SHAPES:
+        copicograf.cup_outside = holder["outside"]
+        water = conf.get("trays", {}).get("water")
+        if cup_shape_of(conf) == "modern" and holder["plate"] and isinstance(water, dict):
+            pw, pd, wx_in, wy_in = holder["plate"]
+            left = float(water["x"]) - wx_in
+            front = float(water.get("y", 0)) - wy_in
+            copicograf.holder_plate = (left, left + pw, front, front + pd)
+    else:
+        rim = 2 * CLASSIC_DISH_RIM_RADIUS
+        copicograf.cup_outside = (rim, rim, rim)
+    copicograf.brush_clearance = (brush_width(bg.get("brush_size")) or line_w) / 2 + 2.0
     # The lanes are held inside the ground a job already covers — the
     # containers and the canvas — not the axis travel. Backlash compensation
     # writes every coordinate low by up to the take-up while the axis travels

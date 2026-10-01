@@ -58,6 +58,11 @@ DIP_DWELL = 0.15
 # is coprime with, and an odd one always has 2 to hand.
 DEFAULT_DIP_LANES = 5
 
+# How far from any container the brush keeps while it is below the rims, in
+# millimetres, when nobody has said what brush is fitted: half a no. 6 round's
+# stroke and two millimetres for play and wet bristles that have splayed.
+BRUSH_CLEARANCE = 4.25
+
 
 def dip_lanes(tray_x, width, lanes, x_limits=(0.0, float("inf"))):
     """The X positions successive dips into one bay use, in visiting order.
@@ -231,6 +236,21 @@ class Copicograf:
         # Fixed by the print like the length, and set the same way.
         self.cup_width = 16.2
         self.water_cup_width = 27.6
+        # What the brush must keep away from while it is below the rims: the
+        # containers from the outside of their walls, as (water width, colour
+        # width, length), and the plate they stand in as (x0, x1, y0, y1).
+        # The figures above are the inside of a bay, and the swipe's share of
+        # it at that, which is the wrong thing to steer round. The WebUI sets
+        # these from the holder; on its own copicograf has neither and steers
+        # round the bays grown by 15%, as it always did.
+        self.cup_outside = None
+        self.holder_plate = None
+        # How far from a wall the brush's own axis has to be before it may go
+        # below the rims. The coordinates are where the tip is, and a brush is
+        # not a point: its belly is the width of the stroke it lays, and it is
+        # that, not the tip, which a shallow ramp drags over a rim. Set by the
+        # WebUI from the brush fitted.
+        self.brush_clearance = BRUSH_CLEARANCE
         # The X the stir may use, low and high. The WebUI sets it from the
         # model's travel, keeping the near end off the endstop by the backlash
         # take-up; on its own copicograf only knows about the endstop.
@@ -466,22 +486,40 @@ class Copicograf:
                 self.gcodes.append(GCodeRapidMove(Z=self.go_in_tray_lift))
                 set_fast_speed()
 
-        # The containers as seen from above, a little larger than they are, so
-        # the walls count as part of them. A bay is its rectangle; a round dish
-        # is squared off, which is the generous way round.
+        # The ground the brush may not be below the rims over: every container
+        # from the outside of its walls, the plate they stand in, and around
+        # all of it as far as the brush reaches from its own axis. A bay is
+        # its rectangle; a round dish is squared off, which is the generous
+        # way round.
+        #
+        # This was the bays' insides grown by 15%, and the inside it grew was
+        # cup_depth, which is the swipe's length and not the crucible's: on
+        # the Mini 27.7 mm against 35, so the box ended 1.6 mm short of the
+        # back wall. A trip home on a shallow diagonal left the box, started
+        # down, and was still over the wall — the brush crossed the back
+        # corner of the yellow crucible at Z 8.8 under a rim at 10. And with
+        # the box ending at the wall, the brush's belly was over the rim even
+        # where its tip was not.
         def cup_mouths():
             rect = self.cup_shape in ("modern", "custom")
+            reach = self.brush_clearance
             for name, tray in self.conf.get("trays", {}).items():
                 if name == "additionals" or not isinstance(tray, dict) or "x" not in tray:
                     continue
                 tx, ty = float(tray["x"]), float(tray.get("y", 0))
-                if rect:
-                    w = self.water_cup_width if name == "water" else self.cup_width
-                    d = self.cup_depth
+                if self.cup_outside:
+                    water_w, colour_w, d = self.cup_outside
+                    w = water_w if name == "water" else colour_w
+                elif rect:
+                    w = (self.water_cup_width if name == "water" else self.cup_width) * 1.15
+                    d = self.cup_depth * 1.15
                 else:
-                    w = d = 2 * self.remove_drops_radius
-                w, d = w * 1.15, d * 1.15
-                yield tx - w / 2, tx + w / 2, ty - d / 2, ty + d / 2
+                    w = d = 2 * self.remove_drops_radius * 1.15
+                yield (tx - w / 2 - reach, tx + w / 2 + reach,
+                       ty - d / 2 - reach, ty + d / 2 + reach)
+            if self.holder_plate:
+                x0, x1, y0, y1 = self.holder_plate
+                yield x0 - reach, x1 + reach, y0 - reach, y1 + reach
 
         def _box_span(ax, ay, bx, by, box):
             """Which part of A->B lies inside the box, as (t0, t1), or None."""
@@ -546,8 +584,11 @@ class Copicograf:
             from the black crucible to the near corner of a canvas offset 25 mm
             out, an even descent passes over the yellow crucible at Z 6.2 with
             the rims at 9. So the ramp runs over the open bed and stops where
-            the path first meets a container's mouth; the rest is flown level
-            at `z_hold`, which is the tray lift and clears the rims by design.
+            the path first comes within the brush's reach of a container
+            (`cup_mouths`); the rest is flown level at `z_hold`, which is the
+            tray lift and clears the rims by design. A spot to paint that is
+            itself that close to a container is flown to level and dropped
+            onto straight down: no diagonal descent at all beside a wall.
             Going the other way it is the same line read backwards: level until
             the last mouth is behind it, then the ramp, arriving at the paper.
 
