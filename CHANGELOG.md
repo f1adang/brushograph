@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.20.1](https://github.com/f1adang/brushograph/releases/tag/v2.20.1) — 2026-10-01
+
+- **The brush no longer catches the container walls on its way to the paper:** when painting close to the cups, the brush used to start coming down at an angle while it was still over the back wall of a crucible, and could hit it. It now stays at tray height until it is clear of every container, the CMYK holder's plate and the width of the brush itself, and only then comes down. If a stroke starts right beside the holder, the brush flies over at tray height and drops straight down onto it. The bigger the brush you set under **Brush size**, the wider the berth. Nothing else about the painting changes, and the trips are no longer.
+
 ## [v2.20.0](https://github.com/f1adang/brushograph/releases/tag/v2.20.0) — 2026-10-01
 
 - **Brush size sets the stroke width:** a new **Brush & Paint settings** section in the machine step, under Painting dimensions, has a **Brush size** setting under **Brush configuration**. Pick the number printed on your round brush's handle, from No. 0 (1–2 mm) to No. 16+ (10+ mm). Picking one sets **Infill line distance** to the middle of that brush's width range, since the gap between fill strokes should match the width the brush paints. You can still change Infill line distance by hand afterwards, including to something finer than any brush. **Paint management** has moved out of Machine setup and into this section beside it, since how far the brush paints on one load depends on the brush. Existing configs open on the brush nearest the line distance they already use, and that line distance is not changed, so they paint exactly as before.
