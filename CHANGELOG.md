@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.19.2](https://github.com/f1adang/brushograph/releases/tag/v2.19.2) — 2026-10-01
+
+- **Black contours follow Infill line distance:** the contour lines added to the black plate of a colour photograph are now drawn as wide as the stroke, and the plate preview shows them at that weight. Before, they were hairlines, and with a wide stroke most of them were dropped as too small to paint: at 3 mm only the three longest lines of a test picture survived. Now each contour is painted as one stroke down its middle at any stroke width, and wider strokes give heavier lines.
+
 ## [v2.19.0](https://github.com/f1adang/brushograph/releases/tag/v2.19.0) — 2026-09-30
 
 - **Fewer brush lifts, longer strokes:** when the next stroke can be reached without leaving the colour being painted, the brush now stays down and carries on instead of lifting, travelling and landing again. Nothing is painted that was not painted before. On a colour photograph this halves the number of brush-downs; line drawings and logos gain too. It costs about a tenth more dips, and jobs still finish sooner.
