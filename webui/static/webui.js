@@ -558,6 +558,42 @@ function wireForm() {
     });
   }
 
+  /* ---- the hair sets how far a load goes ---- */
+  /* A brush that holds more paint paints further before going back to the
+     cups, so picking a hair scales Paint per run by how much it holds, which
+     the server puts on each option. Scaled rather than set: the figures a
+     config opens with are that machine's own, tuned for the hair it opened
+     with, so they are kept as a figure per unit of capacity and every hair
+     is that times its own. Going back to the first hair gives back exactly
+     what the config said. A figure typed by hand becomes the new basis, for
+     the hair selected when it was typed. */
+  const brushType = form.querySelector('[name="brushograph-brush_type"]');
+  const perRun = ["min", "max"].map(
+    (end) => form.querySelector(`[name="brushograph-paint_per_run_${end}"]`));
+  if (brushType && perRun.every(Boolean)) {
+    const capacity = () => {
+      const picked = brushType.selectedOptions[0];
+      return parseFloat(picked && picked.dataset.capacity);
+    };
+    let perCapacity = null;
+    const rebase = () => {
+      const c = capacity();
+      perCapacity = isFinite(c) && c > 0 ? perRun.map((el) => parseFloat(el.value) / c) : null;
+    };
+    rebase();
+    for (const el of perRun) el.addEventListener("input", (e) => { if (e.isTrusted) rebase(); });
+    brushType.addEventListener("change", () => {
+      const c = capacity();
+      if (!perCapacity || !perCapacity.every(isFinite) || !isFinite(c)) { rebase(); return; }
+      const [min, max] = perCapacity.map((v) => Math.round(v * c));
+      // copicograf draws each load's length with randrange(min, max), which
+      // refuses an empty range.
+      perRun[0].value = min;
+      perRun[1].value = Math.max(max, min + 1);
+      for (const el of perRun) el.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
   /* ---- space the cups the way the printed holder does ---- */
   /* Both holders are one piece, so their cups cannot be moved relative to each
      other: only where the whole thing sits is a machine measurement. Auto-space

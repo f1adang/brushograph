@@ -330,6 +330,23 @@ BRUSH_TYPES = OrderedDict([
     ("ox", "Ox"),
 ])
 
+# How much paint each hair carries, against a synthetic brush of the same size.
+# What the form scales Paint per run by when the brush type changes: a brush
+# that holds more paints further before it goes back to the cups.
+#
+# These are estimates, not measurements. The order is what every maker and
+# painter agrees on — squirrel holds the most, then sable and goat, then ox,
+# synthetic the least — and the spacing is a judgement of how far apart they
+# are said to be. Nobody has painted a load to dry with each hair on the
+# machine yet. When somebody does, the figures go here.
+BRUSH_CAPACITY = {
+    "synthetic": 1.0,
+    "ox": 1.15,
+    "goat": 1.3,
+    "kolinsky": 1.4,
+    "squirrel": 1.7,
+}
+
 
 def brush_width(size) -> float | None:
     """The stroke width a brush number is taken to paint, in millimetres.
@@ -1023,7 +1040,7 @@ HELP = {
     "brushograph-moves-fast-feedrate_1": "How fast the machine crosses the bed, in millimetres a minute \u2014 the trips to the containers and back, and the whole of every macro. Nothing the generator writes goes faster than this.",
     "brushograph-moves-remove_drops-feedrate_1": "How fast the brush is drawn over the rim of a round cup to shed its drop, in millimetres a minute. Nothing reads it for a rectangular bay, which wipes itself on the way up its stairs.",
     "brushograph-brush_size": "The number of the round brush fitted, as printed on its handle. Each number lays a stroke of roughly the width shown beside it. Picking one sets Infill line distance under Run to the middle of that range, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush, or finer than any brush here.",
-    "brushograph-brush_type": "What the bristles are made of. Synthetic is nylon or polyester: springy, keeps its point, holds the least paint. Kolinsky sable is the classic watercolour hair: holds a lot of paint and still comes back to a fine point. Squirrel is the softest and holds the most, with little spring, which suits washes. Goat is soft and holds plenty but loses its point. Ox is ear hair, firmer than sable and often blended with it. Kept with the machine; nothing in the G-code depends on it yet.",
+    "brushograph-brush_type": "What the bristles are made of. Synthetic is nylon or polyester: springy, keeps its point, holds the least paint. Kolinsky sable is the classic watercolour hair: holds a lot of paint and still comes back to a fine point. Squirrel is the softest and holds the most, with little spring, which suits washes. Goat is soft and holds plenty but loses its point. Ox is ear hair, firmer than sable and often blended with it. Picking one scales Paint per run min and max by how much more or less paint that hair holds than the one the config opened with: a squirrel brush paints about 1.7 times as far on a load as a synthetic one. The figures are estimates; adjust Paint per run afterwards if the brush runs dry early or floods.",
     "brushograph-paint_per_run_min": "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
@@ -1117,7 +1134,13 @@ def _field(path: list[str], value) -> dict:
             # copies into Infill line distance when one is picked.
             for o in f["options"]:
                 o["label"] = brush_label(o["value"])
-                o["mm"] = brush_width(o["value"])
+                o["data"] = {"mm": brush_width(o["value"])}
+        elif name == "brushograph-brush_type":
+            # Each hair carries how much paint it holds, which the page scales
+            # Paint per run by when one is picked.
+            for o in f["options"]:
+                if o["value"] in BRUSH_CAPACITY:
+                    o["data"] = {"capacity": BRUSH_CAPACITY[o["value"]]}
     elif isinstance(value, bool):
         f["type"] = "checkbox"
     elif isinstance(value, (int, float)):

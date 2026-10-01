@@ -351,12 +351,42 @@ are, from `configspec.BRUSH_TYPES` — synthetic, Kolinsky sable (Rotmarder in
 the German interface), squirrel, goat and ox, the hairs watercolour brushes
 are commonly made of.
 A config without it opens as synthetic, which is what most brushes sold now
-are. It is recorded and nothing reads it. The hairs differ in what matters
-here — how much paint they carry, squirrel the most and synthetic the least,
-and how well they keep a point — so it is the obvious thing to drive
-`paint_per_run_min`/`max` from one day. That wants strokes painted per load
-measured for each hair on the machine, and nobody has measured them, so no
-figure is invented for it.
+are.
+
+The hairs differ most in how much paint they carry, and that is what
+**Paint per run** is: how far the brush paints on one load before going back
+to the cups (copicograf draws each load's length between the two figures). So
+picking a hair scales both by how much it holds against a synthetic brush of
+the same size (`configspec.BRUSH_CAPACITY`):
+
+| hair | capacity | pinkograph's 120–150 mm becomes |
+|---|---|---|
+| synthetic | 1.0 | 120–150 |
+| ox | 1.15 | 138–173 |
+| goat | 1.3 | 156–195 |
+| Kolinsky | 1.4 | 168–210 |
+| squirrel | 1.7 | 204–255 |
+
+**These capacities are estimates, not measurements.** The order is what makers
+and painters agree on — squirrel holds the most, sable and goat next, ox, then
+synthetic — but the spacing is judgement. Nobody has painted a load to dry
+with each hair on the machine. When somebody does, the table goes in
+`BRUSH_CAPACITY` and nothing else changes.
+
+The figures are **scaled, not set**. Every machine's Paint per run was tuned on
+that machine, and an absolute figure per hair would throw the tuning away: the
+three configs kept on the server do not even agree on the synthetic one (120
+or 130 at the bottom). So the page holds the figures the config opened with as
+a length per unit of capacity, taken against the hair it opened with, and each
+hair gets that times its own capacity. Going back to the hair the config opened
+with gives back exactly what it said, with no rounding drift however often the
+hair is changed — measured in the page: synthetic → squirrel → Kolinsky → goat
+→ ox → synthetic returns 120/150. A figure typed by hand becomes the new basis
+for the hair selected at the time: typing 100 as the minimum on synthetic and
+then picking squirrel gives 170/255.
+
+Picking a hair is the only thing that scales them. Opening a config leaves its
+figures alone, and the server reads only the two figures, never the hair.
 
 **Paint management** moved in beside it, out of Machine setup. How far the brush
 paints on one load (`paint_per_run_min`/`max`) depends on how much paint the
