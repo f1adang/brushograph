@@ -236,7 +236,16 @@ text: {
 "Move To Other Shape Lift": "Hub zwischen zwei Formen",
 "Cup Swipe Exit Z": "Z am Ende des Streichzugs",
 "Cup Dip Lanes": "Tauchspuren",
-"Brush size (mm)": "Pinselgröße (mm)",
+"Brush size": "Pinselgröße",
+"No. 0 (1–2 mm)": "Nr. 0 (1–2 mm)",
+"No. 1 (1.5–2.5 mm)": "Nr. 1 (1,5–2,5 mm)",
+"No. 2 (2–3 mm)": "Nr. 2 (2–3 mm)",
+"No. 4 (3–4 mm)": "Nr. 4 (3–4 mm)",
+"No. 6 (4–5 mm)": "Nr. 6 (4–5 mm)",
+"No. 8 (5–6 mm)": "Nr. 8 (5–6 mm)",
+"No. 10 (6–8 mm)": "Nr. 10 (6–8 mm)",
+"No. 12 (7–10 mm)": "Nr. 12 (7–10 mm)",
+"No. 16+ (10+ mm)": "Nr. 16+ (10+ mm)",
 "Paint Per Run Min": "Farbstrecke Mindestens",
 "Paint Per Run Max": "Farbstrecke Höchstens",
 "Prepare Paint Count": "Anmischgänge",
@@ -287,8 +296,8 @@ text: {
   "Größte Breite der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim X-Versatz, also ist das breitestmögliche um ebendiesen Versatz geringer.",
 "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.":
   "Größte Höhe der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim Unterlagenbeginn Y, hinter dem Streifen, auf dem die Behälter stehen, zuzüglich dessen, was der Versatz Y hinzufügt; das höchstmögliche ist also um beides geringer: 124 mm von Pinkographs 156.",
-"How wide a stroke the brush fitted lays down on the paper, in millimetres, decimals allowed (0.5, 1.2, 3). Changing it sets Infill line distance under Run to the same figure, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush.":
-  "Wie breit der eingesetzte Pinsel auf dem Papier malt, in Millimetern, mit Nachkommastellen (0,5, 1,2, 3). Eine Änderung setzt den Fülllinienabstand unter Ausführen auf denselben Wert; das ist der Abstand zwischen den Fülllinien, und ein Abstand von einer Pinselbreite deckt eine Fläche genau einmal. Der Fülllinienabstand lässt sich danach weiterhin von Hand setzen, für eine dichtere oder lockerere Füllung als der Pinsel.",
+"The number of the round brush fitted, as printed on its handle. Each number lays a stroke of roughly the width shown beside it. Picking one sets Infill line distance under Run to the middle of that range, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush, or finer than any brush here.":
+  "Die Nummer des eingesetzten Rundpinsels, wie sie auf dem Stiel steht. Jede Nummer malt einen Strich ungefähr der daneben angegebenen Breite. Die Wahl setzt den Fülllinienabstand unter Ausführen auf die Mitte dieses Bereichs; das ist der Abstand zwischen den Fülllinien, und ein Abstand von einer Pinselbreite deckt eine Fläche genau einmal. Der Fülllinienabstand lässt sich danach weiterhin von Hand setzen, für eine dichtere oder lockerere Füllung als der Pinsel oder eine feinere als jeder Pinsel hier.",
 "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence":
   "Kürzeste Bahnlänge (mm) zum Malen. Zum Plotten setzen Sie diese Zahl sehr hoch (z. B. 1000000), damit kein Farbholen stattfindet",
 "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence":

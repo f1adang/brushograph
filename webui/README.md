@@ -300,21 +300,51 @@ leaves paper showing between the strokes (see *Long brush strokes* for what the
 wrong figure costs). That made it a fact about the brush typed into the Run
 step under a slicer's name, where nobody changing brushes thought to look.
 
-**Brush size** (`brushograph.brush_size`, millimetres, decimals allowed) is
-where the brush is described now, under **Brush configuration** in the
-machine step's **Brush & Paint settings**. Changing it copies the figure
-into Infill line distance. Only a change by hand does: opening a config leaves both as it states them, and the
+**Brush size** (`brushograph.brush_size`) is where the brush is described
+now, under **Brush configuration** in the machine step's **Brush & Paint
+settings**. It is the number on the handle of a round brush, picked from the
+standard sizes rather than typed, because that is what someone fitting a brush
+knows; nobody measures the stroke one lays. Each number carries the width it
+paints (`configspec.BRUSH_SIZES`):
+
+| No. | width | taken as |
+|---|---|---|
+| 0 | 1–2 mm | 1.5 mm |
+| 1 | 1.5–2.5 mm | 2 mm |
+| 2 | 2–3 mm | 2.5 mm |
+| 4 | 3–4 mm | 3.5 mm |
+| 6 | 4–5 mm | 4.5 mm |
+| 8 | 5–6 mm | 5.5 mm |
+| 10 | 6–8 mm | 7 mm |
+| 12 | 7–10 mm | 8.5 mm |
+| 16+ | 10+ mm | 10 mm |
+
+The ranges overlap because makers do not agree on what a number means. A
+brush on a plotter is lowered to a fixed height rather than pressed, so it
+lays neither its narrowest stroke nor its widest: the middle of the range is
+taken (`brush_width`), and the bottom of the open one. Odd numbers above 1
+are rarely made and are left out.
+
+Picking a number copies that width into Infill line distance — the server
+puts it on each option as `data-mm`, so the table lives in one place. Only a
+change by hand does: opening a config leaves both as it states them, and the
 line distance stays editable, because a fill laid closer or looser than the
-brush is a choice somebody may have made on purpose. Nothing in the pipeline
-reads Brush size; it decides nothing the line distance did not already decide.
+brush is a choice somebody may have made on purpose. That is also how
+anything finer than a No. 0 is reached: the configs kept on the server paint
+at 0.3 and 0.4 mm, a pen's stroke rather than a brush's. Nothing in the
+pipeline reads Brush size; it decides nothing the line distance did not
+already decide.
+
+A first version took the brush as a width in millimetres. That asked for a
+figure people do not have, and was replaced before it was released.
 
 A config written before Brush size existed has no key for it, so it is filled
-in when the config is read, never overridden — from the line distance the
-config already paints at, so opening an old config and touching nothing paints
-what it did. Where that is 0, outlines only, the brush is the nominal
-millimetre the pipeline stands in for a zero stroke: on the three configs kept
-on the server that gave 0.4 mm (`parang`), 0.3 mm (`pinkograph`) and 1 mm
-(`testikel`).
+in when the config is read, never overridden — with the number whose width is
+nearest the line distance the config already paints at, and the line distance
+itself left alone, so opening an old config and touching nothing paints what
+it did. Where that is 0, outlines only, the nominal millimetre the pipeline
+stands in for a zero stroke is matched instead. All three configs kept on the
+server open on a No. 0.
 
 **Paint management** moved in beside it, out of Machine setup. How far the brush
 paints on one load (`paint_per_run_min`/`max`) depends on how much paint the

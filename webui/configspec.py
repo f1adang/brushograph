@@ -300,6 +300,49 @@ CUSTOM_CUP_DEFAULTS = OrderedDict([
 RECTANGULAR_SHAPES = ("modern", "custom")
 
 
+# Round watercolour brushes are sold by number, and the number says roughly
+# how wide a stroke the brush lays down: (narrowest, widest) in millimetres,
+# None where the range is open. The ranges overlap, being what different
+# makers mean by the same number. Odd numbers above 1 are rarely made, and
+# nothing past 16 fits a machine this size.
+BRUSH_SIZES = OrderedDict([
+    (0, (1, 2)),
+    (1, (1.5, 2.5)),
+    (2, (2, 3)),
+    (4, (3, 4)),
+    (6, (4, 5)),
+    (8, (5, 6)),
+    (10, (6, 8)),
+    (12, (7, 10)),
+    (16, (10, None)),
+])
+
+
+def brush_width(size) -> float | None:
+    """The stroke width a brush number is taken to paint, in millimetres.
+
+    The middle of its range: a brush on a plotter is set down to a fixed
+    height, not pressed, so it lays neither its narrowest stroke nor its
+    widest. An open range is taken at its one end. None for a number that
+    is not a standard size.
+    """
+    try:
+        low, high = BRUSH_SIZES[size]
+    except (KeyError, TypeError):
+        return None
+    return float(low) if high is None else (low + high) / 2
+
+
+def brush_label(size) -> str:
+    try:
+        low, high = BRUSH_SIZES[size]
+    except (KeyError, TypeError):
+        return str(size)
+    if high is None:
+        return f"No. {size}+ ({low:g}+ mm)"
+    return f"No. {size} ({low:g}\u2013{high:g} mm)"
+
+
 def cup_shape_of(conf: dict) -> str:
     bg = conf.get("brushograph", {})
     return str(bg.get("cup_shape", "classic")).strip().lower() if isinstance(bg, dict) \
@@ -457,13 +500,15 @@ def with_defaults(conf: dict) -> dict:
 
 
 def _offer_brush_size(conf: dict) -> None:
-    """Give a config a brush size, equal to the stroke width it paints at.
+    """Give a config a brush size: the number nearest the stroke it paints at.
 
     Brush size is what the form fills Infill line distance from, so a config
-    written before it existed is given the figure it was already painting
-    with: opening it and touching nothing paints exactly what it did. Where
-    that figure is 0 — outlines only — the brush is the nominal millimetre the
-    pipeline stands in for it, because a brush of no width is not a brush.
+    written before it existed is given the brush whose width is closest to the
+    line distance it already has. Only the control is filled in — the line
+    distance is left as it was, so opening the config and touching nothing
+    paints exactly what it did. Where that figure is 0 — outlines only — it is
+    taken as the nominal millimetre the pipeline stands in for it, because a
+    brush of no width is not a brush.
     """
     bg = conf.get("brushograph")
     if not isinstance(bg, dict) or "brush_size" in bg:
@@ -473,7 +518,8 @@ def _offer_brush_size(conf: dict) -> None:
         stroke = float(slicer.get("infill_line_distance", 0)) if isinstance(slicer, dict) else 0.0
     except (TypeError, ValueError):
         stroke = 0.0
-    bg["brush_size"] = stroke if stroke > 0 else 1.0
+    stroke = stroke if stroke > 0 else 1.0
+    bg["brush_size"] = min(BRUSH_SIZES, key=lambda size: abs(brush_width(size) - stroke))
 
 
 def _offer_far_backlash(conf: dict) -> None:
@@ -924,6 +970,7 @@ ENUMS = {
     "controller-controller_type": ["GRBL", "Marlin", "FluidNC"],
     "brushograph-cup_shape": ["classic", "modern", "custom"],
     "brushograph-model": list(MODELS),
+    "brushograph-brush_size": list(BRUSH_SIZES),
 }
 
 # Keys that describe the machine rather than a run, kept out of the generated
@@ -957,7 +1004,7 @@ HELP = {
     "brushograph-moves-normal-feedrate_1": "How fast the brush paints, in millimetres a minute. This is the rate a stroke is laid at, and the macros drop to it for the marks they put on the paper.",
     "brushograph-moves-fast-feedrate_1": "How fast the machine crosses the bed, in millimetres a minute \u2014 the trips to the containers and back, and the whole of every macro. Nothing the generator writes goes faster than this.",
     "brushograph-moves-remove_drops-feedrate_1": "How fast the brush is drawn over the rim of a round cup to shed its drop, in millimetres a minute. Nothing reads it for a rectangular bay, which wipes itself on the way up its stairs.",
-    "brushograph-brush_size": "How wide a stroke the brush fitted lays down on the paper, in millimetres, decimals allowed (0.5, 1.2, 3). Changing it sets Infill line distance under Run to the same figure, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush.",
+    "brushograph-brush_size": "The number of the round brush fitted, as printed on its handle. Each number lays a stroke of roughly the width shown beside it. Picking one sets Infill line distance under Run to the middle of that range, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush, or finer than any brush here.",
     "brushograph-paint_per_run_min": "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
@@ -998,7 +1045,7 @@ HELP = {
 # Where a key's own name is not what the form should call it.
 LABELS = {
     "cup_shape": "Container setup",
-    "brush_size": "Brush size (mm)",
+    "brush_size": "Brush size",
     # Named for the plan view, which draws Y upwards the way the bed is
     # looked at, and marks these five where they are.
     "level_compensation": "Bed levelling",
@@ -1045,6 +1092,12 @@ def _field(path: list[str], value) -> dict:
         if value not in options:
             options.insert(0, value)
         f["options"] = [{"value": o, "label": ENUM_LABELS.get(o, o)} for o in options]
+        if name == "brushograph-brush_size":
+            # Each number carries the width it paints, which is what the page
+            # copies into Infill line distance when one is picked.
+            for o in f["options"]:
+                o["label"] = brush_label(o["value"])
+                o["mm"] = brush_width(o["value"])
     elif isinstance(value, bool):
         f["type"] = "checkbox"
     elif isinstance(value, (int, float)):

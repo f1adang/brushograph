@@ -541,17 +541,19 @@ function wireForm() {
   /* ---- the brush sets the stroke ---- */
   /* Infill line distance is the gap between fill strokes, and for a brush the
      right gap is the width it lays down: closer paints the same paper twice,
-     further leaves paper between. So a new brush size is copied into it.
+     further leaves paper between. So picking a brush number copies the width
+     that number paints, which the server puts on each option, into it.
      Only on a change by hand — opening a config leaves both as it says, since
      a stroke set apart from the brush on purpose is one somebody chose — and
      the line distance stays editable afterwards for the same reason. */
   const brushSize = form.querySelector('[name="brushograph-brush_size"]');
   const lineDistance = form.querySelector('[name="slicer-infill_line_distance"]');
   if (brushSize && lineDistance) {
-    brushSize.addEventListener("input", () => {
-      const mm = parseFloat(brushSize.value);
-      if (!isFinite(mm) || mm < 0) return;     // half-typed, or nonsense
-      lineDistance.value = brushSize.value;
+    brushSize.addEventListener("change", () => {
+      const picked = brushSize.selectedOptions[0];
+      const mm = picked && picked.dataset.mm;
+      if (!mm) return;            // a number the config had that is no standard size
+      lineDistance.value = mm;
       lineDistance.dispatchEvent(new Event("input", { bubbles: true }));
     });
   }
