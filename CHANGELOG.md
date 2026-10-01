@@ -5,6 +5,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 ## v2.20.0 — unreleased
 
 - **Brush size sets the stroke width:** a new **Brush & Paint settings** section in the machine step, under Painting dimensions, has a **Brush size** setting under **Brush configuration**. Pick the number printed on your round brush's handle, from No. 0 (1–2 mm) to No. 16+ (10+ mm). Picking one sets **Infill line distance** to the middle of that brush's width range, since the gap between fill strokes should match the width the brush paints. You can still change Infill line distance by hand afterwards, including to something finer than any brush. **Paint management** has moved out of Machine setup and into this section beside it, since how far the brush paints on one load depends on the brush. Existing configs open on the brush nearest the line distance they already use, and that line distance is not changed, so they paint exactly as before.
+- **Brush type:** under **Brush configuration**, say what the brush hair is: Synthetic, Rotmarder (Kolinsky sable), Squirrel, Goat or Ox. It is saved with the machine config but does not change the G-code yet. Existing configs open as Synthetic.
 - **Machine setup comes first:** the folded Machine setup panel now opens the machine step, above the plan, instead of sitting at the bottom of it.
 
 ## [v2.19.2](https://github.com/f1adang/brushograph/releases/tag/v2.19.2) — 2026-10-01
