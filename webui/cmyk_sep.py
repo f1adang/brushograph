@@ -67,6 +67,15 @@ CONTOUR_BLUR_FRAC = 0.002
 # three-pixel fleck off the side of a rock costs the same as a skyline and
 # says nothing.
 CONTOUR_MIN_RUN_FRAC = 0.015
+# How wide a contour is drawn into the plate, in strokes. A hairline does not
+# survive a wide brush: the centreline pass drops any leftover smaller than a
+# brush-sized blot, so at a 3 mm stroke a 3000 px photograph's contours kept
+# 3 of their runs and lost half their length. Drawn half a stroke wide they
+# are traced as one centreline each, at every stroke width. Not wider: past
+# about three quarters the band is broad enough to hold an outline of its own,
+# and the brush goes up one side of the line and back down the other -- 1.5 m
+# of painting for 0.9 m of contour at a stroke wide.
+CONTOUR_WIDTH_STROKES = 0.5
 
 # A speck of ink smaller than this many brush areas is not a mark the brush can
 # make, and it is tidied off the plate before the plate is traced. Each one was
@@ -79,8 +88,9 @@ CONTOUR_MIN_RUN_FRAC = 0.015
 SPECK_BRUSH_AREAS = 4.0
 
 
-def contour_mask(cmyk: Image.Image, strength: float) -> np.ndarray:
-    """Where the picture's objects have their edges, as one-pixel lines.
+def contour_mask(cmyk: Image.Image, strength: float,
+                 brush_px: float = 0.0) -> np.ndarray:
+    """Where the picture's objects have their edges, as lines the brush can follow.
 
     Taken from the four ink channels rather than from brightness: a red shape
     on a green ground of the same lightness has no edge in a grey copy of the
@@ -89,10 +99,11 @@ def contour_mask(cmyk: Image.Image, strength: float) -> np.ndarray:
     supplies the gradient, so a boundary is drawn once rather than once per
     plate that notices it.
 
-    The line is left one pixel wide. It is the brush that gives a contour its
-    weight -- the pipeline enlarges a raster until a stroke is several pixels
-    across, so a hairline here arrives as one brush width on the paper, which
-    is the thinnest mark the machine has.
+    `brush_px` is the stroke's width in this picture's pixels. The line is
+    drawn CONTOUR_WIDTH_STROKES of it wide, which the pipeline paints as one
+    stroke down its middle: a contour is as wide as Infill line distance says
+    a stroke is, and the plate preview shows it at a weight that grows with it.
+    Nought leaves it one pixel wide.
     """
     import cv2  # imported late: only a contoured separation needs OpenCV
 
@@ -130,7 +141,15 @@ def contour_mask(cmyk: Image.Image, strength: float) -> np.ndarray:
         (edges > 0).astype(np.uint8), 8)
     short = stats[:, cv2.CC_STAT_AREA] < CONTOUR_MIN_RUN_FRAC * diag
     short[0] = True  # label 0 is the paper
-    return ~short[labels]
+    line = ~short[labels]
+    # Widened after the short runs are dropped, so what counts as short is
+    # still measured along the line and not across a band that grows with the
+    # brush.
+    across = int(round(CONTOUR_WIDTH_STROKES * brush_px))
+    if across >= 2:
+        disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (across, across))
+        line = cv2.dilate(line.astype(np.uint8), disc) > 0
+    return line
 
 
 def tidy(ink: np.ndarray, brush_px: float) -> np.ndarray:
@@ -204,8 +223,9 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     paper.
 
     `brush_px`, the stroke's width in this picture's pixels, tidies away the
-    specks of ink too small for it (`tidy`). Nought leaves the plates as
-    the cutoff made them.
+    specks of ink too small for it (`tidy`), and sets how wide the contours
+    are drawn (`contour_mask`). Nought leaves the plates as the cutoff made
+    them, and the contours a pixel wide.
     """
     # Already upright and already turned to lie along the canvas if it needed
     # to be: that is images.lay_along, and the caller does it, because the
@@ -218,7 +238,7 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
         for name in ("C", "M", "Y"):
             ink[name] = ink[name] & ~ink["K"]
     # After the knockout, which leaves slivers of its own, and before the
-    # contours, which are a pixel wide and would be tidied away whole.
+    # contours, which are thinner than the brush and would be tidied away whole.
     if brush_px > 0:
         ink = {name: tidy(mask, brush_px) for name, mask in ink.items()}
     # After the knockout, never before it. A contour crosses every boundary in
@@ -228,7 +248,7 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     # line laid over the colour is a line over the colour, which is what a
     # contour is for; and it is one plate's worth of drawing either way.
     if contours > 0:
-        ink["K"] = ink["K"] | contour_mask(cmyk, contours)
+        ink["K"] = ink["K"] | contour_mask(cmyk, contours, brush_px)
     return {name: Image.fromarray(
         np.where(mask, 0, 255).astype(np.uint8), "L").convert("1")
         for name, mask in ink.items()}

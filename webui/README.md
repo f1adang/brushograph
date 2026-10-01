@@ -604,11 +604,32 @@ three-pixel fleck off the side of a rock costs what a skyline costs and says
 nothing. On the test photograph at 25 that throws away 234 flecks and keeps 338
 contours; at 60 it throws away 1,055 and keeps 619.
 
-**The line is left one pixel wide.** The brush gives a contour its weight: the
-pipeline enlarges a raster until a stroke is several pixels across — see
-*Small pictures are enlarged before the geometry is worked out*, above — so a
-hairline here arrives as one brush width on the paper,
-which is the thinnest mark the machine has.
+**The line is drawn half a stroke wide** (`CONTOUR_WIDTH_STROKES`), measured
+in the stroke's width in the photograph's own pixels, so **Infill line
+distance** sets a contour's weight on the plate preview as it does on the
+paper. It was first left one pixel wide, on the reasoning that the brush gives
+a line its weight and a hairline arrives as one stroke. It did at a fine
+stroke, and not at a wide one: the centreline pass drops any leftover smaller
+than a brush-sized blot, so a hairline broken at its junctions went piece by
+piece. On a 3000 px picture of flat colour painted 150 mm wide, against 918 mm
+of contour on the plate:
+
+| stroke | hairline | ½ stroke | ¾ stroke | 1 stroke |
+|---|---|---|---|---|
+| 0.5 mm | 874 mm, 95 strokes | 810 mm, 48 | 1,496 mm, 40 | 1,505 mm, 37 |
+| 1 mm | 650 mm, 31 | 755 mm, 41 | 864 mm, 38 | 1,452 mm, 26 |
+| 2 mm | 560 mm, 10 | 697 mm, 30 | 815 mm, 27 | 1,418 mm, 22 |
+| 3 mm | 482 mm, 3 | 660 mm, 19 | 783 mm, 22 | 1,373 mm, 19 |
+
+Half a stroke is as wide as it can go. A band much past three quarters of a
+stroke is broad enough to hold an outline of its own, and the brush goes up
+one side of the line and back down the other — half as much painting again as
+there is line, for a mark no wider. Three quarters is already on that edge, and
+at 0.5 mm, where the band rounds up to a full stroke, it falls over it. Half a
+stroke is traced as one centreline at every width tried. What it still loses
+is mostly the half-band trimmed off each end of a run and the corners where
+lines meet. It is widened after the short runs are dropped, so "short" is still
+measured along the line.
 
 **They go in after the knockout, never before.** A contour crosses every
 boundary in the picture, so knocking the colours out along it would cut each
@@ -645,7 +666,7 @@ the stroke's width in the photograph's own pixels, so the painted width and
 sent both so it shows what will be painted.
 
 After the knockout, which leaves slivers of its own, and before the contours,
-which are a pixel wide and would be tidied away whole.
+which are thinner than the brush and would be tidied away whole.
 
 **Pinholes are left alone**, and that was measured, not assumed. Filling paper
 holes the same size looked like the same tidy the other way round, and on
