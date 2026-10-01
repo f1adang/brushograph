@@ -320,11 +320,11 @@ BRUSH_SIZES = OrderedDict([
 
 # What a brush's hair is, the four natural ones being those watercolour
 # brushes are commonly made of. Kept under the English names in the config
-# and labelled as the form shows them; Rotmarder is what the workshop calls
-# Kolinsky sable, so it leads.
+# and labelled as the form shows them. Kolinsky is the sable the workshop
+# calls Rotmarder, which is what the German interface says.
 BRUSH_TYPES = OrderedDict([
     ("synthetic", "Synthetic"),
-    ("kolinsky", "Rotmarder (Kolinsky sable)"),
+    ("kolinsky", "Kolinsky"),
     ("squirrel", "Squirrel"),
     ("goat", "Goat"),
     ("ox", "Ox"),
@@ -1023,7 +1023,7 @@ HELP = {
     "brushograph-moves-fast-feedrate_1": "How fast the machine crosses the bed, in millimetres a minute \u2014 the trips to the containers and back, and the whole of every macro. Nothing the generator writes goes faster than this.",
     "brushograph-moves-remove_drops-feedrate_1": "How fast the brush is drawn over the rim of a round cup to shed its drop, in millimetres a minute. Nothing reads it for a rectangular bay, which wipes itself on the way up its stairs.",
     "brushograph-brush_size": "The number of the round brush fitted, as printed on its handle. Each number lays a stroke of roughly the width shown beside it. Picking one sets Infill line distance under Run to the middle of that range, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush, or finer than any brush here.",
-    "brushograph-brush_type": "What the bristles are made of. Synthetic is nylon or polyester: springy, keeps its point, holds the least paint. Rotmarder (Kolinsky sable) is the classic watercolour hair: holds a lot of paint and still comes back to a fine point. Squirrel is the softest and holds the most, with little spring, which suits washes. Goat is soft and holds plenty but loses its point. Ox is ear hair, firmer than sable and often blended with it. Kept with the machine; nothing in the G-code depends on it yet.",
+    "brushograph-brush_type": "What the bristles are made of. Synthetic is nylon or polyester: springy, keeps its point, holds the least paint. Kolinsky sable is the classic watercolour hair: holds a lot of paint and still comes back to a fine point. Squirrel is the softest and holds the most, with little spring, which suits washes. Goat is soft and holds plenty but loses its point. Ox is ear hair, firmer than sable and often blended with it. Kept with the machine; nothing in the G-code depends on it yet.",
     "brushograph-paint_per_run_min": "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",

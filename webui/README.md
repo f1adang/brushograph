@@ -347,8 +347,9 @@ stands in for a zero stroke is matched instead. All three configs kept on the
 server open on a No. 0.
 
 **Brush type** (`brushograph.brush_type`) sits beside it: what the bristles
-are, from `configspec.BRUSH_TYPES` — synthetic, Rotmarder (Kolinsky sable),
-squirrel, goat and ox, the hairs watercolour brushes are commonly made of.
+are, from `configspec.BRUSH_TYPES` — synthetic, Kolinsky sable (Rotmarder in
+the German interface), squirrel, goat and ox, the hairs watercolour brushes
+are commonly made of.
 A config without it opens as synthetic, which is what most brushes sold now
 are. It is recorded and nothing reads it. The hairs differ in what matters
 here — how much paint they carry, squirrel the most and synthetic the least,
