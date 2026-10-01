@@ -2,10 +2,11 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
-## v2.20.0 — unreleased
+## [v2.20.0](https://github.com/f1adang/brushograph/releases/tag/v2.20.0) — 2026-10-01
 
 - **Brush size sets the stroke width:** a new **Brush & Paint settings** section in the machine step, under Painting dimensions, has a **Brush size** setting under **Brush configuration**. Pick the number printed on your round brush's handle, from No. 0 (1–2 mm) to No. 16+ (10+ mm). Picking one sets **Infill line distance** to the middle of that brush's width range, since the gap between fill strokes should match the width the brush paints. You can still change Infill line distance by hand afterwards, including to something finer than any brush. **Paint management** has moved out of Machine setup and into this section beside it, since how far the brush paints on one load depends on the brush. Existing configs open on the brush nearest the line distance they already use, and that line distance is not changed, so they paint exactly as before.
-- **Brush type:** under **Brush configuration**, say what the brush hair is: Synthetic, Kolinsky, Squirrel, Goat or Ox. It is saved with the machine config but does not change the G-code yet. Existing configs open as Synthetic.
+- **Brush type:** under **Brush configuration**, say what the brush hair is: Synthetic, Kolinsky, Squirrel, Goat or Ox. It is saved with the machine config. Existing configs open as Synthetic.
+- **The brush hair sets how far a load of paint goes:** picking a brush type scales **Paint per run** min and max by how much paint that hair holds compared with the one the config opened with. Squirrel paints about 1.7 times as far as synthetic, Kolinsky 1.4 times, goat 1.3 and ox 1.15. Your machine's own figures are what gets scaled, so switching back to the original brush type restores them exactly. These figures are estimates: if the brush runs dry early or floods, adjust Paint per run by hand, and the next change of brush type scales from what you typed.
 - **Machine setup comes first:** the folded Machine setup panel now opens the machine step, above the plan, instead of sitting at the bottom of it.
 
 ## [v2.19.2](https://github.com/f1adang/brushograph/releases/tag/v2.19.2) — 2026-10-01
