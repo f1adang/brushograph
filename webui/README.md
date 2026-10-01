@@ -346,6 +346,17 @@ it did. Where that is 0, outlines only, the nominal millimetre the pipeline
 stands in for a zero stroke is matched instead. All three configs kept on the
 server open on a No. 0.
 
+**Brush type** (`brushograph.brush_type`) sits beside it: what the bristles
+are, from `configspec.BRUSH_TYPES` — synthetic, Rotmarder (Kolinsky sable),
+squirrel, goat and ox, the hairs watercolour brushes are commonly made of.
+A config without it opens as synthetic, which is what most brushes sold now
+are. It is recorded and nothing reads it. The hairs differ in what matters
+here — how much paint they carry, squirrel the most and synthetic the least,
+and how well they keep a point — so it is the obvious thing to drive
+`paint_per_run_min`/`max` from one day. That wants strokes painted per load
+measured for each hair on the machine, and nobody has measured them, so no
+figure is invented for it.
+
 **Paint management** moved in beside it, out of Machine setup. How far the brush
 paints on one load (`paint_per_run_min`/`max`) depends on how much paint the
 brush holds, so it is changed with the brush rather than with the machine.
