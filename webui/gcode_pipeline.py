@@ -7,7 +7,6 @@ actually on PATH instead of hardcoded macOS app bundles.
 """
 from __future__ import annotations
 
-import math
 import os
 import re
 import sys
@@ -28,7 +27,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from configspec import (CLASSIC_DISH_RIM_RADIUS, CMYK_TO_TRAY,  # noqa: E402
+from configspec import (CLASSIC_DISH_RIM_RADIUS,  # noqa: E402
                         RECTANGULAR_SHAPES, canvas_origin, cup_shape_of,
                         EDGE_HEADROOM, feed_line, holder_of, level_area, level_offset,
                         paintable_size, tray_entries, workable_x)
@@ -1275,7 +1274,7 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
         for y, names in sorted(rows.items()):
             who = ", ".join(names)
             entry_y = y - depth / 2 + margin
-            bay0, bay1 = y - depth / 2, y + depth / 2
+            bay1 = y + depth / 2
             if entry_y < copicograf.y_floor - 1e-9:
                 full = depth - 2 * margin
                 left = max(0.0, bay1 - margin - copicograf.y_floor)
