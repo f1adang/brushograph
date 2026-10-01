@@ -361,6 +361,8 @@ def holder_of(conf: dict) -> dict:
 ALWAYS_OFFERED = {
     ("brushograph", "model"): "mini",
     ("brushograph", "dip_depth"): -4.0,
+    # Brush size is filled in by _offer_brush_size, from the stroke width the
+    # config already paints at, rather than from a constant here.
     # The cups. "classic" is the round petri dish the machine was built around;
     # "modern" is the rectangular CMYK holder, whose floor steps up towards the
     # back so the brush can be drawn out of the paint rather than lifted from
@@ -447,10 +449,31 @@ def with_defaults(conf: dict) -> dict:
     _offer_canvas_start(out)
     _offer_plain_feeds(out)
     _offer_black(out)
+    _offer_brush_size(out)
     # Written back in painting order too, so a saved config says what happens.
     if isinstance(out.get("color_order"), list):
         out["color_order"] = paint_order(out["color_order"])
     return out
+
+
+def _offer_brush_size(conf: dict) -> None:
+    """Give a config a brush size, equal to the stroke width it paints at.
+
+    Brush size is what the form fills Infill line distance from, so a config
+    written before it existed is given the figure it was already painting
+    with: opening it and touching nothing paints exactly what it did. Where
+    that figure is 0 — outlines only — the brush is the nominal millimetre the
+    pipeline stands in for it, because a brush of no width is not a brush.
+    """
+    bg = conf.get("brushograph")
+    if not isinstance(bg, dict) or "brush_size" in bg:
+        return
+    slicer = conf.get("slicer")
+    try:
+        stroke = float(slicer.get("infill_line_distance", 0)) if isinstance(slicer, dict) else 0.0
+    except (TypeError, ValueError):
+        stroke = 0.0
+    bg["brush_size"] = stroke if stroke > 0 else 1.0
 
 
 def _offer_far_backlash(conf: dict) -> None:
@@ -838,9 +861,12 @@ def _offer_black(conf: dict) -> None:
 
 # The machine section is a flat list of nineteen settings in whatever order the
 # config file happens to list them, which put Width beside Offset Y beside Paint
-# Per Run Min. They are grouped here by what they are actually for. The first
-# group is marked `job` because it is the only one that changes from one run to
-# the next, and the form shows it with the artwork rather than the machine.
+# Per Run Min. They are grouped here by what they are actually for. The third
+# figure says where the form shows a group: "job" with the artwork, because it
+# changes from one run to the next; "brush" in the machine step beside it,
+# because it changes with the brush fitted, which is more often than the
+# machine but less often than the picture; anything else in machine setup. A
+# (title, keys) pair among the keys is a group nested inside that one.
 BRUSHOGRAPH_GROUPS = [
     ("Model", ["model"], False),
     # Where the painting goes and how big it is: the one group that changes
@@ -848,16 +874,21 @@ BRUSHOGRAPH_GROUPS = [
     # machine setup. The offsets moved in with it — they say where on the bed
     # this painting lands, which is a decision about this painting.
     ("Painting dimensions",
-     ["width", "height", "offset_x", "offset_y", "canvas_height"], True),
+     ["width", "height", "offset_x", "offset_y", "canvas_height"], "job"),
+    # The brush, and how far it goes on one load of paint: how long a run it
+    # paints before going back to the cups depends on how much the brush
+    # holds, so Paint management belongs with it rather than with the cups.
+    ("Brush configuration",
+     ["brush_size",
+      ("Paint management",
+       ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
+        "tray_enter_radius", "remove_drops_radius"])], "brush"),
     ("Canvas", ["canvas_start_y", "max_width", "max_height"], False),
     ("Brush control",
      ["go_in_tray_lift", "dip_depth", "remove_drops_lift", "move_to_other_shape_lift"], False),
     ("Containers",
      ["cup_shape", "cup_swipe_exit_z", "cup_dip_lanes", "cup_width_water",
       "cup_width", "cup_depth", "cup_spacing"], False),
-    ("Paint management",
-     ["paint_per_run_min", "paint_per_run_max", "prepare_paint_count",
-      "tray_enter_radius", "remove_drops_radius"], False),
     ("Bed levelling",
      ["level_compensation", "level_tl", "level_tr", "level_c",
       "level_bl", "level_br"], False),
@@ -926,6 +957,7 @@ HELP = {
     "brushograph-moves-normal-feedrate_1": "How fast the brush paints, in millimetres a minute. This is the rate a stroke is laid at, and the macros drop to it for the marks they put on the paper.",
     "brushograph-moves-fast-feedrate_1": "How fast the machine crosses the bed, in millimetres a minute \u2014 the trips to the containers and back, and the whole of every macro. Nothing the generator writes goes faster than this.",
     "brushograph-moves-remove_drops-feedrate_1": "How fast the brush is drawn over the rim of a round cup to shed its drop, in millimetres a minute. Nothing reads it for a rectangular bay, which wipes itself on the way up its stairs.",
+    "brushograph-brush_size": "How wide a stroke the brush fitted lays down on the paper, in millimetres, decimals allowed (0.5, 1.2, 3). Changing it sets Infill line distance under Run to the same figure, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush.",
     "brushograph-paint_per_run_min": "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-canvas_height": "Set canvas height (mm), for thicker surfaces (e.g. ceramic tile)",
@@ -966,6 +998,7 @@ HELP = {
 # Where a key's own name is not what the form should call it.
 LABELS = {
     "cup_shape": "Container setup",
+    "brush_size": "Brush size (mm)",
     # Named for the plan view, which draws Y upwards the way the bed is
     # looked at, and marks these five where they are.
     "level_compensation": "Bed levelling",
@@ -1181,11 +1214,24 @@ def _regroup(fields: list[dict], groups) -> list[dict]:
             nested.append(f)          # a dict in the config, already a group
         else:
             loose[f["name"].rsplit("-", 1)[-1]] = f
+    def pick(keys):
+        picked = []
+        for k in keys:
+            if isinstance(k, tuple):
+                title, inner = k
+                sub = pick(inner)
+                if sub:
+                    picked.append({"group": title, "fields": sub})
+            elif k in loose:
+                picked.append(loose.pop(k))
+        return picked
+
     out = []
-    for title, keys, is_job in groups:
-        picked = [loose.pop(k) for k in keys if k in loose]
+    for title, keys, place in groups:
+        picked = pick(keys)
         if picked:
-            out.append({"group": title, "fields": picked, "job": is_job})
+            out.append({"group": title, "fields": picked,
+                        "job": place == "job", "brush": place == "brush"})
     # A config with settings this map has never heard of still shows them.
     if loose:
         out.append({"group": "Other settings", "fields": list(loose.values()), "job": False})

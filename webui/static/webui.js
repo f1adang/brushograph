@@ -538,6 +538,24 @@ function wireForm() {
   updateSketch();
   document.addEventListener("brushograph:theme", updateSketch);
 
+  /* ---- the brush sets the stroke ---- */
+  /* Infill line distance is the gap between fill strokes, and for a brush the
+     right gap is the width it lays down: closer paints the same paper twice,
+     further leaves paper between. So a new brush size is copied into it.
+     Only on a change by hand — opening a config leaves both as it says, since
+     a stroke set apart from the brush on purpose is one somebody chose — and
+     the line distance stays editable afterwards for the same reason. */
+  const brushSize = form.querySelector('[name="brushograph-brush_size"]');
+  const lineDistance = form.querySelector('[name="slicer-infill_line_distance"]');
+  if (brushSize && lineDistance) {
+    brushSize.addEventListener("input", () => {
+      const mm = parseFloat(brushSize.value);
+      if (!isFinite(mm) || mm < 0) return;     // half-typed, or nonsense
+      lineDistance.value = brushSize.value;
+      lineDistance.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  }
+
   /* ---- space the cups the way the printed holder does ---- */
   /* Both holders are one piece, so their cups cannot be moved relative to each
      other: only where the whole thing sits is a machine measurement. Auto-space

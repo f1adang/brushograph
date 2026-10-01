@@ -18,8 +18,8 @@
 </label>
 {% endmacro %}
 
-{% macro group(g) %}
-<section class="group">
+{% macro group(g, id=none) %}
+<section class="group"{% if id %} id="{{ id }}"{% endif %}>
   <h3>{{ g.group }}{% if g.help %} <button type="button" class="info-btn" title="{{ g.help }}" aria-label="{{ g.help }}">ⓘ</button>{% endif %}</h3>
   <div class="grid">{% for f in g.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
   {% for gg in g.fields %}{% if gg.group %}
@@ -62,6 +62,10 @@
       <p class="note" id="ratio-note" hidden></p>
     </section>
     {% endfor %}{% endif %}
+
+    {# The brush: between the painting and the machine, because it is changed
+       more often than the machine and less often than the picture. #}
+    {% if machine %}{% for g in machine.fields if g.group and g.brush %}{{ group(g, 'brush-configuration') }}{% endfor %}{% endif %}
 
     <!-- -------------------------------------------------------------- setup -->
     <details class="setup" id="machine-setup">
@@ -116,7 +120,7 @@
         </section>
         {% endif %}
 
-        {% if machine %}{% for g in machine.fields if g.group and not g.job and g.group not in ('Containers', 'Model') %}{{ group(g) }}{% endfor %}{% endif %}
+        {% if machine %}{% for g in machine.fields if g.group and not g.job and not g.brush and g.group not in ('Containers', 'Model') %}{{ group(g) }}{% endfor %}{% endif %}
 
         <section class="group" id="setup-download">
           <h3>Save these settings</h3>

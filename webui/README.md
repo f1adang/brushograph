@@ -34,12 +34,14 @@ machine and left alone.
   under the plan, outside the fold, because it is the one group that changes
   from one run to the next and it is what the picture above it draws: the
   painted width and height, the offsets that say where on the bed the painting
-  lands, and the canvas height. Then one collapsed panel, **Machine setup**,
-  which is about the machine rather than about a picture: the **Model** first,
-  then the connection and controller type, containers, their positions,
-  **Canvas** (where the paintable area begins and how far the machine goes),
-  **Brush control**, **Paint management**, backlash and the
-  `moves` speed groups. Then **Download Machine Config**, which writes all of
+  lands, and the canvas height. **Brush configuration** follows it, also
+  outside the fold, because the brush is changed more often than the machine
+  and less often than the picture: the **Brush size**, and **Paint management**
+  nested under it (see *Brush size sets the stroke*). Then one collapsed panel,
+  **Machine setup**, which is about the machine rather than about a picture:
+  the **Model** first, then the connection and controller type, containers,
+  their positions, **Canvas** (where the paintable area begins and how far the
+  machine goes), **Brush control**, backlash and the `moves` speed groups. Then **Download Machine Config**, which writes all of
   it back out as a `.conf`, and last the **Macro generator** — `zero.g`,
   `home.g`, `paper.g`, `clean.g`, `calibrate.g` and the rest, built from the
   settings above it (see below). A config carrying keys this map has never heard of
@@ -70,7 +72,8 @@ off screen for someone reading it at the bottom of machine setup.
 The options form is built from the config's own keys, which means a machine file
 written before a setting existed — or by hand, or by an older version — simply
 has no control for it, and no way to gain one. A short list is therefore always
-offered whatever the config carries: dip depth, and the five backlash settings.
+offered whatever the config carries: dip depth, the five backlash settings,
+and brush size (see *Brush size sets the stroke*).
 
 A config that names them keeps its own values; one that does not gets a dip no
 deeper than the old fixed one and a modest 0.5 mm of backlash either way to tune
@@ -284,6 +287,36 @@ millimetres, so a side of zero was a division by zero several calls deep, which
 reached the page as a 500; a negative side did not fail at all — it flipped the
 picture and painted it off the bed, which is worse, because it looks like it
 worked.
+
+### Brush size sets the stroke
+
+**Infill line distance** is the gap between fill strokes, and the right gap for
+a brush is the width it lays down: closer paints the same paper twice, further
+leaves paper showing between the strokes (see *Long brush strokes* for what the
+wrong figure costs). That made it a fact about the brush typed into the Run
+step under a slicer's name, where nobody changing brushes thought to look.
+
+**Brush size** (`brushograph.brush_size`, millimetres, decimals allowed) is
+where the brush is described now, in its own **Brush configuration** group in
+the machine step. Changing it copies the figure into Infill line distance. Only
+a change by hand does: opening a config leaves both as it states them, and the
+line distance stays editable, because a fill laid closer or looser than the
+brush is a choice somebody may have made on purpose. Nothing in the pipeline
+reads Brush size; it decides nothing the line distance did not already decide.
+
+A config written before Brush size existed has no key for it, so it is filled
+in when the config is read, never overridden — from the line distance the
+config already paints at, so opening an old config and touching nothing paints
+what it did. Where that is 0, outlines only, the brush is the nominal
+millimetre the pipeline stands in for a zero stroke: on the three configs kept
+on the server that gave 0.4 mm (`parang`), 0.3 mm (`pinkograph`) and 1 mm
+(`testikel`).
+
+**Paint management** moved in under it, out of Machine setup. How far the brush
+paints on one load (`paint_per_run_min`/`max`) depends on how much paint the
+brush holds, so it is changed with the brush rather than with the machine.
+`tray_enter_radius` and `remove_drops_radius` came along because they are part
+of that group's definition, not because they describe the brush.
 
 ### A stroke is drawn as wide as the brush
 
