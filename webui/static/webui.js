@@ -541,8 +541,9 @@ function wireForm() {
   /* ---- the brush sets the stroke ---- */
   /* Infill line distance is the gap between fill strokes, and for a brush the
      right gap is the width it lays down: closer paints the same paper twice,
-     further leaves paper between. So picking a brush number copies the width
-     that number paints, which the server puts on each option, into it.
+     further leaves paper between. The machine paints with the tip only, so
+     that is the tip's line, not the width the number is sold by. Picking a
+     brush number copies it, which the server puts on each option, in.
      Only on a change by hand — opening a config leaves both as it says, since
      a stroke set apart from the brush on purpose is one somebody chose — and
      the line distance stays editable afterwards for the same reason. */

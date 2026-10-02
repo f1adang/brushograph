@@ -1190,9 +1190,11 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     copicograf.water_cup_width = holder["water_bay_width"]
     # And what the trips across the bed steer round while the brush is below
     # the rims: the containers from outside their walls, the CMYK plate they
-    # stand in, and the reach of the brush fitted — half the stroke it lays,
-    # plus two millimetres for play and splayed wet bristles. A dish is its
-    # rim. The plate is placed off the water crucible, as the plan draws it.
+    # stand in, and the reach of the brush fitted — half its width across the
+    # belly, plus two millimetres for play and splayed wet bristles. The
+    # belly, not the line it paints: only the tip touches the paper, but the
+    # whole brush passes the rim. A dish is its rim. The plate is placed off
+    # the water crucible, as the plan draws it.
     if cup_shape_of(conf) in RECTANGULAR_SHAPES:
         copicograf.cup_outside = holder["outside"]
         water = conf.get("trays", {}).get("water")
@@ -1204,7 +1206,12 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     else:
         rim = 2 * CLASSIC_DISH_RIM_RADIUS
         copicograf.cup_outside = (rim, rim, rim)
-    copicograf.brush_clearance = (brush_width(bg.get("brush_size")) or line_w) / 2 + 2.0
+    # A brush number that is no standard size leaves copicograf's own figure,
+    # a No. 6's: Infill line distance is the tip's line now, a tenth of the
+    # brush or less, and no measure of how wide it is.
+    belly = brush_width(bg.get("brush_size"))
+    if belly:
+        copicograf.brush_clearance = belly / 2 + 2.0
     # The lanes are held inside the ground a job already covers — the
     # containers and the canvas — not the axis travel. Backlash compensation
     # writes every coordinate low by up to the take-up while the axis travels

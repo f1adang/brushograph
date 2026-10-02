@@ -317,6 +317,20 @@ BRUSH_SIZES = OrderedDict([
     (16, (10, None)),
 ])
 
+# The gap between fill strokes each number is painted at, in millimetres: far
+# less than the widths above, because the machine runs only the tip of the
+# brush over the paper and never presses it down to its belly. The width a
+# brush number is sold by is what it lays pressed. Infill line distance is the
+# width of the line the tip draws.
+#
+# Two of these were found on the machine: 0.3 mm for a No. 1 and 0.5 for a
+# No. 2. The rest are on the straight line through those two, 0.1 mm plus 0.2
+# for each size, because a round brush's point grows with its number much as
+# its belly does. Extrapolated, not painted: when somebody paints a No. 6 or a
+# No. 12 to the figure that covers, it goes here.
+BRUSH_TIP_STROKE = OrderedDict(
+    (size, round(0.1 + 0.2 * size, 2)) for size in BRUSH_SIZES)
+
 
 # What a brush's hair is, the four natural ones being those watercolour
 # brushes are commonly made of. Kept under the English names in the config
@@ -349,12 +363,12 @@ BRUSH_CAPACITY = {
 
 
 def brush_width(size) -> float | None:
-    """The stroke width a brush number is taken to paint, in millimetres.
+    """How wide a brush number is across its belly, in millimetres.
 
-    The middle of its range: a brush on a plotter is set down to a fixed
-    height, not pressed, so it lays neither its narrowest stroke nor its
-    widest. An open range is taken at its one end. None for a number that
-    is not a standard size.
+    Not what it paints at — the machine paints with the tip, see
+    BRUSH_TIP_STROKE — but how much room the brush takes up beside a
+    container wall. The middle of its range, an open range at its one end.
+    None for a number that is not a standard size.
     """
     try:
         low, high = BRUSH_SIZES[size]
@@ -363,14 +377,24 @@ def brush_width(size) -> float | None:
     return float(low) if high is None else (low + high) / 2
 
 
-def brush_label(size) -> str:
+def brush_stroke(size) -> float | None:
+    """The gap between fill strokes a brush number is painted at, in mm.
+
+    What picking the brush puts in Infill line distance. None for a number
+    that is not a standard size.
+    """
     try:
-        low, high = BRUSH_SIZES[size]
-    except (KeyError, TypeError):
+        return BRUSH_TIP_STROKE.get(size)
+    except TypeError:
+        return None
+
+
+def brush_label(size) -> str:
+    stroke = brush_stroke(size)
+    if stroke is None:
         return str(size)
-    if high is None:
-        return f"No. {size}+ ({low:g}+ mm)"
-    return f"No. {size} ({low:g}\u2013{high:g} mm)"
+    plus = "+" if BRUSH_SIZES[size][1] is None else ""
+    return f"No. {size}{plus} ({stroke:g} mm)"
 
 
 def cup_shape_of(conf: dict) -> str:
@@ -536,8 +560,8 @@ def _offer_brush_size(conf: dict) -> None:
     """Give a config a brush size: the number nearest the stroke it paints at.
 
     Brush size is what the form fills Infill line distance from, so a config
-    written before it existed is given the brush whose width is closest to the
-    line distance it already has. Only the control is filled in — the line
+    written before it existed is given the brush that is painted at the line
+    distance closest to the one it already has. Only the control is filled in — the line
     distance is left as it was, so opening the config and touching nothing
     paints exactly what it did. Where that figure is 0 — outlines only — it is
     taken as the nominal millimetre the pipeline stands in for it, because a
@@ -552,7 +576,7 @@ def _offer_brush_size(conf: dict) -> None:
     except (TypeError, ValueError):
         stroke = 0.0
     stroke = stroke if stroke > 0 else 1.0
-    bg["brush_size"] = min(BRUSH_SIZES, key=lambda size: abs(brush_width(size) - stroke))
+    bg["brush_size"] = min(BRUSH_SIZES, key=lambda size: abs(brush_stroke(size) - stroke))
 
 
 def _offer_far_backlash(conf: dict) -> None:
@@ -1039,7 +1063,7 @@ HELP = {
     "brushograph-moves-normal-feedrate_1": "How fast the brush paints, in millimetres a minute. This is the rate a stroke is laid at, and the macros drop to it for the marks they put on the paper.",
     "brushograph-moves-fast-feedrate_1": "How fast the machine crosses the bed, in millimetres a minute \u2014 the trips to the containers and back, and the whole of every macro. Nothing the generator writes goes faster than this.",
     "brushograph-moves-remove_drops-feedrate_1": "How fast the brush is drawn over the rim of a round cup to shed its drop, in millimetres a minute. Nothing reads it for a rectangular bay, which wipes itself on the way up its stairs.",
-    "brushograph-brush_size": "The number of the round brush fitted, as printed on its handle. Each number lays a stroke of roughly the width shown beside it. Picking one sets Infill line distance under Run to the middle of that range, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush, or finer than any brush here.",
+    "brushograph-brush_size": "The number of the round brush fitted, as printed on its handle. The machine paints with the tip of the brush only, so the line it draws is much finer than the width the number is sold by. Picking one sets Infill line distance under Run to the figure shown beside it, the gap between fill strokes that covers a shape with that tip: 0.3 mm for a No. 1, 0.5 for a No. 2. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush.",
     "brushograph-brush_type": "What the bristles are made of. Synthetic is nylon or polyester: springy, keeps its point, holds the least paint. Kolinsky sable is the classic watercolour hair: holds a lot of paint and still comes back to a fine point. Squirrel is the softest and holds the most, with little spring, which suits washes. Goat is soft and holds plenty but loses its point. Ox is ear hair, firmer than sable and often blended with it. Picking one scales Paint per run min and max by how much more or less paint that hair holds than the one the config opened with: a squirrel brush paints about 1.7 times as far on a load as a synthetic one. The figures are estimates; adjust Paint per run afterwards if the brush runs dry early or floods.",
     "brushograph-paint_per_run_min": "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
     "brushograph-paint_per_run_max": "Maximum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence",
@@ -1130,11 +1154,12 @@ def _field(path: list[str], value) -> dict:
             options.insert(0, value)
         f["options"] = [{"value": o, "label": ENUM_LABELS.get(o, o)} for o in options]
         if name == "brushograph-brush_size":
-            # Each number carries the width it paints, which is what the page
-            # copies into Infill line distance when one is picked.
+            # Each number carries the line distance its tip paints at, which
+            # is what the page copies into Infill line distance when one is
+            # picked.
             for o in f["options"]:
                 o["label"] = brush_label(o["value"])
-                o["data"] = {"mm": brush_width(o["value"])}
+                o["data"] = {"mm": brush_stroke(o["value"])}
         elif name == "brushograph-brush_type":
             # Each hair carries how much paint it holds, which the page scales
             # Paint per run by when one is picked.

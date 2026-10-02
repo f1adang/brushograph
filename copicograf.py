@@ -247,7 +247,7 @@ class Copicograf:
         self.holder_plate = None
         # How far from a wall the brush's own axis has to be before it may go
         # below the rims. The coordinates are where the tip is, and a brush is
-        # not a point: its belly is the width of the stroke it lays, and it is
+        # not a point: its belly is wider than anything the tip paints, and it is
         # that, not the tip, which a shallow ramp drags over a rim. Set by the
         # WebUI from the brush fitted.
         self.brush_clearance = BRUSH_CLEARANCE

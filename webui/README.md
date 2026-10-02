@@ -304,47 +304,64 @@ step under a slicer's name, where nobody changing brushes thought to look.
 now, under **Brush configuration** in the machine step's **Brush & Paint
 settings**. It is the number on the handle of a round brush, picked from the
 standard sizes rather than typed, because that is what someone fitting a brush
-knows; nobody measures the stroke one lays. Each number carries the width it
-paints (`configspec.BRUSH_SIZES`):
+knows; nobody measures the stroke one lays. Each number carries two figures:
+the width it is sold by (`configspec.BRUSH_SIZES`), and the line distance it
+is painted at (`BRUSH_TIP_STROKE`):
 
-| No. | width | taken as |
+| No. | sold as | line distance |
 |---|---|---|
-| 0 | 1–2 mm | 1.5 mm |
-| 1 | 1.5–2.5 mm | 2 mm |
-| 2 | 2–3 mm | 2.5 mm |
-| 4 | 3–4 mm | 3.5 mm |
-| 6 | 4–5 mm | 4.5 mm |
-| 8 | 5–6 mm | 5.5 mm |
-| 10 | 6–8 mm | 7 mm |
-| 12 | 7–10 mm | 8.5 mm |
-| 16+ | 10+ mm | 10 mm |
+| 0 | 1–2 mm | 0.1 mm |
+| 1 | 1.5–2.5 mm | **0.3 mm** |
+| 2 | 2–3 mm | **0.5 mm** |
+| 4 | 3–4 mm | 0.9 mm |
+| 6 | 4–5 mm | 1.3 mm |
+| 8 | 5–6 mm | 1.7 mm |
+| 10 | 6–8 mm | 2.1 mm |
+| 12 | 7–10 mm | 2.5 mm |
+| 16+ | 10+ mm | 3.3 mm |
 
-The ranges overlap because makers do not agree on what a number means. A
-brush on a plotter is lowered to a fixed height rather than pressed, so it
-lays neither its narrowest stroke nor its widest: the middle of the range is
-taken (`brush_width`), and the bottom of the open one. Odd numbers above 1
-are rarely made and are left out.
+**The machine paints with the tip.** The first version copied the width the
+number is sold by into Infill line distance — 2.5 mm for a No. 2 — and that
+width is what a brush lays pressed down to its belly, which a plotter never
+does: it lowers the brush to a fixed height and runs only the point over the
+paper. Found on the machine, a No. 2 wants **0.5 mm** and a No. 1
+**0.3 mm**: a fifth and about a seventh of the widths they are sold by — so it is
+not one ratio, and the table is not the sold width scaled.
 
-Picking a number copies that width into Infill line distance — the server
-puts it on each option as `data-mm`, so the table lives in one place. Only a
+Those two are the measured figures. The rest are on the straight line through
+them, 0.1 mm plus 0.2 per size: a round brush's point grows with its number
+much as its belly does, and nothing better is known. They are extrapolated,
+not painted, and a figure found on the machine replaces its row of
+`BRUSH_TIP_STROKE` with nothing else to change. The option labels show the
+line distance, since that is what picking one does.
+
+The sold widths are kept for what the belly *does* decide: how far the brush
+keeps from a container wall (see *Clear of the walls on the way back*). The
+middle of each range is taken (`brush_width`), and the bottom of the open one.
+The ranges overlap because makers do not agree on what a number means. Odd
+numbers above 1 are rarely made and are left out.
+
+Picking a number copies its line distance into Infill line distance — the
+server puts it on each option as `data-mm`, so the table lives in one place. Only a
 change by hand does: opening a config leaves both as it states them, and the
 line distance stays editable, because a fill laid closer or looser than the
 brush is a choice somebody may have made on purpose. That is also how
 anything finer than a No. 0 is reached: the configs kept on the server paint
-at 0.3 and 0.4 mm, a pen's stroke rather than a brush's. Nothing in the
-pipeline reads Brush size; it decides nothing the line distance did not
-already decide.
+at 0 and 0.3 mm. The pipeline reads Brush size for one thing only, the
+clearance round the containers; the stroke is still Infill line distance.
 
 A first version took the brush as a width in millimetres. That asked for a
 figure people do not have, and was replaced before it was released.
 
 A config written before Brush size existed has no key for it, so it is filled
-in when the config is read, never overridden — with the number whose width is
-nearest the line distance the config already paints at, and the line distance
+in when the config is read, never overridden — with the number whose line
+distance is nearest the one the config already paints at, and the line distance
 itself left alone, so opening an old config and touching nothing paints what
 it did. Where that is 0, outlines only, the nominal millimetre the pipeline
-stands in for a zero stroke is matched instead. All three configs kept on the
-server open on a No. 0.
+stands in for a zero stroke is matched instead. Pinkograph, at 0.3 mm, opens
+on a No. 1; Testikel, at 0, on a No. 4. Brushparang was saved with a No. 2 at
+2.5 mm under the first table, and keeps both: a figure a config states is not
+rewritten on read.
 
 **Brush type** (`brushograph.brush_type`) sits beside it: what the bristles
 are, from `configspec.BRUSH_TYPES` — synthetic, Kolinsky sable (Rotmarder in
@@ -2602,8 +2619,8 @@ a 10 mm rim, then came down beside black's back wall 1.7 mm off at Z 7.
 What the trip steers round now is the containers from the **outside** of their
 walls (`holder["outside"]`, the dish's rim for a round cup), the **plate** the
 CMYK crucibles stand in, placed off the water crucible as the plan draws it,
-and around all of it **the reach of the brush**: half the stroke width of the
-Brush size fitted, plus 2 mm for play and wet bristles that have splayed —
+and around all of it **the reach of the brush**: half the width the Brush size
+fitted is sold by — its belly, not the tip's line — plus 2 mm for play and wet bristles that have splayed —
 4.25 mm for a No. 6. The ramp begins only once the brush is that far from all
 of it. A stroke that itself starts inside that margin — the Mini's canvas
 begins 1.5 mm behind its crucibles — is flown to at the tray lift and dropped

@@ -243,15 +243,15 @@ text: {
 "Squirrel": "Fehhaar (Eichhörnchen)",
 "Goat": "Ziegenhaar",
 "Ox": "Rindsohrhaar",
-"No. 0 (1–2 mm)": "Nr. 0 (1–2 mm)",
-"No. 1 (1.5–2.5 mm)": "Nr. 1 (1,5–2,5 mm)",
-"No. 2 (2–3 mm)": "Nr. 2 (2–3 mm)",
-"No. 4 (3–4 mm)": "Nr. 4 (3–4 mm)",
-"No. 6 (4–5 mm)": "Nr. 6 (4–5 mm)",
-"No. 8 (5–6 mm)": "Nr. 8 (5–6 mm)",
-"No. 10 (6–8 mm)": "Nr. 10 (6–8 mm)",
-"No. 12 (7–10 mm)": "Nr. 12 (7–10 mm)",
-"No. 16+ (10+ mm)": "Nr. 16+ (10+ mm)",
+"No. 0 (0.1 mm)": "Nr. 0 (0,1 mm)",
+"No. 1 (0.3 mm)": "Nr. 1 (0,3 mm)",
+"No. 2 (0.5 mm)": "Nr. 2 (0,5 mm)",
+"No. 4 (0.9 mm)": "Nr. 4 (0,9 mm)",
+"No. 6 (1.3 mm)": "Nr. 6 (1,3 mm)",
+"No. 8 (1.7 mm)": "Nr. 8 (1,7 mm)",
+"No. 10 (2.1 mm)": "Nr. 10 (2,1 mm)",
+"No. 12 (2.5 mm)": "Nr. 12 (2,5 mm)",
+"No. 16+ (3.3 mm)": "Nr. 16+ (3,3 mm)",
 "Paint Per Run Min": "Farbstrecke Mindestens",
 "Paint Per Run Max": "Farbstrecke Höchstens",
 "Prepare Paint Count": "Anmischgänge",
@@ -302,8 +302,8 @@ text: {
   "Größte Breite der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim X-Versatz, also ist das breitestmögliche um ebendiesen Versatz geringer.",
 "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.":
   "Größte Höhe der Maschine (mm), vom Ursprung aus gemessen. Ein Bild beginnt beim Unterlagenbeginn Y, hinter dem Streifen, auf dem die Behälter stehen, zuzüglich dessen, was der Versatz Y hinzufügt; das höchstmögliche ist also um beides geringer: 124 mm von Pinkographs 156.",
-"The number of the round brush fitted, as printed on its handle. Each number lays a stroke of roughly the width shown beside it. Picking one sets Infill line distance under Run to the middle of that range, which is the gap between fill strokes: a gap the width of the brush covers a shape once. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush, or finer than any brush here.":
-  "Die Nummer des eingesetzten Rundpinsels, wie sie auf dem Stiel steht. Jede Nummer malt einen Strich ungefähr der daneben angegebenen Breite. Die Wahl setzt den Fülllinienabstand unter Ausführen auf die Mitte dieses Bereichs; das ist der Abstand zwischen den Fülllinien, und ein Abstand von einer Pinselbreite deckt eine Fläche genau einmal. Der Fülllinienabstand lässt sich danach weiterhin von Hand setzen, für eine dichtere oder lockerere Füllung als der Pinsel oder eine feinere als jeder Pinsel hier.",
+"The number of the round brush fitted, as printed on its handle. The machine paints with the tip of the brush only, so the line it draws is much finer than the width the number is sold by. Picking one sets Infill line distance under Run to the figure shown beside it, the gap between fill strokes that covers a shape with that tip: 0.3 mm for a No. 1, 0.5 for a No. 2. Infill line distance can still be set by hand afterwards, for a fill laid closer or looser than the brush.":
+  "Die Nummer des eingesetzten Rundpinsels, wie sie auf dem Stiel steht. Die Maschine malt nur mit der Spitze des Pinsels, also ist ihr Strich viel feiner als die Breite, nach der die Nummer verkauft wird. Die Wahl setzt den Fülllinienabstand unter Ausführen auf den daneben angegebenen Wert, den Abstand zwischen den Fülllinien, mit dem diese Spitze eine Fläche deckt: 0,3 mm bei Nr. 1, 0,5 bei Nr. 2. Der Fülllinienabstand lässt sich danach weiterhin von Hand setzen, für eine dichtere oder lockerere Füllung als der Pinsel.",
 "What the bristles are made of. Synthetic is nylon or polyester: springy, keeps its point, holds the least paint. Kolinsky sable is the classic watercolour hair: holds a lot of paint and still comes back to a fine point. Squirrel is the softest and holds the most, with little spring, which suits washes. Goat is soft and holds plenty but loses its point. Ox is ear hair, firmer than sable and often blended with it. Picking one scales Paint per run min and max by how much more or less paint that hair holds than the one the config opened with: a squirrel brush paints about 1.7 times as far on a load as a synthetic one. The figures are estimates; adjust Paint per run afterwards if the brush runs dry early or floods.":
   "Woraus die Haare des Pinsels sind. Synthetik ist Nylon oder Polyester: federnd, hält die Spitze, nimmt am wenigsten Farbe auf. Rotmarder ist das klassische Aquarellhaar: nimmt viel Farbe auf und kehrt doch zu einer feinen Spitze zurück. Fehhaar ist das weichste und nimmt am meisten auf, federt aber kaum, was zu Lasuren passt. Ziegenhaar ist weich und nimmt viel auf, verliert aber die Spitze. Rindsohrhaar ist fester als Rotmarder und wird oft mit ihm gemischt. Die Wahl skaliert Farbstrecke Mindestens und Höchstens danach, wie viel mehr oder weniger Farbe dieses Haar hält als das, mit dem die Konfiguration geöffnet wurde: ein Fehhaarpinsel malt mit einer Ladung etwa 1,7-mal so weit wie ein synthetischer. Die Werte sind geschätzt; passen Sie die Farbstrecke danach an, wenn der Pinsel zu früh trocken läuft oder zu nass ist.",
 "Minimum path length (mm) for painting. For plotting set this number really high (e.g. 1000000) to avoid the paint fetching sequence":
