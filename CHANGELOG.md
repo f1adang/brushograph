@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.21.0](https://github.com/f1adang/brushograph/releases/tag/v2.21.0) — 2026-10-02
+
+- **New theme, h4xx0r:** a green phosphor terminal behind dirty glass, ported from the h4xx0r theme for the machine's own FluidNC dashboard. It has scanlines, static, a signal that keeps dropping out and a screen that powers on from a line, all in pixel fonts. Errors show in reverse video and warnings are underlined. Pick it from **Theme** in the footer. The tray colours, the G-code preview and the CMYK plates keep their real paint colours, as in every theme. If your system is set to reduce motion, the glass holds still.
+
 ## [v2.20.2](https://github.com/f1adang/brushograph/releases/tag/v2.20.2) — 2026-10-02
 
 - **Brush size sets a much finer line distance:** the machine paints with the tip of the brush only, so picking a **Brush size** now sets **Infill line distance** to the line that tip draws instead of the width the brush is sold by: 0.3 mm for a No. 1 and 0.5 mm for a No. 2 (it used to be 2 and 2.5 mm). The other sizes follow the same line, from 0.1 mm for a No. 0 to 3.3 mm for a No. 16+. Only the No. 1 and No. 2 figures were found on the machine, so if another size leaves gaps or paints over itself, adjust Infill line distance by hand. The brush list now shows the line distance next to each number. Existing configs keep their line distance; if yours was set from the old figures, pick the brush size again.
