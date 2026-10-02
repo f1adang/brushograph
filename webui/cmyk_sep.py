@@ -135,10 +135,28 @@ def contour_mask(cmyk: Image.Image, strength: float,
     # line on through the stretch where an edge fades without starting new ones
     # in the noise.
     edges = cv2.Canny(dx.astype(np.int16), dy.astype(np.int16),
-                      high * 0.4, high, L2gradient=True)
+                      high * 0.4, high, L2gradient=True) > 0
+
+    # The edge of the picture is where the photographer stopped, not where
+    # anything in it stops, and it must not be drawn. The blur and the gradient
+    # both read past the border as the picture mirrored, and a tone that is
+    # changing fastest at the edge -- a vignette, a sky darkening upwards --
+    # is folded there into a ridge, which Canny finds a few pixels in and runs
+    # parallel to the border: widened to a stroke, a frame round the picture.
+    # So within reach of the mirror (three blurs, and two pixels for the
+    # gradient's own kernel) a line running along the border is dropped. A
+    # line running into it is kept, and still meets the edge.
+    reach = int(np.ceil(3 * sigma)) + 2
+    along_rows = np.abs(dy) > np.abs(dx)   # the line runs side to side
+    rim = np.zeros((h, w), bool)
+    rim[:reach] = rim[-reach:] = True
+    edges[rim & along_rows] = False
+    rim[:] = False
+    rim[:, :reach] = rim[:, -reach:] = True
+    edges[rim & ~along_rows] = False
 
     count, labels, stats, _ = cv2.connectedComponentsWithStats(
-        (edges > 0).astype(np.uint8), 8)
+        edges.astype(np.uint8), 8)
     short = stats[:, cv2.CC_STAT_AREA] < CONTOUR_MIN_RUN_FRAC * diag
     short[0] = True  # label 0 is the paper
     line = ~short[labels]

@@ -724,6 +724,24 @@ own thinning and hysteresis then do the rest, the low threshold at two fifths
 of the high one, which is what carries a line through a stretch where an edge
 fades without starting new ones in the noise.
 
+**The edge of the picture is never drawn.** It is where the photographer
+stopped, not where anything in the picture stops. Nothing in the edge finding
+looks for it, but it was being drawn anyway: the blur and the Scharr kernel
+both read past the border as the picture mirrored, and a tone that changes
+fastest right at the edge — a vignette, a sky darkening upwards, a shadowed
+foreground — is folded there into a ridge. Canny finds the ridge a few pixels
+in and follows it parallel to the border, and once it is widened to half a
+stroke the black plate has a frame round the picture, longer on the sides
+where the slider is higher. So within three blurs and two pixels of the
+border (`reach` in `contour_mask`; 11 px on a 1500 px diagonal), an edge
+pixel whose line runs *along* that border is dropped, and one whose line runs
+*into* it is kept and still meets the edge. At 100 that took 9.3% of the
+contour off a vignetted test card, 6.9% and 4.9% off two small landscape
+thumbnails and 2.0% and 1.1% off two full-size photographs, all of it lines
+hugging the border. Padding with the border pixel repeated instead of mirrored
+was considered and not tried: it flattens the gradient at the edge rather than
+continuing it, so a ramp steepening outward still peaks just inside.
+
 **A contour shorter than 1.5% of the diagonal is dropped.** Every separate run
 is a brush-down, a trip for paint and a blot where the brush lands again, so a
 three-pixel fleck off the side of a rock costs what a skyline costs and says
