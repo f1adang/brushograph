@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.21.1](https://github.com/f1adang/brushograph/releases/tag/v2.21.1) — 2026-10-03
+
+- **Black contours no longer frame the photograph:** with **Black contours** turned up, the black plate could get a line running just inside the edge of the picture, on one side or all four, most often on photographs that darken towards their edges or have a sky that deepens towards the top. The edge of the photograph is no longer drawn. Contours that run into the edge, like a horizon or a bridge cable, still reach it.
+
 ## [v2.21.0](https://github.com/f1adang/brushograph/releases/tag/v2.21.0) — 2026-10-02
 
 - **New theme, h4xx0r:** a green phosphor terminal behind dirty glass, ported from the h4xx0r theme for the machine's own FluidNC dashboard. It has scanlines, static, a signal that keeps dropping out and a screen that powers on from a line, all in pixel fonts. Errors show in reverse video and warnings are underlined. Pick it from **Theme** in the footer. The tray colours, the G-code preview and the CMYK plates keep their real paint colours, as in every theme. If your system is set to reduce motion, the glass holds still.
