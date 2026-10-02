@@ -38,6 +38,11 @@ PALETTES = {
     "kongress": dict(bg=(246, 245, 240), grid=(216, 214, 206), bed=(20, 20, 20),
                      canvas=(10, 10, 10), text=(0, 0, 0), muted=(90, 90, 90),
                      accent=(139, 0, 0), key=(0, 0, 0)),
+    # One green phosphor: the bed in the dim green, the painting area in the
+    # ink, and the hot green for what the theme would print in reverse video.
+    "h4xx0r": dict(bg=(6, 16, 9), grid=(14, 46, 22), bed=(31, 160, 31),
+                   canvas=(46, 230, 46), text=(46, 230, 46), muted=(46, 158, 58),
+                   accent=(102, 255, 102), key=(200, 255, 200)),
 }
 
 # How many stairs a CMYK crucible has — five, in both of mini_petri.scad's
@@ -96,6 +101,15 @@ TRAY_FILL = {
 def font_for(size=12, theme="default"):
     """The face this theme writes in. Shared with the CMYK contact sheet, so
     both server-drawn pictures are lettered the way the page around them is."""
+    if theme == "h4xx0r":
+        # VT323's x-height is 0.40 of its size against Arial's 0.52, so at the
+        # same size it reads as a smaller face; the page evens this out with
+        # font-size-adjust, and this is the same correction.
+        local_font = os.path.join(os.path.dirname(__file__), "static", "VT323.ttf")
+        try:
+            return ImageFont.truetype(local_font, round(size * 0.52 / 0.40))
+        except OSError:
+            pass
     if theme == "kongress":
         local_font = os.path.join(os.path.dirname(__file__), "static", "UnifrakturMaguntia.ttf")
         if os.path.exists(local_font):

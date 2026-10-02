@@ -1731,13 +1731,14 @@ appeared to do nothing until it was fixed.
 
 ### Themes
 
-Six, chosen in the footer and remembered per browser. **Default** follows the
+Seven, chosen in the footer and remembered per browser. **Default** follows the
 machine it is read on, light or dark. **Dark mode** holds dark whatever the room
 is doing. **Coconut mode** is husk, flesh and a palm lit from behind, and the
 mark in the corner is a coconut. **UwU** is a neon sign with all the lights up:
 the ground glows, every edge is lit, and the rules under the headings and the
 Generate button run the rainbow. **𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘** is black
 print on aged paper, set in UniFraktur, and speaks German (see below).
+**h4xx0r** is a green phosphor terminal behind dirty glass.
 
 ### The mark in the corner
 
@@ -1823,7 +1824,56 @@ thing on the canvas: the dips shouted over the painting. Each theme now names a
 colour that is present but quieter than paint — Pinkograph names the theme's own
 green `#39FF14`, which no tray holds.
 
-One thing stays fixed across all six: **colour means pigment.** Cyan, magenta,
+**h4xx0r** is a port in the same way, of the theme published for the same
+dashboard as `h4xx0r-theme-v0.1` on f1adang/ESP3D-WEBUI. The values are read
+out of `theme-h4xx0r.gz`, not sampled from the release's GIF: ground `#020604`,
+panel `#061009`, strip `#08170C`, highlight `#0E2E16`, ink `#2EE62E`, bright
+`#33FF33`, hot `#66FF66`, dim `#2E9E3A`, rule `#1E5A2C`. There is one colour
+and it is green, so an error is the hot green in reverse video rather than red,
+and a warning is underlined. Of all the themes it sits easiest with the rule
+below: no pigment is green, and the trays end up the only colour on the screen.
+
+The glass is the original's four layers, fixed over the page: scanlines and a
+vignette that flicker, static that drifts and thickens, dropout streaks, and a
+band of interference that rolls up the screen. The page loses the signal on a
+9 s cycle, jitters a pixel at a time, and powers on from a line when the theme
+is chosen. The original moves its `#app` wrapper. There is no such wrapper
+here, so the header, `main` and the footer move together on the same clocks.
+Moving `<body>` instead would make every `position: fixed` layer fixed to the
+body rather than the screen, and the vignette would scroll away with the page.
+Dialogs open in the top layer, above all of it, so a dialog is the one thing
+read through clean glass. The G-code preview and the CMYK plates keep their
+white paper underneath. The scanlines darken them slightly and do not change
+their hue.
+
+Its three faces (VT323, Silkscreen, Press Start 2P) are bundled in `static/`
+with Google's copy as a fallback, as UniFraktur is, so a workshop with no route
+out still sees them. They are drawn to very different scales. Measured on the
+glyphs, VT323's x-height is 0.40 of its size, Silkscreen's 0.63 and Press Start
+2P's 0.75, against Helvetica's 0.52, which every size in the sheet was chosen
+for. Rather than re-size every rule for one theme, `font-size-adjust: .52`
+normalises all three. It is set on every element, because the `font` shorthand
+on buttons and inputs resets it. `sketch.font_for()` makes the same correction
+(× 0.52 / 0.40) when it letters the plan in VT323.
+
+All three come in one weight, and that cost a round. The browser synthesised
+bold by smearing VT323 a pixel sideways, and under the glow every `<b>` and
+`<code>` on the About page read as struck through. `font-synthesis: none` stops
+that, and emphasis is the brighter phosphor instead, as on a terminal. The
+original's drop-shadow on the logo was dropped as well. The mark here is a
+`mask`, and a mask is applied after a filter, so the glow would be cut away
+with everything else outside the silhouette. Only the flicker of its ghosting
+is kept.
+
+Contrast against the panel: ink 11.5:1, dim 5.6:1, the dark text on a green
+button 14.8:1. Dim text on the highlight comes to only 4.27:1, so the highlight
+is kept for hover backgrounds, and a lit row's small print goes up to full ink.
+Reduced motion needed one more rule than the other themes. The page-wide rule
+stops `*`, but `*` does not match pseudo-elements, and four of the moving parts
+are those. The scanlines and static stay, still; the dropouts and the rolling
+band exist only to move, so they go.
+
+One thing stays fixed across all seven: **colour means pigment.** Cyan, magenta,
 yellow and water identify trays and nothing else in the interface is saturated,
 so a coloured mark always stands for paint in a cup. The themes restyle every
 surface and every annotation, and leave the paint alone. **𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘**
@@ -1851,7 +1901,7 @@ step and nothing to restore.
 Coconut declares `color-scheme: light` although its ground is dark, because
 every panel is pale and the form controls sit on those; under a dark scheme the
 browser drew unchecked boxes as filled dark squares on cream, which read as
-ticked. Pinkograph and UwU declare dark, because their panels are. Kongress
+ticked. Pinkograph, UwU and h4xx0r declare dark, because their panels are. Kongress
 declares light with stark monochrome surfaces and zero corner radii.
 
 Everything that moves stops under `prefers-reduced-motion` — the machine's own
@@ -2942,7 +2992,7 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   measures is a gap between two lines and paint adds nothing to that. Here the
   point is a tick on the canvas in the middle of the machine's ordinary
   working state — paint in the cups, paper on the bed — so it paints, and
-  black is what it paints with: black shows on every paper the six themes are
+  black is what it paints with: black shows on every paper the seven themes are
   drawn on, and a machine with a black cup has a CMYK holder by definition,
   since `fit_cups_to_shape` takes the black cup away from a classic one.
 
