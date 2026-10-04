@@ -781,6 +781,62 @@ function wireForm() {
   if (controllerSelect) controllerSelect.addEventListener("change", showForController);
   showForController();
 
+  /* ---- bed levelling from a probe map ---- */
+  /* The CSV is read by the server, which hands back the points; they go into
+     the hidden field the config's own level_map fills, and from there into
+     every post the form makes, the way any other setting does. With a map
+     loaded the five readings are not used, so they are hidden -- not cleared,
+     so removing the map brings back what they said. */
+  const mapField = machineInput("level_map");
+  if (mapField) {
+    const box = mapField.closest(".field");
+    const picker = box.querySelector(".levelmap-file");
+    const state = box.querySelector(".levelmap-state");
+    const summary = box.querySelector(".levelmap-summary");
+    const points = () => { try { return JSON.parse(mapField.value || "[]"); } catch (e) { return []; } };
+    // `missed` only straight after reading a file: the config keeps the points
+    // probed, not the ones that found nothing.
+    const showMap = (missed = 0) => {
+      const p = points();
+      state.hidden = !p.length;
+      if (p.length) {
+        const span = (i) => [Math.min(...p.map((q) => q[i])), Math.max(...p.map((q) => q[i]))];
+        const [x0, x1] = span(0), [y0, y1] = span(1), [z0, z1] = span(2);
+        const vars = { n: p.length, x0: +x0.toFixed(1), x1: +x1.toFixed(1), y0: +y0.toFixed(1),
+                       y1: +y1.toFixed(1), spread: (z1 - z0).toFixed(2), missed };
+        say(summary, missed
+          ? "{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest; {missed} without contact left out"
+          : "{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest", vars);
+      }
+      for (const key of ["level_tl", "level_tr", "level_c", "level_bl", "level_br"]) {
+        const field = machineInput(key) && machineInput(key).closest(".field");
+        if (field) field.hidden = p.length > 0;
+      }
+    };
+    const changed = (missed) => { showMap(missed); form.dispatchEvent(new Event("input")); };
+    picker.addEventListener("change", async () => {
+      if (!picker.files.length) return;
+      const fd = new FormData();
+      fd.append("probe_map", picker.files[0]);
+      try {
+        const res = await fetch("level_map", { method: "POST", body: fd });
+        if (!res.ok) throw new Error(await serverError(res));
+        const got = await res.json();
+        mapField.value = JSON.stringify(got.points);
+        changed(got.missed);
+      } catch (err) {
+        state.hidden = false;
+        say(summary, err.message);
+      }
+      clearFile(picker);
+    });
+    box.querySelector(".levelmap-clear").addEventListener("click", () => {
+      mapField.value = "[]";
+      changed(0);
+    });
+    showMap();
+  }
+
   /* ---- the model: Mini or 𝔐𝔦𝔨𝔯𝔬 ---- */
   /* Choosing a model puts its travel limits, canvas offset and tray lift in the
      form and spaces the containers on its holder. Going back to the model the
@@ -1595,6 +1651,12 @@ const PREVIEW_INK = {
 // to the heights: canvas and dip are the config's canvas_height and dip_depth.
 function parseGcode(text, { canvas = 0, dip = null, paperAbove = 0 } = {}) {
   const near = (a, b) => Math.abs(a - b) < 0.001;
+  // The file's own word on how high the paper reaches, where it has one: the
+  // levelling pass writes the range it corrected by, and with a probe map
+  // there are no five boxes in the form to read it off instead. The boxes are
+  // for a file written before the note was.
+  const levelled = text.match(/^\s*;\s*bed levelling: paper from \S+ to ([-+]?\d*\.?\d+) mm/im);
+  if (levelled) paperAbove = Math.max(0, parseFloat(levelled[1]));
   const marked = /^\s*;\s*dip\b/im.test(text);
   const moves = [];
   let x = 0, y = 0, z = 10, tray = null, trayIndex = -1;

@@ -12,6 +12,8 @@ import json
 import re
 from collections import OrderedDict
 
+import levelmap
+
 CMYK_TO_TRAY = {"C": "cyan", "M": "magenta", "Y": "yellow", "K": "kroma"}
 
 # What each channel is called in the form. "kroma" is what the tray is keyed as
@@ -492,6 +494,11 @@ ALWAYS_OFFERED = {
     ("brushograph", "level_c"): 0.0,
     ("brushograph", "level_bl"): 0.0,
     ("brushograph", "level_br"): 0.0,
+    # A probed height map, which replaces the five readings when there is one:
+    # [x, y, z] in the order the probe took them (levelmap.py says why the
+    # order matters). Empty is none. A list, so it has no box of its own --
+    # _walk gives this one key a control anyway.
+    ("brushograph", "level_map"): [],
     ("connection", "hostname"): "fluidnc.local",
 }
 
@@ -544,7 +551,8 @@ def with_defaults(conf: dict) -> dict:
     for path in RETIRED:
         _forget(out, path)
     for path, value in ALWAYS_OFFERED.items():
-        _dig(out, path).setdefault(path[-1], value)
+        # A copy of a list, or every config filled in would share the one.
+        _dig(out, path).setdefault(path[-1], list(value) if isinstance(value, list) else value)
     _offer_far_backlash(out)
     _offer_canvas_start(out)
     _offer_plain_feeds(out)
@@ -993,7 +1001,7 @@ BRUSHOGRAPH_GROUPS = [
      ["cup_shape", "cup_swipe_exit_z", "cup_dip_lanes", "cup_width_water",
       "cup_width", "cup_depth", "cup_spacing"], False),
     ("Bed levelling",
-     ["level_compensation", "level_tl", "level_tr", "level_c",
+     ["level_compensation", "level_map", "level_tl", "level_tr", "level_c",
       "level_bl", "level_br"], False),
     ("Backlash",
      ["backlash_compensation", "backlash_x", "backlash_x_far", "backlash_y",
@@ -1051,7 +1059,8 @@ HELP = {
     "brushograph-canvas_start_y": "Where the paintable area begins in Y (mm): the far edge of the strip the containers stand in, and a fact about the machine rather than about this painting. Nothing is painted below it, and the painted height is measured from it — with Offset Y at 0 the canvas starts exactly here. Choosing a model sets it: 25 mm on the Mini, 19 on the 𝔐𝔦𝔨𝔯𝔬.",
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
     "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
-    "brushograph-level_compensation": "Write every move made on the paper at the height the paper is at there, from the five readings below, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured \u2014 with all five the same it does nothing anyway.",
+    "brushograph-level_compensation": "Write every move made on the paper at the height the paper is at there, from the probe map below if one is loaded, or else from the five readings, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured \u2014 with all five the same it does nothing anyway.",
+    "brushograph-level_map": "A height map of the bed from a touch probe: the CSV probescan.py writes, x, y and z_mm, hundreds of points rather than five. With one loaded it is used instead of the five readings below. It is read relative to its own height in the middle of the bed, so set Canvas Height with the brush touching there, where the plan view puts its cross. The scan is corrected for the backlash figures below, since every other row was probed travelling the other way. Outside the probed area the nearest edge of the map is used.",
     "brushograph-level_tl": "How much higher the paper is at the top-left of the bed than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.",
     "brushograph-level_tr": "The same reading at the top-right corner of the bed. The plan view marks the spot.",
     "brushograph-level_c": "The same reading at the middle of the bed. This is the one that catches a twist: three corners fit a plane and can say nothing about a sheet that bellies or a bed that is not flat.",
@@ -1110,6 +1119,7 @@ LABELS = {
     # Named for the plan view, which draws Y upwards the way the bed is
     # looked at, and marks these five where they are.
     "level_compensation": "Bed levelling",
+    "level_map": "Probe map",
     "level_tl": "Z top-left",
     "level_tr": "Z top-right",
     "level_c": "Z middle",
@@ -1146,6 +1156,12 @@ def _field(path: list[str], value) -> dict:
     if path[-1] in PLAIN_KEYS and not isinstance(value, (int, float)):
         label = label_for(path[-1])
     f = {"name": name, "label": label, "help": HELP.get(name), "value": value}
+    if name in LIST_FIELDS:
+        # Carried through the form whole, as JSON in a hidden field, so every
+        # post -- the plan, the download, an update, the G-code -- has it.
+        f["type"] = LIST_FIELDS[name]
+        f["value"] = json.dumps(value or [], separators=(",", ":"))
+        return f
     if name in ENUMS:
         f["type"] = "select"
         # Keep the config's own value even if it is not one of the known ones.
@@ -1175,6 +1191,10 @@ def _field(path: list[str], value) -> dict:
     return f
 
 
+# The lists that are settings rather than structure, and the control each gets.
+LIST_FIELDS = {"brushograph-level_map": "levelmap"}
+
+
 def _walk(path: list[str], value) -> list[dict]:
     """Flatten a config subtree into fields, keeping nested dicts as groups."""
     if isinstance(value, dict):
@@ -1182,7 +1202,7 @@ def _walk(path: list[str], value) -> list[dict]:
         for k, v in value.items():
             if isinstance(v, dict):
                 groups.append({"label": label_for(k), "fields": _walk(path + [k], v)})
-            elif isinstance(v, list):
+            elif isinstance(v, list) and "-".join(path + [k]) not in LIST_FIELDS:
                 continue  # lists (color_order, additionals) are structure, not settings
             else:
                 fields.append(_field(path + [k], v))
@@ -1425,6 +1445,12 @@ def apply_form(conf: dict, form) -> tuple[dict, list[str]]:
         values = form.getlist(name)
         # A checkbox posts a hidden "false" plus "true" when ticked.
         raw = values[-1] if values else ""
+        if name in LIST_FIELDS:
+            try:
+                node[leaf] = levelmap.clean(json.loads(raw or "[]"))
+            except (ValueError, TypeError) as exc:
+                problems.append(f"{name}: {exc}")
+            continue
         new = _coerce(node[leaf], raw)
         if isinstance(node[leaf], (int, float)) and not isinstance(node[leaf], bool):
             try:

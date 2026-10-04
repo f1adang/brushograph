@@ -10,6 +10,13 @@
     <select name="{{ f.name }}">
       {% for o in f.options %}<option value="{{ o.value }}" {{ 'selected' if o.value == f.value }}{% for k, v in (o.data or {}).items() %} data-{{ k }}="{{ v }}"{% endfor %}>{{ o.label }}</option>{% endfor %}
     </select>
+  {% elif f.type == 'levelmap' %}
+    <input type="hidden" name="{{ f.name }}" value="{{ f.value }}">
+    <input type="file" class="levelmap-file" accept=".csv,text/csv">
+    <span class="levelmap-state" hidden>
+      <span class="levelmap-summary"></span>
+      <button type="button" class="ghost levelmap-clear">Remove</button>
+    </span>
   {% elif f.type == 'number' %}
     <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="any" required>
   {% else %}

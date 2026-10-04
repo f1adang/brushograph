@@ -30,7 +30,8 @@ if str(REPO_ROOT) not in sys.path:
 from configspec import (CLASSIC_DISH_RIM_RADIUS,  # noqa: E402
                         RECTANGULAR_SHAPES, brush_width, canvas_origin, cup_shape_of,
                         EDGE_HEADROOM, feed_line, holder_of, level_area, level_offset,
-                        paintable_size, tray_entries, workable_x)
+                        level_points, paintable_size, tray_entries, workable_x)
+import levelmap  # noqa: E402
 
 FALLBACK_PATTERN = "concentric"
 
@@ -841,14 +842,19 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
     A move that carries no Z of its own gets one: Z is modal in the file, and
     what this does is make it not be. That is most of the painting moves, and
     it is what the file grows by.
+
+    A probe map, when the config carries one, takes the five readings' place
+    (`level_surface`). Either way the file opens with a note of the lowest and
+    highest correction it was given, which is what the preview needs to tell a
+    stroke over high paper from a lift -- and with a map there is no handful of
+    figures in the form for it to read that off instead.
     """
     bg = conf.get("brushograph", {})
     if not bg.get("level_compensation", False):
         return lines
 
-    readings = [_figure(bg, key) for key in
-                ("level_tl", "level_tr", "level_c", "level_bl", "level_br")]
-    if max(readings) - min(readings) < 1e-9:
+    offset, source = level_surface(conf)
+    if offset is None:
         if log:
             log("bed levelling is on with five readings the same: nothing to correct")
         return lines
@@ -864,6 +870,8 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
     x = y = 0.0
     want_z = 1e9            # the Z the path asked for, before any correction
     touched = 0
+    given: list[float] = []
+    knots = getattr(offset, "knots", None)
     for line in lines:
         body, sep, rest = line.partition(";")
         stripped = body.strip()
@@ -871,13 +879,32 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
             out.append(line)
             continue
         words = dict(_WORD.findall(stripped))
+        was = (x, y, want_z)
         x = float(words["X"]) if "X" in words else x
         y = float(words["Y"]) if "Y" in words else y
         want_z = float(words["Z"]) if "Z" in words else want_z
         if want_z > ceiling or not on_paper(x, y):
             out.append(line)
             continue
-        at = want_z + level_offset(conf, x, y)
+        # A probe map is broken where the move crosses its grid, so the brush
+        # follows the paper between the ends and not only at them. Only a move
+        # that starts on the paper too: one coming down from the tray lift is
+        # in the air until it arrives. The feed goes on the first piece, which
+        # is where the move it belongs to now begins.
+        if knots is not None and was[2] <= ceiling and on_paper(was[0], was[1]):
+            feed = f" F{words['F']}" if "F" in words else ""
+            for t in levelmap.crossings(was[0], was[1], x, y, knots):
+                px, py = was[0] + (x - was[0]) * t, was[1] + (y - was[1]) * t
+                lift = offset(px, py)
+                given.append(lift)
+                pz = was[2] + (want_z - was[2]) * t + lift
+                out.append(f"{stripped.split()[0]} X{_coord(px)} Y{_coord(py)} "
+                           f"Z{_coord(pz)}{feed}")
+                feed = ""
+                touched += 1
+        lift = offset(x, y)
+        given.append(lift)
+        at = want_z + lift
         if "Z" in words:
             fixed = re.sub(r"Z\s*-?\d*\.?\d+", f"Z{_coord(at)}", stripped, count=1)
         else:
@@ -885,11 +912,49 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
         out.append(fixed + (sep + rest if sep else ""))
         touched += 1
 
+    if not given:
+        return out
+    lo, hi = min(given), max(given)
     if log:
-        lo, hi = min(readings), max(readings)
-        log(f"bed levelling: {touched} moves written to the paper's own height, "
-            f"which runs from {lo:+.2f} to {hi:+.2f} mm across the bed")
-    return out
+        log(f"bed levelling from {source}: {touched} moves written to the paper's own "
+            f"height, {lo:+.2f} to {hi:+.2f} mm from Canvas Height under this painting")
+    return [f"; bed levelling: paper from {lo:+.3f} to {hi:+.3f} mm about Canvas Height"] + out
+
+
+def level_surface(conf: dict):
+    """(offset(x, y), what it came from), or (None, None) if there is nothing to correct.
+
+    The probe map when there is one, read relative to its own height at the
+    middle of the bed -- the fifth reading's spot, where a brush is taken to
+    have been set to touch -- and corrected for the play the scan was driven
+    with, the same figures the backlash pass uses. Otherwise the five readings,
+    and nothing at all if all five are the same.
+    """
+    bg = conf.get("brushograph", {})
+    points = bg.get("level_map") or []
+    if points:
+        play = (_play_across_x(0.0, None, None), _play_across_x(0.0, None, None))
+        if bg.get("backlash_compensation", True):
+            near_x, near_y = _figure(bg, "backlash_x"), _figure(bg, "backlash_y")
+            paper = (float(bg.get("offset_x", 0) or 0),
+                     float(bg.get("offset_x", 0) or 0) + _figure(bg, "width"))
+            play = (_play_across_x(near_x, _figure(bg, "backlash_x_far", near_x), paper),
+                    _play_across_x(near_y, _figure(bg, "backlash_y_far", near_y), paper))
+        paper_z = levelmap.surface(points, *play)
+        mid = level_points(conf)["level_c"]
+        zero = paper_z(*mid)
+
+        def offset(x, y):
+            return paper_z(x, y) - zero
+
+        offset.knots = getattr(paper_z, "knots", None)
+        return offset, f"a probe map of {len(points)} points, zero at X{mid[0]:g} Y{mid[1]:g}"
+
+    readings = [_figure(bg, key) for key in
+                ("level_tl", "level_tr", "level_c", "level_bl", "level_br")]
+    if max(readings) - min(readings) < 1e-9:
+        return None, None
+    return (lambda x, y: level_offset(conf, x, y), "the five readings")
 
 
 def apply_backlash(lines: list[str], bx: float, by: float,
@@ -1454,12 +1519,12 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
     stats["dropped_marlin_lines"] = dropped
     stats["controller"] = controller
 
-    # On unless the config turns it off. A config carrying no backlash figures
     # Before the backlash pass, which shifts X and Y and leaves Z alone: the
     # paper's height is a fact about where the path goes, not about where the
     # axis is asked to go to get there.
     lines = apply_levelling(lines, conf, log)
 
+    # On unless the config turns it off. A config carrying no backlash figures
     # at all still passes through here, but compensating by zero is a no-op.
     if bg.get("backlash_compensation", True):
         before = len(lines)

@@ -24,6 +24,7 @@ import cmyk_sep
 import config_history
 import facefilter
 import gcode_pipeline
+import levelmap
 # As `uploads`: `images` is what the G-code endpoint calls its tray pictures.
 import images as uploads
 import subject
@@ -717,6 +718,24 @@ def options_form():
         # macros.py's business, and the checkboxes are only how it is asked.
         macro_sections=MACRO_SECTIONS,
     )
+
+
+@app.post("/level_map")
+def level_map_post():
+    """Read a probescan.py CSV into the points the config carries.
+
+    Read here rather than in the page so there is one reader of the format, and
+    handed straight back: the page puts it in the form, and from there it goes
+    wherever the rest of the config goes. Nothing is kept on the server.
+    """
+    f = request.files.get("probe_map")
+    if not f or not f.filename:
+        return jsonify(error="No file supplied"), 400
+    try:
+        points, missed = levelmap.read_csv(f.read().decode("utf-8-sig", errors="replace"))
+    except ValueError as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(points=points, missed=missed)
 
 
 @app.post("/options_form")

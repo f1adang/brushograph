@@ -1262,6 +1262,11 @@ button { font: 14px var(--sans); border-radius: 5px; cursor: pointer; }
   padding: 9px 15px;
 }
 .ghost:hover { border-color: var(--ink-faint); }
+/* The probe map's line under its picker: what is loaded, and a way to drop it. */
+.levelmap-state { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px;
+  font-size: 12.5px; color: var(--ink-dim); }
+.levelmap-state[hidden] { display: none; }
+.levelmap-state .ghost { padding: 2px 10px; }
 /* Deleting a kept config takes it away from everyone on the server, so the
    button that does it does not look like the two beside it. */
 .danger {

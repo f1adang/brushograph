@@ -272,7 +272,21 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # unless it is known which spot it belongs to. They are the bed's corners,
     # not the picture's, and they are drawn whether or not there is a picture
     # -- levelling is done once, with the paper taped down and nothing loaded.
-    if bg.get("level_compensation"):
+    #
+    # A probe map takes their place: a dot where each point was probed, so
+    # the ground it covers -- and the strip it does not, read as its nearest
+    # edge -- shows against the bed; and the one cross that still matters,
+    # the middle, where the map reads nought and Canvas Height is set.
+    level_map = bg.get("level_map") or [] if bg.get("level_compensation") else []
+    for lx, ly, _ in level_map:
+        mx, my = px(lx, ly)
+        d.rectangle([mx - 1, my - 1, mx, my], fill=(*ACCENT, 160))
+    if level_map:
+        mx, my = px(*level_points(conf)["level_c"])
+        d.line([(mx - 4, my), (mx + 4, my)], fill=(*ACCENT, 230))
+        d.line([(mx, my - 4), (mx, my + 4)], fill=(*ACCENT, 230))
+        d.text((mx + 5, my - 11), "0", font=fs, fill=ACCENT)
+    elif bg.get("level_compensation"):
         lv_x0, lv_y0, lv_x1, lv_y1 = level_area(conf)
         for key, (lx, ly) in level_points(conf).items():
             mx, my = px(lx, ly)

@@ -180,6 +180,19 @@ text: {
   "Nivellierung der Unterlage",
 "Z top-left":
   "Z oben links",
+"Probe map":
+  "Tastkarte",
+"Remove": "Entfernen",
+"{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest":
+  "{n} Punkte über X {x0}–{x1}, Y {y0}–{y1}; {spread} mm vom tiefsten zum höchsten",
+"{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest; {missed} without contact left out":
+  "{n} Punkte über X {x0}–{x1}, Y {y0}–{y1}; {spread} mm vom tiefsten zum höchsten; {missed} ohne Kontakt ausgelassen",
+"A height map of the bed from a touch probe: the CSV probescan.py writes, x, y and z_mm, hundreds of points rather than five. With one loaded it is used instead of the five readings below. It is read relative to its own height in the middle of the bed, so set Canvas Height with the brush touching there, where the plan view puts its cross. The scan is corrected for the backlash figures below, since every other row was probed travelling the other way. Outside the probed area the nearest edge of the map is used.":
+  "Eine Höhenkarte der Arbeitsfläche von einem Tastsensor: die CSV-Datei, die probescan.py schreibt, x, y und z_mm, Hunderte von Punkten statt fünf. Ist eine geladen, wird sie statt der fünf Messwerte unten verwendet. Sie wird gegen ihre eigene Höhe in der Mitte der Arbeitsfläche gelesen; setzen Sie die Unterlagenhöhe also mit dem Pinsel dort aufsetzend, wo die Planansicht ihr Kreuz zeigt. Die Abtastung wird um die Umkehrspiel-Werte unten berichtigt, da jede zweite Zeile in der Gegenrichtung angetastet wurde. Außerhalb des abgetasteten Bereichs gilt der nächste Rand der Karte.",
+"A probe map needs x, y and z_mm columns, the way probescan.py writes them.":
+  "Eine Tastkarte braucht die Spalten x, y und z_mm, so wie probescan.py sie schreibt.",
+"A probe map needs at least two rows of at least two points; with fewer there is no surface to read between them.":
+  "Eine Tastkarte braucht mindestens zwei Zeilen zu mindestens zwei Punkten; mit weniger gibt es keine Fläche, zwischen denen sich lesen ließe.",
 "Z top-right":
   "Z oben rechts",
 "Z middle":
@@ -188,8 +201,8 @@ text: {
   "Z unten links",
 "Z bottom-right":
   "Z unten rechts",
-"Write every move made on the paper at the height the paper is at there, from the five readings below, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured — with all five the same it does nothing anyway.":
-  "Schreibt jede Bewegung auf dem Papier in der Höhe, die das Papier dort hat, nach den fünf Messwerten unten, die an den Ecken und in der Mitte der Arbeitsfläche selbst genommen werden, nicht des Bildes. Die Unterlagenhöhe ist eine einzige Zahl, ein aufgeklebtes Blatt aber nicht: ein Pinsel, der in der Mitte aufsetzt, schwebt an der einen Ecke über dem Papier und gräbt sich an der anderen hinein — ein Aquarellpinsel zeigt das schon bei einem Zehntelmillimeter. Aus, bis die fünf gemessen sind; sind alle gleich, bewirkt es ohnehin nichts.",
+"Write every move made on the paper at the height the paper is at there, from the probe map below if one is loaded, or else from the five readings, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured — with all five the same it does nothing anyway.":
+  "Schreibt jede Bewegung auf dem Papier in der Höhe, die das Papier dort hat, nach der Tastkarte unten, wenn eine geladen ist, sonst nach den fünf Messwerten, die an den Ecken und in der Mitte der Arbeitsfläche selbst genommen werden, nicht des Bildes. Die Unterlagenhöhe ist eine einzige Zahl, ein aufgeklebtes Blatt aber nicht: ein Pinsel, der in der Mitte aufsetzt, schwebt an der einen Ecke über dem Papier und gräbt sich an der anderen hinein — ein Aquarellpinsel zeigt das schon bei einem Zehntelmillimeter. Aus, bis die fünf gemessen sind; sind alle gleich, bewirkt es ohnehin nichts.",
 "How much higher the paper is at the top-left of the bed than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.":
   "Um wie viel höher das Papier oben links auf der Arbeitsfläche liegt als dort, wo die Unterlagenhöhe gesetzt wurde (mm). Fahren Sie den Pinsel hin, senken Sie ihn, bis er eben aufsetzt, und tragen Sie die Differenz zur Unterlagenhöhe ein. Die Planansicht zeigt die Stelle.",
 "The same reading at the top-right corner of the bed. The plan view marks the spot.":
@@ -589,6 +602,12 @@ html: {
 
 /* -------------------------------------------- server text with a detail in it */
 patterns: [
+  ["^Line (\\d+) of the probe map is not three numbers\\.$", "Zeile $1 der Tastkarte sind nicht drei Zahlen."],
+  ["^Line (\\d+) of the probe map has no position\\.$", "Zeile $1 der Tastkarte hat keine Position."],
+  ["^That probe map has (\\d+) points; (\\d+) is the most a config will carry\\. Probe on a coarser grid\\.$",
+   "Diese Tastkarte hat $1 Punkte; mehr als $2 nimmt eine Konfiguration nicht auf. Tasten Sie in einem gröberen Raster ab."],
+  ["^That probe map runs ([\\d.]+) mm from its lowest point to its highest, more than the ([\\d.]+) mm a sheet on a bed could\\. Look for a point that came down on a clamp or off the edge of the bed\\.$",
+   "Diese Tastkarte reicht $1 mm vom tiefsten zum höchsten Punkt, mehr als die $2 mm, die ein Blatt auf einer Arbeitsfläche haben könnte. Suchen Sie einen Punkt, der auf einer Klammer oder neben der Arbeitsfläche aufgesetzt hat."],
   ["^Server returned (\\d+)$", "Der Server antwortete mit $1"],
   ["^Could not load that config: (.*)$", "Diese Konfiguration ließ sich nicht laden: $1"],
   ["^Could not separate that image: (.*)$", "Dieses Bild ließ sich nicht zerlegen: $1"],

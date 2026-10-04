@@ -1551,6 +1551,110 @@ XY, and a backlash take-up shifts a move's coordinates after levelling has run.
 Measured over a levelled job: 7 µm at worst, against a sheet that varies by
 600.
 
+#### A probed height map
+
+Five readings describe a sheet that is flat between them, and Parang's bed is
+not. A touch probe walked over it on a 6 mm grid — `probescan.py`, G38.2 on
+FluidNC, 26 × 17 points from X 0–150, Y 40–136 — finds 1.88 mm between the
+lowest point and the highest, and not as a warp: the surface *steps*, by close
+on a millimetre over a few millimetres, near X 93, 108 and 129, on every row.
+Four triangles cannot draw that whatever five figures are typed. Read off the
+map at the five spots, against the five readings already in Parang's config:
+
+| Spot | Typed | Map |
+|---|---|---|
+| bottom-left | +0.00 | −0.45 |
+| bottom-right | −0.50 | −1.30 |
+| top-left | +0.20 | −0.24 |
+| top-right | +0.00 | −1.14 |
+| middle | −0.20 | 0 (the zero) |
+
+**Probe map** in the Bed levelling group takes the CSV the script writes
+(`x,y,z_mm,z_fast_mm`) and, with one loaded, is used in place of the five, which
+the form then hides rather than clears. The server reads the file
+(`POST /level_map`) and hands back the points, which the page carries in a
+hidden field the way every other setting is carried: the map lives in the config
+as `brushograph.level_map`, a list of `[x, y, z]`, so it is downloaded, kept and
+versioned with the machine like anything else, and nothing about it is stored
+on the server. The slow probe's `z_mm` is used, not `z_fast_mm`, which carries
+the axis coasting past the switch. A point the probe found nothing at is written
+`nan` and left out; its neighbours cover for it. A map that runs more than 5 mm
+from lowest to highest is refused — that is a probe that came down on a clamp, a
+file from another machine or the wrong units, and a brush lifted 2 mm between
+shapes would be driven into the bed by it.
+
+**Where nought is.** probescan neither homes nor zeroes, so its Z is wherever the
+machine's Z was — 60.5 to 62.4 here — and only differences mean anything. The
+map is read against its own height at the middle of the bed, `level_c`'s spot,
+because that is where the five-reading scheme has always taken Canvas Height to
+be set. The plan marks it with a cross and a 0, and a dot at every probed point,
+so the strip the map does not cover shows: Parang's containers' strip ends at
+Y 25 and the scan starts at Y 40, and the 15 mm between reads as the map's
+nearest row, the way the five readings are clamped.
+
+**The scan was driven with the brush's own slack in it.** probescan goes
+serpentine, one row left to right, the next right to left, and an axis coming
+from the right stops a play's width past where it was asked to — the same lost
+motion the backlash pass compensates. So every other row is written a play
+away from where it was measured, and the steps come out in a zigzag: at X 93 the
+drop falls between columns 90 and 96 on the rows probed rightwards and between
+84 and 90 on the rows probed leftwards, and the column at X 6 reads +0.3 and
+−0.3 on alternate rows all the way up the bed. `where_probed` reads each point's
+direction off the order of the file — which is why the config keeps the points
+in that order — and moves it to where the probe really was, with
+`apply_backlash`'s convention and the config's own backlash figures. How much
+each row then disagrees with the mean of the two either side of it, over the
+442 points:
+
+| X play assumed | Row against its neighbours, RMS |
+|---|---|
+| none | 0.205 mm |
+| 0.7 (Parang's figure) | 0.193 mm |
+| 1.5 – 2.0 | 0.185 mm |
+| 4.0 | 0.211 mm |
+
+The rest of that 0.185 is the steps themselves landing between points 6 mm
+apart, which no correction recovers. That the best fit is at twice the figure
+in the config is a hint that Parang's X play is under-read, not a measurement
+of it: a sheet off `backlash.g` is what settles that, and the map follows the
+figure, whatever it is set to.
+
+**Bilinear, and nothing smoother.** A spline through a step rings either side of
+it, lifting the brush off the paper just short of the edge and driving it in
+just past it. Bilinear never reads higher or lower than the four points around
+it.
+
+**A stroke is broken where it crosses the grid.** A G1 moves Z in a straight line
+between its two ends. With five readings that was very nearly right, the
+surface being flat within each triangle; with a map it is not, and the first
+version of this levelled only the ends. On a test of seven bars painted the
+length of the bed, the scanline fill's 100 mm strokes sailed over every step
+between their ends: sampled every 0.25 mm along the painted strokes, the brush
+was a mean of 0.12 mm and at worst 0.78 mm from the paper, and more than 0.1 mm
+from it over 36% of their length. Inside one cell of the map the surface is a
+single bilinear patch, so each painting move is now cut where it enters and
+leaves a cell (`levelmap.crossings`), the feed carried on the first piece:
+
+| Picture | Ends only: worst, share over 0.1 mm | Broken at the grid: worst | Moves | File |
+|---|---|---|---|---|
+| Seven bars | 0.78 mm, 36% | 0.001 mm | 2,199 → 4,472 | |
+| A line drawing | 0.18 mm, 0.0% | 0.020 mm | 33,946 → 36,065 | 808 → 856 KB |
+| A photograph | 0.81 mm, 10.2% | 0.053 mm | 38,377 → 43,535 | 959 → 1,078 KB |
+
+What is left is a diagonal stroke across a cell, along which a bilinear patch
+bows slightly between the cell's edges. Only a move that starts on the paper
+as well as ending there is broken: one coming down from the tray lift is in the
+air until it arrives. The five readings are not broken at all, and a config
+without a map paints the same moves it did before this, to the byte.
+
+**The file says how high the paper went.** The preview counts a move as painting
+up to Canvas Height plus the highest the paper reaches, and it used to read that
+off the five boxes in the form; with a map there are none to read. So the
+levelling pass, either way, opens the file with
+`; bed levelling: paper from -1.074 to +0.386 mm about Canvas Height` — the
+lowest and highest correction it actually wrote — and the preview reads that,
+falling back to the boxes for a file written before it.
+
 ### Backlash compensation
 
 An axis with slack in it does not go where it is told the moment it turns round.
