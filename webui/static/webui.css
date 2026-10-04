@@ -1164,14 +1164,16 @@ footer a { color: var(--ink-dim); font-size: 13px; }
 #machine-model { max-width: 260px; margin-bottom: 14px; }
 #model-note { margin: -4px 0 14px; }
 .plan { margin: 0; background: var(--sheet); border: 1px solid var(--line); border-radius: 6px; padding: 14px; }
-.plan img { display: block; width: 100%; height: auto; max-height: 380px; object-fit: contain; }
-/* On a computer the plan is shown at the size it is drawn: the full width of
-   the column, 912 px, and as tall as the machine is at that width -- up to a
-   square. Held to 85% of the window's height so it can always be seen whole.
-   The 380 px cap is for narrower windows, where a plan the width of the page
-   would push everything else off the screen. */
+/* The plan is drawn the size it should be seen at -- the shape of the
+   machine, at most 600 px tall -- and shown at that size, in the middle of
+   the column. Stretched to the column it was larger than wanted, and its
+   lettering grew with it. It shrinks only to fit: the width of a narrow
+   window, and 380 px tall where the window is small enough that a taller plan
+   would push the form off the screen. */
+.plan img { display: block; width: auto; height: auto; max-width: 100%; max-height: 380px;
+  margin: 0 auto; }
 @media (min-width: 1000px) and (min-height: 700px) {
-  .plan img { max-height: min(912px, 85vh); }
+  .plan img { max-height: 85vh; }
 }
 .plan figcaption { margin-top: 10px; font-size: 12.5px; color: var(--ink-faint); }
 

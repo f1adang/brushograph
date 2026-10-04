@@ -14,12 +14,13 @@ from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_orig
                         tray_entries)
 from gcode_pipeline import probed_surface
 
-# 912 px is the width the page gives the plan on a computer screen (the
-# 1000 px column, less its padding and the plan's own), so there it is shown
-# pixel for pixel; a narrower screen scales it down. The height is not fixed:
-# it is whatever the machine needs at that width (see render), within these.
-W = 912
-H_MIN, H_MAX = 400, 912
+# The plan is drawn the shape of the machine, at most this tall and within
+# these widths, and the page shows it at that size -- not stretched to the
+# column, which would enlarge the lettering with it. 912 px is the column's
+# width on a computer screen; 640 is what the title line, painting order and
+# heat-map scale together need.
+W_MIN, W_MAX = 640, 912
+H_MIN, H_MAX = 300, 600
 PAD = 46
 
 # One palette per interface theme, so the plan sits on the same paper the page
@@ -223,7 +224,8 @@ def _backing(d, at, text, font, ground, size=None):
     d.rectangle([box[0] - 2, box[1] - 1, box[2] + 2, box[3] + 1], fill=(*ground, 215))
 
 
-def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=None):
+def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=None,
+                 width=W_MAX):
     """The scale, on the title line after the painting order: its caption, the
     lowest figure, the rainbow, the highest figure, and over the bar a tick
     and a 0 where the calibration dot falls on it. Lettered in the text
@@ -238,7 +240,7 @@ def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=N
     lo_txt, hi_txt = f"{low:+.1f}", f"{high:+.1f} mm"
     fixed = d.textlength(caption, font=font) + d.textlength(lo_txt, font=font) \
         + d.textlength(hi_txt, font=font) + 3 * 6
-    bar_w = int(min(120, W - PAD - x - fixed))
+    bar_w = int(min(120, width - PAD - x - fixed))
     below = mid + 11
     if bar_w < 40:
         x, mid, bar_w = PAD, mid + 18, 120
@@ -342,12 +344,12 @@ def render(conf: dict, theme: str = "default") -> bytes:
     min_y, max_y = min(ys), max(ys)
     span_x = max(max_x - min_x, 1e-6)
     span_y = max(max_y - min_y, 1e-6)
-    # As tall as the machine is at the full width, so the drawing fills the
-    # plan rather than a box of fixed shape. At 912 x 576 a Mini -- bed and
-    # cups about as deep as they are wide -- was drawn to the height and left
-    # a third of the width empty beside it.
-    H = int(round(min(max((W - 2 * PAD) * span_y / span_x + 2 * PAD, H_MIN), H_MAX)))
-    scale = min((W - 2 * PAD) / span_x, (H - 2 * PAD) / span_y)
+    # The shape of the machine, as large as fits H_MAX by W_MAX: a box of
+    # fixed shape drew a Mini -- bed and cups about as deep as they are wide --
+    # to its height and left a third of its width empty.
+    scale = min((W_MAX - 2 * PAD) / span_x, (H_MAX - 2 * PAD) / span_y)
+    W = int(round(min(max(span_x * scale + 2 * PAD, W_MIN), W_MAX)))
+    H = int(round(min(max(span_y * scale + 2 * PAD, H_MIN), H_MAX)))
 
     # Machine Y grows away from the origin; screen Y grows downward.
     def px(x, y):
@@ -538,7 +540,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
         _, top, _, bottom = d.textbbox((PAD, 12), title, font=f)
         _heat_legend(d, heat[2], (PAD + d.textlength(title, font=f) + 24, (top + bottom) / 2),
                      fs, words["heat"], TEXT, MUTED,
-                     words["heat_outside"] if heat[3] else None, ACCENT)
+                     words["heat_outside"] if heat[3] else None, ACCENT, width=W)
     if offscreen:
         d.text((PAD, H - 24), words["offscreen"].format(trays=", ".join(offscreen)),
                font=fs, fill=ACCENT)

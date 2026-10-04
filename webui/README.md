@@ -40,16 +40,18 @@ machine and left alone.
   what it sets is what the plan draws; folded, it is one line. Below it a
   to-scale plan of bed, image area and trays with their entry and drip radii,
   redrawn as you edit. Trays parked outside the bed are called out rather than
-  quietly cropped. It is drawn 912 px wide, the width the page's column gives it on a
-  computer, and as tall as the machine is at that width, between 400 and 912 px:
-  Parang's bed and cups come out 912 × 805, Pinkograph's a square. It was
-  760 × 480 and capped at 380 px tall, about 600 px wide on screen, and then
-  912 × 576, which still drew a Mini to the plan's height and left a third of
-  the width empty beside it; filling the width draws Parang half as large
-  again. On a computer it is shown pixel for pixel, held to 85% of the window's
-  height so it is always seen whole (765 px tall at 1440 × 900); a window under
-  1000 px wide or 700 tall keeps the 380 px cap, so the plan does not push the
-  form off the screen, and a phone scales it to its width. The painting order
+  quietly cropped. It is drawn the shape of the machine, as large as fits
+  600 px tall and 912 wide, and no narrower than 640, which the title line
+  needs: Parang's bed and cups come out 677 × 600, Pinkograph's 640 × 600. The
+  page shows it at that size, centred in the column, not stretched to the
+  column's width — stretched, the lettering grew with the plan, and the plan was
+  bigger than wanted. It has been 760 × 480 capped at 380 px tall (about 600 px
+  wide on screen), 912 × 576 (which drew a Mini to its height and left a third
+  of the width empty), and 912 × 805 (Parang at the column's full width, more
+  than a screen wants). This one keeps the last one's lettering on a plan
+  about three-quarters its size. It shrinks only to fit: to the width of a narrow
+  window, to 380 px tall in a window under 1000 × 700 so it does not push the
+  form off the screen, and to 85% of the window's height. The painting order
   above it is lettered at 12 px, the page's own smallest size, which is what it
   is shown at now that the plan is not shrunk to fit; the annotations on the
   drawing are 10. The centimetre grid is ruled on the
