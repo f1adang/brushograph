@@ -1639,8 +1639,12 @@ dot — the levelling's own nought, so the plan shows the correction the brush
 will be given — whether or not levelling is on, since a map loaded and not used
 is still the shape of the bed. It is the surface the levelling follows
 (`probed_surface`, backlash correction and all), sampled at every pixel of the
-plan, drawn under the grid so positions still read across it, with a scale bar
-at the top right whose tick marks where nought falls. The rainbow spans the
+plan, drawn under the grid so positions still read across it. Its scale,
+captioned *Z height deviation*, sits on the title line beside the painting
+order, above the plan rather than in a corner of it: the lowest figure, the
+bar, the highest, and under the bar a tick and a 0 where the calibration dot
+falls. The bar takes what room the painting order leaves, up to 120 px; one
+long enough to leave it under 40 puts the scale on the line below. The rainbow spans the
 bed's own range, the 2nd to the 98th percentile of the probed heights rounded
 outwards to a tenth, as `plot_heightmap.py`'s does: one point that came down on
 a speck would otherwise squeeze the rest into one colour. It is not centred on

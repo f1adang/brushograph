@@ -78,7 +78,7 @@ WORDS = {
         "order": "Painting order: {order}",
         "order_none": "none in color_order",
         "offscreen": "not shown, parked far outside the bed: {trays}",
-        "heat": "paper vs the calibration dot",
+        "heat": "Z height deviation",
         "heat_outside": "the dot is outside the scan: 0 is read off its edge",
     },
     "kongress": {
@@ -90,7 +90,7 @@ WORDS = {
         "order": "Auftragsreihenfolge: {order}",
         "order_none": "keine in der Auftragsreihenfolge",
         "offscreen": "nicht dargestellt, weit außerhalb der Arbeitsfläche: {trays}",
-        "heat": "Papier gegen den Kalibrierpunkt",
+        "heat": "Z-Höhenabweichung",
         "heat_outside": "der Punkt liegt außerhalb der Abtastung: 0 vom Rand gelesen",
     },
 }
@@ -218,30 +218,46 @@ def _backing(d, at, text, font, ground, size=None):
     d.rectangle([box[0] - 2, box[1] - 1, box[2] + 2, box[3] + 1], fill=(*ground, 215))
 
 
-def _heat_legend(d, span, font, caption, text, muted, warning=None, accent=None):
-    """The scale, top right: the rainbow from lowest to highest, its two ends
-    in millimetres from the calibration dot and a tick where nought falls --
-    above the bar, since it can land beside either end's figure -- lettered
-    in the text colours rather than the scale's own."""
+def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=None):
+    """The scale, on the title line after the painting order: its caption, the
+    lowest figure, the rainbow, the highest figure, and under the bar a tick
+    and a 0 where the calibration dot falls on it. Lettered in the text
+    colours rather than the scale's own.
+
+    The bar takes what room the line has left, up to 120 px; a painting order
+    long enough to leave it less than 40 puts the scale on the line below.
+    Returns how far down the plan the title block now reaches.
+    """
     low, high = span
-    bar_w, bar_h = 120, 8
-    x1 = W - PAD
-    x0, y0 = x1 - bar_w, 18
+    x, mid = at
+    lo_txt, hi_txt = f"{low:+.1f}", f"{high:+.1f} mm"
+    fixed = d.textlength(caption, font=font) + d.textlength(lo_txt, font=font) \
+        + d.textlength(hi_txt, font=font) + 3 * 6
+    bar_w = int(min(120, W - PAD - x - fixed))
+    below = mid + 11
+    if bar_w < 40:
+        x, mid, bar_w = PAD, mid + 18, 120
+        below = mid + 17
+    bar_h = 8
+    d.text((x, mid), caption, font=font, fill=text, anchor="lm")
+    x += d.textlength(caption, font=font) + 6
+    d.text((x, mid), lo_txt, font=font, fill=muted, anchor="lm")
+    x0 = x + d.textlength(lo_txt, font=font) + 6
+    y0 = mid - bar_h // 2
     for i, c in enumerate(turbo((np.arange(bar_w) + 0.5) / bar_w)):
         d.line([(x0 + i, y0), (x0 + i, y0 + bar_h)], fill=tuple(int(round(v)) for v in c))
-    d.rectangle([x0, y0, x1, y0 + bar_h], outline=muted)
+    d.rectangle([x0, y0, x0 + bar_w, y0 + bar_h], outline=muted)
+    d.text((x0 + bar_w + 6, mid), hi_txt, font=font, fill=muted, anchor="lm")
     nought = x0 + bar_w * min(max(-low / (high - low), 0.0), 1.0)
-    d.line([(nought, y0 - 3), (nought, y0 + bar_h + 1)], fill=text)
-    d.text((nought, y0 - 4), "0", font=font, fill=text, anchor="mb")
-    for label, x, anchor in ((f"{low:+.1f}", x0, "la"), (f"{high:+.1f} mm", x1, "ra")):
-        d.text((x, y0 + bar_h + 3), label, font=font, fill=muted, anchor=anchor)
-    d.text((x0 - 8, y0 - 2), caption, font=font, fill=text, anchor="ra")
+    d.line([(nought, y0), (nought, y0 + bar_h + 3)], fill=text)
+    d.text((nought, y0 + bar_h + 3), "0", font=font, fill=text, anchor="ma")
     # When nought had to be read off the edge of the map: the dot is outside
     # the scan, so every height on the bed is reckoned from a reading taken
-    # somewhere else. On the left under the title, where the line has room --
-    # under the scale it ran into the bed's own caption in German.
+    # somewhere else. On the left under the title, where the line has room,
+    # or under the scale when the scale has taken that line.
     if warning:
-        d.text((PAD, 31), warning, font=font, fill=accent)
+        d.text((PAD, below), warning, font=font, fill=accent)
+    return below
 
 
 def render(conf: dict, theme: str = "default") -> bytes:
@@ -492,13 +508,16 @@ def render(conf: dict, theme: str = "default") -> bytes:
     d.ellipse([zx - 3, zy - 3, zx + 3, zy + 3], fill=ACCENT)
     d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
 
-    if heat:
-        _heat_legend(d, heat[2], fs, words["heat"], TEXT, MUTED,
-                     words["heat_outside"] if heat[3] else None, ACCENT)
-
     order = ", ".join(tray_labels.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
         or words["order_none"]
-    d.text((PAD, 12), words["order"].format(order=order), font=f, fill=TEXT)
+    title = words["order"].format(order=order)
+    d.text((PAD, 12), title, font=f, fill=TEXT)
+    # The heat map's scale beside it, on the same line, above the plan.
+    if heat:
+        _, top, _, bottom = d.textbbox((PAD, 12), title, font=f)
+        _heat_legend(d, heat[2], (PAD + d.textlength(title, font=f) + 24, (top + bottom) / 2),
+                     fs, words["heat"], TEXT, MUTED,
+                     words["heat_outside"] if heat[3] else None, ACCENT)
     if offscreen:
         d.text((PAD, H - 24), words["offscreen"].format(trays=", ".join(offscreen)),
                font=fs, fill=ACCENT)
