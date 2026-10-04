@@ -9,7 +9,7 @@ Example:
   python3 probescan.py --cnc socket://parang.local:23 \
       --x0 0 --x1 150 --y0 30 --y1 130 --step 5
 """
-import argparse, csv, math, re, sys, time
+import argparse, csv, math, re, statistics, sys, time
 import serial
 
 PRB_RE = re.compile(r"\[PRB:([^:\]]+):(\d)\]")
@@ -113,6 +113,11 @@ def main():
                    help="retract between fast and slow probe, mm (must release switch)")
     p.add_argument("--fast-feed", type=float, default=300, help="mm/min")
     p.add_argument("--slow-feed", type=float, default=50, help="mm/min")
+    p.add_argument("--agree", type=float, default=0.2,
+                   help="slow and fast readings further apart than this, mm, are "
+                        "checked with more slow probes")
+    p.add_argument("--retries", type=int, default=2,
+                   help="extra slow probes when the fast one disagrees")
     p.add_argument("--probe-dx", type=float, default=0.0,
                    help="probe X offset from machine position, mm")
     p.add_argument("--probe-dy", type=float, default=0.0)
@@ -122,23 +127,39 @@ def main():
 
     cnc = FluidNC(args.cnc, verbose=args.verbose)
     points = list(grid(args))
-    misses = 0
+    misses = rechecked = unsure = 0
 
     try:
         cnc.send("G21")
         cnc.send("G90")
         with open(args.out, "w", newline="") as f:
             w = csv.writer(f)
-            w.writerow(["x", "y", "z_mm", "z_fast_mm"])
+            # z_spread_mm: how far apart the slow probes were, 0 for one.
+            w.writerow(["x", "y", "z_mm", "z_fast_mm", "z_spread_mm"])
             t0 = time.monotonic()
             for i, (x, y) in enumerate(points, 1):
                 cnc.send(f"G90 G0 X{x:.3f} Y{y:.3f}")
-                stage = "fast"
+                stage, slows = "fast", []
                 try:
                     z_fast = cnc.probe(args.max_depth, args.fast_feed)
                     cnc.send(f"G91 G0 Z{args.backoff:.3f}")
                     stage = "slow"
-                    z = cnc.probe(args.backoff + 1.0, args.slow_feed)
+                    slows = [cnc.probe(args.backoff + 1.0, args.slow_feed)]
+                    # The slow probe disagreeing with the fast one is usually
+                    # the tip landing on an edge in the bed: it slides off on
+                    # one of them. Probe slowly again; the slow readings are
+                    # the ones to trust if they agree with each other, and
+                    # the point is unknown if they do not.
+                    if abs(slows[0] - z_fast) > args.agree:
+                        rechecked += 1
+                        for _ in range(args.retries):
+                            cnc.send(f"G91 G0 Z{args.backoff:.3f}")
+                            slows.append(cnc.probe(args.backoff + 1.0, args.slow_feed))
+                    spread = max(slows) - min(slows)
+                    z = statistics.median(slows)
+                    if spread > args.agree:
+                        z = math.nan
+                        unsure += 1
                     cnc.send(f"G91 G0 Z{args.clearance:.3f}")
                 except Alarm as e:
                     if e.code == 4:
@@ -152,19 +173,23 @@ def main():
                     cnc.unlock()
                     lift = args.max_depth if stage == "fast" else args.clearance + 1.0
                     cnc.send(f"G91 G0 Z{lift:.3f}")
-                    z = z_fast = math.nan
+                    z = z_fast = spread = math.nan
                     misses += 1
 
                 w.writerow([f"{x + args.probe_dx:.3f}", f"{y + args.probe_dy:.3f}",
-                            f"{z:.3f}", f"{z_fast:.3f}"])
+                            f"{z:.3f}", f"{z_fast:.3f}", f"{spread:.3f}"])
                 f.flush()
                 eta = (time.monotonic() - t0) / i * (len(points) - i)
-                print(f"[{i}/{len(points)}] X{x:.1f} Y{y:.1f}  Z {z:.3f}"
+                note = f"  ({len(slows)} slow probes, spread {spread:.3f})" \
+                    if stage == "slow" and len(slows) > 1 else ""
+                print(f"[{i}/{len(points)}] X{x:.1f} Y{y:.1f}  Z {z:.3f}{note}"
                       f"  ETA {eta/60:.1f} min")
 
         cnc.send("G90")
         cnc.wait_idle()
-        print(f"done, {misses} points without contact -> {args.out}")
+        print(f"done, {misses} points without contact, {rechecked} re-probed after the "
+              f"fast and slow probes disagreed, {unsure} left as nan because the slow "
+              f"probes disagreed too -> {args.out}")
     except KeyboardInterrupt:
         cnc.feed_hold()
         print("\nfeed hold sent; partial data is in", args.out)
