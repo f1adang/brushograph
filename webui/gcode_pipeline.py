@@ -934,7 +934,10 @@ def probed_surface(conf: dict):
     points = bg.get("level_map") or []
     if not points:
         return None
-    # A laser's readings are kept as read, with the width to smooth them by.
+    # The readings are kept as taken, outliers and all: the plan shows those,
+    # and the bed is worked out without them. A laser's are smoothed besides,
+    # by the width kept beside them.
+    points, _ = levelmap.drop_outliers(points)
     width = _figure(bg, "level_map_smooth")
     if width > 0:
         points = levelmap.smooth(points, width)

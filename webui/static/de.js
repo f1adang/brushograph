@@ -188,7 +188,7 @@ text: {
 "laser, smoothed over {smoothed} mm": "Laser, über {smoothed} mm geglättet",
 "{missed} without a reading left out": "{missed} ohne Messwert ausgelassen",
 "{missed} without contact left out": "{missed} ohne Kontakt ausgelassen",
-"{outliers} outliers left out": "{outliers} Ausreißer ausgelassen",
+"{outliers} outliers not used, crossed out on the plan": "{outliers} Ausreißer nicht verwendet, im Plan durchgestrichen",
 "Download CSV": "CSV herunterladen",
 "That config has no probe map kept with it.": "Zu dieser Konfiguration ist keine Tastkarte abgelegt.",
 "A height map of the bed from a scan, hundreds of points rather than five: the CSV probescan.py writes with a touch probe (x, y, z_mm), or laserscan.py with a laser (x, y, dist_mm). A laser reads in whole millimetres, so its map is smoothed over 15 mm; a touch probe's is used as it stands. With one loaded it is used instead of the five readings below. It is read relative to its own height where calibrate.g puts its dot, 5 mm in from the corner of the paper nearest the containers, where the plan view puts its 0: that is where Canvas Height is set, so scan from there or the dot's height is read off the edge of the map. The scan is corrected for the backlash figures below, since every other row was probed travelling the other way. Outside the probed area the nearest edge of the map is used.":

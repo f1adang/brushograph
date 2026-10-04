@@ -1615,8 +1615,23 @@ taken out first, it leaves them judged against the bed. That removes 30 of
 Pinkograph's 775 readings and nothing else. The figure comes from the clean
 scans: Parang's probe scan strays at most 1.0 mm from its neighbourhood, its
 laser scan at most 2.0, and neither loses a point. It runs for both scanners,
-before the spread limit and the smoothing; what goes is a gap on the plan and
-in the surface, filled from the neighbours, and the summary line says how many.
+before the spread limit and the smoothing, and the summary line says how many.
+
+**Left out of the bed, kept on the plan.** At first an outlier was dropped as
+the file was read, and the plan showed a gap where it had been — which said
+nothing was measured there, when something was, and not the bed. Now the
+config keeps every reading, outliers included, and `levelmap.outliers` picks
+them out again wherever the bed is worked out: `probed_surface` builds the
+brush's surface without them, the same surface to the micron as when they were
+dropped (0.000000 mm over 3,000 points of Pinkograph's), and the spread limit
+is judged without them. The plan draws each one as a tile in the theme's muted
+grey with a cross on it, not in a heat colour, because a heat colour would
+claim a height nothing paints at; the crosses sit on the part of the tile that
+is on the bed. They are left out of the rainbow's range, which a 48 mm cable
+would otherwise stretch until the bed was one colour, and the line under the
+title says *× 30 not used*. Working them out each time costs 9–35 ms, the most
+for grush's 2,091 points. A map loaded before this kept no outliers, so loading
+its CSV again is what shows them.
 
 **Kept on the server the moment it is loaded.** The first version handed the
 points back and left them in the form until somebody pressed Update, which is

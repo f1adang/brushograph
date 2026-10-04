@@ -836,7 +836,7 @@ function wireForm() {
         if (got.smoothed) parts.push("laser, smoothed over {smoothed} mm");
         if (got.missed) parts.push(got.smoothed ? "{missed} without a reading left out"
                                                 : "{missed} without contact left out");
-        if (got.outliers) parts.push("{outliers} outliers left out");
+        if (got.outliers) parts.push("{outliers} outliers not used, crossed out on the plan");
         summary.replaceChildren();
         parts.forEach((english, i) => {
           if (i) summary.append("; ");

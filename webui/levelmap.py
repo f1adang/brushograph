@@ -63,7 +63,8 @@ REVERSAL = 0.05
 def read_csv(text: str) -> tuple[list[list[float]], int, float, int]:
     """A scan's CSV as [[x, y, z], ...] in scanning order, how many points it
     had no reading for, how widely it is to be smoothed (0 for none), and how
-    many readings were left out as outliers (`drop_outliers`).
+    many of the readings are outliers (`outliers`). The outliers are kept --
+    the plan shows them -- and left out wherever the bed is worked out.
 
     probescan.py's touch probe: the slow probe's `z_mm`, not `z_fast_mm` -- the
     fast one overshoots by however far the axis coasts after the switch
@@ -101,13 +102,20 @@ def read_csv(text: str) -> tuple[list[list[float]], int, float, int]:
             continue
         points.append([round(x, 3), round(y, 3), round(z, 3)])
     width = LASER_SMOOTH_MM if laser else 0.0
-    points, dropped = drop_outliers(points)
-    return clean(points, width), missed, width, dropped
+    points = clean(points, width)
+    return points, missed, width, sum(outliers(points))
 
 
 def drop_outliers(points: list[list[float]], limit: float = OUTLIER_MM,
                   reach: int = OUTLIER_REACH) -> tuple[list[list[float]], int]:
-    """The points less those that are not the bed, and how many went.
+    """The points less those that are not the bed (`outliers`), and how many went."""
+    out = outliers(points, limit, reach)
+    return [p for p, bad in zip(points, out) if not bad], sum(out)
+
+
+def outliers(points: list[list[float]], limit: float = OUTLIER_MM,
+             reach: int = OUTLIER_REACH) -> list[bool]:
+    """Which of the points are not the bed, one flag each, in their order.
 
     Each reading is judged against the median of the readings round it, the
     (2 * reach + 1)-square of the scan's own grid less itself, and one more
@@ -118,11 +126,13 @@ def drop_outliers(points: list[list[float]], limit: float = OUTLIER_MM,
     it leaves them judged against the bed. A point with fewer than four
     readings round it is not judged.
 
-    Scanning order is kept; what is left out is simply not there, a gap the
-    plan shows and the surface fills from the neighbours.
+    The readings are not changed or taken away here: a map keeps its outliers
+    and they are left out wherever the bed is worked out -- the surface the
+    brush follows fills them from their neighbours -- while the plan marks
+    each one where it was taken.
     """
     if len(points) < 9:
-        return points, 0
+        return [False] * len(points)
     xs = np.array(sorted({p[0] for p in points}))
     ys = np.array(sorted({p[1] for p in points}))
     grid = np.full((len(ys), len(xs)), np.nan)
@@ -150,8 +160,7 @@ def drop_outliers(points: list[list[float]], limit: float = OUTLIER_MM,
         for bb in range(max(b - reach, 0), min(b + reach + 1, len(ys))):
             for aa in range(max(a - reach, 0), min(a + reach + 1, len(xs))):
                 residual[bb, aa] = off(bb, aa)
-    kept = [p for p, a, b in zip(points, i, j) if not gone[b, a]]
-    return kept, len(points) - len(kept)
+    return [bool(gone[b, a]) for a, b in zip(i, j)]
 
 
 def smooth(points: list[list[float]], sigma_mm: float) -> list[list[float]]:
@@ -192,9 +201,10 @@ def clean(value, smooth_mm: float = 0.0) -> list[list[float]]:
     """The map as the config should hold it, or ValueError saying why not.
 
     An empty list is no map, and is what a config without one carries. The
-    spread is judged on what the brush will follow -- smoothed by `smooth_mm`
-    if the map is -- since a laser's raw readings stray a millimetre either
-    way of a surface that does not.
+    spread is judged on what the brush will follow -- without its outliers, and
+    smoothed by `smooth_mm` if the map is -- since a laser's raw readings
+    stray a millimetre either way of a surface that does not, and a cable
+    under the sensor is not the bed at all.
     """
     if value in (None, "", []):
         return []
@@ -217,7 +227,8 @@ def clean(value, smooth_mm: float = 0.0) -> list[list[float]]:
     if len({p[0] for p in points}) < 2 or len({p[1] for p in points}) < 2:
         raise ValueError("A probe map needs at least two rows of at least two points; "
                          "with fewer there is no surface to read between them.")
-    zs = [p[2] for p in (smooth(points, smooth_mm) if smooth_mm > 0 else points)]
+    bed, _ = drop_outliers(points)
+    zs = [p[2] for p in (smooth(bed, smooth_mm) if smooth_mm > 0 else bed)]
     if max(zs) - min(zs) > MAX_SPREAD:
         raise ValueError(f"That probe map runs {max(zs) - min(zs):.1f} mm from its lowest "
                          f"point to its highest, more than the {MAX_SPREAD:g} mm a sheet on a "

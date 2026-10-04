@@ -13,6 +13,7 @@ from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_orig
                         level_points,
                         tray_entries)
 from gcode_pipeline import probed_surface
+import levelmap
 
 # The plan is drawn the shape of the machine, at most this tall and within
 # these widths, and the page shows it at that size -- not stretched to the
@@ -85,6 +86,7 @@ WORDS = {
         "order_none": "none in color_order",
         "offscreen": "not shown, parked far outside the bed: {trays}",
         "heat": "Bed level deviation",
+        "heat_ignored": "× {n} not used",
         "heat_outside": "the dot is outside the scan: 0 is read off its edge",
     },
     "kongress": {
@@ -97,6 +99,7 @@ WORDS = {
         "order_none": "keine in der Auftragsreihenfolge",
         "offscreen": "nicht dargestellt, weit außerhalb der Arbeitsfläche: {trays}",
         "heat": "Höhenabweichung der Arbeitsfläche",
+        "heat_ignored": "× {n} nicht verwendet",
         "heat_outside": "der Punkt liegt außerhalb der Abtastung: 0 vom Rand gelesen",
     },
 }
@@ -172,9 +175,9 @@ def _num(d, key, default=0.0):
 
 
 def _heat_map(conf: dict, px, scale: float, min_x: float, min_y: float,
-              bed: tuple[float, float]):
-    """(image, where, (low, high), dot outside the scan) for the probe map, or
-    None without one.
+              bed: tuple[float, float], muted: tuple):
+    """(image, where, (low, high), dot outside the scan, outlier centres in
+    plan pixels) for the probe map, or None without one.
 
     The measurements as they were taken, one tile each: every point coloured
     flat by its own reading, out to halfway to its neighbours, the way
@@ -188,16 +191,27 @@ def _heat_map(conf: dict, px, scale: float, min_x: float, min_y: float,
     brush follows, since that is where Canvas Height is true. The rainbow spans
     the 2nd to the 98th percentile of the readings, rounded outwards to a
     tenth, so one stray point does not squeeze the rest into one colour.
+
+    Outliers (`levelmap.outliers`) are shown, not coloured: a tile in the
+    theme's muted grey, and a cross on it drawn by the caller. They are left
+    out of the bed the brush follows, so a heat colour would claim a height
+    nothing paints at; and they are left out of the scale, which a 48 mm cable
+    would otherwise stretch until the bed was one colour.
     """
     surf = probed_surface(conf)
     if surf is None:
         return None
     points = conf["brushograph"]["level_map"]
+    flags = levelmap.outliers(points)
     xs = np.array(sorted({p[0] for p in points}))
     ys = np.array(sorted({p[1] for p in points}))
     readings = np.full((len(ys), len(xs)), np.nan)
-    readings[np.searchsorted(ys, [p[1] for p in points]),
-             np.searchsorted(xs, [p[0] for p in points])] = [p[2] for p in points]
+    rejected = np.zeros(readings.shape, dtype=bool)
+    pi = np.searchsorted(xs, [p[0] for p in points])
+    pj = np.searchsorted(ys, [p[1] for p in points])
+    readings[pj, pi] = [p[2] for p in points]
+    rejected[pj[flags], pi[flags]] = True
+    readings[rejected] = np.nan
 
     def edges(at):
         mid = (at[1:] + at[:-1]) / 2
@@ -227,9 +241,20 @@ def _heat_map(conf: dict, px, scale: float, min_x: float, min_y: float,
     if high - low < 0.2:
         low, high = low - 0.1, high + 0.1
     rgb = turbo((np.nan_to_num(z) - low) / (high - low))
-    alpha = np.where(np.isnan(z), 0, 255)[..., None]
+    grey = rejected[row[:, None], col[None, :]]
+    rgb[grey] = muted
+    alpha = np.where(np.isnan(z) & ~grey, 0, 255)[..., None]
     layer = Image.fromarray(np.round(np.concatenate([rgb, alpha], axis=-1)).astype(np.uint8), "RGBA")
-    return layer, (ix0, iy0), (low, high), outside
+    # Each cross in the middle of what shows of its tile, which at the bed's
+    # edge is the half that is on the bed.
+    marks = []
+    for p, a, b, bad in zip(points, pi, pj, flags):
+        tx0, tx1 = max(ex[a], lo_x), min(ex[a + 1], hi_x)
+        ty0, ty1 = max(ey[b], lo_y), min(ey[b + 1], hi_y)
+        if bad and tx0 < tx1 and ty0 < ty1:
+            marks.append(px((tx0 + tx1) / 2, (ty0 + ty1) / 2))
+    cell = min(float(np.median(np.diff(xs))), float(np.median(np.diff(ys)))) * scale / 2
+    return layer, (ix0, iy0), (low, high), outside, (marks, cell)
 
 
 def _backing(d, at, text, font, ground, size=None):
@@ -244,7 +269,7 @@ def _backing(d, at, text, font, ground, size=None):
 
 
 def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=None,
-                 width=W_MAX):
+                 width=W_MAX, ignored=None):
     """The scale, on the title line after the painting order: its caption, the
     lowest figure, the rainbow, the highest figure, and over the bar a tick
     and a 0 where the calibration dot falls on it. Lettered in the text
@@ -283,8 +308,15 @@ def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=N
     # the scan, so every height on the bed is reckoned from a reading taken
     # somewhere else. On the left under the title, where the line has room,
     # or under the scale when the scale has taken that line.
+    x = PAD
     if warning:
-        d.text((PAD, below), warning, font=font, fill=accent)
+        d.text((x, below), warning, font=font, fill=accent)
+        x += d.textlength(warning, font=font) + 12
+    # How many readings the plan shows crossed out and the brush ignores, on
+    # the same line: on the scale's own line it pushed the scale off it in
+    # German, and into the bed's caption.
+    if ignored:
+        d.text((x, below), ignored, font=font, fill=text)
     return below
 
 
@@ -385,9 +417,15 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # The probe map as a heat map in Turbo, under the grid so the grid still reads
     # across it. Whatever the levelling checkbox says: a map loaded and not
     # used is still the shape of the bed.
-    heat = _heat_map(conf, px, scale, min_x, min_y, (max_w, max_h))
+    heat = _heat_map(conf, px, scale, min_x, min_y, (max_w, max_h), MUTED)
     if heat:
         img.paste(heat[0], heat[1], heat[0])
+        # A cross on every outlier's grey tile: measured, shown, not used.
+        marks, cell = heat[4]
+        r = max(min(cell * 0.3, 5), 2)
+        for mx, my in marks:
+            d.line([(mx - r, my - r), (mx + r, my + r)], fill=TEXT)
+            d.line([(mx - r, my + r), (mx + r, my - r)], fill=TEXT)
 
     # The centimetre grid, on the bed and nowhere else: the frame takes in the
     # cups and whatever sits past the travel, and lines ruled out there
@@ -559,7 +597,8 @@ def render(conf: dict, theme: str = "default") -> bytes:
         _, top, _, bottom = d.textbbox((PAD, 12), title, font=f)
         _heat_legend(d, heat[2], (PAD + d.textlength(title, font=f) + 24, (top + bottom) / 2),
                      fs, words["heat"], TEXT, MUTED,
-                     words["heat_outside"] if heat[3] else None, ACCENT, width=W)
+                     words["heat_outside"] if heat[3] else None, ACCENT, width=W,
+                     ignored=words["heat_ignored"].format(n=len(heat[4][0])) if heat[4][0] else None)
     if offscreen:
         d.text((PAD, H - 24), words["offscreen"].format(trays=", ".join(offscreen)),
                font=fs, fill=ACCENT)
