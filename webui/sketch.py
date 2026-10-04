@@ -92,19 +92,27 @@ WORDS = {
     },
 }
 
-# The probe map's two ends, low and high, each blended out of the plan's own
-# paper as the bed falls below or rises above its median, so the median is the
-# paper and nothing is coloured that does not deviate. Purple and burnt orange,
-# because every other pair is spoken for: colour on this plan means paint, so
-# blue is the water and cyan and red is the plan's own accent, and the green and
-# brown a relief map would use are the pair red-green colour blindness cannot
-# tell apart -- 3.7 apart under deuteranopia against the 8 a reader needs.
-# These are 25 apart under the worst of them, stand at least 5:1 off every
-# paper, and are the light and dark steps of the same two hues.
-HEAT = {"light": ((94, 60, 153), (179, 88, 6)),
-        "dark": ((154, 124, 224), (192, 116, 40))}
-HEAT_LIGHT = {"default", "coconut", "kongress"}
-H4XX0R_HIGH = (24, 120, 30)
+# The probe map is drawn in Turbo, Google's rainbow for depth and height maps:
+# blue for the lowest paper through cyan, green and yellow to red for the
+# highest, with the median in the green. A rainbow because a height map is read
+# that way at a glance; Turbo rather than the plain spectrum because its
+# lightness and hue move evenly, so a band in the picture is a step in the bed
+# and not a seam in the colour scale, which the plain spectrum puts at its
+# yellow and cyan. Every theme draws it, h4xx0r too, as every theme draws the
+# paint in its real colours. Its polynomial fit, from Mikhailov's release.
+TURBO = (
+    (0.13572138, 4.61539260, -42.66032258, 132.13108234, -152.94239396, 59.28637943),
+    (0.09140261, 2.19418839, 4.84296658, -14.18503333, 4.27729857, 2.82956604),
+    (0.10667330, 12.64194608, -60.58204836, 110.36276771, -89.90310912, 27.34824973),
+)
+
+
+def turbo(t):
+    """Turbo at t in 0..1, scalar or array, as 0-255 RGB along a last axis."""
+    t = np.clip(np.asarray(t, dtype=float), 0.0, 1.0)
+    rgb = [sum(c * t ** k for k, c in enumerate(coeffs)) for coeffs in TURBO]
+    return np.clip(np.stack(rgb, axis=-1), 0.0, 1.0) * 255
+
 
 TRAY_FILL = {
     "water": (150, 200, 235),
@@ -154,21 +162,9 @@ def _num(d, key, default=0.0):
         return default
 
 
-def _heat_poles(theme: str, bg: tuple) -> tuple:
-    """(low, high) for this theme. h4xx0r is one green phosphor, with no second
-    hue to give, so its map runs from the screen's dark to its brightest green:
-    a one-hue scale where the others diverge, and the legend says which end
-    is which."""
-    if theme == "h4xx0r":
-        # Not the theme's brightest green: everything on the plan is lettered
-        # in that, and the high end of the bed came out green on green.
-        return bg, H4XX0R_HIGH
-    return HEAT["light" if theme in HEAT_LIGHT else "dark"]
-
-
-def _heat_map(conf: dict, theme: str, bg: tuple, px, scale: float,
+def _heat_map(conf: dict, px, scale: float,
               min_x: float, min_y: float):
-    """(image, where, poles, limit) for the probe map, or None without one.
+    """(image, where, limit) for the probe map, or None without one.
 
     The surface the levelling follows, backlash correction and all, sampled at
     every pixel of the plan and coloured by how far it is from the median of
@@ -192,33 +188,31 @@ def _heat_map(conf: dict, theme: str, bg: tuple, px, scale: float,
     probed = np.array([p[2] for p in conf["brushograph"]["level_map"]])
     median = float(np.median(probed))
     limit = max(np.ceil(np.percentile(np.abs(probed - median), 98) * 10) / 10, 0.1)
-    t = np.clip((z - median) / limit, -1, 1)[..., None]
-    ground = np.array(bg, dtype=float)
-    low, high = (np.array(c, dtype=float) for c in _heat_poles(theme, bg))
-    if theme == "h4xx0r":
-        rgb = low + (high - low) * (t + 1) / 2
-    else:
-        rgb = ground + (np.where(t < 0, low, high) - ground) * np.abs(t)
+    rgb = turbo((np.clip((z - median) / limit, -1, 1) + 1) / 2)
     layer = Image.fromarray(np.round(rgb).astype(np.uint8), "RGB")
-    return layer, (ix0, iy0), _heat_poles(theme, bg), limit, bg
+    return layer, (ix0, iy0), limit
 
 
-def _heat_legend(d, poles, limit, ground, font, caption, text, muted, sequential=False):
-    """The scale, top right: a bar from low to high through the paper, its two
-    ends in millimetres and nought in the middle, lettered in the text colours
-    rather than the scale's own."""
+def _backing(d, at, text, font, ground, size=None):
+    """A patch of the plan's own paper behind a label drawn over the heat map:
+    the rainbow runs through every lightness, and a label in the text colour
+    is lost on one end of it or the other."""
+    if size:
+        box = (at[0], at[1], at[0] + size[0], at[1] + size[1])
+    else:
+        box = d.textbbox(at, text, font=font)
+    d.rectangle([box[0] - 2, box[1] - 1, box[2] + 2, box[3] + 1], fill=(*ground, 215))
+
+
+def _heat_legend(d, limit, font, caption, text, muted):
+    """The scale, top right: the rainbow from lowest to highest, its two ends
+    in millimetres and nought -- the median -- in the middle, lettered in the
+    text colours rather than the scale's own."""
     bar_w, bar_h = 120, 8
     x1 = W - PAD
     x0, y0 = x1 - bar_w, 18
-    low, high = poles
-    for i in range(bar_w):
-        t = (i + 0.5) / bar_w * 2 - 1
-        if sequential:
-            c = tuple(round(lo + (hi - lo) * (t + 1) / 2) for lo, hi in zip(low, high))
-        else:
-            pole = low if t < 0 else high
-            c = tuple(round(g + (p - g) * abs(t)) for g, p in zip(ground, pole))
-        d.line([(x0 + i, y0), (x0 + i, y0 + bar_h)], fill=c)
+    for i, c in enumerate(turbo((np.arange(bar_w) + 0.5) / bar_w)):
+        d.line([(x0 + i, y0), (x0 + i, y0 + bar_h)], fill=tuple(int(round(v)) for v in c))
     d.rectangle([x0, y0, x1, y0 + bar_h], outline=muted)
     d.line([(x0 + bar_w / 2, y0 - 2), (x0 + bar_w / 2, y0 + bar_h + 2)], fill=muted)
     for label, x, anchor in ((f"{-limit:.1f}", x0, "la"), ("0", x0 + bar_w / 2, "ma"),
@@ -312,13 +306,12 @@ def render(conf: dict, theme: str = "default") -> bytes:
     d = ImageDraw.Draw(img, "RGBA")
     f, fs = font_for(13 if theme == "kongress" else 12, theme=theme), font_for(11 if theme == "kongress" else 10, theme=theme)
 
-    # The probe map as a heat map, under the grid so the grid still reads
+    # The probe map as a heat map in Turbo, under the grid so the grid still reads
     # across it. Whatever the levelling checkbox says: a map loaded and not
     # used is still the shape of the bed.
-    heat = _heat_map(conf, theme, BG, px, scale, min_x, min_y)
+    heat = _heat_map(conf, px, scale, min_x, min_y)
     if heat:
-        layer, at = heat[0], heat[1]
-        img.paste(layer, at)
+        img.paste(heat[0], heat[1])
 
     step = 10 if span_x <= 220 else 50
     g = min_x - (min_x % step)
@@ -363,8 +356,10 @@ def render(conf: dict, theme: str = "default") -> bytes:
     if cw and ch:
         d.rectangle([px(ox, oy + ch), px(ox + cw, oy)], fill=(*CANVAS, 18), outline=CANVAS, width=2)
         tx, ty = px(ox, oy + ch)
-        d.text((tx + 5, ty + 4), words["image"].format(w=cw, h=ch, x=ox, y=oy),
-               font=fs, fill=TEXT)
+        caption = words["image"].format(w=cw, h=ch, x=ox, y=oy)
+        if heat:
+            _backing(d, (tx + 5, ty + 4), caption, fs, BG)
+        d.text((tx + 5, ty + 4), caption, font=fs, fill=TEXT)
 
     # Where the bed-levelling readings are taken, when the machine is being
     # levelled: five crosses, because a figure typed into a box is no use
@@ -382,6 +377,8 @@ def render(conf: dict, theme: str = "default") -> bytes:
         d.rectangle([mx - 1, my - 1, mx, my], fill=(*ACCENT, 160))
     if level_map:
         mx, my = px(*level_points(conf)["level_c"])
+        _backing(d, (mx - 5, my - 5), "", fs, BG, size=(10, 10))
+        _backing(d, (mx + 5, my - 11), "0", fs, BG)
         d.line([(mx - 4, my), (mx + 4, my)], fill=(*ACCENT, 230))
         d.line([(mx, my - 4), (mx, my + 4)], fill=(*ACCENT, 230))
         d.text((mx + 5, my - 11), "0", font=fs, fill=ACCENT)
@@ -472,8 +469,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
 
     if heat:
-        _heat_legend(d, heat[2], heat[3], heat[4], fs, words["heat"], TEXT, MUTED,
-                     sequential=theme == "h4xx0r")
+        _heat_legend(d, heat[2], fs, words["heat"], TEXT, MUTED)
 
     order = ", ".join(tray_labels.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
         or words["order_none"]

@@ -1631,19 +1631,22 @@ deviation, rounded up to a tenth, as that plot's does: one point that came down
 on a speck would otherwise wash the rest of the bed out to paper. On Parang that
 is ±1.3 mm, and the three steps stand out as bands.
 
-The colours were the hard part, because colour on this plan already means paint.
-Blue is the water and cyan, red is the plan's own accent, and the green and brown
-of a relief map are the pair red-green colour blindness cannot separate:
-`validate_palette.js` put them 3.7 apart under deuteranopia, against the 8 a
-reader needs. **Purple for low and burnt orange for high** are 25 apart under the
-worst of them, stand at least 5:1 off every theme's paper, and each arm blends
-out of the paper itself, so the median is the paper and only a deviation is
-coloured. The dark themes take lighter steps of the same two hues, which pass the
-same checks on their grounds. h4xx0r is one green phosphor with no second hue to
-give, so its map runs from the screen's dark to a mid green, a one-hue scale
-whose legend says which end is which — not the theme's brightest green, which
-everything on the plan is lettered in and which the high end of the bed buried.
-A plan with no map is drawn to the byte as before.
+It is drawn as a rainbow: blue for the lowest paper through cyan, green and
+yellow to dark red for the highest, the median in the green. That is how a
+height map is read at a glance, and it was asked for over the first version's
+purple-to-orange, which faded out of the paper at the median and was chosen to
+keep the bed clear of every colour the cups are. The rainbow is **Turbo**
+(Mikhailov, 2019, by its published polynomial fit), not the plain spectrum. The
+plain one's lightness climbs to a peak at yellow and another at cyan and drops
+between them, so it draws bright seams across a bed where nothing steps, and
+dark bands where something does are thinned out; Turbo's lightness and hue move
+evenly from end to end, so a band on the plan is a change in the bed. It does
+share hues with the cups now — the high end runs through the yellow, and cyan
+is a third of the way up — which the cups' outlines and labels keep apart, and
+it is drawn in every theme, h4xx0r too, since every theme draws the paint in its
+real colours. Its two dark ends meet the text colour of one theme or another, so
+over a heat map the image caption and the 0 cross stand on a patch of the
+plan's own paper. A plan with no map is drawn to the byte as before.
 
 **The scan was driven with the brush's own slack in it.** probescan goes
 serpentine, one row left to right, the next right to left, and an axis coming
