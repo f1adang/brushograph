@@ -1563,7 +1563,7 @@ Measured over a levelled job: 7 µm at worst, against a sheet that varies by
 #### A probed height map
 
 Five readings describe a sheet that is flat between them, and Parang's bed is
-not. A touch probe walked over it on a 6 mm grid — `probescan.py`, G38.2 on
+not. A touch probe walked over it on a 6 mm grid — `tools/probescan.py`, G38.2 on
 FluidNC, 26 × 17 points from X 0–150, Y 40–136 — finds 1.88 mm between the
 lowest point and the highest, and not as a warp: the surface *steps*, by close
 on a millimetre over a few millimetres, near X 93, 108 and 129, on every row.
@@ -1742,8 +1742,9 @@ falling back to the boxes for a file written before it.
 
 ##### A laser scan
 
-The same control takes the other scanner's file. `heightscan.py` carries a
-Waveshare TOF Mini-F over the bed at a fixed Z and writes
+The same control takes the other scanner's file. `laserscan.py` (in
+`tools/`, beside `probescan.py`) carries a time-of-flight sensor over the bed at a
+fixed Z and writes
 `x,y,dist_mm,std_mm,strength`: the distance down to the paper, so the paper's
 height is its negative — further away is lower, as `plot_heightmap.py` reads it.
 A reading of nought distance or nought strength is the sensor saying it saw

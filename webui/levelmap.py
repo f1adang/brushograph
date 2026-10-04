@@ -11,7 +11,7 @@ when the scan started; probescan neither homes nor zeroes. Only differences
 mean anything, so the map is read relative to its own height at one spot, the
 middle of the bed, which is where Canvas Height is taken to have been set.
 
-A laser scan is read too: `heightscan.py` carries a time-of-flight sensor over
+A laser scan is read too: `laserscan.py` carries a time-of-flight sensor over
 the bed at a fixed Z and writes `x,y,dist_mm,std_mm,strength`, the distance
 down to the paper. The paper's height is the negative of that, and it is
 smoothed before it is used (`smooth`), because the sensor reads in whole
@@ -58,7 +58,7 @@ def read_csv(text: str) -> tuple[list[list[float]], int, float]:
     point with no contact is written `nan` and is left out; its neighbours
     cover for it. Used as it stands: it resolves hundredths.
 
-    heightscan.py's laser: `dist_mm` down to the paper, so the height is its
+    laserscan.py's laser: `dist_mm` down to the paper, so the height is its
     negative -- further away is lower. A reading of nought distance or nought
     signal strength is the sensor reporting that it saw nothing, and is a
     miss like the probe's `nan`. Smoothed by LASER_SMOOTH_MM, since it
@@ -70,7 +70,7 @@ def read_csv(text: str) -> tuple[list[list[float]], int, float]:
     laser = not z_key and "dist_mm" in fields
     if "x" not in fields or "y" not in fields or not (z_key or laser):
         raise ValueError("A probe map needs x and y and either z_mm, the way probescan.py "
-                         "writes it, or dist_mm, the way heightscan.py does.")
+                         "writes it, or dist_mm, the way laserscan.py does.")
     points, missed = [], 0
     for row in rows:
         try:
