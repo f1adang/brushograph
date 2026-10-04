@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.22.1](https://github.com/f1adang/brushograph/releases/tag/v2.22.1) — 2026-10-04
+
+- **The scanners find FluidNC without a port number:** `tools/laserscan.py` and `tools/probescan.py` stopped straight away with a confusing error when given an address like `--cnc socket://192.168.30.62`, with no `:23` on the end. They now use FluidNC's telnet port, 23, when none is given.
+
 ## [v2.22.0](https://github.com/f1adang/brushograph/releases/tag/v2.22.0) — 2026-10-04
 
 - **A sharper, tidier machine plan:** the plan is now drawn the shape of your machine and shown at its real size on a computer, so its lettering is crisp and the same size as the smallest text elsewhere on the page, without the plan taking over the screen. On smaller windows and phones it shrinks to fit as before. The centimetre grid lines are only drawn on the machine's bed now, not across the containers and the empty margins around it.
