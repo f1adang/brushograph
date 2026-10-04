@@ -50,17 +50,35 @@ def read_tof_frame(ser):
 
 
 def measure(ser, n, discard):
-    """Median + stdev of n readings, taken only after the machine stopped."""
+    """Median + stdev of up to n readings, taken only after the machine stopped,
+    and how many readings that took.
+
+    Stops as soon as the median of n is settled: once one value has been read
+    more than n/2 times, the median of all n is that value whatever the rest
+    would have been, so reading them changes nothing. The sensor reports
+    whole millimetres and mostly repeats itself -- on Parang's scan 428 of 620
+    points read the same 9 times out of 9 -- so most points stop at 5. Over
+    that scan this reads 5.56 of the 9 on average, and the result is the
+    median of 9 at every point, by construction. The stdev is of the readings
+    taken.
+    """
     ser.reset_input_buffer()            # drop lines buffered during the move
     ser.readline()                      # throw away the (possibly cut) first line
     for _ in range(discard):
         read_tof_frame(ser)
-    frames = [read_tof_frame(ser) for _ in range(n)]
+    frames, counts = [], {}
+    for _ in range(n):
+        fr = read_tof_frame(ser)
+        frames.append(fr)
+        counts[fr[0]] = counts.get(fr[0], 0) + 1
+        if counts[fr[0]] > n // 2:
+            break
     d = [fr[0] for fr in frames]
     s = [fr[2] for fr in frames]
     return (statistics.median(d),
-            statistics.stdev(d) if n > 1 else 0.0,
-            statistics.median(s))
+            statistics.stdev(d) if len(d) > 1 else 0.0,
+            statistics.median(s),
+            len(d))
 
 
 # ------------------------------------------------------------------ FluidNC
@@ -160,7 +178,8 @@ def main():
     p.add_argument("--z", type=float, help="fixed Z for the scan (omit if no Z)")
     p.add_argument("--home", action="store_true", help="run $H first")
     p.add_argument("--settle", type=float, default=0.3, help="s after stop")
-    p.add_argument("--samples", type=int, default=9)
+    p.add_argument("--samples", type=int, default=9,
+                   help="readings a point at most; it stops once more than half agree")
     p.add_argument("--discard", type=int, default=2)
     p.add_argument("--sensor-dx", type=float, default=0.0,
                    help="sensor X offset from machine position, mm")
@@ -178,7 +197,7 @@ def main():
     tof = serial.Serial(args.tof, 115200, timeout=0.2)
     cnc = FluidNC(args.cnc, verbose=args.verbose)
     points = list(grid(args))
-    misses = 0
+    misses = readings = 0
 
     try:
         cnc.send("G21")
@@ -201,7 +220,8 @@ def main():
                 # not the scan: written as nan, as probescan writes a point
                 # it found no contact at, and left for its neighbours.
                 try:
-                    d, sd, st = measure(tof, args.samples, args.discard)
+                    d, sd, st, taken = measure(tof, args.samples, args.discard)
+                    readings += taken
                 except TimeoutError:
                     d = sd = st = math.nan
                     misses += 1
@@ -211,7 +231,11 @@ def main():
                 eta = (time.monotonic() - t0) / i * (len(points) - i)
                 print(f"[{i}/{len(points)}] X{x:.1f} Y{y:.1f}  {d:.1f} mm "
                       f"(sd {sd:.1f})  ETA {eta/60:.1f} min")
+        took = time.monotonic() - t0
         print(f"done, {misses} points without a reading -> {args.out}")
+        print(f"{took / 60:.1f} min, {took / len(points):.2f} s a point, "
+              f"{readings / max(len(points) - misses, 1):.2f} of up to {args.samples} "
+              f"readings a point")
     except KeyboardInterrupt:
         cnc.feed_hold()
         print("\nfeed hold sent; partial data is in", args.out)
