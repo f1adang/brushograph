@@ -40,7 +40,16 @@ machine and left alone.
   what it sets is what the plan draws; folded, it is one line. Below it a
   to-scale plan of bed, image area and trays with their entry and drip radii,
   redrawn as you edit. Trays parked outside the bed are called out rather than
-  quietly cropped. **Painting dimensions** sits directly under the plan,
+  quietly cropped. It is drawn 912 × 576, the width the page's column gives it
+  on a computer, and shown there pixel for pixel; it was 760 × 480 and capped
+  at 380 px tall, about 600 px wide in a 914 px column, with every label at
+  two-thirds of the size it was lettered at. A window under 1000 px wide or
+  700 tall keeps the 380 px cap, so the plan does not push the form off the
+  screen; a phone scales it to its width. The centimetre grid is ruled on the
+  bed only, from the origin out to the travel limits — it used to run across
+  the whole drawing, cups and margins included, measuring ground the machine
+  cannot reach — and so is the line where the canvas starts.
+  **Painting dimensions** sits directly under the plan,
   outside the fold, because it is the one group that changes from one run to
   the next and it is what the picture above it draws: the painted width and
   height, the offsets that say where on the bed the painting lands, and the

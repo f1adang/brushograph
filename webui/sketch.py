@@ -14,7 +14,10 @@ from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_orig
                         tray_entries)
 from gcode_pipeline import probed_surface
 
-W, H = 760, 480
+# 912 px is the width the page gives the plan on a computer screen (the
+# 1000 px column, less its padding and the plan's own), so there it is shown
+# pixel for pixel; a narrower screen scales it down.
+W, H = 912, 576
 PAD = 46
 
 # One palette per interface theme, so the plan sits on the same paper the page
@@ -220,7 +223,7 @@ def _backing(d, at, text, font, ground, size=None):
 
 def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=None):
     """The scale, on the title line after the painting order: its caption, the
-    lowest figure, the rainbow, the highest figure, and under the bar a tick
+    lowest figure, the rainbow, the highest figure, and over the bar a tick
     and a 0 where the calibration dot falls on it. Lettered in the text
     colours rather than the scale's own.
 
@@ -249,8 +252,10 @@ def _heat_legend(d, span, at, font, caption, text, muted, warning=None, accent=N
     d.rectangle([x0, y0, x0 + bar_w, y0 + bar_h], outline=muted)
     d.text((x0 + bar_w + 6, mid), hi_txt, font=font, fill=muted, anchor="lm")
     nought = x0 + bar_w * min(max(-low / (high - low), 0.0), 1.0)
-    d.line([(nought, y0), (nought, y0 + bar_h + 3)], fill=text)
-    d.text((nought, y0 + bar_h + 3), "0", font=font, fill=text, anchor="ma")
+    # Above the bar: under it the 0 ran into the bed's own caption, which is
+    # written along the bed's top edge just below this line.
+    d.line([(nought, y0 - 3), (nought, y0 + bar_h)], fill=text)
+    d.text((nought, y0 - 3), "0", font=font, fill=text, anchor="mb")
     # When nought had to be read off the edge of the map: the dot is outside
     # the scan, so every height on the bed is reckoned from a reading taken
     # somewhere else. On the left under the title, where the line has room,
@@ -352,16 +357,21 @@ def render(conf: dict, theme: str = "default") -> bytes:
     if heat:
         img.paste(heat[0], heat[1])
 
+    # The centimetre grid, on the bed and nowhere else: the frame takes in the
+    # cups and whatever sits past the travel, and lines ruled out there
+    # measured ground the machine cannot reach. From the origin, so a line
+    # falls on every whole centimetre of the machine's own coordinates.
     step = 10 if span_x <= 220 else 50
-    g = min_x - (min_x % step)
-    while g <= max_x:
+    (bed_x0, bed_y1), (bed_x1, bed_y0) = px(0, max_h), px(max_w, 0)
+    g = step
+    while g < max_w:
         x0, _ = px(g, 0)
-        d.line([(x0, PAD - 8), (x0, H - PAD + 8)], fill=GRID)
+        d.line([(x0, bed_y1), (x0, bed_y0)], fill=GRID)
         g += step
-    g = min_y - (min_y % step)
-    while g <= max_y:
+    g = step
+    while g < max_h:
         _, y0 = px(0, g)
-        d.line([(PAD - 8, y0), (W - PAD + 8, y0)], fill=GRID)
+        d.line([(bed_x0, y0), (bed_x1, y0)], fill=GRID)
         g += step
 
     words = WORDS.get(theme, WORDS["default"])
@@ -385,10 +395,10 @@ def render(conf: dict, theme: str = "default") -> bytes:
     start_y = _num(bg, "canvas_start_y", 0)
     if cw and ch and oy - start_y > 0.05:
         _, sy = px(0, start_y)
-        d.line([(PAD, sy), (W - PAD, sy)], fill=(*MUTED, 160))
+        d.line([(bed_x0, sy), (bed_x1, sy)], fill=(*MUTED, 160))
         # Above the line, in the gap the offset opened: below it is the strip
         # the containers stand in, and the cups are drawn after this.
-        d.text((PAD + 5, sy - 14), words["canvas_start"].format(y=start_y),
+        d.text((bed_x0 + 5, sy - 14), words["canvas_start"].format(y=start_y),
                font=fs, fill=MUTED)
 
     # Canvas / image area
