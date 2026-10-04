@@ -823,7 +823,7 @@ def level_map_post():
         return jsonify(error="No file supplied"), 400
     raw = f.read()
     try:
-        points, missed = levelmap.read_csv(raw.decode("utf-8-sig", errors="replace"))
+        points, missed, smoothed = levelmap.read_csv(raw.decode("utf-8-sig", errors="replace"))
         version = _store_level_map(request.form.get("machine_config_name", ""),
                                    request.form.get("machine_config_mode", ""), points, raw,
                                    request.form.get("machine_config_version", ""),
@@ -832,7 +832,7 @@ def level_map_post():
         return jsonify(error=str(exc.args[0])), 409
     except (ValueError, json.JSONDecodeError) as exc:
         return jsonify(error=str(exc)), 400
-    return jsonify(points=points, missed=missed, version=version)
+    return jsonify(points=points, missed=missed, smoothed=smoothed, version=version)
 
 
 @app.post("/level_map/remove")

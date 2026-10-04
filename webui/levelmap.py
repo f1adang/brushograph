@@ -10,6 +10,12 @@ Z in that file is the machine's own Z at contact, wherever it happened to be
 when the scan started; probescan neither homes nor zeroes. Only differences
 mean anything, so the map is read relative to its own height at one spot, the
 middle of the bed, which is where Canvas Height is taken to have been set.
+
+A laser scan is read too: `heightscan.py` carries a time-of-flight sensor over
+the bed at a fixed Z and writes `x,y,dist_mm,std_mm,strength`, the distance
+down to the paper. The paper's height is the negative of that, and it is
+smoothed before it is used (`smooth`), because the sensor reads in whole
+millimetres.
 """
 from __future__ import annotations
 
@@ -29,41 +35,95 @@ MAX_SPREAD = 5.0
 # carried in the config, and the config is kept at a few kilobytes.
 MAX_POINTS = 6000
 
+# How widely a laser scan is smoothed, as the standard deviation of a Gaussian
+# in millimetres. The sensor reports whole millimetres and the median of nine
+# readings is nearly always one of them, so a point is 177 or 178 and its
+# neighbour the other, and followed as it stands the brush would bob a
+# millimetre between them. See the README's *A laser scan* for how this figure
+# was chosen against a probe scan of the same bed.
+LASER_SMOOTH_MM = 15.0
+
 # A probe move shorter than this is not a change of direction, for the same
 # reason a G-code move that short is not a reversal to the backlash pass.
 REVERSAL = 0.05
 
 
-def read_csv(text: str) -> tuple[list[list[float]], int]:
-    """probescan.py's CSV as [[x, y, z], ...] in probing order, and how many
-    points it had no contact for.
+def read_csv(text: str) -> tuple[list[list[float]], int, float]:
+    """A scan's CSV as [[x, y, z], ...] in scanning order, how many points it
+    had no reading for, and how widely it was smoothed (0 for none).
 
-    The slow probe's `z_mm`, not `z_fast_mm`: the fast one overshoots by
-    however far the axis coasts after the switch closes, and the slow one is
-    what the script takes the reading from. A point with no contact is written
-    `nan` and is left out; its neighbours cover for it.
+    probescan.py's touch probe: the slow probe's `z_mm`, not `z_fast_mm` -- the
+    fast one overshoots by however far the axis coasts after the switch
+    closes, and the slow one is what the script takes the reading from. A
+    point with no contact is written `nan` and is left out; its neighbours
+    cover for it. Used as it stands: it resolves hundredths.
+
+    heightscan.py's laser: `dist_mm` down to the paper, so the height is its
+    negative -- further away is lower. A reading of nought distance or nought
+    signal strength is the sensor reporting that it saw nothing, and is a
+    miss like the probe's `nan`. Smoothed by LASER_SMOOTH_MM, since it
+    resolves whole millimetres.
     """
     rows = csv.DictReader(io.StringIO(text))
     fields = {(f or "").strip().lower(): f for f in rows.fieldnames or []}
     z_key = fields.get("z_mm") or fields.get("z")
-    if "x" not in fields or "y" not in fields or not z_key:
-        raise ValueError("A probe map needs x, y and z_mm columns, the way probescan.py "
-                         "writes them.")
+    laser = not z_key and "dist_mm" in fields
+    if "x" not in fields or "y" not in fields or not (z_key or laser):
+        raise ValueError("A probe map needs x and y and either z_mm, the way probescan.py "
+                         "writes it, or dist_mm, the way heightscan.py does.")
     points, missed = [], 0
     for row in rows:
         try:
             x = float(row[fields["x"]])
             y = float(row[fields["y"]])
-            z = float(row[z_key])
+            z = float(row[z_key]) if z_key else -float(row[fields["dist_mm"]])
+            strength = float(row[fields["strength"]]) if laser and "strength" in fields else 1.0
         except (TypeError, ValueError):
             raise ValueError(f"Line {rows.line_num} of the probe map is not three numbers.")
         if not all(math.isfinite(v) for v in (x, y)):
             raise ValueError(f"Line {rows.line_num} of the probe map has no position.")
-        if not math.isfinite(z):
+        if not math.isfinite(z) or (laser and (z >= 0 or not strength > 0)):
             missed += 1
             continue
         points.append([round(x, 3), round(y, 3), round(z, 3)])
-    return clean(points), missed
+    if laser:
+        points = smooth(points, LASER_SMOOTH_MM)
+        return clean(points), missed, LASER_SMOOTH_MM
+    return clean(points), missed, 0.0
+
+
+def smooth(points: list[list[float]], sigma_mm: float) -> list[list[float]]:
+    """The same points, each at a Gaussian-weighted mean of the heights round it.
+
+    Over the scan's own grid, the rows and columns it was taken on, with the
+    width in millimetres turned into cells along each axis. A point with no
+    reading is no weight rather than a height of nought, and nothing is made
+    up past the edges: a point at the edge of the bed is the mean of what
+    there is on the bed side of it, not of copies of itself.
+    """
+    if len(points) < 2:
+        return points
+    xs = np.array(sorted({p[0] for p in points}))
+    ys = np.array(sorted({p[1] for p in points}))
+    if len(xs) < 2 or len(ys) < 2:
+        return points
+    total = np.zeros((len(ys), len(xs)))
+    weight = np.zeros_like(total)
+    i = np.searchsorted(xs, [p[0] for p in points])
+    j = np.searchsorted(ys, [p[1] for p in points])
+    np.add.at(total, (j, i), [p[2] for p in points])
+    np.add.at(weight, (j, i), 1.0)
+
+    def blur(a: np.ndarray) -> np.ndarray:
+        for axis, at in ((1, xs), (0, ys)):
+            cells = sigma_mm / float(np.median(np.diff(at)))
+            reach = max(int(math.ceil(3 * cells)), 1)
+            k = np.exp(-0.5 * (np.arange(-reach, reach + 1) / cells) ** 2)
+            a = np.apply_along_axis(lambda v: np.convolve(v, k, mode="same"), axis, a)
+        return a
+
+    smoothed = blur(total) / np.maximum(blur(weight), 1e-12)
+    return [[x, y, round(float(smoothed[b, a]), 3)] for (x, y, _), a, b in zip(points, i, j)]
 
 
 def clean(value) -> list[list[float]]:

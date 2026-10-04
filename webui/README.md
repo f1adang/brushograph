@@ -1708,6 +1708,58 @@ levelling pass, either way, opens the file with
 lowest and highest correction it actually wrote — and the preview reads that,
 falling back to the boxes for a file written before it.
 
+##### A laser scan
+
+The same control takes the other scanner's file. `heightscan.py` carries a
+Waveshare TOF Mini-F over the bed at a fixed Z and writes
+`x,y,dist_mm,std_mm,strength`: the distance down to the paper, so the paper's
+height is its negative — further away is lower, as `plot_heightmap.py` reads it.
+A reading of nought distance or nought strength is the sensor saying it saw
+nothing, and is a miss like the probe's `nan`. Which scanner a file came from is
+read off its columns: `z_mm` is the probe, `dist_mm` the laser.
+
+**A laser map is smoothed, and a probe map is not.** The sensor reports whole
+millimetres, and each point is the median of nine readings whose spread is
+mostly under one (a mean `std_mm` of 0.14 over Parang's 620 points), so the
+median is nearly always the same whole number and the sub-millimetre detail is
+gone before the file is written. A point reads 177 and its neighbour 178, and
+followed as it stands the brush would bob a millimetre between them — ten times
+what a watercolour stroke shows. So `smooth` takes every point to a
+Gaussian-weighted mean of the heights round it, over the scan's own grid; a
+point with no reading carries no weight rather than a height of nought, and
+nothing is made up past the edges. The config holds the smoothed points, which
+are what the brush follows and what the plan draws; the CSV beside it on the
+server is the raw file.
+
+The width was chosen against a probe scan of the same bed, taken six hours
+later, sampled every millimetre over the ground both cover. "Detail" is the RMS
+after taking the plane each one fits out of each, so the tilt (below) does not
+swamp it; "bobbing" is the RMS change in height from one 5 mm point to the next
+along X, against the probe's own 0.181 mm, which is the bed's real texture:
+
+| Gaussian σ | RMS against probe | Detail | Bobbing per 5 mm | Spread |
+|---|---|---|---|---|
+| none | 0.719 mm | 0.542 | 0.403 | 5.00 mm |
+| 5 mm | 0.566 | 0.338 | 0.136 | 2.94 |
+| 10 mm | 0.501 | 0.268 | 0.060 | 2.49 |
+| **15 mm** | 0.463 | 0.245 | 0.047 | 2.25 |
+| 20 mm | 0.406 | 0.243 | 0.043 | 1.90 |
+
+Detail stops improving at 15 mm (`LASER_SMOOTH_MM`). Past it the RMS goes on
+falling only because a wider blur flattens the tilt the two scans disagree
+about, which is smoothing away a measurement rather than noise. What 15 mm
+cannot keep is the bed's steps: a millimetre over a few millimetres, which the
+laser smears into a slope at any width — it never resolved them.
+
+**The two scans do not agree about Y.** Along X they see the same bed: a plane
+fitted to each falls 0.98 and 0.97 mm per 100 mm. Along Y the probe finds the
+bed flat (−0.03 mm per 100 mm) and the laser finds it rising 1.55 mm per 100 mm,
+row means going from −0.6 at Y 45 to +1.1 at Y 130. Nothing in the files says
+which is right — the paper may have moved between them, or the sensor may tilt
+as the gantry travels in Y — so neither is corrected towards the other; the
+brush follows whichever map is loaded. A contact probe measures Z the way the
+brush meets the paper, which is the reason to prefer it where both exist.
+
 ### Backlash compensation
 
 An axis with slack in it does not go where it is told the moment it turns round.
