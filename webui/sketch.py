@@ -9,7 +9,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_origin,
-                        cup_shape_of, holder_of, level_area, level_points,
+                        calibration_point, cup_shape_of, holder_of, level_area,
+                        level_points,
                         tray_entries)
 from gcode_pipeline import probed_surface
 
@@ -77,7 +78,8 @@ WORDS = {
         "order": "Painting order: {order}",
         "order_none": "none in color_order",
         "offscreen": "not shown, parked far outside the bed: {trays}",
-        "heat": "paper vs its median",
+        "heat": "paper vs the calibration dot",
+        "heat_outside": "the dot is outside the scan: 0 is read off its edge",
     },
     "kongress": {
         "trays": TRAY_LABEL_DE,
@@ -88,7 +90,8 @@ WORDS = {
         "order": "Auftragsreihenfolge: {order}",
         "order_none": "keine in der Auftragsreihenfolge",
         "offscreen": "nicht dargestellt, weit außerhalb der Arbeitsfläche: {trays}",
-        "heat": "Papier gegen seinen Median",
+        "heat": "Papier gegen den Kalibrierpunkt",
+        "heat_outside": "der Punkt liegt außerhalb der Abtastung: 0 vom Rand gelesen",
     },
 }
 
@@ -164,14 +167,17 @@ def _num(d, key, default=0.0):
 
 def _heat_map(conf: dict, px, scale: float,
               min_x: float, min_y: float):
-    """(image, where, limit) for the probe map, or None without one.
+    """(image, where, (low, high), dot outside the scan) for the probe map, or
+    None without one.
 
     The surface the levelling follows, backlash correction and all, sampled at
-    every pixel of the plan and coloured by how far it is from the median of
-    the probed heights -- what plot_heightmap.py shows, so the two agree. The
-    scale is symmetric and ends at the 98th percentile of the deviation, as
-    that plot's does, rounded up to a tenth: one point that came down on a
-    speck would otherwise wash the rest of the bed out to the paper colour.
+    every pixel of the plan and coloured by how far it is above or below the
+    paper at the calibration dot. The rainbow spans the bed's own range rather
+    than being centred on nought: the dot is in a corner, and a bed that falls
+    away from it would otherwise use half the scale. Its ends are the 2nd and
+    98th percentiles of the probed heights, as plot_heightmap.py's are, rounded
+    outwards to a tenth: one point that came down on a speck would otherwise
+    squeeze the rest of the bed into one colour.
     """
     surf = probed_surface(conf)
     if surf is None:
@@ -184,13 +190,21 @@ def _heat_map(conf: dict, px, scale: float,
     zero_x, zero_y = px(min_x, min_y)
     mx = min_x + (np.arange(ix0, ix1) + 0.5 - zero_x) / scale
     my = min_y + (zero_y - np.arange(iy0, iy1) - 0.5) / scale
-    z = surf.sample(mx[None, :], my[:, None])
-    probed = np.array([p[2] for p in conf["brushograph"]["level_map"]])
-    median = float(np.median(probed))
-    limit = max(np.ceil(np.percentile(np.abs(probed - median), 98) * 10) / 10, 0.1)
-    rgb = turbo((np.clip((z - median) / limit, -1, 1) + 1) / 2)
+    # Nought where calibrate.g puts its dot, as the levelling reads it: the
+    # brush is set to touch there, so that is where Canvas Height is true and
+    # every other height on the bed is a correction from it.
+    dot = calibration_point(conf)
+    zero = surf(*dot)
+    outside = not (cols[0] <= dot[0] <= cols[-1] and ys[0] <= dot[1] <= ys[-1])
+    z = surf.sample(mx[None, :], my[:, None]) - zero
+    probed = np.array([p[2] for p in conf["brushograph"]["level_map"]]) - zero
+    low = np.floor(np.percentile(probed, 2) * 10) / 10
+    high = np.ceil(np.percentile(probed, 98) * 10) / 10
+    if high - low < 0.2:
+        low, high = low - 0.1, high + 0.1
+    rgb = turbo((z - low) / (high - low))
     layer = Image.fromarray(np.round(rgb).astype(np.uint8), "RGB")
-    return layer, (ix0, iy0), limit
+    return layer, (ix0, iy0), (low, high), outside
 
 
 def _backing(d, at, text, font, ground, size=None):
@@ -204,21 +218,30 @@ def _backing(d, at, text, font, ground, size=None):
     d.rectangle([box[0] - 2, box[1] - 1, box[2] + 2, box[3] + 1], fill=(*ground, 215))
 
 
-def _heat_legend(d, limit, font, caption, text, muted):
+def _heat_legend(d, span, font, caption, text, muted, warning=None, accent=None):
     """The scale, top right: the rainbow from lowest to highest, its two ends
-    in millimetres and nought -- the median -- in the middle, lettered in the
-    text colours rather than the scale's own."""
+    in millimetres from the calibration dot and a tick where nought falls --
+    above the bar, since it can land beside either end's figure -- lettered
+    in the text colours rather than the scale's own."""
+    low, high = span
     bar_w, bar_h = 120, 8
     x1 = W - PAD
     x0, y0 = x1 - bar_w, 18
     for i, c in enumerate(turbo((np.arange(bar_w) + 0.5) / bar_w)):
         d.line([(x0 + i, y0), (x0 + i, y0 + bar_h)], fill=tuple(int(round(v)) for v in c))
     d.rectangle([x0, y0, x1, y0 + bar_h], outline=muted)
-    d.line([(x0 + bar_w / 2, y0 - 2), (x0 + bar_w / 2, y0 + bar_h + 2)], fill=muted)
-    for label, x, anchor in ((f"{-limit:.1f}", x0, "la"), ("0", x0 + bar_w / 2, "ma"),
-                             (f"+{limit:.1f} mm", x1, "ra")):
+    nought = x0 + bar_w * min(max(-low / (high - low), 0.0), 1.0)
+    d.line([(nought, y0 - 3), (nought, y0 + bar_h + 1)], fill=text)
+    d.text((nought, y0 - 4), "0", font=font, fill=text, anchor="mb")
+    for label, x, anchor in ((f"{low:+.1f}", x0, "la"), (f"{high:+.1f} mm", x1, "ra")):
         d.text((x, y0 + bar_h + 3), label, font=font, fill=muted, anchor=anchor)
     d.text((x0 - 8, y0 - 2), caption, font=font, fill=text, anchor="ra")
+    # When nought had to be read off the edge of the map: the dot is outside
+    # the scan, so every height on the bed is reckoned from a reading taken
+    # somewhere else. On the left under the title, where the line has room --
+    # under the scale it ran into the bed's own caption in German.
+    if warning:
+        d.text((PAD, 31), warning, font=font, fill=accent)
 
 
 def render(conf: dict, theme: str = "default") -> bytes:
@@ -370,13 +393,14 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # A probe map takes their place: a dot where each point was probed, so
     # the ground it covers -- and the strip it does not, read as its nearest
     # edge -- shows against the bed; and the one cross that still matters,
-    # the middle, where the map reads nought and Canvas Height is set.
-    level_map = bg.get("level_map") or [] if bg.get("level_compensation") else []
+    # calibrate.g's dot, where the map reads nought and Canvas Height is set.
+    # Whenever there is a map, as the heat map is: the cross is its nought.
+    level_map = bg.get("level_map") or []
     for lx, ly, _ in level_map:
         mx, my = px(lx, ly)
         d.rectangle([mx - 1, my - 1, mx, my], fill=(*ACCENT, 160))
     if level_map:
-        mx, my = px(*level_points(conf)["level_c"])
+        mx, my = px(*calibration_point(conf))
         _backing(d, (mx - 5, my - 5), "", fs, BG, size=(10, 10))
         _backing(d, (mx + 5, my - 11), "0", fs, BG)
         d.line([(mx - 4, my), (mx + 4, my)], fill=(*ACCENT, 230))
@@ -469,7 +493,8 @@ def render(conf: dict, theme: str = "default") -> bytes:
     d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
 
     if heat:
-        _heat_legend(d, heat[2], fs, words["heat"], TEXT, MUTED)
+        _heat_legend(d, heat[2], fs, words["heat"], TEXT, MUTED,
+                     words["heat_outside"] if heat[3] else None, ACCENT)
 
     order = ", ".join(tray_labels.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
         or words["order_none"]

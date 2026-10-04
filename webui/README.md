@@ -1610,29 +1610,45 @@ may be. A three-number list is now written on one line: Parang's config with its
 map is 569 lines and 17 KB, and every config without a map is written to the
 byte as it was.
 
-**Where nought is.** probescan neither homes nor zeroes, so its Z is wherever the
-machine's Z was — 60.5 to 62.4 here — and only differences mean anything. The
-map is read against its own height at the middle of the bed, `level_c`'s spot,
-because that is where the five-reading scheme has always taken Canvas Height to
-be set. The plan marks it with a cross and a 0, and a dot at every probed point,
-so the strip the map does not cover shows: Parang's containers' strip ends at
-Y 25 and the scan starts at Y 40, and the 15 mm between reads as the map's
-nearest row, the way the five readings are clamped.
+**Where nought is: the calibration dot.** probescan neither homes nor zeroes,
+so its Z is wherever the machine's Z was — 60.5 to 62.4 here — and only
+differences mean anything. The map is read against its own height where
+`calibrate.g` puts its dot, `calibration_point()`: 5 mm in from X 0 and from
+Canvas Start Y, the corner of the paper nearest the containers. The brush is set
+to just touch there, so that is the one place Canvas Height is true, and every
+other height on the bed is a correction from it; the macro and the levelling take
+the spot from the one function, so they cannot drift apart. It was the middle of
+the bed until then — `level_c`'s spot, the five-reading scheme's assumption about
+where Canvas Height is set — which nothing on the machine actually touched.
+Moving it moved every correction on Parang's probe map by 0.45 mm.
+
+**A scan should start at the dot.** On Parang the dot is at X 5, Y 30, and both
+scans begin further up the bed, the probe's at Y 40 and the laser's at Y 45. A
+point outside the map reads as its nearest edge — the probe's at X 0–6, its
+noisiest column, where the serpentine rows disagree by 0.6 mm — and that one
+reading then sets the zero for the whole bed. It works, and it is said: the
+generation log adds *which is outside the scan … and read off its nearest edge*,
+and the plan writes *the dot is outside the scan: 0 is read off its edge* under
+its title. The plan marks the dot with a cross and a 0, and a dot at every
+probed point, so the strip the map does not cover shows; past the map's edge,
+painting is clamped the same way, as the five readings are.
 
 **The plan draws the map as a heat map.** Loaded, the map colours the bed in the
-plan view by how far the paper is above or below the median of the probed heights
-— what `plot_heightmap.py` shows, so the two can be held against each other —
-whether or not levelling is on, since a map loaded and not used is still the
-shape of the bed. It is the surface the levelling follows (`probed_surface`,
-backlash correction and all), sampled at every pixel of the plan, drawn under
-the grid so positions still read across it, with a scale bar at the top right.
-The scale is symmetric about the median and ends at the 98th percentile of the
-deviation, rounded up to a tenth, as that plot's does: one point that came down
-on a speck would otherwise wash the rest of the bed out to paper. On Parang that
-is ±1.3 mm, and the three steps stand out as bands.
+plan view by how far the paper is above or below the paper at the calibration
+dot — the levelling's own nought, so the plan shows the correction the brush
+will be given — whether or not levelling is on, since a map loaded and not used
+is still the shape of the bed. It is the surface the levelling follows
+(`probed_surface`, backlash correction and all), sampled at every pixel of the
+plan, drawn under the grid so positions still read across it, with a scale bar
+at the top right whose tick marks where nought falls. The rainbow spans the
+bed's own range, the 2nd to the 98th percentile of the probed heights rounded
+outwards to a tenth, as `plot_heightmap.py`'s does: one point that came down on
+a speck would otherwise squeeze the rest into one colour. It is not centred on
+nought — it was while nought was the median — because the dot is in a corner,
+and a bed that falls away from it would use half the scale.
 
 It is drawn as a rainbow: blue for the lowest paper through cyan, green and
-yellow to dark red for the highest, the median in the green. That is how a
+yellow to dark red for the highest, nought wherever the bed puts it. That is how a
 height map is read at a glance, and it was asked for over the first version's
 purple-to-orange, which faded out of the paper at the median and was chosen to
 keep the bed clear of every colour the cups are. The rainbow is **Turbo**

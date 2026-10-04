@@ -30,7 +30,8 @@ if str(REPO_ROOT) not in sys.path:
 from configspec import (CLASSIC_DISH_RIM_RADIUS,  # noqa: E402
                         RECTANGULAR_SHAPES, brush_width, canvas_origin, cup_shape_of,
                         EDGE_HEADROOM, feed_line, holder_of, level_area, level_offset,
-                        level_points, paintable_size, tray_entries, workable_x)
+                        calibration_point, paintable_size, tray_entries,
+                        workable_x)
 import levelmap  # noqa: E402
 
 FALLBACK_PATTERN = "concentric"
@@ -946,24 +947,32 @@ def probed_surface(conf: dict):
 def level_surface(conf: dict):
     """(offset(x, y), what it came from), or (None, None) if there is nothing to correct.
 
-    The probe map when there is one, read relative to its own height at the
-    middle of the bed -- the fifth reading's spot, where a brush is taken to
-    have been set to touch -- and corrected for the play the scan was driven
-    with, the same figures the backlash pass uses. Otherwise the five readings,
+    The probe map when there is one, read relative to its own height where
+    calibrate.g puts its dot -- the spot the brush is set to just touch, so
+    the one place Canvas Height is true -- and corrected for the play the scan
+    was driven with, the same figures the backlash pass uses. Otherwise the five readings,
     and nothing at all if all five are the same.
     """
     bg = conf.get("brushograph", {})
     points = bg.get("level_map") or []
     if points:
         paper_z = probed_surface(conf)
-        mid = level_points(conf)["level_c"]
+        mid = calibration_point(conf)
         zero = paper_z(*mid)
 
         def offset(x, y):
             return paper_z(x, y) - zero
 
         offset.knots = getattr(paper_z, "knots", None)
-        return offset, f"a probe map of {len(points)} points, zero at X{mid[0]:g} Y{mid[1]:g}"
+        where = f"a probe map of {len(points)} points, zero at the calibration dot, X{mid[0]:g} Y{mid[1]:g}"
+        # The dot outside the scan is read off the map's nearest edge, and
+        # that one reading is then what every height on the bed is taken from.
+        if offset.knots is not None:
+            cols, ys = offset.knots
+            if not (cols[0] <= mid[0] <= cols[-1] and ys[0] <= mid[1] <= ys[-1]):
+                where += (f", which is outside the scan (X {cols[0]:g}-{cols[-1]:g}, "
+                          f"Y {ys[0]:g}-{ys[-1]:g}) and read off its nearest edge")
+        return offset, where
 
     readings = [_figure(bg, key) for key in
                 ("level_tl", "level_tr", "level_c", "level_bl", "level_br")]

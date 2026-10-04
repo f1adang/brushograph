@@ -807,6 +807,26 @@ def level_points(conf: dict) -> dict[str, tuple[float, float]]:
     }
 
 
+# Where calibrate.g puts its dot, inside the corner of the paper nearest the
+# origin: this far in from X 0 and from Canvas Start Y.
+CALIBRATION_INSET = 5.0
+
+
+def calibration_point(conf: dict) -> tuple[float, float]:
+    """Where calibrate.g touches down: the corner of the paper nearest the
+    origin, CALIBRATION_INSET in from X 0 and from Canvas Start Y.
+
+    The dot is where the brush is set to just touch, so it is where Canvas
+    Height is true, and a probe map is read relative to its height there.
+    """
+    bg = conf.get("brushograph", {}) if isinstance(conf.get("brushograph"), dict) else {}
+    try:
+        start = float(bg.get("canvas_start_y", 0) or 0)
+    except (TypeError, ValueError):
+        start = 0.0
+    return CALIBRATION_INSET, start + CALIBRATION_INSET
+
+
 def level_offset(conf: dict, x: float, y: float) -> float:
     """How much higher the paper is at (x, y) than where Z0 was set.
 
@@ -1060,7 +1080,7 @@ HELP = {
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
     "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
     "brushograph-level_compensation": "Write every move made on the paper at the height the paper is at there, from the probe map below if one is loaded, or else from the five readings, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured \u2014 with all five the same it does nothing anyway.",
-    "brushograph-level_map": "A height map of the bed from a scan, hundreds of points rather than five: the CSV probescan.py writes with a touch probe (x, y, z_mm), or heightscan.py with a laser (x, y, dist_mm). A laser reads in whole millimetres, so its map is smoothed over 15 mm; a touch probe's is used as it stands. With one loaded it is used instead of the five readings below. It is read relative to its own height in the middle of the bed, so set Canvas Height with the brush touching there, where the plan view puts its cross. The scan is corrected for the backlash figures below, since every other row was probed travelling the other way. Outside the probed area the nearest edge of the map is used.",
+    "brushograph-level_map": "A height map of the bed from a scan, hundreds of points rather than five: the CSV probescan.py writes with a touch probe (x, y, z_mm), or heightscan.py with a laser (x, y, dist_mm). A laser reads in whole millimetres, so its map is smoothed over 15 mm; a touch probe's is used as it stands. With one loaded it is used instead of the five readings below. It is read relative to its own height where calibrate.g puts its dot, 5 mm in from the corner of the paper nearest the containers, where the plan view puts its 0: that is where Canvas Height is set, so scan from there or the dot's height is read off the edge of the map. The scan is corrected for the backlash figures below, since every other row was probed travelling the other way. Outside the probed area the nearest edge of the map is used.",
     "brushograph-level_tl": "How much higher the paper is at the top-left of the bed than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.",
     "brushograph-level_tr": "The same reading at the top-right corner of the bed. The plan view marks the spot.",
     "brushograph-level_c": "The same reading at the middle of the bed. This is the one that catches a twist: three corners fit a plane and can say nothing about a sheet that bellies or a bed that is not flat.",

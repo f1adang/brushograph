@@ -65,7 +65,7 @@ import random
 import re
 
 from configspec import (CMYK_LABEL, CMYK_TO_TRAY, MODELS,  # noqa: E501
-                        RECTANGULAR_SHAPES, accel_rate,
+                        RECTANGULAR_SHAPES, accel_rate, calibration_point,
                         canvas_origin, feed_line, feed_rate, fit_cups_to_shape,
                         holder_of,
                         in_cup_order, model_of, tray_entries, with_defaults,
@@ -1069,11 +1069,14 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # rims. Z0 and Z10 stay literal for this macro specifically, not
     # canvas_height or go_in_tray_lift: the dot is the canvas itself, and the
     # park is only high enough to see it.
+    # The spot a probe map reads nought at, because it is where Canvas Height
+    # is set: the two are one figure, so they come from one place.
+    dot = calibration_point(conf)
     lines = [
         "; calibrate.g — place the dot, then park over it",
         *_preamble(bg),
         f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift — clear before crossing the bed",
-        f"G00 X5 Y{_fmt(_num(bg, 'canvas_start_y', 0) + 5)} ; 5mm above Canvas Start Y",
+        f"G00 X{_fmt(dot[0])} Y{_fmt(dot[1])} ; 5mm above Canvas Start Y",
         "G00 Z0 ; touch down — the single dot",
         "G00 Z10 ; park over the dot",
     ]
