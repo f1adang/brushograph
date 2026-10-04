@@ -1575,13 +1575,40 @@ the form then hides rather than clears. The server reads the file
 (`POST /level_map`) and hands back the points, which the page carries in a
 hidden field the way every other setting is carried: the map lives in the config
 as `brushograph.level_map`, a list of `[x, y, z]`, so it is downloaded, kept and
-versioned with the machine like anything else, and nothing about it is stored
-on the server. The slow probe's `z_mm` is used, not `z_fast_mm`, which carries
+versioned with the machine like anything else. The slow probe's `z_mm` is used, not `z_fast_mm`, which carries
 the axis coasting past the switch. A point the probe found nothing at is written
 `nan` and left out; its neighbours cover for it. A map that runs more than 5 mm
 from lowest to highest is refused — that is a probe that came down on a clamp, a
 file from another machine or the wrong units, and a brush lifted 2 mm between
 shapes would be driven into the bed by it.
+
+**Kept on the server the moment it is loaded.** The first version handed the
+points back and left them in the form until somebody pressed Update, which is
+how every other setting works and the wrong way round for this one: a scan is
+half an hour at the machine, and a map that existed only in the page was gone
+at the next reload. So loading a CSV now writes it to the server there and then
+(`_store_level_map`): the points into the config, and the file itself beside it
+as `parang.probemap.csv` — the bytes as the probe wrote them, fast readings and
+misses included, which the points leave out — in one commit of the config
+history, so it never holds one upload's map beside another's CSV. A kept config
+is version-checked the way an Update is, and refused if somebody else has
+changed it since; the new version comes back to the form, so the Update that
+follows is not refused as stale, and whatever else was edited in the form is
+still the form's to update. **Remove** is as immediate, and deletes the CSV in
+a commit of its own, so it is still in the history. An uploaded config is the
+session's: its copy takes the points and the CSV sits beside it in the session,
+and goes with it to `webui_configs/` under whatever name the config is kept by.
+Deleting a kept config deletes its CSV. The plan's summary line has a
+**Download CSV** link while one is kept (`GET /level_map/csv`). The `.csv` is
+not a `.conf`, so the machine list never offers it and it counts against none of
+the limits on kept configs.
+
+That needed `config_bytes` to change. `indent=4` spreads a list of three numbers
+over five lines, so Parang's 442 points became 2,200 lines of one number apiece
+and a 6,000-point map, the most a config takes, was over the 256 KB a kept config
+may be. A three-number list is now written on one line: Parang's config with its
+map is 569 lines and 17 KB, and every config without a map is written to the
+byte as it was.
 
 **Where nought is.** probescan neither homes nor zeroes, so its Z is wherever the
 machine's Z was — 60.5 to 62.4 here — and only differences mean anything. The

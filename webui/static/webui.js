@@ -782,17 +782,40 @@ function wireForm() {
   showForController();
 
   /* ---- bed levelling from a probe map ---- */
-  /* The CSV is read by the server, which hands back the points; they go into
-     the hidden field the config's own level_map fills, and from there into
-     every post the form makes, the way any other setting does. With a map
-     loaded the five readings are not used, so they are hidden -- not cleared,
-     so removing the map brings back what they said. */
+  /* The CSV is read by the server, which keeps it beside the config and puts
+     the points into the config there and then -- a scan is half an hour at
+     the machine, and a map that waited for Update was lost to a reload. The
+     points come back into the hidden field the config's own level_map fills,
+     so every post the form makes carries them, and the config's new version
+     comes back with them, so the next Update is not refused as stale. With a
+     map loaded the five readings are not used, so they are hidden -- not
+     cleared, so removing the map brings back what they said. */
   const mapField = machineInput("level_map");
   if (mapField) {
     const box = mapField.closest(".field");
     const picker = box.querySelector(".levelmap-file");
     const state = box.querySelector(".levelmap-state");
     const summary = box.querySelector(".levelmap-summary");
+    const csvLink = box.querySelector(".levelmap-csv");
+    const csvHref = () => "level_map/csv?" + new URLSearchParams({
+      name: form.querySelector('[name="machine_config_name"]').value,
+      mode: form.querySelector('[name="machine_config_mode"]').value });
+    csvLink.href = csvHref();
+    // Which config this is and which version of it the form holds, as Update
+    // sends them: the server writes the map into that config and no other.
+    const keeping = () => {
+      const fd = new FormData();
+      for (const key of ["machine_config_name", "machine_config_mode", "machine_config_version"]) {
+        fd.append(key, form.querySelector(`[name="${key}"]`).value);
+      }
+      return fd;
+    };
+    const kept = (version, withCsv) => {
+      const input = form.querySelector('[name="machine_config_version"]');
+      if (version && input) input.value = version;
+      csvLink.hidden = !withCsv;
+      csvLink.href = csvHref();
+    };
     const points = () => { try { return JSON.parse(mapField.value || "[]"); } catch (e) { return []; } };
     // `missed` only straight after reading a file: the config keeps the points
     // probed, not the ones that found nothing.
@@ -816,13 +839,14 @@ function wireForm() {
     const changed = (missed) => { showMap(missed); form.dispatchEvent(new Event("input")); };
     picker.addEventListener("change", async () => {
       if (!picker.files.length) return;
-      const fd = new FormData();
+      const fd = keeping();
       fd.append("probe_map", picker.files[0]);
       try {
         const res = await fetch("level_map", { method: "POST", body: fd });
         if (!res.ok) throw new Error(await serverError(res));
         const got = await res.json();
         mapField.value = JSON.stringify(got.points);
+        kept(got.version, true);
         changed(got.missed);
       } catch (err) {
         state.hidden = false;
@@ -830,9 +854,16 @@ function wireForm() {
       }
       clearFile(picker);
     });
-    box.querySelector(".levelmap-clear").addEventListener("click", () => {
-      mapField.value = "[]";
-      changed(0);
+    box.querySelector(".levelmap-clear").addEventListener("click", async () => {
+      try {
+        const res = await fetch("level_map/remove", { method: "POST", body: keeping() });
+        if (!res.ok) throw new Error(await serverError(res));
+        kept((await res.json()).version, false);
+        mapField.value = "[]";
+        changed(0);
+      } catch (err) {
+        say(summary, err.message);
+      }
     });
     showMap();
   }

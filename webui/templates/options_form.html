@@ -15,6 +15,7 @@
     <input type="file" class="levelmap-file" accept=".csv,text/csv">
     <span class="levelmap-state" hidden>
       <span class="levelmap-summary"></span>
+      <a class="levelmap-csv" href="level_map/csv" download {{ '' if probe_csv else 'hidden' }}>Download CSV</a>
       <button type="button" class="ghost levelmap-clear">Remove</button>
     </span>
   {% elif f.type == 'number' %}

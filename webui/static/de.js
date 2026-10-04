@@ -183,6 +183,8 @@ text: {
 "Probe map":
   "Tastkarte",
 "Remove": "Entfernen",
+"Download CSV": "CSV herunterladen",
+"That config has no probe map kept with it.": "Zu dieser Konfiguration ist keine Tastkarte abgelegt.",
 "{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest":
   "{n} Punkte über X {x0}–{x1}, Y {y0}–{y1}; {spread} mm vom tiefsten zum höchsten",
 "{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest; {missed} without contact left out":
@@ -602,6 +604,10 @@ html: {
 
 /* -------------------------------------------- server text with a detail in it */
 patterns: [
+  ["^(.+) is no longer on the server, so there is no config to keep the probe map with\\.$",
+   "$1 ist nicht mehr auf dem Server; es gibt keine Konfiguration, bei der die Tastkarte abgelegt werden könnte."],
+  ["^(.+) has been changed on the server since you loaded it\\. Pick it again from the machine list, then load the probe map; keeping it now would overwrite those changes\\.$",
+   "$1 wurde auf dem Server geändert, seit Sie sie geladen haben. Wählen Sie sie erneut aus der Maschinenliste und laden Sie dann die Tastkarte; sie jetzt abzulegen würde diese Änderungen überschreiben."],
   ["^Line (\\d+) of the probe map is not three numbers\\.$", "Zeile $1 der Tastkarte sind nicht drei Zahlen."],
   ["^Line (\\d+) of the probe map has no position\\.$", "Zeile $1 der Tastkarte hat keine Position."],
   ["^That probe map has (\\d+) points; (\\d+) is the most a config will carry\\. Probe on a coarser grid\\.$",

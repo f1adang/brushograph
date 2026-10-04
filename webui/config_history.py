@@ -74,19 +74,30 @@ def init(repo: Path, log) -> None:
         log("config history: could not start a repository in %s: %s", repo, exc)
 
 
-def commit(repo: Path, name: str, action: str, ip: str, log) -> None:
+def commit(repo: Path, name: str, action: str, ip: str, log,
+           also: tuple[str, ...] = ()) -> None:
     """Commit one config as it now stands: "<action> <name> from <ip>".
 
     Nothing is committed when the file is as it was — an Update that changed
     nothing, say — since an empty commit records an event, not a change.
+
+    `also` names files that belong to the config and change with it — its probe
+    map's CSV — so the two go into one commit and the history never holds a
+    config whose map is from one upload and its CSV from another. A file that
+    has gone is committed as gone; one that never existed is skipped, since git
+    refuses a path it has never heard of.
     """
     if not (repo / ".git").exists():
         return      # init failed and said so; git -C would find the code's repository
     try:
-        _check(_git(repo, "add", "--", name))
-        if not _git(repo, "diff", "--cached", "--quiet", "--", name).returncode:
+        paths = [n for n in (name, *also)
+                 if (repo / n).exists() or _git(repo, "ls-files", "--", n).stdout.strip()]
+        if not paths:
             return
-        _check(_git(repo, "commit", "-q", "-m", f"{action} {name} from {ip}", "--", name))
+        _check(_git(repo, "add", "-A", "--", *paths))
+        if not _git(repo, "diff", "--cached", "--quiet", "--", *paths).returncode:
+            return
+        _check(_git(repo, "commit", "-q", "-m", f"{action} {name} from {ip}", "--", *paths))
     except (OSError, subprocess.SubprocessError, RuntimeError) as exc:
         log("config history: could not commit %s (%s from %s): %s", name, action, ip, exc)
 

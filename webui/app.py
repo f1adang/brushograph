@@ -186,9 +186,21 @@ def config_version(raw: bytes) -> str:
     return hashlib.sha256(raw).hexdigest()[:16]
 
 
+# A list of three plain numbers, as json.dumps(indent=4) spreads it over five lines.
+_POINT = re.compile(r"\[\s+(-?[\d.eE+-]+),\s+(-?[\d.eE+-]+),\s+(-?[\d.eE+-]+)\s+\]")
+
+
 def config_bytes(conf: dict) -> bytes:
-    """A config as it is written out — the same bytes for Download and Update."""
-    return json.dumps(conf, indent=4).encode()
+    """A config as it is written out — the same bytes for Download and Update.
+
+    Indented, except that a list of three numbers is kept on one line. That is
+    for the probe map's points: spread out by `indent=4` they took five lines
+    each, Parang's 442 points 2,200 lines of one number apiece, and a 6,000
+    point map broke the size a kept config is allowed. One to a line it is the
+    same JSON, a fifth the length, and a diff in the history says which points
+    changed.
+    """
+    return _POINT.sub(r"[\1, \2, \3]", json.dumps(conf, indent=4)).encode()
 
 
 # ---------------------------------------------------------------------- pages
@@ -577,6 +589,16 @@ def machine_config_update():
             kept = keep_config(name, out, reason="Update")
         except ValueError as exc:
             return jsonify(error=str(exc)), 400
+        # The probe map's CSV goes with it, under the name it was kept by --
+        # which may not be its own, if that was taken. Only while the config
+        # still carries the map the CSV was loaded for.
+        csv = probe_csv_path(config_path(name, "uploaded", session_id()))
+        if csv.is_file() and conf.get("brushograph", {}).get("level_map"):
+            with SAVED_CONFIGS_LOCK:
+                target = probe_csv_path(SAVED_CONFIGS_DIR / kept)
+                shutil.copyfile(csv, target)
+                config_history.commit(SAVED_CONFIGS_DIR, target.name, "Probe map for",
+                                      config_history.client_ip(request), app.logger.warning)
         return jsonify(name=kept, mode="saved", requested=name,
                        version=config_version(out))
 
@@ -641,8 +663,10 @@ def machine_config_delete():
             return jsonify(error=f"{name} is no longer on the server — somebody else may "
                                  "have deleted it already."), 404
         path.unlink()
+        probe_csv_path(path).unlink(missing_ok=True)
         config_history.commit(SAVED_CONFIGS_DIR, name, "Delete",
-                              config_history.client_ip(request), app.logger.warning)
+                              config_history.client_ip(request), app.logger.warning,
+                              also=(probe_csv_path(path).name,))
     return jsonify(name=name)
 
 
@@ -707,6 +731,7 @@ def options_form():
         machine_config_name=name,
         machine_config_mode=mode,
         machine_config_version=config_version(raw) if mode == "saved" else "",
+        probe_csv=probe_csv_path(config_path(name, mode, session_id())).is_file(),
         generator=conf.get("brushograph", {}).get("generator", "copicograf"),
         models=json.dumps({name: {"offsets": m["holder"]["offsets"], "classic": m["classic"],
                                   "containers": m["holder"]["settings"],
@@ -720,22 +745,128 @@ def options_form():
     )
 
 
+def probe_csv_path(conf_path: Path) -> Path:
+    """Where a config's probe map is kept as it came off the probe: beside it,
+    `parang.conf` -> `parang.probemap.csv`. Not a .conf, so the machine list
+    never offers it and it counts against nothing."""
+    return conf_path.with_name(conf_path.name[: -len(".conf")] + ".probemap.csv")
+
+
+def _store_level_map(name: str, mode: str, points: list, csv: bytes | None,
+                     version: str, action: str) -> str:
+    """Put a probe map into a config and its CSV beside it, or take both out.
+
+    Straight away, not at the next Update: a probe scan is half an hour at the
+    machine, and a map that lived only in the form was lost to a reload. So the
+    points go into the config on the server and the CSV the probe wrote goes
+    beside it, the file itself, with the fast readings and the misses the
+    points leave out -- in one commit, so the history never holds a config with
+    one upload's map and another's CSV.
+
+    A kept config is version-checked like an Update, and the new version is
+    returned for the form to carry; anything else edited in the form meanwhile
+    stays in the form, still to be updated. An uploaded config is the session's
+    own, so its copy is written with no check and the CSV kept beside it, to go
+    with it when it is kept (`machine_config_update`). Returns "" for that.
+    """
+    sid = session_id()
+    path = config_path(name, mode, sid)
+    csv_path = probe_csv_path(path)
+
+    def place(target: Path, data: bytes) -> None:
+        part = target.with_name(f".upload-{secrets.token_hex(6)}.part")
+        part.write_bytes(data)
+        os.replace(part, target)
+
+    def write_both(conf: dict) -> bytes:
+        conf.setdefault("brushograph", {})["level_map"] = points
+        out = config_bytes(conf)
+        _check_saved_size(out)
+        if csv is None:
+            csv_path.unlink(missing_ok=True)
+        else:
+            place(csv_path, csv)
+        place(path, out)
+        return out
+
+    if mode == "uploaded":
+        conf, _ = read_config(name, mode, sid)
+        write_both(conf)
+        return ""
+    with SAVED_CONFIGS_LOCK:
+        if not path.is_file():
+            raise LookupError(f"{name} is no longer on the server, so there is no config "
+                              "to keep the probe map with.")
+        conf, raw = read_config(name, mode, sid)
+        if config_version(raw) != version:
+            raise LookupError(
+                f"{name} has been changed on the server since you loaded it. Pick it again "
+                "from the machine list, then load the probe map; keeping it now would "
+                "overwrite those changes.")
+        out = write_both(conf)
+        config_history.commit(SAVED_CONFIGS_DIR, name, action,
+                              config_history.client_ip(request), app.logger.warning,
+                              also=(csv_path.name,))
+    return config_version(out)
+
+
 @app.post("/level_map")
 def level_map_post():
-    """Read a probescan.py CSV into the points the config carries.
+    """Read a probescan.py CSV, and keep it and its points with the config.
 
-    Read here rather than in the page so there is one reader of the format, and
-    handed straight back: the page puts it in the form, and from there it goes
-    wherever the rest of the config goes. Nothing is kept on the server.
+    Read here rather than in the page so there is one reader of the format.
+    The points go back to the page, which puts them in the form, and into the
+    config on the server along with the CSV itself (`_store_level_map`).
     """
     f = request.files.get("probe_map")
     if not f or not f.filename:
         return jsonify(error="No file supplied"), 400
+    raw = f.read()
     try:
-        points, missed = levelmap.read_csv(f.read().decode("utf-8-sig", errors="replace"))
+        points, missed = levelmap.read_csv(raw.decode("utf-8-sig", errors="replace"))
+        version = _store_level_map(request.form.get("machine_config_name", ""),
+                                   request.form.get("machine_config_mode", ""), points, raw,
+                                   request.form.get("machine_config_version", ""),
+                                   "Probe map for")
+    except LookupError as exc:
+        return jsonify(error=str(exc.args[0])), 409
+    except (ValueError, json.JSONDecodeError) as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(points=points, missed=missed, version=version)
+
+
+@app.post("/level_map/remove")
+def level_map_remove():
+    """Take the probe map out of a config, and its CSV off the server.
+
+    As immediate as loading one, or the page and the server would disagree
+    about whether the machine has a map until somebody pressed Update. The CSV
+    is still in the config history.
+    """
+    try:
+        version = _store_level_map(request.form.get("machine_config_name", ""),
+                                   request.form.get("machine_config_mode", ""), [], None,
+                                   request.form.get("machine_config_version", ""),
+                                   "Remove probe map from")
+    except LookupError as exc:
+        return jsonify(error=str(exc.args[0])), 409
+    except (ValueError, json.JSONDecodeError) as exc:
+        return jsonify(error=str(exc)), 400
+    return jsonify(version=version)
+
+
+@app.get("/level_map/csv")
+def level_map_csv():
+    """The probe map's CSV as it was loaded, for whoever wants the scan back."""
+    name = request.args.get("name", "")
+    try:
+        path = probe_csv_path(config_path(name, request.args.get("mode", "saved"),
+                                          session_id()))
     except ValueError as exc:
         return jsonify(error=str(exc)), 400
-    return jsonify(points=points, missed=missed)
+    if not path.is_file():
+        return jsonify(error="That config has no probe map kept with it."), 404
+    return send_file(path, as_attachment=True, download_name=path.name, mimetype="text/csv")
 
 
 @app.post("/options_form")
