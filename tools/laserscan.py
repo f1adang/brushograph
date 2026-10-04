@@ -8,9 +8,9 @@ FluidNC link (the Pi's UART is taken by the sensor):
   WiFi:  --cnc socket://192.168.1.50:23   (FluidNC telnet)
 
 Example:
-  python3 heightscan.py --cnc /dev/ttyUSB0 --x0 0 --x1 200 --y0 0 --y1 150 --step 5 --home
+  python3 laserscan.py --cnc /dev/ttyUSB0 --x0 0 --x1 200 --y0 0 --y1 150 --step 5 --home
 """
-import argparse, csv, statistics, sys, time
+import argparse, csv, math, statistics, sys, time
 import serial
 
 # ---------------------------------------------------------------- TOF sensor
@@ -161,6 +161,7 @@ def main():
     tof = serial.Serial(args.tof, 115200, timeout=0.2)
     cnc = FluidNC(args.cnc, verbose=args.verbose)
     points = list(grid(args))
+    misses = 0
 
     try:
         cnc.send("G21")
@@ -179,13 +180,21 @@ def main():
                 cnc.send(f"G1 X{x:.3f} Y{y:.3f} F{args.feed}")
                 cnc.wait_idle()
                 time.sleep(args.settle)
-                d, sd, st = measure(tof, args.samples, args.discard)
+                # A sensor that says nothing for a second is one point lost,
+                # not the scan: written as nan, as probescan writes a point
+                # it found no contact at, and left for its neighbours.
+                try:
+                    d, sd, st = measure(tof, args.samples, args.discard)
+                except TimeoutError:
+                    d = sd = st = math.nan
+                    misses += 1
                 w.writerow([f"{x + args.sensor_dx:.3f}", f"{y + args.sensor_dy:.3f}",
                             f"{d:.1f}", f"{sd:.2f}", f"{st:.0f}"])
                 f.flush()
                 eta = (time.monotonic() - t0) / i * (len(points) - i)
                 print(f"[{i}/{len(points)}] X{x:.1f} Y{y:.1f}  {d:.1f} mm "
                       f"(sd {sd:.1f})  ETA {eta/60:.1f} min")
+        print(f"done, {misses} points without a reading -> {args.out}")
     except KeyboardInterrupt:
         cnc.feed_hold()
         print("\nfeed hold sent; partial data is in", args.out)
