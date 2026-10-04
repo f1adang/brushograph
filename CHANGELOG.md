@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.22.2](https://github.com/f1adang/brushograph/releases/tag/v2.22.2) — 2026-10-04
+
+- **Outliers are shown on the plan:** readings that are not the bed, like a cable lying across it, are still left out of the levelling, but the plan now shows where they were: a grey square with a cross, instead of a gap. The line under the plan's title says how many were not used. If you loaded a scan before this version, load its CSV again to see them.
+
 ## [v2.22.1](https://github.com/f1adang/brushograph/releases/tag/v2.22.1) — 2026-10-04
 
 - **Each scan gets its own file name:** `tools/probescan.py` and `tools/laserscan.py` used to write every scan to the same file, so each new scan replaced the last. They now name the file after the scanner, the machine and the time the scan started, for example `laserscan-192.168.30.62-20261004-201530.csv`, and print the name when they start. `--out` still lets you choose the name yourself.
