@@ -170,10 +170,23 @@ def surface(points: list[list[float]], play_x=lambda _x: 0.0, play_y=lambda _x: 
         hi = grid[j + 1, i] * (1 - fx) + grid[j + 1, i + 1] * fx
         return float(lo * (1 - fy) + hi * fy)
 
+    def sample(x, y):
+        """The same, over arrays of points at once -- for drawing the map."""
+        x = np.clip(np.asarray(x, dtype=float), cols[0], cols[-1])
+        y = np.clip(np.asarray(y, dtype=float), ys[0], ys[-1])
+        i = np.clip(np.searchsorted(cols, x) - 1, 0, len(cols) - 2)
+        j = np.clip(np.searchsorted(ys, y) - 1, 0, len(ys) - 2)
+        fx = (x - cols[i]) / (cols[i + 1] - cols[i])
+        fy = (y - ys[j]) / (ys[j + 1] - ys[j])
+        lo = grid[j, i] * (1 - fx) + grid[j, i + 1] * fx
+        hi = grid[j + 1, i] * (1 - fx) + grid[j + 1, i + 1] * fx
+        return lo * (1 - fy) + hi * fy
+
     # Where the surface stops being one smooth patch: a stroke that crosses one
     # of these lines has to be broken there for its Z to follow (see
     # `crossings`).
     at.knots = (cols, ys)
+    at.sample = sample
     return at
 
 

@@ -1619,6 +1619,32 @@ so the strip the map does not cover shows: Parang's containers' strip ends at
 Y 25 and the scan starts at Y 40, and the 15 mm between reads as the map's
 nearest row, the way the five readings are clamped.
 
+**The plan draws the map as a heat map.** Loaded, the map colours the bed in the
+plan view by how far the paper is above or below the median of the probed heights
+— what `plot_heightmap.py` shows, so the two can be held against each other —
+whether or not levelling is on, since a map loaded and not used is still the
+shape of the bed. It is the surface the levelling follows (`probed_surface`,
+backlash correction and all), sampled at every pixel of the plan, drawn under
+the grid so positions still read across it, with a scale bar at the top right.
+The scale is symmetric about the median and ends at the 98th percentile of the
+deviation, rounded up to a tenth, as that plot's does: one point that came down
+on a speck would otherwise wash the rest of the bed out to paper. On Parang that
+is ±1.3 mm, and the three steps stand out as bands.
+
+The colours were the hard part, because colour on this plan already means paint.
+Blue is the water and cyan, red is the plan's own accent, and the green and brown
+of a relief map are the pair red-green colour blindness cannot separate:
+`validate_palette.js` put them 3.7 apart under deuteranopia, against the 8 a
+reader needs. **Purple for low and burnt orange for high** are 25 apart under the
+worst of them, stand at least 5:1 off every theme's paper, and each arm blends
+out of the paper itself, so the median is the paper and only a deviation is
+coloured. The dark themes take lighter steps of the same two hues, which pass the
+same checks on their grounds. h4xx0r is one green phosphor with no second hue to
+give, so its map runs from the screen's dark to a mid green, a one-hue scale
+whose legend says which end is which — not the theme's brightest green, which
+everything on the plan is lettered in and which the high end of the bed buried.
+A plan with no map is drawn to the byte as before.
+
 **The scan was driven with the brush's own slack in it.** probescan goes
 serpentine, one row left to right, the next right to left, and an axis coming
 from the right stops a play's width past where it was asked to — the same lost

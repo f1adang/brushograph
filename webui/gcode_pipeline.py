@@ -921,6 +921,28 @@ def apply_levelling(lines: list[str], conf: dict, log=None) -> list[str]:
     return [f"; bed levelling: paper from {lo:+.3f} to {hi:+.3f} mm about Canvas Height"] + out
 
 
+def probed_surface(conf: dict):
+    """The config's probe map as a surface, in the probe's own Z, or None.
+
+    Corrected for the play the scan was driven with -- the same figures, and
+    the same straight line between them across the painting, that the backlash
+    pass uses. The plan draws this and the levelling reads it, so what is shown
+    is what the brush follows.
+    """
+    bg = conf.get("brushograph", {})
+    points = bg.get("level_map") or []
+    if not points:
+        return None
+    play = (_play_across_x(0.0, None, None), _play_across_x(0.0, None, None))
+    if bg.get("backlash_compensation", True):
+        near_x, near_y = _figure(bg, "backlash_x"), _figure(bg, "backlash_y")
+        paper = (float(bg.get("offset_x", 0) or 0),
+                 float(bg.get("offset_x", 0) or 0) + _figure(bg, "width"))
+        play = (_play_across_x(near_x, _figure(bg, "backlash_x_far", near_x), paper),
+                _play_across_x(near_y, _figure(bg, "backlash_y_far", near_y), paper))
+    return levelmap.surface(points, *play)
+
+
 def level_surface(conf: dict):
     """(offset(x, y), what it came from), or (None, None) if there is nothing to correct.
 
@@ -933,14 +955,7 @@ def level_surface(conf: dict):
     bg = conf.get("brushograph", {})
     points = bg.get("level_map") or []
     if points:
-        play = (_play_across_x(0.0, None, None), _play_across_x(0.0, None, None))
-        if bg.get("backlash_compensation", True):
-            near_x, near_y = _figure(bg, "backlash_x"), _figure(bg, "backlash_y")
-            paper = (float(bg.get("offset_x", 0) or 0),
-                     float(bg.get("offset_x", 0) or 0) + _figure(bg, "width"))
-            play = (_play_across_x(near_x, _figure(bg, "backlash_x_far", near_x), paper),
-                    _play_across_x(near_y, _figure(bg, "backlash_y_far", near_y), paper))
-        paper_z = levelmap.surface(points, *play)
+        paper_z = probed_surface(conf)
         mid = level_points(conf)["level_c"]
         zero = paper_z(*mid)
 

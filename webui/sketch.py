@@ -5,11 +5,13 @@ from __future__ import annotations
 import io
 import os
 
+import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
 from configspec import (CLASSIC_DISH_RIM_RADIUS, RECTANGULAR_SHAPES, canvas_origin,
                         cup_shape_of, holder_of, level_area, level_points,
                         tray_entries)
+from gcode_pipeline import probed_surface
 
 W, H = 760, 480
 PAD = 46
@@ -75,6 +77,7 @@ WORDS = {
         "order": "Painting order: {order}",
         "order_none": "none in color_order",
         "offscreen": "not shown, parked far outside the bed: {trays}",
+        "heat": "paper vs its median",
     },
     "kongress": {
         "trays": TRAY_LABEL_DE,
@@ -85,8 +88,23 @@ WORDS = {
         "order": "Auftragsreihenfolge: {order}",
         "order_none": "keine in der Auftragsreihenfolge",
         "offscreen": "nicht dargestellt, weit außerhalb der Arbeitsfläche: {trays}",
+        "heat": "Papier gegen seinen Median",
     },
 }
+
+# The probe map's two ends, low and high, each blended out of the plan's own
+# paper as the bed falls below or rises above its median, so the median is the
+# paper and nothing is coloured that does not deviate. Purple and burnt orange,
+# because every other pair is spoken for: colour on this plan means paint, so
+# blue is the water and cyan and red is the plan's own accent, and the green and
+# brown a relief map would use are the pair red-green colour blindness cannot
+# tell apart -- 3.7 apart under deuteranopia against the 8 a reader needs.
+# These are 25 apart under the worst of them, stand at least 5:1 off every
+# paper, and are the light and dark steps of the same two hues.
+HEAT = {"light": ((94, 60, 153), (179, 88, 6)),
+        "dark": ((154, 124, 224), (192, 116, 40))}
+HEAT_LIGHT = {"default", "coconut", "kongress"}
+H4XX0R_HIGH = (24, 120, 30)
 
 TRAY_FILL = {
     "water": (150, 200, 235),
@@ -134,6 +152,79 @@ def _num(d, key, default=0.0):
         return float(d.get(key, default))
     except (TypeError, ValueError):
         return default
+
+
+def _heat_poles(theme: str, bg: tuple) -> tuple:
+    """(low, high) for this theme. h4xx0r is one green phosphor, with no second
+    hue to give, so its map runs from the screen's dark to its brightest green:
+    a one-hue scale where the others diverge, and the legend says which end
+    is which."""
+    if theme == "h4xx0r":
+        # Not the theme's brightest green: everything on the plan is lettered
+        # in that, and the high end of the bed came out green on green.
+        return bg, H4XX0R_HIGH
+    return HEAT["light" if theme in HEAT_LIGHT else "dark"]
+
+
+def _heat_map(conf: dict, theme: str, bg: tuple, px, scale: float,
+              min_x: float, min_y: float):
+    """(image, where, poles, limit) for the probe map, or None without one.
+
+    The surface the levelling follows, backlash correction and all, sampled at
+    every pixel of the plan and coloured by how far it is from the median of
+    the probed heights -- what plot_heightmap.py shows, so the two agree. The
+    scale is symmetric and ends at the 98th percentile of the deviation, as
+    that plot's does, rounded up to a tenth: one point that came down on a
+    speck would otherwise wash the rest of the bed out to the paper colour.
+    """
+    surf = probed_surface(conf)
+    if surf is None:
+        return None
+    cols, ys = surf.knots
+    (sx0, sy0), (sx1, sy1) = px(cols[0], ys[-1]), px(cols[-1], ys[0])
+    ix0, iy0, ix1, iy1 = int(round(sx0)), int(round(sy0)), int(round(sx1)), int(round(sy1))
+    if ix1 <= ix0 or iy1 <= iy0:
+        return None
+    zero_x, zero_y = px(min_x, min_y)
+    mx = min_x + (np.arange(ix0, ix1) + 0.5 - zero_x) / scale
+    my = min_y + (zero_y - np.arange(iy0, iy1) - 0.5) / scale
+    z = surf.sample(mx[None, :], my[:, None])
+    probed = np.array([p[2] for p in conf["brushograph"]["level_map"]])
+    median = float(np.median(probed))
+    limit = max(np.ceil(np.percentile(np.abs(probed - median), 98) * 10) / 10, 0.1)
+    t = np.clip((z - median) / limit, -1, 1)[..., None]
+    ground = np.array(bg, dtype=float)
+    low, high = (np.array(c, dtype=float) for c in _heat_poles(theme, bg))
+    if theme == "h4xx0r":
+        rgb = low + (high - low) * (t + 1) / 2
+    else:
+        rgb = ground + (np.where(t < 0, low, high) - ground) * np.abs(t)
+    layer = Image.fromarray(np.round(rgb).astype(np.uint8), "RGB")
+    return layer, (ix0, iy0), _heat_poles(theme, bg), limit, bg
+
+
+def _heat_legend(d, poles, limit, ground, font, caption, text, muted, sequential=False):
+    """The scale, top right: a bar from low to high through the paper, its two
+    ends in millimetres and nought in the middle, lettered in the text colours
+    rather than the scale's own."""
+    bar_w, bar_h = 120, 8
+    x1 = W - PAD
+    x0, y0 = x1 - bar_w, 18
+    low, high = poles
+    for i in range(bar_w):
+        t = (i + 0.5) / bar_w * 2 - 1
+        if sequential:
+            c = tuple(round(lo + (hi - lo) * (t + 1) / 2) for lo, hi in zip(low, high))
+        else:
+            pole = low if t < 0 else high
+            c = tuple(round(g + (p - g) * abs(t)) for g, p in zip(ground, pole))
+        d.line([(x0 + i, y0), (x0 + i, y0 + bar_h)], fill=c)
+    d.rectangle([x0, y0, x1, y0 + bar_h], outline=muted)
+    d.line([(x0 + bar_w / 2, y0 - 2), (x0 + bar_w / 2, y0 + bar_h + 2)], fill=muted)
+    for label, x, anchor in ((f"{-limit:.1f}", x0, "la"), ("0", x0 + bar_w / 2, "ma"),
+                             (f"+{limit:.1f} mm", x1, "ra")):
+        d.text((x, y0 + bar_h + 3), label, font=font, fill=muted, anchor=anchor)
+    d.text((x0 - 8, y0 - 2), caption, font=font, fill=text, anchor="ra")
 
 
 def render(conf: dict, theme: str = "default") -> bytes:
@@ -220,6 +311,14 @@ def render(conf: dict, theme: str = "default") -> bytes:
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img, "RGBA")
     f, fs = font_for(13 if theme == "kongress" else 12, theme=theme), font_for(11 if theme == "kongress" else 10, theme=theme)
+
+    # The probe map as a heat map, under the grid so the grid still reads
+    # across it. Whatever the levelling checkbox says: a map loaded and not
+    # used is still the shape of the bed.
+    heat = _heat_map(conf, theme, BG, px, scale, min_x, min_y)
+    if heat:
+        layer, at = heat[0], heat[1]
+        img.paste(layer, at)
 
     step = 10 if span_x <= 220 else 50
     g = min_x - (min_x % step)
@@ -371,6 +470,10 @@ def render(conf: dict, theme: str = "default") -> bytes:
     zx, zy = px(0, 0)
     d.ellipse([zx - 3, zy - 3, zx + 3, zy + 3], fill=ACCENT)
     d.text((zx + 6, zy + 4), "0,0", font=fs, fill=ACCENT)
+
+    if heat:
+        _heat_legend(d, heat[2], heat[3], heat[4], fs, words["heat"], TEXT, MUTED,
+                     sequential=theme == "h4xx0r")
 
     order = ", ".join(tray_labels.get(e["tray"], e["tray"]) for e in entries if e["color"]) \
         or words["order_none"]
