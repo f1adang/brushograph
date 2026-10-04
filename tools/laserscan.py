@@ -10,7 +10,7 @@ FluidNC link (the Pi's UART is taken by the sensor):
 Example:
   python3 laserscan.py --cnc /dev/ttyUSB0 --x0 0 --x1 200 --y0 0 --y1 150 --step 5 --home
 """
-import argparse, csv, math, statistics, sys, time
+import argparse, csv, math, re, statistics, sys, time
 import serial
 
 
@@ -29,6 +29,32 @@ def with_port(url):
         if host.endswith("]") or ":" not in host:
             return f"socket://{host}:{FLUIDNC_TELNET_PORT}" + (f"/{tail}" if tail else "")
     return url
+
+
+def scan_name(tool, url, when=None):
+    """Where a scan is written unless --out says: the scanner, the machine it
+    talked to and when it started, so scans of different machines, or of one
+    machine on different days, never overwrite each other.
+
+        socket://192.168.30.62:23  ->  laserscan-192.168.30.62-20261004-201530.csv
+        socket://parang.local      ->  laserscan-parang.local-20261004-201530.csv
+        /dev/ttyUSB0               ->  laserscan-ttyUSB0-20261004-201530.csv
+
+    The machine is the host of a socket:// address, or the last part of a
+    device path, kept to letters, digits, '.', '-' and '_'.
+    """
+    machine = url
+    if "://" in url:
+        machine = url.split("://", 1)[1].split("/", 1)[0]
+        if machine.startswith("["):                 # [v6::address]:port
+            machine = machine[1:].split("]", 1)[0]
+        else:
+            machine = machine.rsplit(":", 1)[0] if machine.count(":") == 1 else machine
+    else:
+        machine = machine.rstrip("/").rsplit("/", 1)[-1]
+    machine = re.sub(r"[^A-Za-z0-9._-]+", "-", machine).strip("-.") or "machine"
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(when))
+    return f"laserscan-{machine}-{stamp}.csv"
 
 # ---------------------------------------------------------------- TOF sensor
 FRAME_LEN = 16
@@ -184,7 +210,8 @@ def main():
     p.add_argument("--sensor-dx", type=float, default=0.0,
                    help="sensor X offset from machine position, mm")
     p.add_argument("--sensor-dy", type=float, default=0.0)
-    p.add_argument("--out", default="heightmap.csv")
+    p.add_argument("--out", help="CSV to write; by default named after the scanner, "
+                                     "the machine and the time the scan started")
     p.add_argument("--gcode-only", metavar="FILE",
                    help="just write the path as G-code and exit")
     p.add_argument("-v", "--verbose", action="store_true")
@@ -193,6 +220,9 @@ def main():
     if args.gcode_only:
         write_preview(args)
         return
+
+    args.out = args.out or scan_name("laserscan", args.cnc)
+    print("writing", args.out)
 
     tof = serial.Serial(args.tof, 115200, timeout=0.2)
     cnc = FluidNC(args.cnc, verbose=args.verbose)

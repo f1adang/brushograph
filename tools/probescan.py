@@ -29,6 +29,32 @@ def with_port(url):
             return f"socket://{host}:{FLUIDNC_TELNET_PORT}" + (f"/{tail}" if tail else "")
     return url
 
+
+def scan_name(tool, url, when=None):
+    """Where a scan is written unless --out says: the scanner, the machine it
+    talked to and when it started, so scans of different machines, or of one
+    machine on different days, never overwrite each other.
+
+        socket://192.168.30.62:23  ->  probescan-192.168.30.62-20261004-201530.csv
+        socket://parang.local      ->  probescan-parang.local-20261004-201530.csv
+        /dev/ttyUSB0               ->  probescan-ttyUSB0-20261004-201530.csv
+
+    The machine is the host of a socket:// address, or the last part of a
+    device path, kept to letters, digits, '.', '-' and '_'.
+    """
+    machine = url
+    if "://" in url:
+        machine = url.split("://", 1)[1].split("/", 1)[0]
+        if machine.startswith("["):                 # [v6::address]:port
+            machine = machine[1:].split("]", 1)[0]
+        else:
+            machine = machine.rsplit(":", 1)[0] if machine.count(":") == 1 else machine
+    else:
+        machine = machine.rstrip("/").rsplit("/", 1)[-1]
+    machine = re.sub(r"[^A-Za-z0-9._-]+", "-", machine).strip("-.") or "machine"
+    stamp = time.strftime("%Y%m%d-%H%M%S", time.localtime(when))
+    return f"probescan-{machine}-{stamp}.csv"
+
 PRB_RE = re.compile(r"\[PRB:([^:\]]+):(\d)\]")
 
 
@@ -138,9 +164,12 @@ def main():
     p.add_argument("--probe-dx", type=float, default=0.0,
                    help="probe X offset from machine position, mm")
     p.add_argument("--probe-dy", type=float, default=0.0)
-    p.add_argument("--out", default="probemap.csv")
+    p.add_argument("--out", help="CSV to write; by default named after the scanner, "
+                                     "the machine and the time the scan started")
     p.add_argument("-v", "--verbose", action="store_true")
     args = p.parse_args()
+    args.out = args.out or scan_name("probescan", args.cnc)
+    print("writing", args.out)
 
     cnc = FluidNC(args.cnc, verbose=args.verbose)
     points = list(grid(args))
