@@ -1655,15 +1655,24 @@ painting is clamped the same way, as the five readings are.
 plan view by how far the paper is above or below the paper at the calibration
 dot — the levelling's own nought, so the plan shows the correction the brush
 will be given — whether or not levelling is on, since a map loaded and not used
-is still the shape of the bed. It is the surface the levelling follows
-(`probed_surface`, backlash correction and all), sampled at every pixel of the
-plan, drawn under the grid so positions still read across it. Its scale,
+is still the shape of the bed. **It shows the measurements, not the surface.**
+Each reading is a flat tile at its own value, reaching halfway to its
+neighbours, as `plot_heightmap.py` draws a scan; a point with no reading is a
+gap, and tiles stop at the bed's edge. It used to be the surface the levelling
+follows, interpolated at every pixel and, for a laser, smoothed over 15 mm —
+which is what the brush does, but it hid what the scanner said: the probe's
+X 6 column reading +0.3 and −0.3 on alternate rows (backlash in the scan, see
+below) came out as a soft blur, and a laser scan, which reads whole
+millimetres, as a gentle slope rather than the four or five flat levels it
+actually returned. A reading that is off now shows as off. Each is coloured
+against nought where the levelling puts it, the surface's height at the dot.
+It is drawn under the grid so positions still read across it. Its scale,
 captioned *Bed level deviation*, sits on the title line beside the painting
 order, above the plan rather than in a corner of it: the lowest figure, the
-bar, the highest, and under the bar a tick and a 0 where the calibration dot
+bar, the highest, and over the bar a tick and a 0 where the calibration dot
 falls. The bar takes what room the painting order leaves, up to 120 px; one
 long enough to leave it under 40 puts the scale on the line below. The rainbow spans the
-bed's own range, the 2nd to the 98th percentile of the probed heights rounded
+bed's own range, the 2nd to the 98th percentile of the readings rounded
 outwards to a tenth, as `plot_heightmap.py`'s does: one point that came down on
 a speck would otherwise squeeze the rest into one colour. It is not centred on
 nought — it was while nought was the median — because the dot is in a corner,
@@ -1769,9 +1778,16 @@ followed as it stands the brush would bob a millimetre between them — ten time
 what a watercolour stroke shows. So `smooth` takes every point to a
 Gaussian-weighted mean of the heights round it, over the scan's own grid; a
 point with no reading carries no weight rather than a height of nought, and
-nothing is made up past the edges. The config holds the smoothed points, which
-are what the brush follows and what the plan draws; the CSV beside it on the
-server is the raw file.
+nothing is made up past the edges. The config keeps the readings as they were
+taken, in `level_map`, and the width beside them in `level_map_smooth`, which
+has no box in the form — it comes with the map, set by the scanner it came
+from, and loading a probe scan or removing the map clears it. The smoothing
+is done when the surface is built (`probed_surface`), so the brush follows the
+smoothed bed and the plan draws the readings. It used to be done on reading
+the file, and the config kept only the smoothed points, which left the plan
+nothing true to draw. The 5 mm limit on a map's spread is judged after
+smoothing: a laser's raw readings stray a millimetre either way of a bed that
+does not.
 
 The width was chosen against a probe scan of the same bed, taken six hours
 later, sampled every millimetre over the ground both cover. "Detail" is the RMS

@@ -934,6 +934,10 @@ def probed_surface(conf: dict):
     points = bg.get("level_map") or []
     if not points:
         return None
+    # A laser's readings are kept as read, with the width to smooth them by.
+    width = _figure(bg, "level_map_smooth")
+    if width > 0:
+        points = levelmap.smooth(points, width)
     play = (_play_across_x(0.0, None, None), _play_across_x(0.0, None, None))
     if bg.get("backlash_compensation", True):
         near_x, near_y = _figure(bg, "backlash_x"), _figure(bg, "backlash_y")

@@ -171,45 +171,64 @@ def _num(d, key, default=0.0):
         return default
 
 
-def _heat_map(conf: dict, px, scale: float,
-              min_x: float, min_y: float):
+def _heat_map(conf: dict, px, scale: float, min_x: float, min_y: float,
+              bed: tuple[float, float]):
     """(image, where, (low, high), dot outside the scan) for the probe map, or
     None without one.
 
-    The surface the levelling follows, backlash correction and all, sampled at
-    every pixel of the plan and coloured by how far it is above or below the
-    paper at the calibration dot. The rainbow spans the bed's own range rather
-    than being centred on nought: the dot is in a corner, and a bed that falls
-    away from it would otherwise use half the scale. Its ends are the 2nd and
-    98th percentiles of the probed heights, as plot_heightmap.py's are, rounded
-    outwards to a tenth: one point that came down on a speck would otherwise
-    squeeze the rest of the bed into one colour.
+    The measurements as they were taken, one tile each: every point coloured
+    flat by its own reading, out to halfway to its neighbours, the way
+    plot_heightmap.py draws a scan. Not the surface the brush follows, which
+    is interpolated between them and, for a laser, smoothed -- the plan shows
+    what was measured, so a reading that is off shows as off. A point with no
+    reading is a gap. Tiles are clipped to the bed.
+
+    Each reading is coloured by how far it is above or below the paper at the
+    calibration dot, the levelling's own nought -- read off the surface the
+    brush follows, since that is where Canvas Height is true. The rainbow spans
+    the 2nd to the 98th percentile of the readings, rounded outwards to a
+    tenth, so one stray point does not squeeze the rest into one colour.
     """
     surf = probed_surface(conf)
     if surf is None:
         return None
-    cols, ys = surf.knots
-    (sx0, sy0), (sx1, sy1) = px(cols[0], ys[-1]), px(cols[-1], ys[0])
+    points = conf["brushograph"]["level_map"]
+    xs = np.array(sorted({p[0] for p in points}))
+    ys = np.array(sorted({p[1] for p in points}))
+    readings = np.full((len(ys), len(xs)), np.nan)
+    readings[np.searchsorted(ys, [p[1] for p in points]),
+             np.searchsorted(xs, [p[0] for p in points])] = [p[2] for p in points]
+
+    def edges(at):
+        mid = (at[1:] + at[:-1]) / 2
+        return np.concatenate(([at[0] - (mid[0] - at[0])], mid, [at[-1] + (at[-1] - mid[-1])]))
+
+    ex, ey = edges(xs), edges(ys)
+    lo_x, hi_x = max(ex[0], 0.0), min(ex[-1], bed[0])
+    lo_y, hi_y = max(ey[0], 0.0), min(ey[-1], bed[1])
+    (sx0, sy0), (sx1, sy1) = px(lo_x, hi_y), px(hi_x, lo_y)
     ix0, iy0, ix1, iy1 = int(round(sx0)), int(round(sy0)), int(round(sx1)), int(round(sy1))
     if ix1 <= ix0 or iy1 <= iy0:
         return None
     zero_x, zero_y = px(min_x, min_y)
     mx = min_x + (np.arange(ix0, ix1) + 0.5 - zero_x) / scale
     my = min_y + (zero_y - np.arange(iy0, iy1) - 0.5) / scale
-    # Nought where calibrate.g puts its dot, as the levelling reads it: the
-    # brush is set to touch there, so that is where Canvas Height is true and
-    # every other height on the bed is a correction from it.
+    col = np.clip(np.searchsorted(ex, mx) - 1, 0, len(xs) - 1)
+    row = np.clip(np.searchsorted(ey, my) - 1, 0, len(ys) - 1)
+
     dot = calibration_point(conf)
     zero = surf(*dot)
-    outside = not (cols[0] <= dot[0] <= cols[-1] and ys[0] <= dot[1] <= ys[-1])
-    z = surf.sample(mx[None, :], my[:, None]) - zero
-    probed = np.array([p[2] for p in conf["brushograph"]["level_map"]]) - zero
-    low = np.floor(np.percentile(probed, 2) * 10) / 10
-    high = np.ceil(np.percentile(probed, 98) * 10) / 10
+    cols, kys = surf.knots
+    outside = not (cols[0] <= dot[0] <= cols[-1] and kys[0] <= dot[1] <= kys[-1])
+    z = readings[row[:, None], col[None, :]] - zero
+    measured = readings[~np.isnan(readings)] - zero
+    low = np.floor(np.percentile(measured, 2) * 10) / 10
+    high = np.ceil(np.percentile(measured, 98) * 10) / 10
     if high - low < 0.2:
         low, high = low - 0.1, high + 0.1
-    rgb = turbo((z - low) / (high - low))
-    layer = Image.fromarray(np.round(rgb).astype(np.uint8), "RGB")
+    rgb = turbo((np.nan_to_num(z) - low) / (high - low))
+    alpha = np.where(np.isnan(z), 0, 255)[..., None]
+    layer = Image.fromarray(np.round(np.concatenate([rgb, alpha], axis=-1)).astype(np.uint8), "RGBA")
     return layer, (ix0, iy0), (low, high), outside
 
 
@@ -366,9 +385,9 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # The probe map as a heat map in Turbo, under the grid so the grid still reads
     # across it. Whatever the levelling checkbox says: a map loaded and not
     # used is still the shape of the bed.
-    heat = _heat_map(conf, px, scale, min_x, min_y)
+    heat = _heat_map(conf, px, scale, min_x, min_y, (max_w, max_h))
     if heat:
-        img.paste(heat[0], heat[1])
+        img.paste(heat[0], heat[1], heat[0])
 
     # The centimetre grid, on the bed and nowhere else: the frame takes in the
     # cups and whatever sits past the travel, and lines ruled out there

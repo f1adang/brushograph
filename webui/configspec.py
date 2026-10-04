@@ -1214,6 +1214,11 @@ def _field(path: list[str], value) -> dict:
 # The lists that are settings rather than structure, and the control each gets.
 LIST_FIELDS = {"brushograph-level_map": "levelmap"}
 
+# Settings the config carries that are no box of their own: written with
+# something else and kept from the config whatever the form posts. How widely
+# a probe map is smoothed comes with the map, set by the scanner it came from.
+HIDDEN_FIELDS = {"brushograph-level_map_smooth"}
+
 
 def _walk(path: list[str], value) -> list[dict]:
     """Flatten a config subtree into fields, keeping nested dicts as groups."""
@@ -1224,6 +1229,8 @@ def _walk(path: list[str], value) -> list[dict]:
                 groups.append({"label": label_for(k), "fields": _walk(path + [k], v)})
             elif isinstance(v, list) and "-".join(path + [k]) not in LIST_FIELDS:
                 continue  # lists (color_order, additionals) are structure, not settings
+            elif "-".join(path + [k]) in HIDDEN_FIELDS:
+                continue
             else:
                 fields.append(_field(path + [k], v))
         out = fields
@@ -1467,7 +1474,9 @@ def apply_form(conf: dict, form) -> tuple[dict, list[str]]:
         raw = values[-1] if values else ""
         if name in LIST_FIELDS:
             try:
-                node[leaf] = levelmap.clean(json.loads(raw or "[]"))
+                width = node.get("level_map_smooth", 0) or 0
+                node[leaf] = levelmap.clean(json.loads(raw or "[]"),
+                                            float(width) if isinstance(width, (int, float)) else 0.0)
             except (ValueError, TypeError) as exc:
                 problems.append(f"{name}: {exc}")
             continue

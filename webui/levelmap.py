@@ -14,8 +14,10 @@ middle of the bed, which is where Canvas Height is taken to have been set.
 A laser scan is read too: `laserscan.py` carries a time-of-flight sensor over
 the bed at a fixed Z and writes `x,y,dist_mm,std_mm,strength`, the distance
 down to the paper. The paper's height is the negative of that, and it is
-smoothed before it is used (`smooth`), because the sensor reads in whole
-millimetres.
+smoothed before the brush follows it (`smooth`), because the sensor reads in
+whole millimetres. The config keeps the readings as they were taken and the
+width to smooth them by beside them (`level_map_smooth`), so the plan can show
+what was measured and the brush still follows something it can paint on.
 """
 from __future__ import annotations
 
@@ -62,7 +64,8 @@ def read_csv(text: str) -> tuple[list[list[float]], int, float]:
     negative -- further away is lower. A reading of nought distance or nought
     signal strength is the sensor reporting that it saw nothing, and is a
     miss like the probe's `nan`. Smoothed by LASER_SMOOTH_MM, since it
-    resolves whole millimetres.
+    resolves whole millimetres. The points come back as read; the smoothing
+    is the third figure, for the config to keep beside them.
     """
     rows = csv.DictReader(io.StringIO(text))
     fields = {(f or "").strip().lower(): f for f in rows.fieldnames or []}
@@ -86,10 +89,8 @@ def read_csv(text: str) -> tuple[list[list[float]], int, float]:
             missed += 1
             continue
         points.append([round(x, 3), round(y, 3), round(z, 3)])
-    if laser:
-        points = smooth(points, LASER_SMOOTH_MM)
-        return clean(points), missed, LASER_SMOOTH_MM
-    return clean(points), missed, 0.0
+    width = LASER_SMOOTH_MM if laser else 0.0
+    return clean(points, width), missed, width
 
 
 def smooth(points: list[list[float]], sigma_mm: float) -> list[list[float]]:
@@ -126,10 +127,13 @@ def smooth(points: list[list[float]], sigma_mm: float) -> list[list[float]]:
     return [[x, y, round(float(smoothed[b, a]), 3)] for (x, y, _), a, b in zip(points, i, j)]
 
 
-def clean(value) -> list[list[float]]:
+def clean(value, smooth_mm: float = 0.0) -> list[list[float]]:
     """The map as the config should hold it, or ValueError saying why not.
 
-    An empty list is no map, and is what a config without one carries.
+    An empty list is no map, and is what a config without one carries. The
+    spread is judged on what the brush will follow -- smoothed by `smooth_mm`
+    if the map is -- since a laser's raw readings stray a millimetre either
+    way of a surface that does not.
     """
     if value in (None, "", []):
         return []
@@ -152,7 +156,7 @@ def clean(value) -> list[list[float]]:
     if len({p[0] for p in points}) < 2 or len({p[1] for p in points}) < 2:
         raise ValueError("A probe map needs at least two rows of at least two points; "
                          "with fewer there is no surface to read between them.")
-    zs = [p[2] for p in points]
+    zs = [p[2] for p in (smooth(points, smooth_mm) if smooth_mm > 0 else points)]
     if max(zs) - min(zs) > MAX_SPREAD:
         raise ValueError(f"That probe map runs {max(zs) - min(zs):.1f} mm from its lowest "
                          f"point to its highest, more than the {MAX_SPREAD:g} mm a sheet on a "

@@ -753,7 +753,7 @@ def probe_csv_path(conf_path: Path) -> Path:
 
 
 def _store_level_map(name: str, mode: str, points: list, csv: bytes | None,
-                     version: str, action: str) -> str:
+                     version: str, action: str, smooth_mm: float = 0.0) -> str:
     """Put a probe map into a config and its CSV beside it, or take both out.
 
     Straight away, not at the next Update: a probe scan is half an hour at the
@@ -779,7 +779,13 @@ def _store_level_map(name: str, mode: str, points: list, csv: bytes | None,
         os.replace(part, target)
 
     def write_both(conf: dict) -> bytes:
-        conf.setdefault("brushograph", {})["level_map"] = points
+        bg = conf.setdefault("brushograph", {})
+        bg["level_map"] = points
+        # How widely to smooth it, beside it: the scanner's, not the form's.
+        if smooth_mm > 0:
+            bg["level_map_smooth"] = smooth_mm
+        else:
+            bg.pop("level_map_smooth", None)
         out = config_bytes(conf)
         _check_saved_size(out)
         if csv is None:
@@ -827,7 +833,7 @@ def level_map_post():
         version = _store_level_map(request.form.get("machine_config_name", ""),
                                    request.form.get("machine_config_mode", ""), points, raw,
                                    request.form.get("machine_config_version", ""),
-                                   "Probe map for")
+                                   "Probe map for", smoothed)
     except LookupError as exc:
         return jsonify(error=str(exc.args[0])), 409
     except (ValueError, json.JSONDecodeError) as exc:
