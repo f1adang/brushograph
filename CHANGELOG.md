@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.22.0](https://github.com/f1adang/brushograph/releases/tag/v2.22.0) — 2026-10-04
+
+- **Bed levelling from a probe map:** under **Bed levelling** in Machine setup, **Probe map** takes the CSV that `probescan.py` writes when it touches off the bed with a probe, hundreds of points instead of five. With a map loaded, every move on the paper follows the height the probe found there, including along long strokes, which are broken up so the brush rides over steps in the bed rather than sailing past them. The five readings are hidden while a map is loaded and come back if you press **Remove**. The map is zeroed at the middle of the bed, marked 0 on the plan, so set Canvas Height with the brush just touching there. Because the probe scans back and forth, the map is corrected for your **Backlash** figures, so set those first. Outside the probed area the nearest edge of the map is used. The map is saved with the machine config. A map spanning more than 5 mm is refused as a probe that hit something it should not have.
+
 ## [v2.21.1](https://github.com/f1adang/brushograph/releases/tag/v2.21.1) — 2026-10-03
 
 - **Black contours no longer frame the photograph:** with **Black contours** turned up, the black plate could get a line running just inside the edge of the picture, on one side or all four, most often on photographs that darken towards their edges or have a sky that deepens towards the top. The edge of the photograph is no longer drawn. Contours that run into the edge, like a horizon or a bridge cable, still reach it.
