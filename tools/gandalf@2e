@@ -13,23 +13,6 @@ Example:
 import argparse, csv, math, statistics, sys, time
 import serial
 
-
-# FluidNC's telnet port. A socket:// address without one is taken to mean it:
-# pyserial needs the port spelt out, and without it fails with a TypeError
-# about comparing an int with None that says nothing about the address.
-FLUIDNC_TELNET_PORT = 23
-
-
-def with_port(url):
-    """socket://host -> socket://host:23; anything else as it is."""
-    if url.startswith("socket://"):
-        rest = url[len("socket://"):]
-        host, _, tail = rest.partition("/")
-        # [v6::address] carries its own colons; a port follows the bracket.
-        if host.endswith("]") or ":" not in host:
-            return f"socket://{host}:{FLUIDNC_TELNET_PORT}" + (f"/{tail}" if tail else "")
-    return url
-
 # ---------------------------------------------------------------- TOF sensor
 FRAME_LEN = 16
 
@@ -66,7 +49,7 @@ def measure(ser, n, discard):
 # ------------------------------------------------------------------ FluidNC
 class FluidNC:
     def __init__(self, url, baud=115200, verbose=False):
-        self.ser = serial.serial_for_url(with_port(url), baudrate=baud, timeout=0.2)
+        self.ser = serial.serial_for_url(url, baudrate=baud, timeout=0.2)
         self.verbose = verbose
         time.sleep(2)                   # opening USB serial may reset the ESP32
         self.ser.write(b"\r\n\r\n")
