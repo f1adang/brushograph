@@ -83,7 +83,7 @@ WORDS = {
         "order": "Painting order: {order}",
         "order_none": "none in color_order",
         "offscreen": "not shown, parked far outside the bed: {trays}",
-        "heat": "Z height deviation",
+        "heat": "Bed level deviation",
         "heat_outside": "the dot is outside the scan: 0 is read off its edge",
     },
     "kongress": {
@@ -95,7 +95,7 @@ WORDS = {
         "order": "Auftragsreihenfolge: {order}",
         "order_none": "keine in der Auftragsreihenfolge",
         "offscreen": "nicht dargestellt, weit außerhalb der Arbeitsfläche: {trays}",
-        "heat": "Z-Höhenabweichung",
+        "heat": "Höhenabweichung der Arbeitsfläche",
         "heat_outside": "der Punkt liegt außerhalb der Abtastung: 0 vom Rand gelesen",
     },
 }
