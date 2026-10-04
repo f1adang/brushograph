@@ -4,6 +4,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 
 ## [v2.22.1](https://github.com/f1adang/brushograph/releases/tag/v2.22.1) — 2026-10-04
 
+- **Readings that are not the bed are ignored:** if a scan passes over something lying on the bed, such as a cable, those readings are now left out instead of the whole scan being refused. Each reading is compared with the ones around it, and one more than 2.5 mm away from them is dropped. The bed is filled in from the good readings around it, the plan shows a gap there, and the line under the probe map says how many were left out. A clean scan loses nothing.
 - **Laser scans are quicker, with the same results:** `tools/laserscan.py` stops reading a point as soon as more than half of its readings agree, because the remaining ones could no longer change the result. On a typical bed that is about 5½ readings a point instead of 9, with exactly the same values in the file. The scan now ends by saying how long each point took.
 - **The scanners find FluidNC without a port number:** `tools/laserscan.py` and `tools/probescan.py` stopped straight away with a confusing error when given an address like `--cnc socket://192.168.30.62`, with no `:23` on the end. They now use FluidNC's telnet port, 23, when none is given.
 
