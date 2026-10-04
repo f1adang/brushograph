@@ -37,6 +37,16 @@ MAX_SPREAD = 5.0
 # carried in the config, and the config is kept at a few kilobytes.
 MAX_POINTS = 6000
 
+# A reading further than this from the median of the readings round it is not
+# the bed: a cable under the sensor, a clamp, the edge of a holder. Clean scans
+# never come near it -- Parang's probe scan strays at most 1.0 mm from its
+# neighbourhood, its laser scan at most 2.0, its whole-millimetre readings
+# being what they are -- while the cable across Pinkograph's read up to 48 mm
+# out. The neighbourhood is the 5 x 5 points round it, so a band of outliers
+# two rows deep is still judged against the bed.
+OUTLIER_MM = 2.5
+OUTLIER_REACH = 2
+
 # How widely a laser scan is smoothed, as the standard deviation of a Gaussian
 # in millimetres. The sensor reports whole millimetres and the median of nine
 # readings is nearly always one of them, so a point is 177 or 178 and its
@@ -50,9 +60,10 @@ LASER_SMOOTH_MM = 15.0
 REVERSAL = 0.05
 
 
-def read_csv(text: str) -> tuple[list[list[float]], int, float]:
+def read_csv(text: str) -> tuple[list[list[float]], int, float, int]:
     """A scan's CSV as [[x, y, z], ...] in scanning order, how many points it
-    had no reading for, and how widely it was smoothed (0 for none).
+    had no reading for, how widely it is to be smoothed (0 for none), and how
+    many readings were left out as outliers (`drop_outliers`).
 
     probescan.py's touch probe: the slow probe's `z_mm`, not `z_fast_mm` -- the
     fast one overshoots by however far the axis coasts after the switch
@@ -90,7 +101,57 @@ def read_csv(text: str) -> tuple[list[list[float]], int, float]:
             continue
         points.append([round(x, 3), round(y, 3), round(z, 3)])
     width = LASER_SMOOTH_MM if laser else 0.0
-    return clean(points, width), missed, width
+    points, dropped = drop_outliers(points)
+    return clean(points, width), missed, width, dropped
+
+
+def drop_outliers(points: list[list[float]], limit: float = OUTLIER_MM,
+                  reach: int = OUTLIER_REACH) -> tuple[list[list[float]], int]:
+    """The points less those that are not the bed, and how many went.
+
+    Each reading is judged against the median of the readings round it, the
+    (2 * reach + 1)-square of the scan's own grid less itself, and one more
+    than `limit` away from it is out. Worst first, one at a time, judging the
+    rest again after each: a cable reads tens of millimetres out, and while
+    it is still in the neighbourhood it drags the median of the clean points
+    beside it far enough to make them look like outliers too. Taken out first,
+    it leaves them judged against the bed. A point with fewer than four
+    readings round it is not judged.
+
+    Scanning order is kept; what is left out is simply not there, a gap the
+    plan shows and the surface fills from the neighbours.
+    """
+    if len(points) < 9:
+        return points, 0
+    xs = np.array(sorted({p[0] for p in points}))
+    ys = np.array(sorted({p[1] for p in points}))
+    grid = np.full((len(ys), len(xs)), np.nan)
+    i = np.searchsorted(xs, [p[0] for p in points])
+    j = np.searchsorted(ys, [p[1] for p in points])
+    grid[j, i] = [p[2] for p in points]
+
+    def off(b, a):
+        if not np.isfinite(grid[b, a]):
+            return 0.0
+        near = grid[max(b - reach, 0):b + reach + 1, max(a - reach, 0):a + reach + 1].copy()
+        near[min(b, reach), min(a, reach)] = np.nan
+        if np.isfinite(near).sum() < 4:
+            return 0.0
+        return abs(grid[b, a] - np.nanmedian(near))
+
+    residual = np.array([[off(b, a) for a in range(len(xs))] for b in range(len(ys))])
+    gone = np.zeros(grid.shape, dtype=bool)
+    while True:
+        b, a = np.unravel_index(np.argmax(residual), residual.shape)
+        if residual[b, a] <= limit:
+            break
+        grid[b, a], residual[b, a], gone[b, a] = np.nan, 0.0, True
+        # Only the readings that had it in their neighbourhood change.
+        for bb in range(max(b - reach, 0), min(b + reach + 1, len(ys))):
+            for aa in range(max(a - reach, 0), min(a + reach + 1, len(xs))):
+                residual[bb, aa] = off(bb, aa)
+    kept = [p for p, a, b in zip(points, i, j) if not gone[b, a]]
+    return kept, len(points) - len(kept)
 
 
 def smooth(points: list[list[float]], sigma_mm: float) -> list[list[float]]:

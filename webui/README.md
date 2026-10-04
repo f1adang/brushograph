@@ -1600,6 +1600,24 @@ from lowest to highest is refused — that is a probe that came down on a clamp,
 file from another machine or the wrong units, and a brush lifted 2 mm between
 shapes would be driven into the bed by it.
 
+**A reading that is not the bed is left out.** Pinkograph's laser scan went
+over a cable lying on the bed: across Y 115–120 at the left the sensor read up
+to 48 mm further than the paper round it, with touches at Y 95–100, two lone
+spikes at Y 135, and the holder's edge in the strip below Canvas Start. As it
+stood the scan was refused outright, its 53 mm spread being ten times the 5 mm
+limit. `drop_outliers` judges each reading against the median of the 24 round
+it, the 5 × 5 points of the scan's own grid — a neighbourhood that still sees
+the bed when a band of bad readings is two rows deep — and leaves out one more
+than `OUTLIER_MM`, 2.5 mm, from it. Worst first, one at a time, the rest judged
+again after each: in a single pass the cable drags its neighbours' medians far
+enough that clean points beside it read up to 7.5 mm out and went with it;
+taken out first, it leaves them judged against the bed. That removes 30 of
+Pinkograph's 775 readings and nothing else. The figure comes from the clean
+scans: Parang's probe scan strays at most 1.0 mm from its neighbourhood, its
+laser scan at most 2.0, and neither loses a point. It runs for both scanners,
+before the spread limit and the smoothing; what goes is a gap on the plan and
+in the surface, filled from the neighbours, and the summary line says how many.
+
 **Kept on the server the moment it is loaded.** The first version handed the
 points back and left them in the form until somebody pressed Update, which is
 how every other setting works and the wrong way round for this one: a scan is

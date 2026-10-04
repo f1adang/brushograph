@@ -819,28 +819,38 @@ function wireForm() {
     const points = () => { try { return JSON.parse(mapField.value || "[]"); } catch (e) { return []; } };
     // `missed` only straight after reading a file: the config keeps the points
     // probed, not the ones that found nothing.
-    // `missed` and `smoothed` only straight after reading a file: the config
-    // keeps the points as they will be painted with, not where they came from.
-    const showMap = (missed = 0, smoothed = 0) => {
+    // `got` -- what was left out, and how widely it is smoothed -- only straight
+    // after reading a file: the config keeps the readings, not their story.
+    // Said a part at a time, each its own translation, so a change of theme
+    // rewrites every part and the parts can come in any combination.
+    const showMap = (got = {}) => {
       const p = points();
       state.hidden = !p.length;
       if (p.length) {
         const span = (i) => [Math.min(...p.map((q) => q[i])), Math.max(...p.map((q) => q[i]))];
         const [x0, x1] = span(0), [y0, y1] = span(1), [z0, z1] = span(2);
         const vars = { n: p.length, x0: +x0.toFixed(1), x1: +x1.toFixed(1), y0: +y0.toFixed(1),
-                       y1: +y1.toFixed(1), spread: (z1 - z0).toFixed(2), missed, smoothed };
-        const base = "{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest";
-        say(summary, smoothed
-          ? (missed ? base + "; laser, smoothed over {smoothed} mm; {missed} without a reading left out"
-                    : base + "; laser, smoothed over {smoothed} mm")
-          : (missed ? base + "; {missed} without contact left out" : base), vars);
+                       y1: +y1.toFixed(1), spread: (z1 - z0).toFixed(2), missed: got.missed,
+                       smoothed: got.smoothed, outliers: got.outliers };
+        const parts = ["{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest"];
+        if (got.smoothed) parts.push("laser, smoothed over {smoothed} mm");
+        if (got.missed) parts.push(got.smoothed ? "{missed} without a reading left out"
+                                                : "{missed} without contact left out");
+        if (got.outliers) parts.push("{outliers} outliers left out");
+        summary.replaceChildren();
+        parts.forEach((english, i) => {
+          if (i) summary.append("; ");
+          const part = el("span");
+          say(part, english, vars);
+          summary.append(part);
+        });
       }
       for (const key of ["level_tl", "level_tr", "level_c", "level_bl", "level_br"]) {
         const field = machineInput(key) && machineInput(key).closest(".field");
         if (field) field.hidden = p.length > 0;
       }
     };
-    const changed = (missed, smoothed) => { showMap(missed, smoothed); form.dispatchEvent(new Event("input")); };
+    const changed = (got) => { showMap(got); form.dispatchEvent(new Event("input")); };
     picker.addEventListener("change", async () => {
       if (!picker.files.length) return;
       const fd = keeping();
@@ -851,7 +861,7 @@ function wireForm() {
         const got = await res.json();
         mapField.value = JSON.stringify(got.points);
         kept(got.version, true);
-        changed(got.missed, got.smoothed);
+        changed(got);
       } catch (err) {
         state.hidden = false;
         say(summary, err.message);
@@ -864,7 +874,7 @@ function wireForm() {
         if (!res.ok) throw new Error(await serverError(res));
         kept((await res.json()).version, false);
         mapField.value = "[]";
-        changed(0);
+        changed({});
       } catch (err) {
         say(summary, err.message);
       }

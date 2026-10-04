@@ -183,20 +183,18 @@ text: {
 "Probe map":
   "Tastkarte",
 "Remove": "Entfernen",
-"Download CSV": "CSV herunterladen",
-"That config has no probe map kept with it.": "Zu dieser Konfiguration ist keine Tastkarte abgelegt.",
 "{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest":
   "{n} Punkte über X {x0}–{x1}, Y {y0}–{y1}; {spread} mm vom tiefsten zum höchsten",
-"{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest; {missed} without contact left out":
-  "{n} Punkte über X {x0}–{x1}, Y {y0}–{y1}; {spread} mm vom tiefsten zum höchsten; {missed} ohne Kontakt ausgelassen",
+"laser, smoothed over {smoothed} mm": "Laser, über {smoothed} mm geglättet",
+"{missed} without a reading left out": "{missed} ohne Messwert ausgelassen",
+"{missed} without contact left out": "{missed} ohne Kontakt ausgelassen",
+"{outliers} outliers left out": "{outliers} Ausreißer ausgelassen",
+"Download CSV": "CSV herunterladen",
+"That config has no probe map kept with it.": "Zu dieser Konfiguration ist keine Tastkarte abgelegt.",
 "A height map of the bed from a scan, hundreds of points rather than five: the CSV probescan.py writes with a touch probe (x, y, z_mm), or laserscan.py with a laser (x, y, dist_mm). A laser reads in whole millimetres, so its map is smoothed over 15 mm; a touch probe's is used as it stands. With one loaded it is used instead of the five readings below. It is read relative to its own height where calibrate.g puts its dot, 5 mm in from the corner of the paper nearest the containers, where the plan view puts its 0: that is where Canvas Height is set, so scan from there or the dot's height is read off the edge of the map. The scan is corrected for the backlash figures below, since every other row was probed travelling the other way. Outside the probed area the nearest edge of the map is used.":
   "Eine Höhenkarte der Arbeitsfläche aus einer Abtastung, Hunderte von Punkten statt fünf: die CSV-Datei, die probescan.py mit einem Tastsensor schreibt (x, y, z_mm), oder laserscan.py mit einem Laser (x, y, dist_mm). Ein Laser misst in ganzen Millimetern, darum wird seine Karte über 15 mm geglättet; die eines Tastsensors wird so verwendet, wie sie ist. Ist eine geladen, wird sie statt der fünf Messwerte unten verwendet. Sie wird gegen ihre eigene Höhe dort gelesen, wo calibrate.g seinen Punkt setzt, 5 mm innerhalb der Papierecke nächst den Behältern, wo die Planansicht ihre 0 zeigt: dort wird die Unterlagenhöhe gesetzt; tasten Sie also von dort an ab, sonst wird die Höhe des Punkts vom Rand der Karte gelesen. Die Abtastung wird um die Umkehrspiel-Werte unten berichtigt, da jede zweite Zeile in der Gegenrichtung angetastet wurde. Außerhalb des abgetasteten Bereichs gilt der nächste Rand der Karte.",
 "A probe map needs x and y and either z_mm, the way probescan.py writes it, or dist_mm, the way laserscan.py does.":
   "Eine Tastkarte braucht x und y und dazu entweder z_mm, wie probescan.py es schreibt, oder dist_mm, wie laserscan.py es tut.",
-"{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest; laser, smoothed over {smoothed} mm":
-  "{n} Punkte über X {x0}–{x1}, Y {y0}–{y1}; {spread} mm vom tiefsten zum höchsten; Laser, über {smoothed} mm geglättet",
-"{n} points over X {x0}–{x1}, Y {y0}–{y1}; {spread} mm lowest to highest; laser, smoothed over {smoothed} mm; {missed} without a reading left out":
-  "{n} Punkte über X {x0}–{x1}, Y {y0}–{y1}; {spread} mm vom tiefsten zum höchsten; Laser, über {smoothed} mm geglättet; {missed} ohne Messwert ausgelassen",
 "A probe map needs at least two rows of at least two points; with fewer there is no surface to read between them.":
   "Eine Tastkarte braucht mindestens zwei Zeilen zu mindestens zwei Punkten; mit weniger gibt es keine Fläche, zwischen denen sich lesen ließe.",
 "Z top-right":
