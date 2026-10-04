@@ -16,8 +16,10 @@ from gcode_pipeline import probed_surface
 
 # 912 px is the width the page gives the plan on a computer screen (the
 # 1000 px column, less its padding and the plan's own), so there it is shown
-# pixel for pixel; a narrower screen scales it down.
-W, H = 912, 576
+# pixel for pixel; a narrower screen scales it down. The height is not fixed:
+# it is whatever the machine needs at that width (see render), within these.
+W = 912
+H_MIN, H_MAX = 400, 912
 PAD = 46
 
 # One palette per interface theme, so the plan sits on the same paper the page
@@ -340,6 +342,11 @@ def render(conf: dict, theme: str = "default") -> bytes:
     min_y, max_y = min(ys), max(ys)
     span_x = max(max_x - min_x, 1e-6)
     span_y = max(max_y - min_y, 1e-6)
+    # As tall as the machine is at the full width, so the drawing fills the
+    # plan rather than a box of fixed shape. At 912 x 576 a Mini -- bed and
+    # cups about as deep as they are wide -- was drawn to the height and left
+    # a third of the width empty beside it.
+    H = int(round(min(max((W - 2 * PAD) * span_y / span_x + 2 * PAD, H_MIN), H_MAX)))
     scale = min((W - 2 * PAD) / span_x, (H - 2 * PAD) / span_y)
 
     # Machine Y grows away from the origin; screen Y grows downward.
@@ -348,7 +355,11 @@ def render(conf: dict, theme: str = "default") -> bytes:
 
     img = Image.new("RGB", (W, H), BG)
     d = ImageDraw.Draw(img, "RGBA")
-    f, fs = font_for(13 if theme == "kongress" else 12, theme=theme), font_for(11 if theme == "kongress" else 10, theme=theme)
+    # The painting order at the page's own smallest size, 12 px, which it is
+    # shown at now that the plan is drawn the width the page shows it; the
+    # annotations on the drawing a little smaller.
+    f = font_for(13 if theme == "kongress" else 12, theme=theme)
+    fs = font_for(11 if theme == "kongress" else 10, theme=theme)
 
     # The probe map as a heat map in Turbo, under the grid so the grid still reads
     # across it. Whatever the levelling checkbox says: a map loaded and not

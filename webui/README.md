@@ -40,12 +40,19 @@ machine and left alone.
   what it sets is what the plan draws; folded, it is one line. Below it a
   to-scale plan of bed, image area and trays with their entry and drip radii,
   redrawn as you edit. Trays parked outside the bed are called out rather than
-  quietly cropped. It is drawn 912 × 576, the width the page's column gives it
-  on a computer, and shown there pixel for pixel; it was 760 × 480 and capped
-  at 380 px tall, about 600 px wide in a 914 px column, with every label at
-  two-thirds of the size it was lettered at. A window under 1000 px wide or
-  700 tall keeps the 380 px cap, so the plan does not push the form off the
-  screen; a phone scales it to its width. The centimetre grid is ruled on the
+  quietly cropped. It is drawn 912 px wide, the width the page's column gives it on a
+  computer, and as tall as the machine is at that width, between 400 and 912 px:
+  Parang's bed and cups come out 912 × 805, Pinkograph's a square. It was
+  760 × 480 and capped at 380 px tall, about 600 px wide on screen, and then
+  912 × 576, which still drew a Mini to the plan's height and left a third of
+  the width empty beside it; filling the width draws Parang half as large
+  again. On a computer it is shown pixel for pixel, held to 85% of the window's
+  height so it is always seen whole (765 px tall at 1440 × 900); a window under
+  1000 px wide or 700 tall keeps the 380 px cap, so the plan does not push the
+  form off the screen, and a phone scales it to its width. The painting order
+  above it is lettered at 12 px, the page's own smallest size, which is what it
+  is shown at now that the plan is not shrunk to fit; the annotations on the
+  drawing are 10. The centimetre grid is ruled on the
   bed only, from the origin out to the travel limits — it used to run across
   the whole drawing, cups and margins included, measuring ground the machine
   cannot reach — and so is the line where the canvas starts.
