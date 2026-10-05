@@ -1306,7 +1306,7 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
 /* The preview and the plates are pictures of paint on paper, and paint colours
  * only read true on light paper, so these stay white in every theme. The id
  * outranks the themes' own .canvas-wrap backgrounds. */
-#preview-card .canvas-wrap { background: #ffffff; }
+#preview-card .canvas-wrap, #cmyk-frame { background: #ffffff; }
 .sim-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .sim-stat {
   background: var(--sheet); border: 1px solid var(--line); border-radius: 5px;
@@ -1316,11 +1316,18 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
 .sim-stat span { font-size: 12px; color: var(--ink-dim); }
 .sim-legend { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 12px; font-size: 12.5px; color: var(--ink-dim); }
 .sim-legend i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
-#wc-image, #cmyk-image {
+#wc-image {
   display: block; max-width: 100%; margin-top: 16px;
   border: 1px solid var(--line); border-radius: 6px; background: var(--sheet);
 }
-#cmyk-image { background: #ffffff; }
+/* The plates sit in the same frame and the same box as the G-code preview,
+ * 900:700 like #gcode-canvas, so the separation and the run it becomes read at
+ * one size. The sheet is fitted inside, never cropped; its paper is the
+ * frame's white, so the margins it leaves do not show. */
+#cmyk-image {
+  display: block; width: 100%; height: auto;
+  aspect-ratio: 900 / 700; object-fit: contain;
+}
 #cmyk-panel .field { max-width: 420px; }
 #cmyk-controls { margin-top: 14px; display: grid; gap: 10px; }
 #cmyk-controls[hidden] { display: none !important; }

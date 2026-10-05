@@ -1314,6 +1314,7 @@ function wireForm() {
   const cmykControls = $("cmyk-controls");
   const cmykBtn = $("cmyk-preview-btn");
   const cmykImg = $("cmyk-image");
+  const cmykFrame = $("cmyk-frame");
   const cmykNote = $("cmyk-note");
   const cmykCutoff = $("cmyk-cutoff");
   const cmykKnockout = $("cmyk-knockout");
@@ -1353,7 +1354,7 @@ function wireForm() {
       const url = URL.createObjectURL(blob);
       cmykImg.dataset.url = url;
       cmykImg.src = url;
-      cmykImg.hidden = false;
+      cmykFrame.hidden = false;
       if (cmykNote) {
         cmykNote.textContent = file.name;      // a filename is nobody's language
         cmykNote.classList.remove("warn");
@@ -1401,13 +1402,13 @@ function wireForm() {
       // painted-size note says that instead of how the height was found.
       cmykPhotoLoaded = on;
       showSizeNote();
-      if (cmykImg) cmykImg.hidden = true;
+      if (cmykFrame) cmykFrame.hidden = true;
       if (cmykNote) cmykNote.hidden = true;
       if (on) previewCmyk();
     });
     if (cmykBtn) cmykBtn.addEventListener("click", previewCmyk);
     document.addEventListener("brushograph:theme", () => {
-      if (cmykImg && !cmykImg.hidden && cmykFile()) previewCmyk();
+      if (cmykFrame && !cmykFrame.hidden && cmykFile()) previewCmyk();
     });
     // A file input can survive a back-navigation with its file still in it,
     // and the change event does not fire for that.
