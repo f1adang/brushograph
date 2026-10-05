@@ -2,7 +2,7 @@
 
 echo
 echo "Installing dependencies (apt)"
-sudo apt install -y potrace openscad python3-venv
+sudo apt install -y python3-venv
 
 echo
 echo "Creating python environment"
