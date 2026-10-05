@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.22.6](https://github.com/f1adang/brushograph/releases/tag/v2.22.6) — 2026-10-05
+
+- **The plates are the same size as the G-code preview:** "Show the plates" now shows the CMYK plates in the same white frame and at the same size as the G-code preview, so you can compare the separation with the painting it becomes. Before, the plates were shown at whatever size the photograph gave them. A tall photograph now has white space either side.
+
 ## [v2.22.5](https://github.com/f1adang/brushograph/releases/tag/v2.22.5) — 2026-10-05
 
 - **The server starts after `setup.sh`:** the WebUI runs on the server under gunicorn, which `setup.sh` did not install, so a server set up with v2.22.4 could not start the WebUI. `setup.sh` now installs gunicorn with everything else. If yours is already set up, run `venv/bin/pip install -r requirements.txt` and restart the service.
