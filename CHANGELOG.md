@@ -5,6 +5,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 ## [v2.22.4](https://github.com/f1adang/brushograph/releases/tag/v2.22.4) — 2026-10-05
 
 - **Sets up on Debian 13:** `setup.sh` now uses the computer's own Python 3, which is Python 3.13 on Debian 13 and 3.14 from Homebrew on a Mac. v2.22.3 asked for Python 3.14, which Debian 13 does not have. It also installs `python3-venv`, which Debian does not include with Python, and stops with a clear message if Python is older than 3.12. OpenCV is now the version made for computers without a screen, so a server does not need graphics libraries just to start. The G-code is exactly the same as before on both Python 3.13 and 3.14.
+- **`setup.sh` makes `venv`, not `env`:** the instructions run the WebUI with `venv/bin/python`, but `setup.sh` put the environment in `env/`, so the commands in the instructions did not work on a machine set up with it. It now makes `venv/`. If you set up with an earlier version, run `setup.sh` again, point anything that starts the WebUI at `venv/bin/python`, and then delete `env/`.
 
 ## [v2.22.3](https://github.com/f1adang/brushograph/releases/tag/v2.22.3) — 2026-10-05
 
