@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.22.5](https://github.com/f1adang/brushograph/releases/tag/v2.22.5) — 2026-10-05
+
+- **The server starts after `setup.sh`:** the WebUI runs on the server under gunicorn, which `setup.sh` did not install, so a server set up with v2.22.4 could not start the WebUI. `setup.sh` now installs gunicorn with everything else. If yours is already set up, run `venv/bin/pip install -r requirements.txt` and restart the service.
+
 ## [v2.22.4](https://github.com/f1adang/brushograph/releases/tag/v2.22.4) — 2026-10-05
 
 - **Sets up on Debian 13:** `setup.sh` now uses the computer's own Python 3, which is Python 3.13 on Debian 13 and 3.14 from Homebrew on a Mac. v2.22.3 asked for Python 3.14, which Debian 13 does not have. It also installs `python3-venv`, which Debian does not include with Python, and stops with a clear message if Python is older than 3.12. OpenCV is now the version made for computers without a screen, so a server does not need graphics libraries just to start. The G-code is exactly the same as before on both Python 3.13 and 3.14.
