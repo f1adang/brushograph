@@ -15,12 +15,15 @@ cd webui
 Flask, Pillow, NumPy and OpenCV are the dependencies. Nothing else has to be
 installed on the machine — the G-code step is pure Python and OpenCV.
 
-It runs on **Python 3.14**. Moving off 3.10 forced NumPy 1.26 → 2.5 and
+It runs on **Python 3.13 or 3.14** — 3.13 is what Debian 13 ships, and the
+server runs Debian 13; 3.12 is the floor, NumPy 2.5's, and `setup.sh` refuses
+anything older. Moving off 3.10 forced NumPy 1.26 → 2.5 and
 Pillow 9.2 → 12.3 (neither old pin has a 3.14 wheel), and the G-code did not
 notice: a line drawing, a woodcut and a four-plate CMYK photograph, generated
 against each of the three kept configs with `random` seeded, came out
 byte-identical to the old stack's — nine files, 8,413 to 317,362 lines each,
-levelling included. The woodcut and CMYK previews are identical to the pixel.
+levelling included. 3.13.16 and 3.14.8 both give those same nine files. The
+woodcut and CMYK previews are identical to the pixel.
 The plan moves some of its lettering by a pixel; Pillow lays text out a little
 differently.
 
@@ -32,10 +35,14 @@ simplifies some ring contours to different vertices in 4.14 given the same
 pixels. Nothing wrong with either, but an interpreter upgrade is not the place
 to change what gets painted. OpenCV 5.0 was not tried: it reorganises the
 modules `subject.py` leans on (the cascade face detector, the DNN engine).
-Only `opencv-contrib-python` is installed: it is a superset of
-`opencv-python`, and with both in one environment they overwrite each other's
-`cv2`. The contrib build is needed — `ximgproc` thins the ink the rings missed
-into centrelines, `saliency` finds a subject.
+Only `opencv-contrib-python-headless` is installed. The contrib build is
+needed — `ximgproc` thins the ink the rings missed into centrelines, `saliency`
+finds a subject — and it is a superset of `opencv-python`, so the two are not
+installed side by side, where each overwrites the other's `cv2`. It is the
+headless build because the desktop one, on Linux, will not import without
+`libGL.so.1`, which a server with no screen has no reason to have; nothing
+here opens a window. The two compute the same: swapping one for the other
+leaves all nine files above byte-identical.
 
 ## How it works
 

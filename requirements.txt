@@ -18,6 +18,6 @@ typing_extensions==4.3.0
 urllib3==1.26.12
 zipp==3.8.1
 pygcode==0.2.1
-opencv-contrib-python==4.10.0.84
+opencv-contrib-python-headless==4.10.0.84
 Wand==0.6.13
 Flask==3.1.3
