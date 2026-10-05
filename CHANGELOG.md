@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.22.3](https://github.com/f1adang/brushograph/releases/tag/v2.22.3) — 2026-10-05
+
+- **Runs on Python 3.14:** the WebUI and `setup.sh` now use Python 3.14, with newer NumPy, Pillow, PyYAML and regex, because the old versions do not install on it. What gets painted has not changed: the same pictures make exactly the same G-code as before. The only thing you might spot is that some labels on the machine plan sit a pixel higher or lower. If you set up your own environment, install `opencv-contrib-python` only, not `opencv-python` as well, and keep it at 4.10.0.84, because a newer OpenCV draws slightly different strokes from the same picture.
+
 ## [v2.22.2](https://github.com/f1adang/brushograph/releases/tag/v2.22.2) — 2026-10-04
 
 - **Outliers are shown on the plan:** readings that are not the bed, like a cable lying across it, are still left out of the levelling, but the plan now shows where they were: a grey square with a cross, instead of a gap. The line under the plan's title says how many were not used. If you loaded a scan before this version, load its CSV again to see them.
