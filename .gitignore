@@ -1,5 +1,6 @@
 __pycache__/
 venv/
+# What setup.sh called the venv before v2.22.4; still there on older checkouts.
 env/
 .DS_Store
 webui_sessions/

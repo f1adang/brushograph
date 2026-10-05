@@ -12,8 +12,8 @@ if ! python3 -c 'import sys; sys.exit(sys.version_info < (3, 12))'; then
     echo "Python 3.12 or newer is needed; python3 is $(python3 --version 2>&1)"
     exit 1
 fi
-python3 -m venv env
-. env/bin/activate
+python3 -m venv venv
+. venv/bin/activate
 
 echo
 echo "Installing dependencies (pip)"
@@ -24,4 +24,4 @@ python -m pip freeze > requirements-freeze.txt
 
 echo
 echo "To activate environment (every time you start work) run:"
-echo ". env/bin/activate"
+echo ". venv/bin/activate"
