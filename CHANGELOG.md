@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.22.4](https://github.com/f1adang/brushograph/releases/tag/v2.22.4) — 2026-10-05
+
+- **Sets up on Debian 13:** `setup.sh` now uses the computer's own Python 3, which is Python 3.13 on Debian 13 and 3.14 from Homebrew on a Mac. v2.22.3 asked for Python 3.14, which Debian 13 does not have. It also installs `python3-venv`, which Debian does not include with Python, and stops with a clear message if Python is older than 3.12. OpenCV is now the version made for computers without a screen, so a server does not need graphics libraries just to start. The G-code is exactly the same as before on both Python 3.13 and 3.14.
+
 ## [v2.22.3](https://github.com/f1adang/brushograph/releases/tag/v2.22.3) — 2026-10-05
 
 - **Runs on Python 3.14:** the WebUI and `setup.sh` now use Python 3.14, with newer NumPy, Pillow, PyYAML and regex, because the old versions do not install on it. What gets painted has not changed: the same pictures make exactly the same G-code as before. The only thing you might spot is that some labels on the machine plan sit a pixel higher or lower. If you set up your own environment, install `opencv-contrib-python` only, not `opencv-python` as well, and keep it at 4.10.0.84, because a newer OpenCV draws slightly different strokes from the same picture.
