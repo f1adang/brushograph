@@ -6,7 +6,7 @@ sudo apt install -y potrace openscad
 
 echo
 echo "Creating python environment"
-python3.10 -m venv env
+python3.14 -m venv env
 . env/bin/activate
 
 echo

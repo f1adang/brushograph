@@ -15,6 +15,28 @@ cd webui
 Flask, Pillow, NumPy and OpenCV are the dependencies. Nothing else has to be
 installed on the machine — the G-code step is pure Python and OpenCV.
 
+It runs on **Python 3.14**. Moving off 3.10 forced NumPy 1.26 → 2.5 and
+Pillow 9.2 → 12.3 (neither old pin has a 3.14 wheel), and the G-code did not
+notice: a line drawing, a woodcut and a four-plate CMYK photograph, generated
+against each of the three kept configs with `random` seeded, came out
+byte-identical to the old stack's — nine files, 8,413 to 317,362 lines each,
+levelling included. The woodcut and CMYK previews are identical to the pixel.
+The plan moves some of its lettering by a pixel; Pillow lays text out a little
+differently.
+
+**OpenCV stays at 4.10.0.84**, which is an abi3 wheel built for NumPy 2 and
+runs on 3.14 as it is. The newest 4.x, 4.14, was tried and turned the same
+photographs into different strokes — 278 lines of the parrot woodcut and 402 of
+the rose's CMYK changed — and the cause was `cv2.approxPolyDP`, which
+simplifies some ring contours to different vertices in 4.14 given the same
+pixels. Nothing wrong with either, but an interpreter upgrade is not the place
+to change what gets painted. OpenCV 5.0 was not tried: it reorganises the
+modules `subject.py` leans on (the cascade face detector, the DNN engine).
+Only `opencv-contrib-python` is installed: it is a superset of
+`opencv-python`, and with both in one environment they overwrite each other's
+`cv2`. The contrib build is needed — `ximgproc` thins the ink the rings missed
+into centrelines, `saliency` finds a subject.
+
 ## How it works
 
 Everything is driven by a machine config (`.conf`, JSON). Pick one that someone
