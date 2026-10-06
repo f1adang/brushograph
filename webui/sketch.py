@@ -416,8 +416,12 @@ def render(conf: dict, theme: str = "default") -> bytes:
 
     # The probe map as a heat map in Turbo, under the grid so the grid still reads
     # across it. Whatever the levelling checkbox says: a map loaded and not
-    # used is still the shape of the bed.
-    heat = _heat_map(conf, px, scale, min_x, min_y, (max_w, max_h), MUTED)
+    # used is still the shape of the bed. Show on plan is the one box that
+    # takes it away, with the dots, the crosses and the scale -- all of the
+    # levelling or none of it, since a 0 cross with no map under it is a
+    # mark nobody can read.
+    shown = bg.get("level_show", True) is not False
+    heat = shown and _heat_map(conf, px, scale, min_x, min_y, (max_w, max_h), MUTED)
     if heat:
         img.paste(heat[0], heat[1], heat[0])
         # A cross on every outlier's grey tile: measured, shown, not used.
@@ -491,7 +495,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
     # edge -- shows against the bed; and the one cross that still matters,
     # calibrate.g's dot, where the map reads nought and Canvas Height is set.
     # Whenever there is a map, as the heat map is: the cross is its nought.
-    level_map = bg.get("level_map") or []
+    level_map = (bg.get("level_map") or []) if shown else []
     for lx, ly, _ in level_map:
         mx, my = px(lx, ly)
         d.rectangle([mx - 1, my - 1, mx, my], fill=(*ACCENT, 160))
@@ -502,7 +506,7 @@ def render(conf: dict, theme: str = "default") -> bytes:
         d.line([(mx - 4, my), (mx + 4, my)], fill=(*ACCENT, 230))
         d.line([(mx, my - 4), (mx, my + 4)], fill=(*ACCENT, 230))
         d.text((mx + 5, my - 11), "0", font=fs, fill=ACCENT)
-    elif bg.get("level_compensation"):
+    elif shown and bg.get("level_compensation"):
         lv_x0, lv_y0, lv_x1, lv_y1 = level_area(conf)
         for key, (lx, ly) in level_points(conf).items():
             mx, my = px(lx, ly)

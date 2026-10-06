@@ -494,6 +494,11 @@ ALWAYS_OFFERED = {
     ("brushograph", "level_c"): 0.0,
     ("brushograph", "level_bl"): 0.0,
     ("brushograph", "level_br"): 0.0,
+    # Whether the plan draws any of it. On, because the plan is where a map
+    # that is off is seen to be off; a box to take it away for a plan that
+    # has to show the cups and the picture and nothing else. Only the plan
+    # reads it -- the levelling itself is level_compensation's.
+    ("brushograph", "level_show"): True,
     # A probed height map, which replaces the five readings when there is one:
     # [x, y, z] in the order the probe took them (levelmap.py says why the
     # order matters). Empty is none. A list, so it has no box of its own --
@@ -1021,7 +1026,7 @@ BRUSHOGRAPH_GROUPS = [
      ["cup_shape", "cup_swipe_exit_z", "cup_dip_lanes", "cup_width_water",
       "cup_width", "cup_depth", "cup_spacing"], False),
     ("Bed levelling",
-     ["level_compensation", "level_map", "level_tl", "level_tr", "level_c",
+     ["level_compensation", "level_show", "level_map", "level_tl", "level_tr", "level_c",
       "level_bl", "level_br"], False),
     ("Backlash",
      ["backlash_compensation", "backlash_x", "backlash_x_far", "backlash_y",
@@ -1080,6 +1085,7 @@ HELP = {
     "brushograph-max_width": "Total width limit of machine (mm), measured from the origin. A painting starts at Offset X, so the widest one is this less that offset.",
     "brushograph-max_height": "Total height limit of machine (mm), measured from the origin. A painting starts at Canvas Start Y, past the strip the containers stand in, plus whatever Offset Y adds to it, so the tallest one is this less both: 124 mm of Pinkograph's 156.",
     "brushograph-level_compensation": "Write every move made on the paper at the height the paper is at there, from the probe map below if one is loaded, or else from the five readings, which are taken at the corners and middle of the bed itself, not of the painting. Canvas Height is one figure and a sheet taped to a bed is not one height: a brush set to touch in the middle rides over the paper at one corner and digs in at another, which a watercolour brush shows at a tenth of a millimetre. Off until the five are measured \u2014 with all five the same it does nothing anyway.",
+    "brushograph-level_show": "Draw the levelling on the plan: the probe map as a heat map with its scale, a dot at every probed point and the 0 where Canvas Height is set, or else the five crosses with their readings. Untick it for a plan of the machine and the painting alone. It changes the drawing only; whether the moves are levelled is the box above.",
     "brushograph-level_map": "A height map of the bed from a scan, hundreds of points rather than five: the CSV probescan.py writes with a touch probe (x, y, z_mm), or laserscan.py with a laser (x, y, dist_mm). A laser reads in whole millimetres, so its map is smoothed over 15 mm; a touch probe's is used as it stands. With one loaded it is used instead of the five readings below. It is read relative to its own height where calibrate.g puts its dot, 5 mm in from the corner of the paper nearest the containers, where the plan view puts its 0: that is where Canvas Height is set, so scan from there or the dot's height is read off the edge of the map. The scan is corrected for the backlash figures below, since every other row was probed travelling the other way. Outside the probed area the nearest edge of the map is used.",
     "brushograph-level_tl": "How much higher the paper is at the top-left of the bed than where Canvas Height was set, in millimetres. Take the brush there, lower it until it just touches, and type the difference from Canvas Height. The plan view marks the spot.",
     "brushograph-level_tr": "The same reading at the top-right corner of the bed. The plan view marks the spot.",
@@ -1139,6 +1145,7 @@ LABELS = {
     # Named for the plan view, which draws Y upwards the way the bed is
     # looked at, and marks these five where they are.
     "level_compensation": "Bed levelling",
+    "level_show": "Show on plan",
     "level_map": "Probe map",
     "level_tl": "Z top-left",
     "level_tr": "Z top-right",

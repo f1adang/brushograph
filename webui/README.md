@@ -1757,6 +1757,21 @@ real colours. Its two dark ends meet the text colour of one theme or another, so
 over a heat map the image caption and the 0 cross stand on a patch of the
 plan's own paper. A plan with no map is drawn to the byte as before.
 
+**Show on plan takes all of it away.** A box in the Bed levelling group,
+`brushograph.level_show`, ticked by default and offered to every config the way
+the levelling figures are (`ALWAYS_OFFERED`), so a config written before it
+gains it ticked and plans exactly as it did. A scanned bed covers the whole of
+the plan in colour, and there are times the plan is wanted for the cups and the
+picture alone. Unticked, it leaves out the heat map, its scale and the line
+about outliers, the dot at every probed point, the 0 cross, and the five
+crosses with their readings. It takes all of these or none of them. A 0 cross
+with no map under it marks a spot nobody can read, and the five crosses with
+the map taken away would claim a scheme the config is not using. With the box
+unticked, the plan of a config carrying a 2,091-point map is byte for byte the
+plan of the same config with no map. Only `sketch.py` reads it. Whether the
+moves are levelled is still **Bed levelling**'s decision, and a run's G-code is
+the same either way.
+
 **The scan was driven with the brush's own slack in it.** probescan goes
 serpentine, one row left to right, the next right to left, and an axis coming
 from the right stops a play's width past where it was asked to — the same lost
