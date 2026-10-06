@@ -1234,6 +1234,12 @@ input[type="file"] { padding: 6px 8px; font-size: 13px; }
 input[type="text"]:focus, input[type="number"]:focus, select:focus, input[type="file"]:focus {
   outline: 2px solid var(--ink); outline-offset: 1px; border-color: transparent;
 }
+/* A figure past its limit, which the plan now draws anyway and explains
+   underneath: the box it was typed in says so as well. Specific enough to
+   win over each theme's own field border; the outline only while it has focus,
+   so a box being typed in shows it too. */
+:root input[type="number"]:invalid { border-color: var(--warn); }
+:root input[type="number"]:invalid:focus { outline-color: var(--warn); }
 input[type="range"] { width: 100%; accent-color: var(--ink); }
 output { font-variant-numeric: tabular-nums; color: var(--ink); font-weight: 600; }
 .with-btn { display: flex; gap: 8px; align-items: stretch; }

@@ -232,6 +232,21 @@ Both size fields carry that cap as a `max` attribute, kept in step with the
 limits they come from, so a figure typed straight into either is refused by the
 browser rather than quietly painted off the end of the bed.
 
+**A figure past the cap is drawn, and the plan says why it is refused.** The
+cap is the limit less the offsets less `EDGE_HEADROOM`, the 2 mm kept clear of
+the endstop: Pinkograph paints 149 wide, not the 151 its Max Width says. An
+invalid form used to stop the plan altogether. It dimmed to half, the reason
+went into a tooltip, and the last drawing stayed up. A width is typed one digit
+at a time, so that was the drawing for the first digit or two. Typing 151 left
+a 15 × 11 mm frame on the plan. Typing 150 left whatever the last valid
+keystroke drew, at "1" a frame too small to see, and it was reported as the
+frame disappearing. Nothing on the page said 149. Now a number that is only out
+of range is posted anyway. The server draws an oversize canvas as it is,
+overshooting the bed. A line under the plan names the most the field takes and
+where that figure comes from, and the field's border turns the warning colour.
+Generate still refuses it; that is the browser's own check on submit. Only a
+field that cannot be drawn at all, such as an empty one, still dims the plan.
+
 ### Model: Mini or 𝔐𝔦𝔨𝔯𝔬
 
 openBrushograph_hardware V6.0 builds two machines from one parametric gantry:

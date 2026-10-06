@@ -498,14 +498,63 @@ function wireForm() {
   // Sections that fold are <details> now, which the browser opens and closes
   // itself, keyboard and screen reader included.
 
+  // How much of the travel a painting keeps clear of at the far end of an
+  // axis. configspec.EDGE_HEADROOM, written here as well because the form has
+  // to cap the two size boxes before anything is posted: Max Width and Max
+  // Height are where the machine stops, and a painting that runs to one of
+  // them ends on the endstop. A photograph at full size on Brushparang put 142
+  // strokes at exactly Y 140 against a Max Height of exactly 140, and the
+  // machine hit the upper Y stop.
+  // Up here because the plan's note below names it, and the plan is first
+  // drawn before the rest of the form is wired.
+  const EDGE_HEADROOM = 2;
+
   /* ---- live machine sketch ---- */
+  /* A figure past its limit is still drawn, and the plan says which limit.
+     It used to stop the plan altogether: dimmed to half, a tooltip, and the
+     last drawing left up -- which, for a width typed one digit at a time, is
+     the drawing for the first digit or two. Typing 151 on Pinkograph left a
+     15 x 11 mm frame on the plan, and 150 whatever the last valid keystroke
+     drew -- at "1", a frame too small to see -- with nothing on the page
+     saying the bed paints at most 149: Max Width
+     less Offset X, less the EDGE_HEADROOM kept clear of the endstop. The
+     server draws an oversize canvas as it is, overshooting (sketch.py), so a
+     number out of range is shown as typed, and the line under the plan says
+     what the most is and where it comes from. Generate still refuses it --
+     that is the browser's own check on submit. Only a field that cannot be
+     drawn at all, an empty one, still dims the plan. */
+  const sketchLimits = $("sketch-limits");
+  const outOfRange = (el) => {
+    const v = el.validity;
+    return (v.rangeOverflow || v.rangeUnderflow) && !v.badInput && !v.valueMissing;
+  };
+  function sayLimits(el) {
+    if (!sketchLimits) return;
+    sketchLimits.hidden = !el;
+    if (!el) return;
+    const label = el.closest(".field")?.querySelector(".field-label")?.firstChild;
+    const vars = { value: el.value, max: el.max, min: el.min, gap: EDGE_HEADROOM,
+                   label: label ? label.textContent.trim() : el.name };
+    if (el.validity.rangeUnderflow) {
+      say(sketchLimits, "{label} {value} is less than {min}, the least it can be. The plan shows it as typed; it will not generate until it fits.", vars);
+    } else if (el.name === "brushograph-width") {
+      say(sketchLimits, "Width {value} mm is more than the {max} mm this bed paints: Max Width less Offset X, less {gap} mm kept clear of the endstop. The plan shows it as typed; it will not generate until it fits.", vars);
+    } else if (el.name === "brushograph-height") {
+      say(sketchLimits, "Height {value} mm is more than the {max} mm this bed paints: Max Height less Canvas Start Y and Offset Y, less {gap} mm kept clear of the endstop. The plan shows it as typed; it will not generate until it fits.", vars);
+    } else {
+      say(sketchLimits, "{label} {value} is more than {max}, the most it can be. The plan shows it as typed; it will not generate until it fits.", vars);
+    }
+  }
+
   function updateSketch() {
     const fd = new FormData(form);
     form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
     fd.append("sketch_only", "true");
     fd.append("theme", document.documentElement.dataset.theme || "default");
 
-    if (!form.checkValidity()) {
+    const wrong = [...form.elements].filter((el) => el.willValidate && !el.validity.valid);
+    sayLimits(wrong.find(outOfRange));
+    if (!wrong.every(outOfRange)) {
       sketch.classList.add("greyed");
       sayTitle(sketch, "Machine sketch (form has errors)");
       return;
@@ -631,14 +680,6 @@ function wireForm() {
      the start alone is 156 less 32: a 149 mm painting was 18 mm past the end of
      the bed. Infinity when the config carries no limit, which leaves the size
      alone; an offset the config does not carry is nothing. */
-  // How much of the travel a painting keeps clear of at the far end of an
-  // axis. configspec.EDGE_HEADROOM, written here as well because the form has
-  // to cap the two size boxes before anything is posted: Max Width and Max
-  // Height are where the machine stops, and a painting that runs to one of
-  // them ends on the endstop. A photograph at full size on Brushparang put 142
-  // strokes at exactly Y 140 against a Max Height of exactly 140, and the
-  // machine hit the upper Y stop.
-  const EDGE_HEADROOM = 2;
   const machineLimit = (limitKey, ...offsetKeys) => {
     const limit = parseFloat((machineInput(limitKey) || {}).value);
     if (!isFinite(limit)) return Infinity;

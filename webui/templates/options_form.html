@@ -193,6 +193,7 @@
 
     <figure class="plan">
       <img id="machine-sketch" alt="Plan view of the machine bed and its trays" src="">
+      <figcaption class="note warn" id="sketch-limits" hidden></figcaption>
     </figure>
 
     {% if machine %}{% for g in machine.fields if g.group and g.job %}

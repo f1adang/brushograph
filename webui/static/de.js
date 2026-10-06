@@ -69,6 +69,14 @@ text: {
 "Machine sketch": "Maschinenriss",
 "Machine sketch (form has errors)": "Maschinenriss (das Formular enthält Fehler)",
 "Machine sketch (could not be drawn)": "Maschinenriss (konnte nicht gezeichnet werden)",
+"Width {value} mm is more than the {max} mm this bed paints: Max Width less Offset X, less {gap} mm kept clear of the endstop. The plan shows it as typed; it will not generate until it fits.":
+  "Breite {value} mm ist mehr als die {max} mm, die diese Unterlage bemalt: Größtbreite abzüglich Versatz X, abzüglich {gap} mm Abstand zum Endschalter. Der Plan zeigt sie wie eingegeben; erzeugt wird erst, wenn sie passt.",
+"Height {value} mm is more than the {max} mm this bed paints: Max Height less Canvas Start Y and Offset Y, less {gap} mm kept clear of the endstop. The plan shows it as typed; it will not generate until it fits.":
+  "Höhe {value} mm ist mehr als die {max} mm, die diese Unterlage bemalt: Größthöhe abzüglich Unterlagenbeginn Y und Versatz Y, abzüglich {gap} mm Abstand zum Endschalter. Der Plan zeigt sie wie eingegeben; erzeugt wird erst, wenn sie passt.",
+"{label} {value} is more than {max}, the most it can be. The plan shows it as typed; it will not generate until it fits.":
+  "{label} {value} ist mehr als {max}, das Höchste, was geht. Der Plan zeigt es wie eingegeben; erzeugt wird erst, wenn es passt.",
+"{label} {value} is less than {min}, the least it can be. The plan shows it as typed; it will not generate until it fits.":
+  "{label} {value} ist weniger als {min}, das Mindeste, was geht. Der Plan zeigt es wie eingegeben; erzeugt wird erst, wenn es passt.",
 "Machine setup": "Maschineneinrichtung",
 "Model, connection, containers, brush heights, speeds, macros — set once per machine":
   "Modell, Verbindung, Behälter, Pinselhöhen, Geschwindigkeiten, Makros — einmalig je Maschine",
