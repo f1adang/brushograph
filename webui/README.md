@@ -3024,6 +3024,20 @@ is missing, the run log says which and what it costs, rather than leaving a
 shape-defining number at zero quietly. In the G-code it would show up as a
 move that is simply not there, which is not something anyone finds by reading.
 
+The form went on offering them whatever was selected. A CMYK or Custom
+config showed Enter Tray Radius and Remove Drops Radius under Paint
+management, Remove Drops Lift under Brush control, and a whole Remove Drops
+group under Moves: three settings and a group of speeds that can be changed
+to anything without changing a byte of the G-code, sitting among the ones
+that do. Three of the six tooltips said so; the other three did not. They are
+shown only while the containers are Classic now, the reverse of
+`cup_dip_lanes`, which is shown only while they are not. Hidden rather than
+disabled, like the custom cup sizes: they still post, so a config switched
+to CMYK and back to Classic keeps its dish figures, and what a CMYK run
+generates is the same as before. The 𝔐𝔦𝔨𝔯𝔬 never sees them, having no
+Classic to pick; a 𝔐𝔦𝔨𝔯𝔬 config made new carries the three figures not at
+all, only the speed group.
+
 #### Clear of the walls on the way back
 
 A trip between the cups and the paper changes Z on the way rather than standing

@@ -734,6 +734,7 @@ function wireForm() {
      ran last wins — which is how the black card came back from under a
      photograph still showing, and came back from under Classic still disabled,
      with a Choose file button that opened nothing. */
+  const ROUND_CUP_KEYS = ["tray_enter_radius", "remove_drops_radius", "remove_drops_lift"];
   const blackHasNoCup = () => !!shapeSelect && shapeSelect.value === "classic";
   let cmykPhoto = false;
 
@@ -762,6 +763,21 @@ function wireForm() {
     const lanes = machineInput("cup_dip_lanes");
     const lanesField = lanes && lanes.closest(".field");
     if (lanesField) lanesField.hidden = classic;
+    // And the other way round: the sweep's chord, the rim wipe's reach and
+    // height, and the speed it is wiped at describe a round dish. A
+    // rectangular bay is dropped into and swiped up its stairs, which wipes
+    // the brush on the way out, so copicograf reads none of them for one.
+    // Hidden rather than disabled, so a config keeps its dish figures for when
+    // Classic is picked again.
+    for (const key of ROUND_CUP_KEYS) {
+      const field = machineInput(key) && machineInput(key).closest(".field");
+      if (field) field.hidden = !classic;
+    }
+    // The wipe's speeds are a group of their own under Moves, so the whole
+    // group goes rather than leaving its heading over nothing.
+    const wipeSpeed = machineInput("moves-remove_drops-feedrate_1");
+    const wipeGroup = wipeSpeed && wipeSpeed.closest(".group.nested");
+    if (wipeGroup) wipeGroup.hidden = !classic;
   };
 
   // What the selected holder fixes besides positions: the dish's radii and
