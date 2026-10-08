@@ -6,6 +6,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 
 - **The plan can hide the bed levelling:** there is a new "Show on plan" box in the Bed levelling settings, ticked by default. Untick it to see the machine plan without the levelling: no heat map or its scale, no probed points, no 0 cross and no five crosses. This only changes the picture. Whether your painting is levelled is still decided by the Bed levelling box, and the G-code is the same either way.
 - **The plan shows a painting that is too big, and says why:** Width and Height can only go up to what the bed paints, which keeps 2 mm clear of the endstop. On Pinkograph that is 149 mm across, not 151. Typing more used to dim the plan and leave the last drawing up, often a frame from the first digit you typed, with no explanation. The plan now draws the size you typed. A line under it says the most the field takes and why, and the field is outlined in the warning colour. Generate still waits until the size fits.
+- **Petri-dish settings only show for petri dishes:** Enter Tray Radius, Remove Drops Radius, Remove Drops Lift and the Remove Drops speeds only apply to the round Classic dishes. With CMYK or Custom containers the brush wipes itself on the stairs in the bay, and changing these did nothing. They are now hidden unless Classic is selected. Your figures are kept, so they are still there if you switch back to Classic.
 
 ## [v2.22.6](https://github.com/f1adang/brushograph/releases/tag/v2.22.6) — 2026-10-05
 
