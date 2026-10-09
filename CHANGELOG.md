@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.0](https://github.com/f1adang/brushograph/releases/tag/v2.23.0) — 2026-10-09
+
+- **Isolate the subject of a colour photograph:** when the colour photograph shows a person, an animal or a prominent object, an **Isolate** option now appears under its settings, as it already did for a tray's photo. Tick it and everything around the subject is left as bare paper, and the plates are redrawn to show it. With **Black contours** turned up, the subject is outlined too. On a portrait this roughly halves the painting time, and much more on a photo taken in a busy room: one selfie went from 1.7 hours to half an hour.
+
 ## [v2.22.7](https://github.com/f1adang/brushograph/releases/tag/v2.22.7) — 2026-10-06
 
 - **The plan can hide the bed levelling:** there is a new "Show on plan" box in the Bed levelling settings, ticked by default. Untick it to see the machine plan without the levelling: no heat map or its scale, no probed points, no 0 cross and no five crosses. This only changes the picture. Whether your painting is levelled is still decided by the Bed levelling box, and the G-code is the same either way.
