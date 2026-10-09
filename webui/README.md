@@ -1394,6 +1394,30 @@ Two details decide whether the cut-out is usable:
   torso, which is real background. Filling those indiscriminately put a patch of
   grass between someone's arm and her hip. Only holes small against the subject
   are closed now.
+- **And only holes that are not plainly background.** Small was a per cent of
+  the subject, which in a selfie filling most of the frame is twelve thousand
+  pixels. That is room for the sky seen through the loop of a cable on a hat:
+  the network cut it out, the edge snapping agreed, and filling the holes put
+  it back. Two kinds of hole turned up across the test photographs. Those the
+  network had kept and the edge snapping punched are all 4 to 16 px, and are
+  always filled. Those the network cut out itself run up to 2,000 px, and
+  they are mixed. Most are patches of the subject's own surface it dropped (a
+  desk mat, a steel lid) and should be filled; a few are real background. So a
+  hole the network cut is filled unless its colours are much likelier in the
+  background than in the subject just round it (`HOLE_LOOKS_LIKE_BACKGROUND`,
+  a mean log ratio below −2 over an 8-per-channel Lab histogram). Sky in the
+  cable loop scored −3.9 and floor inside a loop drawn on the floor −3.6;
+  every patch of subject scored −0.4 or above. A finer histogram (16 per
+  channel) narrowed that gap to under a point, so it was left coarse. Seven
+  of nine test photographs come out unchanged; the eighth loses the floor
+  patch, the ninth (a floor plan) leaves open white rooms that were paper
+  anyway.
+
+  What it does not catch: sky between the arm of a pair of glasses and the
+  head, because the arm is clear plastic and shows the same sky through it,
+  so by colour the gap matches the subject round it (−1.0 at 16 bins, +0.7 at
+  8). And sky the network keeps as subject in the first place, which is not a
+  hole at all — a small loop of pink cable on the same hat.
 
 This replaced a GrabCut-based attempt. GrabCut segments on colour, and no amount
 of seeding got it past two failures: dark hair against dark foliage was read as

@@ -554,7 +554,8 @@ def isolate(image: Image.Image, box, faces=None, iterations: int = 6, log=None) 
     """
     prob = segment(image, log)
     if prob is not None:
-        return _fill_holes(snap_to_edges(image, _mask_from_prob(prob)))
+        kept = _mask_from_prob(prob)
+        return _fill_holes(snap_to_edges(image, kept), image=image, kept=kept)
 
     rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
@@ -655,23 +656,83 @@ def _keep_subject(mask: np.ndarray, seeds, box) -> np.ndarray:
     return np.isin(labels, list(wanted)).astype(np.uint8)
 
 
-def _fill_holes(mask: np.ndarray, max_share: float = 0.01) -> np.ndarray:
+# A hole the network cut out is left open when its colours are this much more
+# likely in the background than in the subject round it (the mean natural log
+# of the ratio, over Lab binned eight to a channel). Sky through the loop of a
+# cable on a hat scored -3.9 and a patch of floor inside a loop drawn on the
+# floor -3.6; the holes that were the subject's own surface -- a desk mat, a
+# steel lid -- scored -0.4 and above.
+HOLE_LOOKS_LIKE_BACKGROUND = -2.0
+_HOLE_BINS = 8
+
+
+def _colour_hist(lab_px: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    """A normalised Lab histogram, and which bin each pixel fell in."""
+    idx = (lab_px.astype(np.int32) * _HOLE_BINS) // 256
+    flat = (idx[:, 0] * _HOLE_BINS + idx[:, 1]) * _HOLE_BINS + idx[:, 2]
+    counts = np.bincount(flat, minlength=_HOLE_BINS ** 3).astype(np.float64) + 0.5
+    return counts / counts.sum(), flat
+
+
+def _fill_holes(mask: np.ndarray, max_share: float = 0.01,
+                image: Image.Image | None = None,
+                kept: np.ndarray | None = None) -> np.ndarray:
     """Close pinholes enclosed by the subject — and only pinholes.
 
     A hole is background that touches no edge of the picture, but that
     description also fits the gap between an arm and a torso, which is real
     background and must stay out. Only holes small against the subject are
     filled; anything larger is a gap the subject genuinely has.
+
+    Small is not enough on its own. A per cent of a subject that fills most of
+    the frame is ten thousand pixels, which is room for the sky seen through
+    the loop of a cable on a hat, or between the arm of a pair of glasses and
+    the head. With `kept`, the network's own mask, and `image`, a hole is
+    filled when the network kept it -- a pinhole the edge snapping punched,
+    which are all a few pixels -- or, when the network cut it out, only if its
+    colours are not plainly the background's. The network does drop patches of
+    a subject's own surface, a desk mat or a steel lid, and those are still
+    filled: they are the colour of the subject round them.
     """
     h, w = mask.shape
     subject_area = float(mask.sum()) or 1.0
     n, labels, stats, _ = cv2.connectedComponentsWithStats((1 - mask).astype(np.uint8), 8)
-    out = mask.copy()
+    holes = []
     for i in range(1, n):
         left, top = stats[i, cv2.CC_STAT_LEFT], stats[i, cv2.CC_STAT_TOP]
         right = left + stats[i, cv2.CC_STAT_WIDTH]
         bottom = top + stats[i, cv2.CC_STAT_HEIGHT]
         enclosed = left > 0 and top > 0 and right < w and bottom < h
         if enclosed and stats[i, cv2.CC_STAT_AREA] <= subject_area * max_share:
-            out[labels == i] = 1
+            holes.append(i)
+    out = mask.copy()
+    if not holes:
+        return out
+    if image is None or kept is None:
+        out[np.isin(labels, holes)] = 1
+        return out
+
+    lab = cv2.cvtColor(np.asarray(flatten(image)), cv2.COLOR_RGB2LAB)
+    background = (mask == 0) & ~np.isin(labels, holes)
+    if not background.any():
+        out[np.isin(labels, holes)] = 1
+        return out
+    p_background, _ = _colour_hist(lab[background])
+    for i in holes:
+        hole = labels == i
+        if kept[hole].mean() >= 0.5:
+            out[hole] = 1
+            continue
+        # The subject just round the hole, about half the hole's own width deep:
+        # what a hole that is really the subject's surface would match.
+        reach = max(3, int(np.sqrt(stats[i, cv2.CC_STAT_AREA]) * 0.5))
+        ker = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (2 * reach + 1, 2 * reach + 1))
+        ring = (cv2.dilate(hole.astype(np.uint8), ker) > 0) & (mask > 0)
+        if not ring.any():
+            continue
+        p_ring, _ = _colour_hist(lab[ring])
+        _, bins = _colour_hist(lab[hole])
+        score = float(np.mean(np.log(p_ring[bins] / p_background[bins])))
+        if score >= HOLE_LOOKS_LIKE_BACKGROUND:
+            out[hole] = 1
     return out
