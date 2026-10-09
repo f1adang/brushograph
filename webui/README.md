@@ -930,6 +930,96 @@ The selfie loses five brush-downs in six: a room behind someone is shelves,
 plants and a lamp, each a field of its own at the cutoff, and none of them
 the reason the photograph was taken.
 
+**It is done to the photograph the right way up**, and only then is the
+photograph turned to lie along the canvas. The page asks about the upload as it
+arrived, upright, so the server has to look at the same picture or the two
+disagree about what is there. A portrait turned onto its side also has its face
+on its side, and the face detector does not find faces lying down.
+
+#### Cartoonify
+
+Offered beside **Isolate** when the photograph has a face in it. It redraws the
+photograph as a coarse cartoon before the separation: a few flat colours, and
+dark lines where the features are (`cartoon.py`).
+
+A cutoff is hard on a photograph of a face. Skin is a gradient, and a cheek
+that drifts back and forth across the cutoff comes out as a coastline of
+islands, each one a brush-down. A cartoon is already the kind of picture the
+separation is good at: a handful of colours, each one a field with a clean
+edge. Somewhat less is painted, and it is in far fewer pieces: the brush goes
+down a half to a third as often, and that is where the time comes off.
+
+| | painted | travel | brush downs | dips | rough time |
+|---|---|---|---|---|---|
+| portrait | 24.28 m | 40.70 m | 596 | 200 | 1.88 h |
+| portrait, cartoon | 21.93 m | 36.49 m | 321 | 178 | **1.33 h** |
+| portrait, isolated | 12.72 m | 18.46 m | 350 | 116 | 1.01 h |
+| portrait, isolated cartoon | 11.70 m | 18.34 m | 192 | 108 | **0.69 h** |
+| selfie in a room | 17.68 m | 31.15 m | 618 | 151 | 1.68 h |
+| selfie, cartoon | 12.58 m | 23.15 m | 240 | 108 | **0.87 h** |
+| selfie, isolated | 6.84 m | 11.81 m | 108 | 72 | 0.48 h |
+| selfie, isolated cartoon | 5.17 m | 8.04 m | 45 | 42 | **0.24 h** |
+| upright selfie, turned | 19.40 m | 24.81 m | 978 | 165 | 2.17 h |
+| upright selfie, cartoon | 18.73 m | 24.27 m | 315 | 158 | **1.17 h** |
+| upright selfie, isolated | 4.74 m | 6.11 m | 244 | 57 | 0.55 h |
+| upright selfie, isolated cartoon | 4.14 m | 5.18 m | 73 | 48 | **0.28 h** |
+
+Brushparang, 119 mm wide at a 0.5 mm stroke, cutoff 40, no contours. Two runs
+of the same picture differ by a percent or so in travel and a few dips, so read
+the small differences as noise.
+
+How it is drawn:
+
+- **The light on the face is evened first**, with the Insta Face Filter's own
+  code (`facefilter.enhance`). A face lit from one side is two colours to
+  what follows, a lit one and a shadowed one, with a line between them down
+  the middle of the face.
+- **Flattened by a mean shift**, which pulls each pixel to the colour of the
+  region it belongs to, so a cheek is one colour before any are counted.
+- **Six colours, chosen by k-means** in Lab, and from the subject alone when it
+  is isolated, since a colour spent on a background about to become paper is
+  one the face did not get. Seeded, so a photograph makes the same cartoon
+  every time.
+- **Lines where the picture is narrowly darker than its surroundings**: a
+  difference of Gaussians, read as a ratio. The eyes, brows, nostrils and the
+  line of the lips are narrow and darker than what is round them. A broad
+  shadow is not narrow, and is left to the colours. No line is thinner than
+  half a stroke, the width a contour is drawn at and for the same reason.
+- **Isolated, the subject is outlined.** Cut out onto paper, a white cap has no
+  edge at all against the sheet it stands on.
+
+**Everything is measured against the largest face, not the frame.** The first
+version flattened every photograph at 480 px along its long side. That suited a
+portrait whose face filled a third of the frame, and turned a selfie whose face
+filled a seventh into two blobs with no eyes. The face is now worked at 80 px
+across (`FACE_PX`), with the whole picture between 256 and 1024 px along its
+long side, and a face of a sixth of the diagonal assumed when none is found.
+
+What was tried and left out:
+
+- **Eight colours.** They split a green shirt into two greens and a cheek into
+  two pinks, which is two fields and a boundary where there was one. Six keep
+  hair, skin, its shadow, clothes and background apart.
+- **Stronger colours.** Pushing the palette's chroma up by a third made it look
+  more like a cartoon on screen, and pushed every face in the test set over the
+  cutoff: solid red skin on all three portraits. Left as the photograph had it.
+- **Skin to paper.** A flat skin colour separates into either bare paper or a
+  solid ink, and paper with black features is the classic cartoon face. But a
+  rule that sends skin to paper sends dark skin to paper as well, so there is
+  no such rule. Whether a face is paper or red is the **Ink cutoff**'s decision,
+  as it is without the cartoon.
+- **A line threshold of a tenth, and a fixed difference.** Measured as a
+  difference in grey, a dim selfie had no eyes and a bright portrait had
+  plenty, so it is a ratio. At a tenth darker the selfie's eyes were two dots
+  and it had no nose or mouth; at seven hundredths a nose; at five hundredths
+  (`LINE_DARKER`) the mouth as well, and no speckle on the other portraits.
+
+What it does not do well: isolated at six colours, a blonde's hair is close
+enough to her skin to share its colour, and goes with it to paper. A grey
+photograph comes out with grey fields, which the paper profile separates into
+cyan; that is the separation's doing, and the photograph does it uncartooned.
+It takes 0.1 to 1.1 s on top of the separation.
+
 ### Photo to woodcut
 
 Set a tray's *Image Type* to **Photo** and the upload is converted to woodcut /

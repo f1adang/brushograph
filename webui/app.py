@@ -20,6 +20,7 @@ from flask import (Flask, abort, jsonify, render_template, request, send_file,
 import numpy as np
 from PIL import Image
 
+import cartoon
 import cmyk_sep
 import config_history
 import facefilter
@@ -346,20 +347,38 @@ def _subject_mask(form, image: Image.Image, log=None, field: str = "woodcut_isol
     return subject.isolate(image, found["box"], faces=found.get("faces"), log=log)
 
 
-def _cmyk_source(form, photo: Image.Image, log=None) -> Image.Image:
-    """The colour photograph the plates are cut from, with its background taken
-    away if isolating was asked for.
+def _cmyk_photo(form, upright: Image.Image, log=None, name: str = "") -> Image.Image:
+    """The colour photograph the plates are cut from: its background taken away
+    if isolating was asked for, drawn as a cartoon if that was, and laid along
+    the canvas.
+
+    In that order. Both are done to the photograph the right way up and only
+    then is it turned, because the face detector finds faces that are upright:
+    a portrait turned a quarter turn to lie along a landscape bed has its face
+    on its side, the detector found nothing there, and the cartoon was drawn
+    at a guess of the scale and came out as blocks. It is also what the page
+    asks about when it offers the options, so the two agree on what is there.
 
     The background is made white before the separation rather than knocked out
     of the plates after it, so the subject's silhouette is an edge like any
     other: Black contours draws it, and a pale shoulder against a white sheet
     is outlined rather than lost.
     """
-    mask = _subject_mask(form, photo, log, "cmyk_isolate")
-    if mask is None:
-        return photo
-    rgb = np.asarray(uploads.flatten(photo))
-    return Image.fromarray(np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8), "RGB")
+    laid = _lay_for_canvas(form, upright, log, name)
+    mask = _subject_mask(form, upright, log, "cmyk_isolate")
+    if _flag(form, "cmyk_cartoon", "false"):
+        # The largest face sets how coarse the cartoon is. The stroke is
+        # measured on the photograph as it will lie: turning it changes which
+        # side is the width, not how large a pixel is.
+        picture = cartoon.cartoonify(upright, subject._faces(upright), mask,
+                                     _cmyk_brush_px(form, laid), log)
+    elif mask is not None:
+        rgb = np.asarray(uploads.flatten(upright))
+        picture = Image.fromarray(np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8), "RGB")
+    else:
+        return laid
+    # The same rule on the same proportions, so it is turned the way `laid` was.
+    return _lay_for_canvas(form, picture)
 
 
 def _prettify_faces(form, image: Image.Image, log=None) -> Image.Image:
@@ -409,8 +428,7 @@ def cmyk_preview():
         return jsonify(error="No image supplied"), 400
     try:
         with Image.open(upload.stream) as im:
-            photo = _lay_for_canvas(request.form, uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
-        photo = _cmyk_source(request.form, photo)
+            photo = _cmyk_photo(request.form, uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
         plates = cmyk_sep.threshold_plates(photo, _cmyk_cutoff(request.form),
                                            _cmyk_knockout(request.form),
                                            _cmyk_contours(request.form),
@@ -945,10 +963,9 @@ def options_form_post():
                 with Image.open(photo_path) as im:
                     photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE, app.logger.info,
                                             cmyk_upload.filename)
-                photo = _lay_for_canvas(request.form, photo, app.logger.info,
-                                        f"{cmyk_upload.filename}: ")
-                photo = _cmyk_source(request.form, photo, app.logger.info)
-                plates =cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form),
+                photo = _cmyk_photo(request.form, photo, app.logger.info,
+                                    f"{cmyk_upload.filename}: ")
+                plates = cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form),
                                                    _cmyk_knockout(request.form),
                                                    _cmyk_contours(request.form),
                                                    _cmyk_brush_px(request.form, photo))
