@@ -5,6 +5,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 ## [v2.23.0](https://github.com/f1adang/brushograph/releases/tag/v2.23.0) — 2026-10-09
 
 - **Isolate the subject of a colour photograph:** when the colour photograph shows a person, an animal or a prominent object, an **Isolate** option now appears under its settings, as it already did for a tray's photo. Tick it and everything around the subject is left as bare paper, and the plates are redrawn to show it. With **Black contours** turned up, the subject is outlined too. On a portrait this roughly halves the painting time, and much more on a photo taken in a busy room: one selfie went from 1.7 hours to half an hour.
+- **Cartoonify a photograph of someone:** when the colour photograph has a face in it, a **Cartoonify** option appears beside Isolate. It redraws the photograph as a coarse cartoon before splitting it into plates: six flat colours, plus dark lines for the eyes, brows, nose and mouth. Flat colours paint as clean shapes instead of ragged islands, so the brush goes down a half to a third as often and the painting takes about half as long. With Isolate as well, the person is outlined against the bare paper. Whether skin comes out as paper or as paint is still decided by **Ink cutoff**. An upright portrait that is turned to fit the bed is now isolated and cartooned before it is turned, so its face is still found.
 
 ## [v2.22.7](https://github.com/f1adang/brushograph/releases/tag/v2.22.7) — 2026-10-06
 
