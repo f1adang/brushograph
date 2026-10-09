@@ -547,8 +547,9 @@ def _stair_climb(holder: dict, tray_y: float, dip: float,
     A pickup leaves a bay in one straight line from the floor to
     cup_swipe_exit_z, and that is right for a pickup, which wants the brush
     drawn lightly out of the paint. A wash does not. On the Mini that line is
-    1.1 mm clear of the first step, only just touches the edge of the second, and
-    finishes on the third at no pressure at all. It lifts off the floor almost
+    2.1 mm clear of the first step, 1.2 of the second and 0.3 of the third,
+    and touches only the edge of the fourth, which it finishes on at no
+    pressure at all. It lifts off the floor almost
     as soon as it starts moving, so for most of its length the brush is not
     touching anything.
 
@@ -733,8 +734,12 @@ def _container_motion(conf: dict, tray_x: float, tray_y: float, reps: int = 1,
                     lines += [f"G01 X{_fmt(dip_x)} Y{_fmt(y)} Z{_fmt(z)} ; {why}"
                               for y, z, why in climb]
                 else:
-                    lines.append(f"G01 X{_fmt(dip_x)} Y{_fmt(far)} Z{_fmt(exit_z)}"
-                                 " ; up the stairs -- wipes itself")
+                    # To the back of the swipe, where a job's swipe ends:
+                    # cup_swipe_exit_z is the height of the step under that
+                    # point, and `far` is a step short of it, where the same
+                    # height would leave the brush in the air.
+                    lines.append(f"G01 X{_fmt(dip_x)} Y{_fmt(tray_y + depth / 2)}"
+                                 f" Z{_fmt(exit_z)} ; up the stairs -- wipes itself")
             lines.append(f"G00 Z{_fmt(lift)}")
         return lines
 

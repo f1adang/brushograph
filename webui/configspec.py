@@ -131,12 +131,19 @@ CLASSIC_DISH_SETTINGS = OrderedDict([
 # The tray lift clears the rim by 2 mm. The dip goes just under the floor, the
 # bristles flexing, as the classic dish's does. The swipe ends over the stairs
 # (the back 40% of the crucible, five steps rising to the rim): its far end,
-# 35% of the swipe past the centre, is over the third step on both holders, so
+# half the swipe past the centre, is over the fourth step on both holders, so
 # that step's top is where the swipe finishes.
+#
+# It was the third. The far end used to stop 15% of the swipe short of its
+# length, like the near one, and this was worked out for that; v2.16.3 ran the
+# swipe on to the back and left the height where it was, so the brush finished
+# 1.7 mm under the tread it was over (1.4 on the Mikro) -- still in the paint,
+# whenever a cup was filled past the third step. Ending a step higher finishes
+# the wipe above that, on the fourth step's edge, with the tip on its tread.
 def _crucible_settings(rim, floor, length, swipe):
     stairs = length * 0.4
     start = length / 2 - stairs           # where they begin, from the centre
-    far = swipe * 0.35
+    far = swipe / 2
     step = int((far - start) // (stairs / 5)) + 1 if far > start else 0
     return OrderedDict([
         ("go_in_tray_lift", int(rim + 2)),

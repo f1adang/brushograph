@@ -267,7 +267,7 @@ What differs, from the parts in the release's `Standard_STLs.zip` and
 | canvas start Y | 25 | 19 |
 | water container at | X12 Y6 | X2 Y6 |
 | swipe | 27.7 mm | 17.5 mm |
-| go in tray lift / dip depth / swipe exit Z | 12 / 1.0 / 6.5 | 10 / 1.0 / 5.3 |
+| go in tray lift / dip depth / swipe exit Z | 12 / 1.0 / 8.2 | 10 / 1.0 / 6.6 |
 | zero.g far corner | X160 Y160 Z32 | X75 Y123 Z21 |
 | petri dish holder | yes | none |
 
@@ -2883,11 +2883,35 @@ It is one interpolated move rather than a tread-by-tread staircase. The bristles
 flex over the steps, and a stepped path would need the step count and their
 heights — which the holder STL does not carry, since its slots are open through
 the plate. The crucibles' SCAD does: five steps over the back 40% of the
-crucible, rising to the rim. The swipe's far end, 35% of its length past the
-centre, is over the third step on both models, so **Auto-space containers** sets
-`cup_swipe_exit_z` to that step's top — 6.5 mm on the Mini, 5.3 on the 𝔐𝔦𝔨𝔯𝔬.
+crucible, rising to the rim. The swipe's far end, half its length past the
+centre, is over the fourth step on both models, so **Auto-space containers** sets
+`cup_swipe_exit_z` to that step's top — 8.2 mm on the Mini, 6.6 on the 𝔐𝔦𝔨𝔯𝔬.
 With them it sets the tray lift 2 mm over the rim (12 and 10) and the dip just
 under the 1.2 mm floor (1.0 on both), bristles flexing, as the petri dish does.
+
+**It was the third step, 6.5 and 5.3, until the swipe was lengthened.** The far
+end used to stop 15% of the swipe short of its length, as the near end still
+does, 9.7 mm past the centre on the Mini. v2.16.3 ran it on to the back, 13.85,
+over the fourth step, and left the exit height where it was. On the Mini that
+line, from Y −9.7 Z 1.0 to Y +13.85 Z 6.5:
+
+| | step 3's edge | step 4's edge | the end, over step 4 (top 8.24) |
+|---|---|---|---|
+| ending at 6.5 | 1.1 mm into it | 2.2 mm into it | 1.7 mm under the tread |
+| ending at 8.2 | 0.3 mm clear | 0.6 mm into it | on the tread |
+
+Ending 1.7 mm under the tread it was over, the brush was pushed down onto
+step 4 at the end of the swipe with the rest of it 6.5 mm off the floor — in
+the paint, once a cup was filled past the third step's 6.48, and lifted
+straight out of it from there. A step higher, the wipe is on the fourth step's
+edge and the tip comes off at its top: in a full cup that is above the paint
+rather than in it. It touches less of the stairs on the way, which is what a
+pickup wants — drawn lightly out of the paint, not scrubbed (a wash still
+climbs every step to the rim, `_stair_climb`). On the 𝔐𝔦𝔨𝔯𝔬 the step is
+1.36 mm, from 5.3 to 6.6. A saved config keeps the height it has until
+**Auto-space containers** is pressed or the field is changed; it is relative to
+Dip Depth, so a machine set up with a dip of 0 rather than 1.0 wants 7.2 on the
+Mini, not 8.2.
 
 The 40% is the design's and it is worth re-checking against a print, because
 it is the one figure here that is read off a curve rather than stated. Slicing
@@ -2945,8 +2969,12 @@ its shape back first, which is what the run down the bay in clear air is for.
 `go_in_tray_lift − 2 − RIM_CATCH` — two millimetres under a rim that the tray
 lift clears by two — and never lower than a millimetre above where the stairs
 end, which is `cup_swipe_exit_z` by definition. That is what gets it over the
-stairs and out into the empty part of the bay: 2.0 mm under the rim and 1.1 over
-the stairs on the Mini and on Pinkograph, 1.7 and 1.0 on the 𝔐𝔦𝔨𝔯𝔬.
+stairs and out into the empty part of the bay. With the exit on the fourth
+step the millimetre over it decides: 9.2 on the Mini, 0.8 mm under the rim and
+1.0 over the step, and 7.6 on the 𝔐𝔦𝔨𝔯𝔬, 0.4 under and 1.0 over. It was 2.0 and
+1.7 under while the exit was the third step's height, but that was 0.2 and
+0.3 mm *into* the fourth step, which the run down the bay starts over — it
+dragged the bend along a tread instead of letting go of it.
 
 **Going down as it crosses, not rubbing along.** It starts `RIM_DROP` (2 mm)
 higher and descends across the rim, so the bristles are taken by an edge rather
