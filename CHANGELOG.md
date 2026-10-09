@@ -5,6 +5,8 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 ## [v2.24.0](https://github.com/f1adang/brushograph/releases/tag/v2.24.0) — 2026-10-09
 
 - **Cartoonify draws a caricature:** like a street portraitist in Montmartre, the cartoon now picks whatever is most unusual about each face and makes it grotesquely more so: a longer nose, a wider mouth, heavier brows, eyes further apart, a longer chin. The note under the plates says what it picked. It compares each face with what is typical in everyday photos, so it does not give everyone the same big nose. The first time the WebUI starts after updating, it downloads a 54 MB face model once; without it, Cartoonify still works but draws no caricature.
+- **A more detailed cartoon:** Cartoonify now draws much more of the face: eight colours instead of six, finer lines for the creases, curls and lips, and thin lines where the light and shadow on the face meet. A face that used to paint as one flat shape with dots for eyes now has outlined eyes, a nose and a mouth. More detail means more painting: an isolated portrait takes about 15 to 35% longer than with the old cartoon, but still less than the photo without Cartoonify.
+- **Isolate gives the same result every time:** isolating the same photo twice could cut it out very slightly differently. Usually you could not see it, but with Cartoonify it could change a face's colour from paint to bare paper between one preview and the next. The same photo now always gives the same cut-out and the same painting.
 
 ## [v2.23.0](https://github.com/f1adang/brushograph/releases/tag/v2.23.0) — 2026-10-09
 
