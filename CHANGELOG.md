@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.1](https://github.com/f1adang/brushograph/releases/tag/v2.23.1) — 2026-10-09
+
+- **The brush leaves a full CMYK cup above the paint:** when loading paint, the brush wipes itself by sliding up the stairs at the back of the cup. That wipe now finishes one step higher, at 8.2 mm on the Mini and 6.6 mm on the 𝔐𝔦𝔨𝔯𝔬 instead of 6.5 and 5.3. Before, in a well-filled cup the brush finished the wipe still under the paint and came out carrying too much. The mix macros now wipe the same way. Saved configs keep their old height until you press **Auto-space containers** or change **Cup Swipe Exit Z** yourself. If your Dip Depth is 0 rather than 1, use 7.2 on a Mini.
+
 ## [v2.23.0](https://github.com/f1adang/brushograph/releases/tag/v2.23.0) — 2026-10-09
 
 - **Isolate the subject of a colour photograph:** when the colour photograph shows a person, an animal or a prominent object, an **Isolate** option now appears under its settings, as it already did for a tray's photo. Tick it and everything around the subject is left as bare paper, and the plates are redrawn to show it. With **Black contours** turned up, the subject is outlined too. On a portrait this roughly halves the painting time, and much more on a photo taken in a busy room: one selfie went from 1.7 hours to half an hour. An upright portrait that is turned to fit the bed is isolated before it is turned, so its face is still found.
