@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.24.0](https://github.com/f1adang/brushograph/releases/tag/v2.24.0) — 2026-10-09
+
+- **Cartoonify draws a caricature:** like a street portraitist in Montmartre, the cartoon now picks whatever is most unusual about each face and makes it grotesquely more so: a longer nose, a wider mouth, heavier brows, eyes further apart, a longer chin. The note under the plates says what it picked. It compares each face with what is typical in everyday photos, so it does not give everyone the same big nose. The first time the WebUI starts after updating, it downloads a 54 MB face model once; without it, Cartoonify still works but draws no caricature.
+
 ## [v2.23.0](https://github.com/f1adang/brushograph/releases/tag/v2.23.0) — 2026-10-09
 
 - **Isolate the subject of a colour photograph:** when the colour photograph shows a person, an animal or a prominent object, an **Isolate** option now appears under its settings, as it already did for a tray's photo. Tick it and everything around the subject is left as bare paper, and the plates are redrawn to show it. With **Black contours** turned up, the subject is outlined too. On a portrait this roughly halves the painting time, and much more on a photo taken in a busy room: one selfie went from 1.7 hours to half an hour.
