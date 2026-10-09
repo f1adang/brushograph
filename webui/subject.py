@@ -300,6 +300,11 @@ def snap_to_edges(image: Image.Image, mask: np.ndarray, band: float = 0.04,
         return mask
 
     bgd, fgd = np.zeros((1, 65), np.float64), np.zeros((1, 65), np.float64)
+    # GrabCut starts its colour models from OpenCV's random numbers. Unseeded,
+    # one photograph isolated twice came out 61 pixels different, which was
+    # enough to give the cartoon of it a different palette and its face a
+    # different ink. Seeded, the same photograph is cut out the same way.
+    cv2.setRNGSeed(1)
     try:
         cv2.grabCut(cv2.cvtColor(small, cv2.COLOR_RGB2BGR), guide, None,
                     bgd, fgd, iterations, cv2.GC_INIT_WITH_MASK)
@@ -602,6 +607,7 @@ def isolate(image: Image.Image, box, faces=None, iterations: int = 6, log=None) 
             mask[ty:ty + th, tx:tx + tw] = cv2.GC_FGD
 
     bgd, fgd = np.zeros((1, 65), np.float64), np.zeros((1, 65), np.float64)
+    cv2.setRNGSeed(1)     # the same cut every time; see snap_to_edges
     try:
         cv2.grabCut(cv2.cvtColor(small, cv2.COLOR_RGB2BGR), mask, None,
                     bgd, fgd, iterations, cv2.GC_INIT_WITH_MASK)

@@ -1483,6 +1483,15 @@ Two details decide whether the cut-out is usable:
   8). And sky the network keeps as subject in the first place, which is not a
   hole at all — a small loop of pink cable on the same hat.
 
+**The same photograph is cut out the same way every time.** The edge snapping
+is GrabCut, and GrabCut starts its colour models from OpenCV's random numbers.
+Unseeded, one selfie isolated twice came out 61 pixels different. That is
+nothing to look at, but it reached the cartoon's palette, and since that
+selfie's skin sits close to the ink cutoff, its face painted magenta one time
+and bare paper the next. The generator is seeded before each GrabCut now.
+Painted length is identical from one run to the next; travel still differs by
+about a percent, which comes from elsewhere in the pipeline.
+
 This replaced a GrabCut-based attempt. GrabCut segments on colour, and no amount
 of seeding got it past two failures: dark hair against dark foliage was read as
 background, so heads came out cropped, and patches of grass and wall that
