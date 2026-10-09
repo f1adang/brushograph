@@ -1,21 +1,22 @@
 #!/usr/bin/python3
-"""A coarse cartoon of a photograph of someone, before it is separated into plates.
+"""Simplify a photograph into something a brush can paint, before it is
+separated into plates.
 
 The separation thresholds each ink, so a photograph's soft gradients come out as
 ragged fields: a cheek that drifts across the cutoff is painted as a coastline of
-islands, and each island is a brush-down. A cartoon is the opposite kind of
-picture: a few flat colours, each one a field with a clean edge, and dark lines
-where the features are. That is what a brush that paints solid ink or nothing
-can lay down well, so this turns the photograph into one before the plates are
-cut from it.
+islands, and each island is a brush-down. What this makes is the opposite kind
+of picture, the way a cartoon is drawn: a few flat colours, each one a field
+with a clean edge, dark lines where the features are, and fine lines where one
+flat colour meets the next. That is what a brush that paints solid ink or
+nothing can lay down well.
 
-Everything is measured against the largest face, not the frame. A cartoon of a
-person is a drawing of that face, and a selfie whose face fills a seventh of
-the frame flattened at the frame's scale came out as two blobs with no eyes.
+Everything is measured against the largest face, not the frame, when there is
+one. A selfie whose face fills a seventh of the frame, flattened at the
+frame's scale, came out as two blobs with no eyes. A photograph with no face
+in it is measured as if a head-and-shoulders portrait had been taken of it.
 
-And like the portraitists on the Place du Tertre, it is a caricature: before
-anything else, each face has the trait it has most of (or least) exaggerated,
-grotesquely. That is `caricature.py`.
+Exaggerating a face is a separate matter, `caricature.py`; the two are often
+used together, the caricature first.
 """
 from __future__ import annotations
 
@@ -23,19 +24,18 @@ import cv2
 import numpy as np
 from PIL import Image
 
-import caricature
 import facefilter
 from images import flatten
 
 # How many pixels across the largest face is when it is flattened, which is how
-# much of it the cartoon can draw. At 80 the features were about eight pixels
-# each: a cartoon, but a coarse one, the curls of a hairdo a single blob. At 140
+# much of it can be drawn. At 80 the features were about eight pixels
+# each: a picture, but a coarse one, the curls of a hairdo a single blob. At 140
 # the folds round a mouth and the shape of a brow come through. At 200 the
 # lines began to break into dashes along the hair.
 FACE_PX = 140
 
 # Never work on a picture smaller or larger than this along its long side. A face
-# filling the whole frame would otherwise be cartooned at 80 px and the painting
+# filling the whole frame would otherwise be simplified at 140 px and the painting
 # made of blocks; a face that is a speck in a crowd would ask for a picture
 # larger than the photograph.
 WORK_MIN, WORK_MAX = 256, 1024
@@ -46,11 +46,17 @@ WORK_MIN, WORK_MAX = 256, 1024
 # and, with FACE_WEIGHT and the hairlines, the shapes of its light.
 COLOURS = 8
 
-# The edges between the cartoon's flat colours are drawn as hairlines when they
+# The edges between the flat colours are drawn as hairlines when they
 # run at least this far, as a fraction of the face (see `_cel_lines`). At 0.3
 # every hairdo was a contour map; at 0.6 what is left is the edge of a shadow,
 # the wing of a nose, the outline of an eye. Nought draws none.
 CEL_MIN = 0.6
+
+# And, away from a face, only where the photograph changes by at least this
+# many grey levels across a tenth of the face. At 30 the lines across a clear
+# sky were all gone and a plain wall's mostly; at 120 lines on a jacket started
+# to go as well.
+CEL_EDGE = 40
 
 # How many times over a face's pixels count when the colours are chosen.
 FACE_WEIGHT = 4
@@ -63,7 +69,7 @@ COLOUR_RADIUS = 24
 # as a ratio rather than a difference: a dim selfie and a studio portrait have
 # the same eyes in them, and a fixed difference found them only in the bright
 # one. Three hundredths finds the lines round a mouth and the curls of a hairdo;
-# the coarse cartoon drew only the eyes, the nostrils and the mouth, at five.
+# the first, coarser version drew only the eyes, the nostrils and the mouth, at five.
 LINE_DARKER = 0.03
 
 # The line finder's scale, as a fraction of the face. Finer than it was (0.018
@@ -113,19 +119,38 @@ def _lines(small: np.ndarray, face_work: float) -> np.ndarray:
     return keep[labels].astype(np.uint8)
 
 
-def _cel_lines(label: np.ndarray, mask: np.ndarray | None, face: float) -> np.ndarray:
-    """The edges between the cartoon's own flat colours, as hairlines.
+def _cel_lines(label: np.ndarray, mask: np.ndarray | None, face: float,
+               rgb: np.ndarray, faces) -> np.ndarray:
+    """The edges between the picture's own flat colours, as hairlines.
 
-    The colours a cartoon gives a face (its light, its shadow, the shadow
+    The colours this gives a face (its light, its shadow, the shadow
     under the nose) are often too close to separate into different inks: they
     are all magenta, or all paper, and the face paints as one flat field with
     dots for eyes. Drawn as a line, the edge of a shadow survives the cutoff,
     which is how a drawn cartoon shows where the light falls. Only inside the
     subject, and a run shorter than CEL_MIN of the face is dropped as a scrap.
+
+    And, away from a face, only where the photograph itself changes
+    (CEL_EDGE). The k-means cuts a smooth gradient somewhere too, and a clear
+    sky going from white to near-white was drawn with a line wandering across
+    it that is in nothing but the arithmetic. On a face the rule does not
+    apply: light and shade on skin are as gentle as a sky, and applied there
+    it took a selfie's outlined eyes and nose back to dots.
     """
     edge = np.zeros(label.shape, bool)
     edge[:, 1:] |= label[:, 1:] != label[:, :-1]
     edge[1:, :] |= label[1:, :] != label[:-1, :]
+    grey = cv2.cvtColor(rgb, cv2.COLOR_RGB2GRAY).astype(np.float32)
+    grey = cv2.GaussianBlur(grey, (0, 0), max(1.0, face * 0.01))
+    # A Sobel kernel reads eight times the slope; the slope is wanted in grey
+    # levels across a tenth of the face.
+    slope = np.hypot(cv2.Sobel(grey, cv2.CV_32F, 1, 0), cv2.Sobel(grey, cv2.CV_32F, 0, 1)) / 8.0
+    near_face = np.zeros(label.shape, np.uint8)
+    for fx, fy, fw, fh in faces:
+        # The face and the hair and jaw round it.
+        cv2.ellipse(near_face, (int(fx + fw / 2), int(fy + fh / 2)),
+                    (int(fw * 0.8), int(fh * 0.9)), 0, 0, 360, 1, -1)
+    edge &= (slope * (0.1 * face) >= CEL_EDGE) | (near_face > 0)
     if mask is not None:
         edge &= cv2.erode(mask.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
     _, labels, stats, _ = cv2.connectedComponentsWithStats(edge.astype(np.uint8), connectivity=8)
@@ -134,26 +159,19 @@ def _cel_lines(label: np.ndarray, mask: np.ndarray | None, face: float) -> np.nd
     return keep[labels]
 
 
-def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
-               brush_px: float = 0.0, log=None) -> tuple[Image.Image, list]:
-    """The photograph as a coarse cartoon: flat colours and dark feature lines,
-    and each face a caricature of itself.
+def simplify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
+             brush_px: float = 0.0, log=None) -> Image.Image:
+    """The photograph simplified: flat colours, dark feature lines, and fine
+    lines where the colours meet.
 
-    `faces` are face boxes in this picture's pixels, with the detector's eye
-    points where it has them (`subject._faces(..., points=True)`); the largest
-    sets the scale. `mask`, when the subject is isolated, takes the palette from
-    the subject alone, leaves the rest bare paper and outlines the subject.
+    `faces` are face boxes in this picture's pixels (anything past the first
+    four figures of each is ignored); the largest sets the scale, and without
+    one the frame does. `mask`, when the subject is isolated, takes the palette
+    from the subject alone, leaves the rest bare paper and outlines the subject.
     `brush_px` is the stroke's width in this picture's pixels: no line is drawn
     thinner than half of it, which is the width a contour is drawn at, and for
     the same reason.
-
-    Returns the cartoon and the trait exaggerated in each face, as
-    `caricature.caricature` reports them.
     """
-    # The caricature first, on the photograph: the warp moves shading and
-    # edges together, and the flat colours and the lines are then found on the
-    # face as it is to be drawn rather than bent after the fact.
-    image, mask, traits = caricature.caricature(image, faces or [], mask, log)
     rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
     faces = [tuple(int(v) for v in f[:4]) for f in (faces or [])]
@@ -161,8 +179,8 @@ def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
     face_work = face * scale
 
     # Even the light on the face first. A face lit from one side is two colours
-    # to the k-means, a lit one and a shadowed one, and the cartoon draws a
-    # line down the middle of it.
+    # to the k-means, a lit one and a shadowed one, and a line is drawn down
+    # the middle of it.
     if faces:
         rgb = np.asarray(flatten(facefilter.enhance(Image.fromarray(rgb), faces=faces)))
 
@@ -194,7 +212,7 @@ def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
         if len(skin):
             sample = np.concatenate([sample.reshape(-1, 3)] + [skin] * (FACE_WEIGHT - 1))
     k =int(min(COLOURS, max(1, len(np.unique(sample.astype(np.uint8), axis=0)))))
-    # Seeded, so the same photograph makes the same cartoon and the same G-code.
+    # Seeded, so the same photograph makes the same picture and the same G-code.
     cv2.setRNGSeed(1)
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5)
     _, _, centres = cv2.kmeans(sample.reshape(-1, 3), k, None, criteria, 3,
@@ -227,7 +245,7 @@ def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
     else:
         lines = lines > 0
     if CEL_MIN > 0:
-        lines = lines | _cel_lines(label, mask, face)
+        lines = lines | _cel_lines(label, mask, face, rgb, faces)
     across = round(0.5 * brush_px)
     if across >= 2:
         lines = cv2.dilate(lines.astype(np.uint8),
@@ -238,8 +256,8 @@ def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
     if mask is not None:
         out[(mask == 0) & ~lines] = 255
     if log:
-        log(f"cartoon: {k} colours, face {face:.0f} px, worked at {size[0]}×{size[1]}")
-    return Image.fromarray(out.astype(np.uint8), "RGB"), traits
+        log(f"simplify: {k} colours, face {face:.0f} px, worked at {size[0]}×{size[1]}")
+    return Image.fromarray(out.astype(np.uint8), "RGB")
 
 
 def _odd(n: float) -> int:

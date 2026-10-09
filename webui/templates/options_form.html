@@ -264,14 +264,19 @@
             <input type="checkbox" name="cmyk_isolate" id="cmyk-isolate" value="true">
             <span><b id="cmyk-subject-label">Isolate the subject</b><i id="cmyk-subject-note"></i></span>
           </label>
-          <label class="switch" id="cmyk-cartoon-row" hidden>
-            <input type="hidden" name="cmyk_cartoon" value="false">
-            <input type="checkbox" name="cmyk_cartoon" id="cmyk-cartoon" value="true">
-            <span><b>Cartoonify</b><i>Redraw the photograph as a caricature: whatever
-              is most unusual about each face, a nose, a chin, the brows, made grotesquely
-              more so, then a few flat colours and dark lines for the eyes, brows, nose and
-              mouth. Flat colours separate into clean fields rather than ragged ones, so
-              there is less to paint.</i></span>
+          <label class="switch" id="cmyk-simplify-row">
+            <input type="hidden" name="cmyk_simplify" value="false">
+            <input type="checkbox" name="cmyk_simplify" id="cmyk-simplify" value="true">
+            <span><b>Simplify</b><i>Redraw the photograph the way a cartoon is drawn: a few flat
+              colours, dark lines for the eyes, brows, nose and mouth, and fine lines where
+              light and shade meet. Flat colours separate into clean fields rather than ragged
+              ones, so there is less to paint.</i></span>
+          </label>
+          <label class="switch" id="cmyk-caricature-row" hidden>
+            <input type="hidden" name="cmyk_caricature" value="false">
+            <input type="checkbox" name="cmyk_caricature" id="cmyk-caricature" value="true">
+            <span><b>Caricature</b><i>Find whatever is most unusual about each face, a nose, a
+              chin, the brows, and make it grotesquely more so.</i></span>
           </label>
         </div>
         <div class="row">

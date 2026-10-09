@@ -1396,7 +1396,8 @@ function wireForm() {
   const cmykKnockout = $("cmyk-knockout");
   const cmykContours = $("cmyk-contours");
   const cmykIsolate = $("cmyk-isolate");
-  const cmykCartoon = $("cmyk-cartoon");
+  const cmykSimplify = $("cmyk-simplify");
+  const cmykCaricature = $("cmyk-caricature");
   let cmykPreviewTimer = null;
 
   function cmykFile() {
@@ -1419,7 +1420,8 @@ function wireForm() {
     if (cmykKnockout) fd.append("cmyk_knockout", cmykKnockout.checked ? "true" : "false");
     if (cmykContours) fd.append("cmyk_contours", cmykContours.value);
     fd.append("cmyk_isolate", cmykIsolate && cmykIsolate.checked ? "true" : "false");
-    fd.append("cmyk_cartoon", cmykCartoon && cmykCartoon.checked ? "true" : "false");
+    fd.append("cmyk_simplify", cmykSimplify && cmykSimplify.checked ? "true" : "false");
+    fd.append("cmyk_caricature", cmykCaricature && cmykCaricature.checked ? "true" : "false");
     fd.append("theme", document.documentElement.dataset.theme || "default");
 
     const label = labelOf(cmykBtn);
@@ -1471,7 +1473,7 @@ function wireForm() {
         cmykPreviewTimer = setTimeout(previewCmyk, 180);
       });
     }
-    for (const box of [cmykKnockout, cmykIsolate, cmykCartoon]) {
+    for (const box of [cmykKnockout, cmykIsolate, cmykSimplify, cmykCaricature]) {
       if (!box) continue;
       box.addEventListener("change", () => {
         if (cmykFile()) previewCmyk();
@@ -1681,8 +1683,9 @@ function wireForm() {
     offerSubject(() => { const i = $("cmyk-photo"); return i && i.files.length ? i.files[0] : null; }, {
       row: "cmyk-subject-row", box: "cmyk-isolate",
       label: "cmyk-subject-label", note: "cmyk-subject-note",
-      // A cartoon is drawn to the scale of a face, and offered for people.
-      faceRows: [["cmyk-cartoon-row", "cmyk-cartoon"]],
+      // A caricature is of a face, so it is offered only when there is one.
+      // Simplify is offered for any photograph and is not in here.
+      faceRows: [["cmyk-caricature-row", "cmyk-caricature"]],
     });
   }
 

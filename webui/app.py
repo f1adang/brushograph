@@ -21,12 +21,12 @@ import numpy as np
 from PIL import Image
 
 import caricature
-import cartoon
 import cmyk_sep
 import config_history
 import facefilter
 import gcode_pipeline
 import levelmap
+import simplify
 # As `uploads`: `images` is what the G-code endpoint calls its tray pictures.
 import images as uploads
 import subject
@@ -350,40 +350,51 @@ def _subject_mask(form, image: Image.Image, log=None, field: str = "woodcut_isol
 
 def _cmyk_photo(form, upright: Image.Image, log=None,
                 name: str = "") -> tuple[Image.Image, list]:
-    """The colour photograph the plates are cut from: its background taken away
-    if isolating was asked for, drawn as a cartoon if that was, and laid along
-    the canvas. With it, the trait the cartoon exaggerated in each face, as
-    `caricature.caricature` reports them; none without a cartoon.
+    """The colour photograph the plates are cut from, and the trait the
+    caricature exaggerated in each face (as `caricature.caricature` reports
+    them; none without one).
 
-    In that order. Both are done to the photograph the right way up and only
-    then is it turned, because the face detector finds faces that are upright:
-    a portrait turned a quarter turn to lie along a landscape bed has its face
-    on its side, the detector found nothing there, and the cartoon was drawn
-    at a guess of the scale and came out as blocks. It is also what the page
-    asks about when it offers the options, so the two agree on what is there.
+    Four steps, each only if it was asked for, in this order:
 
-    The background is made white before the separation rather than knocked out
-    of the plates after it, so the subject's silhouette is an edge like any
-    other: Black contours draws it, and a pale shoulder against a white sheet
-    is outlined rather than lost.
+    - **Isolate**: the subject cut out. The background is made white before
+      the separation rather than knocked out of the plates after it, so the
+      silhouette is an edge like any other: Black contours draws it, and a
+      pale shoulder against a white sheet is outlined rather than lost.
+    - **Caricature**: each face's most unusual trait exaggerated, by a warp
+      that takes the isolation mask with it, so a nose grown past the edge of
+      the face is still the subject.
+    - **Simplify**: flat colours and lines, drawn from the face as the
+      caricature left it rather than bent after the fact.
+    - laid along the canvas.
+
+    All but the last are done to the photograph the right way up, because the
+    face detector finds faces that are upright: a portrait turned a quarter
+    turn to lie along a landscape bed has its face on its side, the detector
+    found nothing there, and the picture was simplified at a guess of the
+    scale and came out as blocks. It is also what the page asks about when it
+    offers the options, so the two agree on what is there.
     """
     laid = _lay_for_canvas(form, upright, log, name)
     mask = _subject_mask(form, upright, log, "cmyk_isolate")
-    if _flag(form, "cmyk_cartoon", "false"):
-        # The largest face sets how coarse the cartoon is, and the eye points
-        # turn each face level for the caricature's landmarks. The stroke is
-        # measured on the photograph as it will lie: turning it changes which
-        # side is the width, not how large a pixel is.
-        picture, traits = cartoon.cartoonify(upright, subject._faces(upright, points=True),
-                                             mask, _cmyk_brush_px(form, laid), log)
-        return _lay_for_canvas(form, picture), traits
-    elif mask is not None:
-        rgb = np.asarray(uploads.flatten(upright))
-        picture = Image.fromarray(np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8), "RGB")
-    else:
+    wants_caricature = _flag(form, "cmyk_caricature", "false")
+    wants_simple = _flag(form, "cmyk_simplify", "false")
+    if mask is None and not (wants_caricature or wants_simple):
         return laid, []
+    picture, traits = upright, []
+    # The eye points turn each face level for the caricature's landmarks; the
+    # boxes set the scale Simplify works at.
+    faces = subject._faces(upright, points=True) if wants_caricature or wants_simple else []
+    if wants_caricature:
+        picture, mask, traits = caricature.caricature(picture, faces, mask, log)
+    if wants_simple:
+        # The stroke is measured on the photograph as it will lie: turning it
+        # changes which side is the width, not how large a pixel is.
+        picture = simplify.simplify(picture, faces, mask, _cmyk_brush_px(form, laid), log)
+    elif mask is not None:
+        rgb = np.asarray(uploads.flatten(picture))
+        picture = Image.fromarray(np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8), "RGB")
     # The same rule on the same proportions, so it is turned the way `laid` was.
-    return _lay_for_canvas(form, picture), []
+    return _lay_for_canvas(form, picture), traits
 
 
 def _prettify_faces(form, image: Image.Image, log=None) -> Image.Image:
@@ -1091,7 +1102,7 @@ def main():
     print(f"  {'subject':9} "
           + ("segmentation model ready" if subject.warm(print) else "GrabCut fallback"))
     print(f"  {'caricature':9} "
-          + ("landmark model ready" if caricature.warm(print) else "cartoons are not caricatures"))
+          + ("landmark model ready" if caricature.warm(print) else "no caricature without it"))
     app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
 
 

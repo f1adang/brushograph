@@ -936,12 +936,17 @@ arrived, upright, so the server has to look at the same picture or the two
 disagree about what is there. A portrait turned onto its side also has its face
 on its side, and the face detector does not find faces lying down.
 
-#### Cartoonify
+#### Simplify
 
-Offered beside **Isolate** when the photograph has a face in it. It redraws the
-photograph as a cartoon before the separation: a handful of flat colours, dark
-lines where the features are, and fine lines where the light and shade on the
-face meet (`cartoon.py`). It is a caricature too, below.
+Offered for every colour photograph, beside **Isolate**. It redraws the
+photograph before the separation the way a cartoon is drawn: a handful of flat
+colours, dark lines where the features are, and fine lines where light and
+shade meet (`simplify.py`). It began as **Cartoonify**, which also caricatured
+whoever was in the picture and was offered only with a face; the two are
+separate now, because one makes a photograph paintable and the other is a
+joke, and either is wanted without the other. With both ticked, the
+caricature (below) is done first, so the lines are found on the face as it is
+to be painted.
 
 A cutoff is hard on a photograph of a face. Skin is a gradient, and a cheek
 that drifts back and forth across the cutoff comes out as a coastline of
@@ -952,24 +957,23 @@ where a field would not say enough.
 | | painted | travel | brush downs | dips | rough time |
 |---|---|---|---|---|---|
 | portrait | 24.28 m | 40.70 m | 596 | 200 | 1.88 h |
-| portrait, cartoon | 25.42 m | 45.12 m | 577 | 209 | 1.80 h |
+| portrait, simplified | 25.64 m | 43.39 m | 538 | 211 | 1.77 h |
 | portrait, isolated | 12.72 m | 18.46 m | 350 | 116 | 1.01 h |
-| portrait, isolated cartoon | 13.40 m | 21.78 m | 330 | 122 | 0.96 h |
+| portrait, isolated and simplified | 13.21 m | 21.64 m | 312 | 121 | 0.95 h |
 | selfie in a room | 17.68 m | 31.15 m | 618 | 151 | 1.68 h |
-| selfie, cartoon | 11.02 m | 20.15 m | 138 | 90 | **0.74 h** |
+| selfie, simplified | 11.23 m | 21.82 m | 194 | 97 | **0.86 h** |
 | selfie, isolated | 6.84 m | 11.81 m | 108 | 72 | 0.48 h |
-| selfie, isolated cartoon | 6.44 m | 10.38 m | 74 | 58 | **0.34 h** |
+| selfie, isolated and simplified | 5.74 m | 9.91 m | 66 | 52 | **0.30 h** |
 | Che Guevara | 8.33 m | 14.38 m | 262 | 72 | 0.68 h |
-| Che, cartoon | 10.51 m | 17.36 m | 147 | 88 | 0.69 h |
+| Che, simplified | 10.28 m | 16.77 m | 149 | 87 | 0.68 h |
 | Che, isolated | 5.50 m | 9.13 m | 166 | 52 | 0.46 h |
-| Che, isolated cartoon | 6.09 m | 9.87 m | 73 | 56 | **0.39 h** |
+| Che, isolated and simplified | 6.12 m | 10.14 m | 77 | 56 | **0.40 h** |
 
-Brushparang, 119 mm wide at a 0.5 mm stroke, cutoff 40, no contours, the
-caricature included; the isolated rows with isolation seeded (see *Turning the
-map into a mask*). Two runs of the same picture still differ by a percent or so
+Brushparang, 119 mm wide at a 0.5 mm stroke, cutoff 40, no contours, no
+caricature; isolation seeded (see *Turning the map into a mask*). Two runs of the same picture still differ by a percent or so
 in travel and a dip or two, so read the small differences as noise.
 
-The cartoon is not a way to paint for less any more, though it often is one. A
+Simplify is not a way to paint for less any more, though it often is one. A
 face with little in it, like the selfie, still comes out in a fraction of the
 brush-downs. A portrait with a head of curls, drawn line by line, costs what the
 photograph did.
@@ -987,13 +991,13 @@ How it is drawn:
   the face did not get, and with the face's own pixels counted four times over
   (`FACE_WEIGHT`). Counted once, a face that is a small part of the frame got a
   single colour while a jacket and a hat took the rest. Seeded, so a photograph
-  makes the same cartoon every time.
+  makes the same picture every time.
 - **Lines where the picture is narrowly darker than its surroundings**: a
   difference of Gaussians, read as a ratio. The eyes, brows, nostrils and the
   line of the lips are narrow and darker than what is round them, and so are
   the creases at the eyes and the curls of a hairdo. A broad shadow is not
   narrow, and is left to the colours.
-- **Hairlines where two of the cartoon's colours meet** (`_cel_lines`), inside
+- **Hairlines where two of its colours meet** (`_cel_lines`), inside
   the subject, wherever the edge runs further than 0.6 of the face's width.
   This is where the detail in the painting comes from. The light and shade on
   a face are often too close in colour to fall on different sides of the
@@ -1002,6 +1006,15 @@ How it is drawn:
   as the outline of an eye, the wing of a nose and the shadow under a lip, the
   way a cartoonist draws the shape of a shadow rather than tinting it. At 0.3
   every hairdo became a contour map.
+- **And, away from a face, only where the photograph changes** (`CEL_EDGE`):
+  by 40 grey levels or more across a tenth of the face's width. The k-means
+  cuts a smooth gradient somewhere too, and once Simplify was offered without
+  isolating, a clear sky going from white to near-white was drawn with lines
+  wandering across it that were in nothing but the arithmetic. At 30 those
+  were gone from the sky behind Che Guevara and mostly from a plain wall; at
+  120, lines on his jacket were going as well. On a face the rule does not
+  apply, because light and shade on skin are as gentle as a sky, and applied
+  there it took the selfie's outlined eyes and nose back to dots.
 - **No line is thinner than half a stroke**, the width a contour is drawn at
   and for the same reason. The feature lines come out wider than that, the
   hairlines at it, so the drawing has a bold line and a fine one.
@@ -1055,16 +1068,18 @@ photograph comes out with grey fields, which the paper profile separates into
 cyan; that is the separation's doing, and the photograph does it uncartooned.
 It takes 0.35 to 1.2 s on top of the separation, the caricature included.
 
-##### A caricature, not a likeness
+#### Caricature
 
-The cartoon also caricatures, the way the portraitists on the Place du Tertre
-do: whatever is most unusual about each face is made grotesquely more so,
-before the colours and lines are found (`caricature.py`). The note under the
-plates says what was chosen ("exaggerated: heavy brows").
+Offered when the colour photograph has a face in it. It does what the
+portraitists on the Place du Tertre do: whatever is most unusual about each face
+is made grotesquely more so (`caricature.py`). The note under the plates says
+what was chosen ("exaggerated: heavy brows"). It works on the photograph
+itself, so it can be had without **Simplify**, and on its own it leaves the
+painting time where it was: Marilyn isolated is 1.01 h either way, Che 0.46 h.
 
 **Measuring a face.** OpenCV's face module puts 68 landmarks on it (the LBF
 model, 54 MB, downloaded once into `webui/models/` like the others; without it
-the cartoon is drawn as it was). That model was trained on upright faces and
+the option does nothing). That model was trained on upright faces and
 put a tilted head's mouth on its cheek, so the face is first turned until the
 eyes the face detector found are level, and the points are turned back
 afterwards. Nine traits are measured off them, all as distances in eye-to-eye
