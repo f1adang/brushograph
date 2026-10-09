@@ -317,12 +317,17 @@ def snap_to_edges(image: Image.Image, mask: np.ndarray, band: float = 0.04,
     return np.minimum(full, mask)
 
 
-def _faces(image: Image.Image) -> list:
+def _faces(image: Image.Image, points: bool = False) -> list:
     """Face boxes in source coordinates.
 
     The DNN detector is tried first and the bundled Haar cascades are the
     fallback, so this still works with nothing downloaded — less well, but it
     works.
+
+    With `points`, each box from the DNN detector carries ten more figures:
+    the right eye, left eye, tip of the nose and the two corners of the mouth,
+    x then y, as the detector names them. The cascades find no points, so a
+    box from them is four figures whatever is asked.
     """
     rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
@@ -342,7 +347,8 @@ def _faces(image: Image.Image) -> list:
                 net.setInputSize((sw, sh))
                 _, faces = net.detect(cv2.cvtColor(small, cv2.COLOR_RGB2BGR))
             if faces is not None and len(faces):
-                return [[int(v * back) for v in f[:4]] for f in faces]
+                keep = 14 if points else 4
+                return [[int(v * back) for v in f[:keep]] for f in faces]
             return []
         except cv2.error:
             pass    # fall through to the cascades

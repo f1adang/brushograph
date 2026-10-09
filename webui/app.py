@@ -20,6 +20,7 @@ from flask import (Flask, abort, jsonify, render_template, request, send_file,
 import numpy as np
 from PIL import Image
 
+import caricature
 import cartoon
 import cmyk_sep
 import config_history
@@ -347,10 +348,12 @@ def _subject_mask(form, image: Image.Image, log=None, field: str = "woodcut_isol
     return subject.isolate(image, found["box"], faces=found.get("faces"), log=log)
 
 
-def _cmyk_photo(form, upright: Image.Image, log=None, name: str = "") -> Image.Image:
+def _cmyk_photo(form, upright: Image.Image, log=None,
+                name: str = "") -> tuple[Image.Image, list]:
     """The colour photograph the plates are cut from: its background taken away
     if isolating was asked for, drawn as a cartoon if that was, and laid along
-    the canvas.
+    the canvas. With it, the trait the cartoon exaggerated in each face, as
+    `caricature.caricature` reports them; none without a cartoon.
 
     In that order. Both are done to the photograph the right way up and only
     then is it turned, because the face detector finds faces that are upright:
@@ -367,18 +370,20 @@ def _cmyk_photo(form, upright: Image.Image, log=None, name: str = "") -> Image.I
     laid = _lay_for_canvas(form, upright, log, name)
     mask = _subject_mask(form, upright, log, "cmyk_isolate")
     if _flag(form, "cmyk_cartoon", "false"):
-        # The largest face sets how coarse the cartoon is. The stroke is
+        # The largest face sets how coarse the cartoon is, and the eye points
+        # turn each face level for the caricature's landmarks. The stroke is
         # measured on the photograph as it will lie: turning it changes which
         # side is the width, not how large a pixel is.
-        picture = cartoon.cartoonify(upright, subject._faces(upright), mask,
-                                     _cmyk_brush_px(form, laid), log)
+        picture, traits = cartoon.cartoonify(upright, subject._faces(upright, points=True),
+                                             mask, _cmyk_brush_px(form, laid), log)
+        return _lay_for_canvas(form, picture), traits
     elif mask is not None:
         rgb = np.asarray(uploads.flatten(upright))
         picture = Image.fromarray(np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8), "RGB")
     else:
-        return laid
+        return laid, []
     # The same rule on the same proportions, so it is turned the way `laid` was.
-    return _lay_for_canvas(form, picture)
+    return _lay_for_canvas(form, picture), []
 
 
 def _prettify_faces(form, image: Image.Image, log=None) -> Image.Image:
@@ -428,7 +433,8 @@ def cmyk_preview():
         return jsonify(error="No image supplied"), 400
     try:
         with Image.open(upload.stream) as im:
-            photo = _cmyk_photo(request.form, uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
+            photo, traits = _cmyk_photo(request.form,
+                                        uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
         plates = cmyk_sep.threshold_plates(photo, _cmyk_cutoff(request.form),
                                            _cmyk_knockout(request.form),
                                            _cmyk_contours(request.form),
@@ -443,7 +449,11 @@ def cmyk_preview():
     buf = io.BytesIO()
     cmyk_sep.contact_sheet(plates, paper=pal["bg"], ink=pal["text"],
                            theme=theme).save(buf, "PNG")
-    return app.response_class(buf.getvalue(), mimetype="image/png")
+    # Which trait the caricature chose, so the page can say: `nose_length+`
+    # for a nose made longer, `brows-` for brows brought down, one per face.
+    return app.response_class(
+        buf.getvalue(), mimetype="image/png",
+        headers={"X-Caricature": ",".join(f"{t}{'+' if s > 0 else '-'}" for t, s in traits)})
 
 
 @app.post("/woodcut_preview")
@@ -963,8 +973,8 @@ def options_form_post():
                 with Image.open(photo_path) as im:
                     photo = uploads.prepare(im, uploads.PHOTO_MAX_SIDE, app.logger.info,
                                             cmyk_upload.filename)
-                photo = _cmyk_photo(request.form, photo, app.logger.info,
-                                    f"{cmyk_upload.filename}: ")
+                photo, _ = _cmyk_photo(request.form, photo, app.logger.info,
+                                       f"{cmyk_upload.filename}: ")
                 plates = cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form),
                                                    _cmyk_knockout(request.form),
                                                    _cmyk_contours(request.form),
@@ -1080,6 +1090,8 @@ def main():
     # the download happens once, visibly, and not in the middle of a request.
     print(f"  {'subject':9} "
           + ("segmentation model ready" if subject.warm(print) else "GrabCut fallback"))
+    print(f"  {'caricature':9} "
+          + ("landmark model ready" if caricature.warm(print) else "cartoons are not caricatures"))
     app.run(host=args.host, port=args.port, debug=args.debug, threaded=True)
 
 

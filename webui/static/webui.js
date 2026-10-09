@@ -216,6 +216,20 @@ function labelOf(button) {
    matched, so that is the one place they are translated. */
 const trayName = (name) => (name ? t(name[0].toUpperCase() + name.slice(1)) : name);
 
+/* What the caricature made too much (or too little) of, by the name the
+   server gives it: the trait, and + for more of it or - for less. */
+const CARICATURE_TRAITS = {
+  "nose_length+": "long nose", "nose_length-": "short nose",
+  "nose_width+": "broad nose", "nose_width-": "narrow nose",
+  "mouth_width+": "wide mouth", "mouth_width-": "small mouth",
+  "lips+": "full lips", "lips-": "thin lips",
+  "eye_size+": "big eyes", "eye_size-": "small eyes",
+  "eye_spacing+": "wide-set eyes", "eye_spacing-": "close-set eyes",
+  "chin+": "long chin", "chin-": "short chin",
+  "jaw+": "wide jaw", "jaw-": "narrow jaw",
+  "brows+": "high brows", "brows-": "heavy brows",
+};
+
 /* How the subject was found, in the server's own words — "segmentation and 2
    face(s)", a cascade's name, "saliency". subject.py builds those rather than a
    template, so they are taken apart here rather than matched whole. */
@@ -1422,7 +1436,12 @@ function wireForm() {
       cmykImg.src = url;
       cmykFrame.hidden = false;
       if (cmykNote) {
-        cmykNote.textContent = file.name;      // a filename is nobody's language
+        // A filename is nobody's language; what the caricature exaggerated is.
+        const traits = (res.headers.get("X-Caricature") || "").split(",")
+          .filter((k) => CARICATURE_TRAITS[k]).map((k) => t(CARICATURE_TRAITS[k]));
+        cmykNote.textContent = traits.length
+          ? `${file.name} — ${t("exaggerated: {traits}", { traits: traits.join(", ") })}`
+          : file.name;
         cmykNote.classList.remove("warn");
         cmykNote.hidden = false;
       }

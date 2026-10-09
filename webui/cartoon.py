@@ -12,6 +12,10 @@ cut from it.
 Everything is measured against the largest face, not the frame. A cartoon of a
 person is a drawing of that face, and a selfie whose face fills a seventh of
 the frame flattened at the frame's scale came out as two blobs with no eyes.
+
+And like the portraitists on the Place du Tertre, it is a caricature: before
+anything else, each face has the trait it has most of (or least) exaggerated,
+grotesquely. That is `caricature.py`.
 """
 from __future__ import annotations
 
@@ -19,6 +23,7 @@ import cv2
 import numpy as np
 from PIL import Image
 
+import caricature
 import facefilter
 from images import flatten
 
@@ -98,18 +103,28 @@ def _lines(small: np.ndarray, face_work: float) -> np.ndarray:
 
 
 def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
-               brush_px: float = 0.0, log=None) -> Image.Image:
-    """The photograph as a coarse cartoon: flat colours and dark feature lines.
+               brush_px: float = 0.0, log=None) -> tuple[Image.Image, list]:
+    """The photograph as a coarse cartoon: flat colours and dark feature lines,
+    and each face a caricature of itself.
 
-    `faces` are face boxes in this picture's pixels; the largest sets the scale.
-    `mask`, when the subject is isolated, takes the palette from the subject
-    alone, leaves the rest bare paper and outlines the subject. `brush_px` is the
-    stroke's width in this picture's pixels: no line is drawn thinner than half
-    of it, which is the width a contour is drawn at, and for the same reason.
+    `faces` are face boxes in this picture's pixels, with the detector's eye
+    points where it has them (`subject._faces(..., points=True)`); the largest
+    sets the scale. `mask`, when the subject is isolated, takes the palette from
+    the subject alone, leaves the rest bare paper and outlines the subject.
+    `brush_px` is the stroke's width in this picture's pixels: no line is drawn
+    thinner than half of it, which is the width a contour is drawn at, and for
+    the same reason.
+
+    Returns the cartoon and the trait exaggerated in each face, as
+    `caricature.caricature` reports them.
     """
+    # The caricature first, on the photograph: the warp moves shading and
+    # edges together, and the flat colours and the lines are then found on the
+    # face as it is to be drawn rather than bent after the fact.
+    image, mask, traits = caricature.caricature(image, faces or [], mask, log)
     rgb = np.asarray(flatten(image))
     h, w = rgb.shape[:2]
-    faces = [tuple(int(v) for v in f) for f in (faces or [])]
+    faces = [tuple(int(v) for v in f[:4]) for f in (faces or [])]
     scale, face = _work_scale(h, w, faces)
     face_work = face * scale
 
@@ -180,7 +195,7 @@ def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
         out[(mask == 0) & ~lines] = 255
     if log:
         log(f"cartoon: {k} colours, face {face:.0f} px, worked at {size[0]}×{size[1]}")
-    return Image.fromarray(out.astype(np.uint8), "RGB")
+    return Image.fromarray(out.astype(np.uint8), "RGB"), traits
 
 
 def _odd(n: float) -> int:

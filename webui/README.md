@@ -1020,6 +1020,70 @@ photograph comes out with grey fields, which the paper profile separates into
 cyan; that is the separation's doing, and the photograph does it uncartooned.
 It takes 0.1 to 1.1 s on top of the separation.
 
+##### A caricature, not a likeness
+
+The cartoon also caricatures, the way the portraitists on the Place du Tertre
+do: whatever is most unusual about each face is made grotesquely more so,
+before the colours and lines are found (`caricature.py`). The note under the
+plates says what was chosen ("exaggerated: heavy brows").
+
+**Measuring a face.** OpenCV's face module puts 68 landmarks on it (the LBF
+model, 54 MB, downloaded once into `webui/models/` like the others; without it
+the cartoon is drawn as it was). That model was trained on upright faces and
+put a tilted head's mouth on its cheek, so the face is first turned until the
+eyes the face detector found are level, and the points are turned back
+afterwards. Nine traits are measured off them, all as distances in eye-to-eye
+widths, so neither tilt nor size in the frame enters into it: nose length and
+width, mouth width, the fullness of the lips, eye size, how far apart the eyes
+sit against the width of the face, chin length, jaw width and brow height.
+
+**Unusual against what.** The landmark model carries its training set's mean
+face, and measured against that, 84 of 260 faces had the longest nose and 83
+the longest chin. That is two-thirds of everyone getting one of two jokes. The
+model's mean is a normalised shape, and a selfie from arm's length draws the
+middle of the face long. A caricaturist judges a face against the faces they
+have seen, with the eye they see them with, so the typical value and the spread
+of each trait (`REFERENCE`) were measured the same way on those 260 faces:
+mostly selfies and snapshots. A trait wins by how many spreads it is from
+typical. With these figures no trait is chosen for more than 35 of the 260.
+
+**More, rather than less.** A trait the face has less of counts for 0.6 of
+its distance (`LESS_COUNTS`). Shrinking is the weaker joke: a mouth made
+smaller reads as a smaller mouth. Counted in full, the four most common choices
+across the 260 were all something made smaller; at 0.6, 72% of faces have
+something made larger.
+
+**How it is exaggerated.** Not by moving the landmarks. A face pulled about by
+68 points folds wherever two close together are sent different ways. Instead
+each trait is one or two warps of the picture in the face's own frame (across
+from eye to eye, and down at right angles), each fading smoothly to nothing at
+the edge of its reach, like a liquify tool:
+
+- a **bloat** swells (or shrinks) a nose, a mouth, the lips, an eye or the jaw
+  about its centre. Its falloff cannot fold the picture for any scale above
+  about 0.55;
+- a **push** moves the eyes apart or together, or the brows up or down, kept
+  under 0.6 of its reach, past which the falloff is too steep and it folds;
+- a **stretch** lengthens a chin. A push centred on the chin was tried first.
+  It dragged the mouth down with it, and a lower lip pulled down after a chin
+  reads as a face melting rather than a long jaw. The stretch starts at the
+  corners of the mouth, makes the band down to the chin three-quarters longer,
+  and gives the length back down the neck, so nothing below moves.
+
+**How far.** At 1.75 in the middle of a feature the result read as a slightly
+odd photograph: the falloff takes the middle figure down to about 1.4 at the
+feature's edge. It is 2.3 now (`GROW`), and 0.5 for a feature made smaller
+(`SHRINK`). On the test portraits that gave Che Guevara heavy brows over a
+glower, a long nose to one selfie and wide-set eyes to two more. A shrink is
+still the quieter of the two: thin lips made thinner barely show.
+
+What it cannot see: eyes behind dark glasses, which the landmark model guesses
+at; and anything the 68 points do not cover, which is the forehead, the ears
+and the hair. `REFERENCE` is what is typical in one collection of photographs.
+A crowd of different faces would move what counts as unusual in it. Its spreads
+include the landmark model's own error and the pose, not only how faces vary.
+The caricature takes about 0.05 s a face once the model is loaded.
+
 ### Photo to woodcut
 
 Set a tray's *Image Type* to **Photo** and the upload is converted to woodcut /
