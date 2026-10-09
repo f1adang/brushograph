@@ -27,11 +27,12 @@ import caricature
 import facefilter
 from images import flatten
 
-# How many pixels across the largest face is when it is flattened. This is what
-# "coarse" means: at 80 the features are about eight pixels each, which the mean
-# shift keeps as shapes and the k-means gives a colour of their own. Finer, and
-# the cartoon starts carrying the photograph's shading again.
-FACE_PX = 80
+# How many pixels across the largest face is when it is flattened, which is how
+# much of it the cartoon can draw. At 80 the features were about eight pixels
+# each: a cartoon, but a coarse one, the curls of a hairdo a single blob. At 140
+# the folds round a mouth and the shape of a brow come through. At 200 the
+# lines began to break into dashes along the hair.
+FACE_PX = 140
 
 # Never work on a picture smaller or larger than this along its long side. A face
 # filling the whole frame would otherwise be cartooned at 80 px and the painting
@@ -40,10 +41,19 @@ FACE_PX = 80
 WORK_MIN, WORK_MAX = 256, 1024
 
 # How many flat colours. Each one is a field after the cutoff, and every field
-# is one more set of edges to paint round. Eight split a shirt into two greens
-# and a cheek into two pinks for no gain; six keeps hair, skin, its shadow,
-# clothes and background apart.
-COLOURS = 6
+# is one more set of edges to paint round. Six keep hair, skin, its shadow,
+# clothes and background apart and no more; eight give the face a second shadow
+# and, with FACE_WEIGHT and the hairlines, the shapes of its light.
+COLOURS = 8
+
+# The edges between the cartoon's flat colours are drawn as hairlines when they
+# run at least this far, as a fraction of the face (see `_cel_lines`). At 0.3
+# every hairdo was a contour map; at 0.6 what is left is the edge of a shadow,
+# the wing of a nose, the outline of an eye. Nought draws none.
+CEL_MIN = 0.6
+
+# How many times over a face's pixels count when the colours are chosen.
+FACE_WEIGHT = 4
 
 # How far apart two colours may be (in 8-bit Lab) and still be flattened into
 # one by the mean shift. Wider, and lips go into the cheek.
@@ -52,17 +62,18 @@ COLOUR_RADIUS = 24
 # A line is drawn where the picture is this much darker than its surroundings,
 # as a ratio rather than a difference: a dim selfie and a studio portrait have
 # the same eyes in them, and a fixed difference found them only in the bright
-# one.
-LINE_DARKER = 0.05
+# one. Three hundredths finds the lines round a mouth and the curls of a hairdo;
+# the coarse cartoon drew only the eyes, the nostrils and the mouth, at five.
+LINE_DARKER = 0.03
 
-# The line finder's scale, as a fraction of the face. The eyelid is found at
-# about two hundredths of the face; at more than that the lines merge into
-# shadow patches, at less they break into speckle.
-LINE_SIGMA = 0.018
+# The line finder's scale, as a fraction of the face. Finer than it was (0.018
+# of the 80 px face) now that the face is worked larger, so a line is a line
+# and not a patch: the creases at the eyes, the parting of the lips.
+LINE_SIGMA = 0.008
 
 # A line shorter than this, as a fraction of the face's work size, is a speck of
-# texture rather than a feature. A quarter of the face keeps a nostril.
-LINE_MIN = 0.25
+# texture rather than a feature. Fifteen hundredths keeps a nostril and a dimple.
+LINE_MIN = 0.15
 
 
 def _work_scale(h: int, w: int, faces) -> tuple[float, float]:
@@ -100,6 +111,27 @@ def _lines(small: np.ndarray, face_work: float) -> np.ndarray:
     keep = stats[:, cv2.CC_STAT_AREA] >= face_work * LINE_MIN
     keep[0] = False
     return keep[labels].astype(np.uint8)
+
+
+def _cel_lines(label: np.ndarray, mask: np.ndarray | None, face: float) -> np.ndarray:
+    """The edges between the cartoon's own flat colours, as hairlines.
+
+    The colours a cartoon gives a face (its light, its shadow, the shadow
+    under the nose) are often too close to separate into different inks: they
+    are all magenta, or all paper, and the face paints as one flat field with
+    dots for eyes. Drawn as a line, the edge of a shadow survives the cutoff,
+    which is how a drawn cartoon shows where the light falls. Only inside the
+    subject, and a run shorter than CEL_MIN of the face is dropped as a scrap.
+    """
+    edge = np.zeros(label.shape, bool)
+    edge[:, 1:] |= label[:, 1:] != label[:, :-1]
+    edge[1:, :] |= label[1:, :] != label[:-1, :]
+    if mask is not None:
+        edge &= cv2.erode(mask.astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+    _, labels, stats, _ = cv2.connectedComponentsWithStats(edge.astype(np.uint8), connectivity=8)
+    keep = stats[:, cv2.CC_STAT_AREA] >= face * CEL_MIN
+    keep[0] = False
+    return keep[labels]
 
 
 def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
@@ -151,7 +183,17 @@ def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
     # subject alone: the background is about to become paper, and every colour
     # it was given would be one the face did not get.
     sample = lab[inside] if inside is not None and inside.sum() > 256 else lab.reshape(-1, 3)
-    k = int(min(COLOURS, max(1, len(np.unique(sample.astype(np.uint8), axis=0)))))
+    # And the faces count several times over. A face is a small part of most
+    # photographs, and counted once its skin got one colour while a jacket and
+    # a hat took the rest: a flat mask with dots for eyes. Counted FACE_WEIGHT
+    # times, the light and the shadow on it are colours of their own.
+    for fx, fy, fw, fh in faces:
+        x0, y0 = int(fx * scale), int(fy * scale)
+        x1, y1 = int((fx + fw) * scale), int((fy + fh) * scale)
+        skin = lab[max(0, y0):max(0, y1), max(0, x0):max(0, x1)].reshape(-1, 3)
+        if len(skin):
+            sample = np.concatenate([sample.reshape(-1, 3)] + [skin] * (FACE_WEIGHT - 1))
+    k =int(min(COLOURS, max(1, len(np.unique(sample.astype(np.uint8), axis=0)))))
     # Seeded, so the same photograph makes the same cartoon and the same G-code.
     cv2.setRNGSeed(1)
     criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.5)
@@ -184,6 +226,8 @@ def cartoonify(image: Image.Image, faces=None, mask: np.ndarray | None = None,
                            interpolation=cv2.INTER_LINEAR) > 0.5
     else:
         lines = lines > 0
+    if CEL_MIN > 0:
+        lines = lines | _cel_lines(label, mask, face)
     across = round(0.5 * brush_px)
     if across >= 2:
         lines = cv2.dilate(lines.astype(np.uint8),

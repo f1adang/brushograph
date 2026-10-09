@@ -939,34 +939,40 @@ on its side, and the face detector does not find faces lying down.
 #### Cartoonify
 
 Offered beside **Isolate** when the photograph has a face in it. It redraws the
-photograph as a coarse cartoon before the separation: a few flat colours, and
-dark lines where the features are (`cartoon.py`).
+photograph as a cartoon before the separation: a handful of flat colours, dark
+lines where the features are, and fine lines where the light and shade on the
+face meet (`cartoon.py`). It is a caricature too, below.
 
 A cutoff is hard on a photograph of a face. Skin is a gradient, and a cheek
 that drifts back and forth across the cutoff comes out as a coastline of
-islands, each one a brush-down. A cartoon is already the kind of picture the
-separation is good at: a handful of colours, each one a field with a clean
-edge. Somewhat less is painted, and it is in far fewer pieces: the brush goes
-down a half to a third as often, and that is where the time comes off.
+islands, each one a brush-down. A cartoon is the kind of picture the separation
+is good at: a handful of colours, each one a field with a clean edge, and lines
+where a field would not say enough.
 
 | | painted | travel | brush downs | dips | rough time |
 |---|---|---|---|---|---|
 | portrait | 24.28 m | 40.70 m | 596 | 200 | 1.88 h |
-| portrait, cartoon | 21.93 m | 36.49 m | 321 | 178 | **1.33 h** |
+| portrait, cartoon | 25.42 m | 45.12 m | 577 | 209 | 1.80 h |
 | portrait, isolated | 12.72 m | 18.46 m | 350 | 116 | 1.01 h |
-| portrait, isolated cartoon | 11.70 m | 18.34 m | 192 | 108 | **0.69 h** |
+| portrait, isolated cartoon | 13.40 m | 21.78 m | 330 | 122 | 0.96 h |
 | selfie in a room | 17.68 m | 31.15 m | 618 | 151 | 1.68 h |
-| selfie, cartoon | 12.58 m | 23.15 m | 240 | 108 | **0.87 h** |
+| selfie, cartoon | 11.02 m | 20.15 m | 138 | 90 | **0.74 h** |
 | selfie, isolated | 6.84 m | 11.81 m | 108 | 72 | 0.48 h |
-| selfie, isolated cartoon | 5.17 m | 8.04 m | 45 | 42 | **0.24 h** |
-| upright selfie, turned | 19.40 m | 24.81 m | 978 | 165 | 2.17 h |
-| upright selfie, cartoon | 18.73 m | 24.27 m | 315 | 158 | **1.17 h** |
-| upright selfie, isolated | 4.74 m | 6.11 m | 244 | 57 | 0.55 h |
-| upright selfie, isolated cartoon | 4.14 m | 5.18 m | 73 | 48 | **0.28 h** |
+| selfie, isolated cartoon | 6.44 m | 10.38 m | 74 | 58 | **0.34 h** |
+| Che Guevara | 8.33 m | 14.38 m | 262 | 72 | 0.68 h |
+| Che, cartoon | 10.51 m | 17.36 m | 147 | 88 | 0.69 h |
+| Che, isolated | 5.50 m | 9.13 m | 166 | 52 | 0.46 h |
+| Che, isolated cartoon | 6.09 m | 9.87 m | 73 | 56 | **0.39 h** |
 
-Brushparang, 119 mm wide at a 0.5 mm stroke, cutoff 40, no contours. Two runs
-of the same picture differ by a percent or so in travel and a few dips, so read
-the small differences as noise.
+Brushparang, 119 mm wide at a 0.5 mm stroke, cutoff 40, no contours, the
+caricature included; the isolated rows with isolation seeded (see *Turning the
+map into a mask*). Two runs of the same picture still differ by a percent or so
+in travel and a dip or two, so read the small differences as noise.
+
+The cartoon is not a way to paint for less any more, though it often is one. A
+face with little in it, like the selfie, still comes out in a fraction of the
+brush-downs. A portrait with a head of curls, drawn line by line, costs what the
+photograph did.
 
 How it is drawn:
 
@@ -976,30 +982,60 @@ How it is drawn:
   the middle of the face.
 - **Flattened by a mean shift**, which pulls each pixel to the colour of the
   region it belongs to, so a cheek is one colour before any are counted.
-- **Six colours, chosen by k-means** in Lab, and from the subject alone when it
-  is isolated, since a colour spent on a background about to become paper is
-  one the face did not get. Seeded, so a photograph makes the same cartoon
-  every time.
+- **Eight colours, chosen by k-means** in Lab, from the subject alone when it is
+  isolated, since a colour spent on a background about to become paper is one
+  the face did not get, and with the face's own pixels counted four times over
+  (`FACE_WEIGHT`). Counted once, a face that is a small part of the frame got a
+  single colour while a jacket and a hat took the rest. Seeded, so a photograph
+  makes the same cartoon every time.
 - **Lines where the picture is narrowly darker than its surroundings**: a
   difference of Gaussians, read as a ratio. The eyes, brows, nostrils and the
-  line of the lips are narrow and darker than what is round them. A broad
-  shadow is not narrow, and is left to the colours. No line is thinner than
-  half a stroke, the width a contour is drawn at and for the same reason.
+  line of the lips are narrow and darker than what is round them, and so are
+  the creases at the eyes and the curls of a hairdo. A broad shadow is not
+  narrow, and is left to the colours.
+- **Hairlines where two of the cartoon's colours meet** (`_cel_lines`), inside
+  the subject, wherever the edge runs further than 0.6 of the face's width.
+  This is where the detail in the painting comes from. The light and shade on
+  a face are often too close in colour to fall on different sides of the
+  cutoff, so they paint as one field. A selfie's face did, magenta from brow to
+  collar with dots for eyes. Drawn as lines, the edges of those shades survive
+  as the outline of an eye, the wing of a nose and the shadow under a lip, the
+  way a cartoonist draws the shape of a shadow rather than tinting it. At 0.3
+  every hairdo became a contour map.
+- **No line is thinner than half a stroke**, the width a contour is drawn at
+  and for the same reason. The feature lines come out wider than that, the
+  hairlines at it, so the drawing has a bold line and a fine one.
 - **Isolated, the subject is outlined.** Cut out onto paper, a white cap has no
   edge at all against the sheet it stands on.
 
 **Everything is measured against the largest face, not the frame.** The first
 version flattened every photograph at 480 px along its long side. That suited a
 portrait whose face filled a third of the frame, and turned a selfie whose face
-filled a seventh into two blobs with no eyes. The face is now worked at 80 px
+filled a seventh into two blobs with no eyes. The face is worked at 140 px
 across (`FACE_PX`), with the whole picture between 256 and 1024 px along its
 long side, and a face of a sixth of the diagonal assumed when none is found.
 
-What was tried and left out:
+**It was coarser.** The first cartoon worked the face at 80 px, in six colours,
+with lines at five hundredths darker over 0.018 of the face and none between
+the colours. It cut the selfie to 0.25 h isolated and Marilyn to 0.72 h, and
+drew them as masks: the selfie's face one magenta field with two dots, three
+short lines and an outline. Of what was tried to give it detail:
 
-- **Eight colours.** They split a green shirt into two greens and a cheek into
-  two pinks, which is two fields and a boundary where there was one. Six keep
-  hair, skin, its shadow, clothes and background apart.
+| | face | colours | lines | hairlines | |
+|---|---|---|---|---|---|
+| coarse | 80 px | 6 | 0.05 over 0.018 | none | features only |
+| finer | 140 px | 8 | 0.04 over 0.011 | none | detail on Che and Marilyn, none on the selfie |
+| finer still | 200 px | 10 | 0.05 over 0.008 | none | Marilyn's hair breaks into dashes |
+| face counted ×4 | 140 px | 8 | 0.04 over 0.011 | none | shades on the selfie's face in the cartoon, gone in the plates |
+| **now** | 140 px | 8 | 0.03 over 0.008 | 0.6 of the face | eyes, nose and mouth on the selfie; shading on Che and Marilyn |
+
+Turning up **Black contours** on a coarse cartoon was what showed the way: it
+outlines the boundaries between the cartoon's colours too. But it also outlines
+the subject and every edge in the background, it is a setting someone has to
+know to reach for, and on a cartoon the hairlines want to be there by default.
+
+What was tried and left out, besides:
+
 - **Stronger colours.** Pushing the palette's chroma up by a third made it look
   more like a cartoon on screen, and pushed every face in the test set over the
   cutoff: solid red skin on all three portraits. Left as the photograph had it.
@@ -1011,14 +1047,13 @@ What was tried and left out:
 - **A line threshold of a tenth, and a fixed difference.** Measured as a
   difference in grey, a dim selfie had no eyes and a bright portrait had
   plenty, so it is a ratio. At a tenth darker the selfie's eyes were two dots
-  and it had no nose or mouth; at seven hundredths a nose; at five hundredths
-  (`LINE_DARKER`) the mouth as well, and no speckle on the other portraits.
+  and it had no nose or mouth.
 
-What it does not do well: isolated at six colours, a blonde's hair is close
-enough to her skin to share its colour, and goes with it to paper. A grey
+What it does not do well: a hairline crosses a forehead wherever two greys
+meet there, and on Che that reads as a crack as often as a shadow. A grey
 photograph comes out with grey fields, which the paper profile separates into
 cyan; that is the separation's doing, and the photograph does it uncartooned.
-It takes 0.1 to 1.1 s on top of the separation.
+It takes 0.35 to 1.2 s on top of the separation, the caricature included.
 
 ##### A caricature, not a likeness
 
