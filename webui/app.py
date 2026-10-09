@@ -331,9 +331,12 @@ def _lay_for_canvas(form, image: Image.Image, log=None, name: str = "") -> Image
     return turned
 
 
-def _subject_mask(form, image: Image.Image, log=None):
-    """The isolation mask, or None when isolation was not asked for or found."""
-    if not _flag(form, "woodcut_isolate", "false"):
+def _subject_mask(form, image: Image.Image, log=None, field: str = "woodcut_isolate"):
+    """The isolation mask, or None when isolation was not asked for or found.
+
+    `field` is the checkbox that asks: the woodcut's, or the colour photograph's.
+    """
+    if not _flag(form, field, "false"):
         return None
     found = subject.detect(image, log)
     if not found.get("found"):
@@ -341,6 +344,22 @@ def _subject_mask(form, image: Image.Image, log=None):
             log(f"isolation skipped: {found.get('reason', 'nothing detected')}")
         return None
     return subject.isolate(image, found["box"], faces=found.get("faces"), log=log)
+
+
+def _cmyk_source(form, photo: Image.Image, log=None) -> Image.Image:
+    """The colour photograph the plates are cut from, with its background taken
+    away if isolating was asked for.
+
+    The background is made white before the separation rather than knocked out
+    of the plates after it, so the subject's silhouette is an edge like any
+    other: Black contours draws it, and a pale shoulder against a white sheet
+    is outlined rather than lost.
+    """
+    mask = _subject_mask(form, photo, log, "cmyk_isolate")
+    if mask is None:
+        return photo
+    rgb = np.asarray(uploads.flatten(photo))
+    return Image.fromarray(np.where(mask[..., None] > 0, rgb, 255).astype(np.uint8), "RGB")
 
 
 def _prettify_faces(form, image: Image.Image, log=None) -> Image.Image:
@@ -391,6 +410,7 @@ def cmyk_preview():
     try:
         with Image.open(upload.stream) as im:
             photo = _lay_for_canvas(request.form, uploads.prepare(im, uploads.PHOTO_MAX_SIDE))
+        photo = _cmyk_source(request.form, photo)
         plates = cmyk_sep.threshold_plates(photo, _cmyk_cutoff(request.form),
                                            _cmyk_knockout(request.form),
                                            _cmyk_contours(request.form),
@@ -927,7 +947,8 @@ def options_form_post():
                                             cmyk_upload.filename)
                 photo = _lay_for_canvas(request.form, photo, app.logger.info,
                                         f"{cmyk_upload.filename}: ")
-                plates = cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form),
+                photo = _cmyk_source(request.form, photo, app.logger.info)
+                plates =cmyk_sep.plates_for_trays(photo, _cmyk_cutoff(request.form),
                                                    _cmyk_knockout(request.form),
                                                    _cmyk_contours(request.form),
                                                    _cmyk_brush_px(request.form, photo))

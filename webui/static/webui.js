@@ -1222,6 +1222,11 @@ function wireForm() {
     }
   }
 
+  /* What the server said was in each photograph, keyed by the file: the
+     woodcut and the colour photograph each offer to isolate it, and both ask
+     from code that runs at startup, so this is declared above them both. */
+  const subjectAnswers = new WeakMap();
+
   /* ---- woodcut conversion ---- */
   const wcPanel = $("woodcut-panel");
   const wcBtn = $("wc-preview-btn");
@@ -1376,6 +1381,7 @@ function wireForm() {
   const cmykCutoff = $("cmyk-cutoff");
   const cmykKnockout = $("cmyk-knockout");
   const cmykContours = $("cmyk-contours");
+  const cmykIsolate = $("cmyk-isolate");
   let cmykPreviewTimer = null;
 
   function cmykFile() {
@@ -1397,6 +1403,7 @@ function wireForm() {
     if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
     if (cmykKnockout) fd.append("cmyk_knockout", cmykKnockout.checked ? "true" : "false");
     if (cmykContours) fd.append("cmyk_contours", cmykContours.value);
+    fd.append("cmyk_isolate", cmykIsolate && cmykIsolate.checked ? "true" : "false");
     fd.append("theme", document.documentElement.dataset.theme || "default");
 
     const label = labelOf(cmykBtn);
@@ -1443,8 +1450,9 @@ function wireForm() {
         cmykPreviewTimer = setTimeout(previewCmyk, 180);
       });
     }
-    if (cmykKnockout) {
-      cmykKnockout.addEventListener("change", () => {
+    for (const box of [cmykKnockout, cmykIsolate]) {
+      if (!box) continue;
+      box.addEventListener("change", () => {
         if (cmykFile()) previewCmyk();
       });
     }
@@ -1590,44 +1598,70 @@ function wireForm() {
   wireMacros();
 
   /* ---- is there a person or prominent object worth isolating? ---- */
-  let lastDetected = null;
-  async function detectSubject() {
-    const row = $("wc-subject-row");
-    const faceRow = $("wc-face-row");
-    if (!row) return;
-    const target = photoTray();
-    if (!target) { row.hidden = true; if (faceRow) faceRow.hidden = true; return; }
-    if (lastDetected === target.file) return;      // already asked about this file
-    lastDetected = target.file;
-
-    const fd = new FormData();
-    fd.append("image", target.file);
-    try {
-      const res = await fetch("detect_subject", { method: "POST", body: fd });
-      const data = await res.json();
-      if (!res.ok || !data.found) {
-        row.hidden = true;
-        if ($("wc-isolate")) $("wc-isolate").checked = false;
-        if (faceRow) faceRow.hidden = true;
-        if ($("wc-face-filter")) $("wc-face-filter").checked = false;
-        return;
-      }
-      // Only offered when there is a face to work on; it does nothing without one.
-      const hasFace = Array.isArray(data.faces) && data.faces.length > 0;
-      if (faceRow) faceRow.hidden = !hasFace;
-      if (!hasFace && $("wc-face-filter")) $("wc-face-filter").checked = false;
-      const what = data.kind === "person"
-        ? (data.count > 1 ? t("{count} people", { count: data.count }) : t("a person"))
-        : data.kind === "animal" ? t("an animal") : t("a prominent object");
-      say($("wc-subject-label"), "Isolate {what}", { what });
-      say($("wc-subject-note"),
-          "found by {how}, covering {percent}% of the frame — the background becomes bare paper",
-          { how: detectorName(data.how), percent: Math.round(data.coverage * 100) });
-      row.hidden = false;
-    } catch (err) {
-      row.hidden = true;
-      if (faceRow) faceRow.hidden = true;
+  // Asked once per file: the answer is the network's, and it does not change
+  // when a slider does. A failed request is an answer too — nothing found.
+  function inspect(file) {
+    if (!subjectAnswers.has(file)) {
+      const fd = new FormData();
+      fd.append("image", file);
+      subjectAnswers.set(file, fetch("detect_subject", { method: "POST", body: fd })
+        .then(async (res) => {
+          const data = await res.json();
+          return res.ok ? data : { found: false };
+        })
+        .catch(() => ({ found: false })));
     }
+    return subjectAnswers.get(file);
+  }
+
+  /* Offer to isolate what one photograph holds. `rows` names the panel's own
+     controls: its isolate row and box, the label and note in it, and the rows
+     that are only offered when there is a face (`faceRows`, [row, box] pairs).
+     A row that is put away is also unticked, so nothing hidden is posted as on. */
+  async function offerSubject(current, rows) {
+    const row = $(rows.row);
+    if (!row) return;
+    const hide = (all) => {
+      const pairs = all ? [[rows.row, rows.box], ...rows.faceRows] : rows.faceRows;
+      for (const [r, b] of pairs) {
+        if ($(r)) $(r).hidden = true;
+        if ($(b)) $(b).checked = false;
+      }
+    };
+    const file = current();
+    if (!file) { hide(true); return; }
+    const data = await inspect(file);
+    // Another file may have been chosen while this one was being looked at.
+    if (current() !== file) return;
+    if (!data.found) { hide(true); return; }
+    // Only offered when there is a face to work on; they do nothing without one.
+    if (Array.isArray(data.faces) && data.faces.length > 0) {
+      for (const [r] of rows.faceRows) if ($(r)) $(r).hidden = false;
+    } else {
+      hide(false);
+    }
+    const what = data.kind === "person"
+      ? (data.count > 1 ? t("{count} people", { count: data.count }) : t("a person"))
+      : data.kind === "animal" ? t("an animal") : t("a prominent object");
+    say($(rows.label), "Isolate {what}", { what });
+    say($(rows.note),
+        "found by {how}, covering {percent}% of the frame — the background becomes bare paper",
+        { how: detectorName(data.how), percent: Math.round(data.coverage * 100) });
+    row.hidden = false;
+  }
+
+  function detectSubject() {
+    offerSubject(() => { const target = photoTray(); return target && target.file; }, {
+      row: "wc-subject-row", box: "wc-isolate",
+      label: "wc-subject-label", note: "wc-subject-note",
+      faceRows: [["wc-face-row", "wc-face-filter"]],
+    });
+    // By id, not through cmykFile: this first runs before cmykInput is declared.
+    offerSubject(() => { const i = $("cmyk-photo"); return i && i.files.length ? i.files[0] : null; }, {
+      row: "cmyk-subject-row", box: "cmyk-isolate",
+      label: "cmyk-subject-label", note: "cmyk-subject-note",
+      faceRows: [],
+    });
   }
 
   form.querySelectorAll('input[type="file"]').forEach((i) =>

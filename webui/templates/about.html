@@ -57,7 +57,8 @@ try { var t = localStorage.getItem("brushograph-theme");
     and yellow the way a press does, under the black that follows; those three are knocked
     out wherever black paints, which halves the painting of a photograph and changes nothing
     you can see. A switch beside the cutoff paints the bed anyway, for trays out of register.</li>
-    <li data-i18n="note-isolate">If a person, animal or prominent object is detected in the photo, an <b>Isolate</b> option appears.
+    <li data-i18n="note-isolate">If a person, animal or prominent object is detected in a tray's photo or in the
+    colour photograph, an <b>Isolate</b> option appears.
     It cuts the subject out with a small segmentation network (U&sup2;-Net, 4.4&nbsp;MB, downloaded
     once on first start and run through OpenCV), leaving the background as bare paper. Without the
     model it falls back to GrabCut, which is worse but keeps the feature working.</li>

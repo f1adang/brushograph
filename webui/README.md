@@ -901,6 +901,35 @@ A second photograph at 1 mm goes from 1,613 strokes to 485 and from 1.91 h to
 1.60.
 Generation is quicker for it, too: 20 s to 18 on the 0.3 mm run.
 
+#### Isolating the subject of a colour photograph
+
+The colour photograph is offered **Isolate** on the same terms as a tray's
+photo (see *Isolating a person or object*): the same detector, the same mask,
+the same wording, and the row only appears when something worth cutting out
+was found. Ticking it redraws the plates.
+
+**The background is made white before the separation, not knocked out of the
+plates after it.** Either leaves the background as bare paper. The difference
+is the subject's outline. Whitened first, the silhouette is an edge like any
+other, so **Black contours** draws round it. A pale shoulder or a white cap
+against a white sheet is otherwise not outlined at all. Knocking out the plates
+afterwards would also have needed the contour pass to be told where the mask
+ran, or it would draw the edges of a background that is not being painted.
+
+A photograph is mostly background, and the background is where the time goes.
+Painted 119 mm wide at a 0.5 mm stroke on Brushparang, cutoff 40:
+
+| | painted | travel | brush downs | dips | rough time |
+|---|---|---|---|---|---|
+| portrait, whole frame | 24.28 m | 40.70 m | 596 | 200 | 1.88 h |
+| portrait, isolated | 12.72 m | 18.46 m | 350 | 116 | **1.01 h** |
+| selfie in a room, whole frame | 17.68 m | 31.15 m | 618 | 151 | 1.68 h |
+| selfie in a room, isolated | 6.84 m | 11.81 m | 108 | 72 | **0.48 h** |
+
+The selfie loses five brush-downs in six: a room behind someone is shelves,
+plants and a lamp, each a field of its own at the cutoff, and none of them
+the reason the photograph was taken.
+
 ### Photo to woodcut
 
 Set a tray's *Image Type* to **Photo** and the upload is converted to woodcut /
@@ -1209,10 +1238,13 @@ the *first* value — sees every box as off, however it was set. Read them with
 
 ### Isolating a person or object
 
-When a photo is chosen it is inspected for a subject. If one is found, an
-**Isolate** option appears naming what it is ("Isolate 3 people", "Isolate a
+When a photo is chosen, for a tray or as the colour photograph, it is
+inspected for a subject. If one is found, an **Isolate** option appears in that
+picture's own panel naming what it is ("Isolate 3 people", "Isolate a
 prominent object") and how much of the frame it covers. Ticking it leaves
-everything outside the subject as bare paper.
+everything outside the subject as bare paper. Each file is asked about once:
+the answer is remembered in the page, so the woodcut and the colour photograph
+can both be offered it without the network running twice.
 
 Segmentation is done by a salient-object network run through **OpenCV's own ONNX
 support**, so it costs no new Python dependency. Two are tried in order and the
