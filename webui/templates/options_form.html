@@ -170,6 +170,13 @@
           <div class="actions">
             <button type="button" class="primary" id="macros-generate">Generate macros</button>
             <button type="button" class="primary" id="macros-download" hidden>Download selected</button>
+            <label class="macros-target" id="macros-target-field" hidden>
+              <span>Upload to</span>
+              <select id="macros-target">
+                <option value="flash" selected>Flash</option>
+                <option value="sd">SD card</option>
+              </select>
+            </label>
             <button type="button" class="primary" id="macros-upload" hidden>Upload selected to machine</button>
             <span class="note" id="macros-status" hidden></span>
           </div>

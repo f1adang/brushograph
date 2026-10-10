@@ -4245,17 +4245,27 @@ into the form, saved or not, the way Download Machine Config already does.
 small text files did not seem worth a new dependency. **Upload selected to
 machine** sends them the same shape `gcode-send` sends a job in — one `POST` per file,
 `multipart/form-data` carrying `path` (`/`) and `myfile`, `mode: "no-cors"`,
-opaque reply — but to `<host>/files`, not `<host>/upload`. FluidNC's web
-server registers the two as separate routes onto the same handler
-(`WebUIServer.cpp`: `"/files"` → `LocalFSFileupload`, `"/upload"` →
-`SDFileUpload`, both calling the shared `fileUpload()`): `/upload` writes to
-the SD card, which is where a job's G-code belongs and where `$SD/Run` looks;
+opaque reply — to whichever of **Flash** or **SD card** the *Upload to* picker
+beside the button names. FluidNC's web server registers the two as separate
+routes onto the same handler (`WebUIServer.cpp`: `"/files"` →
+`LocalFSFileupload`, `"/upload"` → `SDFileUpload`, both calling the shared
+`fileUpload()`), so the only difference is the route: `/upload` writes to the
+SD card, which is where a job's G-code belongs and where `$SD/Run` looks;
 `/files` writes to the flash filesystem, which is where the controller's own
-dashboard theme already lives (see **Pinkograph**, above) and where a
-standing macro belongs — a card can be swapped or reformatted, and a job's
-G-code is not meant to survive that, but these twelve are. There is no
-`$SD/Run` here either: these are routines an operator runs by hand from the
-controller's own interface, not a job meant to start the moment it lands.
+dashboard theme already lives (see **Pinkograph**, above).
+
+**Flash is the default**, and every page load starts there, because that is
+where a standing macro belongs — a card can be swapped or reformatted, and a
+job's G-code is not meant to survive that, but these twelve are. The SD card
+is offered for the board whose flash has no room left once its dashboard is on
+it (see below): 39 KB is nothing to a card. The picker is not a config setting
+— it has no `name`, so it is never posted and never saved — because it is a
+choice about one upload, not a fact about the machine. The messages name the
+destination, and the one that gives up says the likely fault for each: a full
+flash filesystem, or no card in the slot. **Delete all macros** still clears
+only the flash, whichever the picker says. There is no `$SD/Run` here either: these are routines an operator
+runs by hand from the controller's own interface, not a job meant to start the
+moment it lands.
 
 #### Twelve macros, and not enough flash for them
 

@@ -2343,6 +2343,8 @@ function wireMacros() {
       showMacroSizes();
       dlBtn.hidden = false;
       upBtn.hidden = false;
+      const target = $("macros-target-field");
+      if (target) target.hidden = false;
       report("Generated {count} macros from the settings above. Tick what to send.",
              { count: Object.keys(macros).length });
     } catch (err) {
@@ -2680,13 +2682,42 @@ async function sendToMachine(start) {
 }
 
 /* Same shape as sendToMachine(), one request per macro rather than one file,
- * but a different endpoint: /upload writes to the SD card, and macros are not
- * a job the SD card ever runs — FluidNC's own web server registers /files for
- * its local flash filesystem and /upload for the SD card as two distinct
- * routes (WebUIServer.cpp: "/files" -> LocalFSFileupload, "/upload" ->
- * SDFileUpload), sharing the same fileUpload() and so the same path/myfile
- * shape either way. There is no $SD/Run here either: these are routines an
- * operator runs by hand, not a job to start the moment it lands. */
+ * to whichever of two endpoints the picker beside the button names. FluidNC's
+ * own web server registers /files for its local flash filesystem and /upload
+ * for the SD card as two distinct routes (WebUIServer.cpp: "/files" ->
+ * LocalFSFileupload, "/upload" -> SDFileUpload), sharing the same fileUpload()
+ * and so the same path/myfile shape either way.
+ *
+ * Flash is the default: a card can be swapped or reformatted, and a job's
+ * G-code is not meant to survive that, but a standing macro is. The SD card is
+ * there for the board whose flash has no room left once its own dashboard is
+ * on it — the whole set is 39 KB, and a card does not notice that. There is no
+ * $SD/Run either way: these are routines an operator runs by hand, not a job
+ * to start the moment it lands. */
+const MACRO_TARGETS = {
+  flash: {
+    route: "files",
+    sending: "Sending {name} to {base} (flash)… ({sent}/{total})",
+    sent: "Sent {count} macros to {base}'s flash filesystem. The reply is opaque, so "
+      + "check the machine's own file list to be sure.",
+    stopped: "{base} stopped taking files at {name}: {error}. Sent {sent}/{total}, each "
+      + "tried {tries} times. Check the hostname under Machine setup, Connection, and "
+      + "that this page and the machine are on the same network \u2014 and if the ones that "
+      + "landed are the first few every time, the board's flash filesystem may be full: "
+      + "look at its file list and clear out what is not a macro.",
+  },
+  sd: {
+    route: "upload",
+    sending: "Sending {name} to {base} (SD card)… ({sent}/{total})",
+    sent: "Sent {count} macros to {base}'s SD card. The reply is opaque, so check the "
+      + "machine's own file list to be sure.",
+    stopped: "{base} stopped taking files at {name}: {error}. Sent {sent}/{total}, each "
+      + "tried {tries} times. Check the hostname under Machine setup, Connection, that "
+      + "this page and the machine are on the same network, and that there is a card "
+      + "in the machine.",
+  },
+};
+
 async function uploadMacrosToMachine() {
   if (!pendingMacros) return;
   const note = $("macros-machine-note");
@@ -2711,6 +2742,8 @@ async function uploadMacrosToMachine() {
   }
 
   const upBtn = $("macros-upload");
+  const picked = $("macros-target");
+  const where = MACRO_TARGETS[picked && picked.value] || MACRO_TARGETS.flash;
   const names = selectedMacroNames().filter((n) => pendingMacros[n]);
   if (!names.length) {
     report("Nothing is ticked, so there is nothing to send.", null, true);
@@ -2723,15 +2756,14 @@ async function uploadMacrosToMachine() {
   let failed = null;
   try {
     for (const name of names) {
-      report("Sending {name} to {base} (flash)… ({sent}/{total})",
-             { name, base, sent, total: names.length });
+      report(where.sending, { name, base, sent, total: names.length });
       failed = name;
       for (let go = 1; ; go++) {
         try {
           const fd = new FormData();
           fd.append("path", "/");
           fd.append("myfile", new Blob([pendingMacros[name]], { type: "text/plain" }), name);
-          await fetch(`${base}/files`, { method: "POST", body: fd, mode: "no-cors" });
+          await fetch(`${base}/${where.route}`, { method: "POST", body: fd, mode: "no-cors" });
           break;
         } catch (again) {
           if (go >= MACRO_TRIES) throw again;
@@ -2746,14 +2778,9 @@ async function uploadMacrosToMachine() {
       if (sent < names.length) await pause(MACRO_PAUSE_MS);
     }
     failed = null;
-    report("Sent {count} macros to {base}'s flash filesystem. The reply is opaque, so "
-      + "check the machine's own file list to be sure.", { count: sent, base });
+    report(where.sent, { count: sent, base });
   } catch (e) {
-    report("{base} stopped taking files at {name}: {error}. Sent {sent}/{total}, each "
-      + "tried {tries} times. Check the hostname under Machine setup, Connection, and "
-      + "that this page and the machine are on the same network \u2014 and if the ones that "
-      + "landed are the first few every time, the board's flash filesystem may be full: "
-      + "look at its file list and clear out what is not a macro.",
+    report(where.stopped,
       { base, name: failed || names[sent] || "?", error: t(String(e.message || e)),
         sent, total: names.length, tries: MACRO_TRIES }, true);
   } finally {

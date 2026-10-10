@@ -110,6 +110,9 @@ text: {
 "Generate macros": "Steuermakros erzeugen",
 "Download selected": "Auswahl herunterladen",
 "Upload selected to machine": "Auswahl auf Maschine übertragen",
+"Upload to": "Übertragen auf",
+"Flash": "Flash-Speicher",
+"SD card": "SD-Karte",
 "Delete all macros on the machine": "Alle Makros auf der Maschine löschen",
 
 /* ---------------------------------------------------------------- artwork */
@@ -558,6 +561,12 @@ text: {
   "{name} wird an {base} gesendet (Flash-Speicher) … ({sent}/{total})",
 "Sent {count} macros to {base}'s flash filesystem. The reply is opaque, so check the machine's own file list to be sure.":
   "{count} Makros an den Flash-Speicher von {base} gesendet. Die Antwort bleibt verdeckt, prüfen Sie daher zur Sicherheit die Dateiliste der Maschine.",
+"Sending {name} to {base} (SD card)… ({sent}/{total})":
+  "{name} wird an {base} gesendet (SD-Karte) … ({sent}/{total})",
+"Sent {count} macros to {base}'s SD card. The reply is opaque, so check the machine's own file list to be sure.":
+  "{count} Makros auf die SD-Karte von {base} gesendet. Die Antwort bleibt verdeckt, prüfen Sie daher zur Sicherheit die Dateiliste der Maschine.",
+"{base} stopped taking files at {name}: {error}. Sent {sent}/{total}, each tried {tries} times. Check the hostname under Machine setup, Connection, that this page and the machine are on the same network, and that there is a card in the machine.":
+  "{base} nahm ab {name} keine Dateien mehr an: {error}. {sent}/{total} gesendet, jede {tries}-mal versucht. Prüfen Sie den Netzwerknamen unter „Maschineneinrichtung“, „Verbindung“, dass diese Seite und die Maschine im selben Netz liegen und dass eine Karte in der Maschine steckt.",
 "{name} did not go: waiting and trying again ({go}/{tries})…":
   "{name} ging nicht durch: warten und noch einmal versuchen ({go}/{tries}) …",
 "{base} stopped taking files at {name}: {error}. Sent {sent}/{total}, each tried {tries} times. Check the hostname under Machine setup, Connection, and that this page and the machine are on the same network — and if the ones that landed are the first few every time, the board's flash filesystem may be full: look at its file list and clear out what is not a macro.":
