@@ -1680,7 +1680,9 @@ is what forces trips to the paint tray. Reaching 120 mm through solid ink saved 
 lifts but added 0.35 m of painting and two tray trips — a clear loss, since a
 tray trip costs far more than a lift.
 
-**Strokes are ordered** nearest-first so the brush travels less between them.
+**Strokes are ordered** so the brush travels less between them: a section of
+ink is finished before the next is begun, and the sections are toured in the
+order that takes least time — see *A shape is finished before the next*.
 
 ### The brush stays down in its own ink
 
@@ -1726,6 +1728,71 @@ Reach 10 gets most of it (5,093 strokes against 4,791 at 30) and past 30
 there is nothing left to reach. Asking only the nearest twelve ends is what
 keeps it quick: the test walks the move, and past a dozen refusals the ink
 round there is not joined up. Generation takes as long as it did.
+
+### A shape is finished before the next
+
+Nearest-first left things behind. It goes to whatever end is closest, and
+after the outline of a big shape what is closest is as often a sliver beside
+it as the next ring in. The sliver is painted, then the one beyond it, and the
+ring that was passed over waits until nothing nearer is left, when the brush
+crosses the picture to fetch it. On the dragonfly of *Überflüger* at 0.3 mm
+the cyan plate went back to a shape it had already left **18 times**, and the
+very last thing it painted was the inside of the upper wing it had outlined
+near the start. Counted over cyan, magenta and black, **32** returns.
+
+`tour.py` orders a plate in two levels:
+
+- **A section is finished before the brush leaves it.** A section is a
+  connected patch of the plate's ink. Every stroke lies in exactly one — the
+  bridges and the moves through the ink are only taken inside it — so each is
+  labelled by looking it up, and `order_polylines` offers the brush only the
+  strokes of the section it is in until there are none left.
+- **The sections are toured.** Each can be painted from its first stroke or
+  from its last; 2-opt and or-opt rearrange them, then the strokes inside each,
+  until no swap is any quicker. The tour starts at the colour's cup, where the
+  pickup leaves the brush, and ends at the water, where the wash takes it, and
+  the greedy pass it improves on starts from the stroke nearest the cup —
+  started anywhere else it kept a long first leg no local swap undid.
+
+**What is minimised is time, not distance.** A lifted move on Pinkograph
+(100 mm/s², 2100 mm/min) does not reach its feedrate in under 12 mm, and below
+that its time goes as the square root of its length, so two 5 mm moves take
+longer than one of 10. The swaps are scored with that curve and the machine's
+own `fast` speed group, the one copicograf lifts into between strokes.
+
+Measured on Pinkograph's config, 120 mm, backlash and levelling off and the
+load length held fixed so the dips line up, timed the way the preview times
+a job:
+
+| | before | finished first | |
+|---|---|---|---|
+| dragonfly, 0.3 mm | 0.630 h, 32 returns | 0.625 h, 1 return | −0.8% |
+| dragonfly, 1 mm | 0.242 h, 16 returns | 0.239 h, 1 return | −1.2% |
+| dragonfly, 2 mm | 0.163 h | 0.159 h | −2.5% |
+| *The Starry Night*, 0.4 mm | 8.402 h | 8.375 h | −0.3% |
+| *The Starry Night*, 1 mm | 2.834 h | 2.814 h | −0.7% |
+
+The one return left is in the counting, not the painting: the count samples a
+stroke at other points than `sections_of` votes with, and puts one stroke along
+a vein in the section beside it. By the pipeline's own labels no section is
+visited twice.
+
+**It is a small part of the time, and that is worth knowing before reaching
+for more of it.** Of the dragonfly's 14 minutes at 1 mm, 5.5 are painting,
+3.5 trips to the cups, 2 the lifts and landings — Z at 600 mm/min, half a
+second each way — and about 3 the moves over the canvas, most of them the legs
+of the trips to the cups. The order decides only the moves between strokes,
+and those it cut by about a quarter. On a photograph the strokes already sit
+next to one another and nearest-first was close to right. What costs the time
+is the number of strokes, not their order: *The Starry Night* at 0.4 mm spends
+two hours of its eight lifting and landing.
+
+Generation pays for it: 12 s more on *The Starry Night* at 0.4 mm (46 s from
+34), nothing to notice on a drawing. Every swap would be tried on a section of
+up to 300 items; past that only those that put an item next to one of its ten
+nearest on the paper, found once per section with OpenCV's FLANN — a sort per
+question was a minute. Three rounds came to the same order as eight on both
+pictures.
 
 ### The rough time, and why it was three times out
 

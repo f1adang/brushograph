@@ -21,6 +21,7 @@ from PIL import Image
 from images import flatten
 
 import planar
+import tour
 from version import gcode_note
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -185,6 +186,10 @@ class InkMask:
             return bool(self.ink[row, col])
         return False
 
+    def sections(self, polys) -> list[int]:
+        """Which connected patch of this ink each stroke lies in."""
+        return tour.sections_of(polys, self.ink, self.width_mm, self.height_mm)
+
     def segment_inside(self, a, b, step: float = 0.5) -> bool:
         dx, dy = b[0] - a[0], b[1] - a[1]
         dist = (dx * dx + dy * dy) ** 0.5
@@ -196,7 +201,8 @@ class InkMask:
         return True
 
 
-def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.0):
+def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.0,
+                    sections=None):
     """Emit strokes nearest-first so the brush spends less time travelling.
 
     Given `permit` — a test that a straight move stays inside the ink — the
@@ -204,6 +210,12 @@ def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.
     `reach` that the move to it never leaves the ink is taken ahead of a nearer
     one across paper, and the two strokes are handed back as one. See
     INK_HOP_REACH for why, and what it measured.
+
+    Given `sections`, one label per stroke, the brush does not lift out of a
+    section while it has strokes left in it: the nearest of those is taken
+    ahead of a nearer one elsewhere, so every section comes out in one piece
+    for `tour.arrange` to put in order. A move through the ink stays in its
+    section anyway.
     """
     if len(polys) < 3 and permit is None:
         return polys
@@ -220,10 +232,18 @@ def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.
         buckets.setdefault(key(poly[-1]), []).append((i, 1))
 
     span = int(reach // cell) + 1 if permit is not None else 0
-    used = [False] * len(polys)
+    used = np.zeros(len(polys), bool)
     out = [list(polys[0])] if permit is not None else [polys[0]]
     used[0] = True
     cur = polys[0][-1]
+    if sections is not None:
+        firsts = np.array([p[0] for p in polys], float)
+        lasts = np.array([p[-1] for p in polys], float)
+        members: dict = {}
+        for i, sec in enumerate(sections):
+            members.setdefault(sec, []).append(i)
+        members = {sec: np.array(idx) for sec, idx in members.items()}
+        here = sections[0]
     for _ in range(len(polys) - 1):
         if span:
             # The ends within reach, nearest first, and the first of them the
@@ -252,6 +272,15 @@ def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.
                 cur = nxt[-1]
                 continue
         best = None
+        if sections is not None:
+            left = members[here]
+            left = left[~used[left]]
+            if left.size:
+                d0 = ((firsts[left] - cur) ** 2).sum(1)
+                d1 = ((lasts[left] - cur) ** 2).sum(1)
+                a, b = int(np.argmin(d0)), int(np.argmin(d1))
+                best = ((d0[a], int(left[a]), 0) if d0[a] <= d1[b]
+                        else (d1[b], int(left[b]), 1))
         ring = 1
         while best is None and ring < 64:
             cx, cy = key(cur)
@@ -279,6 +308,8 @@ def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.
         nxt = polys[j] if end == 0 else polys[j][::-1]
         out.append(list(nxt) if permit is not None else nxt)
         cur = nxt[-1]
+        if sections is not None:
+            here = sections[j]
     return out
 
 
@@ -540,12 +571,18 @@ def last_stroke_point(path: Path) -> tuple[float, float] | None:
 
 def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
                       mask: "InkMask | None" = None,
-                      bridge_lines: bool = True) -> int:
+                      bridge_lines: bool = True,
+                      travel: tuple[float, float] = (100.0, 35.0),
+                      start=None, end=None) -> int:
     """Chain, tidy and write paths in the pen-up/pen-down form copicograf reads.
 
     Takes paths from either source — the external slicer or the planar
     backend — so both get the same chaining, the same centreline rescue for
     shapes too thin to outline, and the same output format.
+
+    `travel` is the acceleration and speed the brush moves between strokes
+    at, which is what the order is timed with; `start` and `end` are where it
+    comes from and goes to, in the same millimetres as the paths.
     """
     if mask is not None:
         polys = polys + centrelines_for_missed(mask, polys, line_w, log)
@@ -582,15 +619,38 @@ def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
     # is walked at half a stroke, not the bridge's half millimetre: at a
     # 0.3 mm brush that would step clean over a gap of paper wider than the
     # stroke.
+    #
+    # And a section of ink is finished before the brush leaves it, then the
+    # sections are put in the order that takes least time: see tour.py.
     before = len(polys)
+    accel, speed = travel
+
+    def seconds(d):
+        return tour.travel_seconds(d, accel, speed)
+
     if mask is not None:
+        # Begun from the stroke nearest the cup it has just been loaded at.
+        # The tour below only ever improves on the order it is given, and an
+        # order that opens at the far end of the picture keeps a long first
+        # leg no local swap undoes.
+        if start is not None:
+            first = min(range(len(polys)), key=lambda i: min(
+                (polys[i][0][0] - start[0]) ** 2 + (polys[i][0][1] - start[1]) ** 2,
+                (polys[i][-1][0] - start[0]) ** 2 + (polys[i][-1][1] - start[1]) ** 2))
+            lead = polys[first]
+            if ((lead[-1][0] - start[0]) ** 2 + (lead[-1][1] - start[1]) ** 2
+                    < (lead[0][0] - start[0]) ** 2 + (lead[0][1] - start[1]) ** 2):
+                lead = lead[::-1]
+            polys = [lead] + polys[:first] + polys[first + 1:]
         step = min(0.5, line_w / 2)
         polys = order_polylines(polys, permit=lambda a, b: mask.segment_inside(a, b, step),
-                                reach=line_w * INK_HOP_REACH)
+                                reach=line_w * INK_HOP_REACH,
+                                sections=mask.sections(polys))
+        if len(polys) < before:
+            log(f"  brush kept down through the ink {before - len(polys)} times")
+        polys = tour.arrange(polys, mask.sections(polys), seconds, start, end)
     else:
         polys = order_polylines(polys)
-    if len(polys) < before:
-        log(f"  brush kept down through the ink {before - len(polys)} times")
     lengths = sorted(_length(p) for p in polys)
     median = lengths[len(lengths) // 2]
     grew = (sum(lengths) - raw_len) / raw_len * 100 if raw_len else 0.0
@@ -771,6 +831,16 @@ def _figure(bg: dict, key: str, fallback: float = 0.0) -> float:
         return float(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _group_figure(value, fallback: float) -> float:
+    """A speed group's figure, whether the box holds 2100 or `G0 F2100`."""
+    try:
+        n = float(value)
+    except (TypeError, ValueError):
+        found = re.search(r"[FPT]\s*(\d*\.?\d+)", str(value or ""))
+        n = float(found.group(1)) if found else 0.0
+    return n if n > 0 else fallback
 
 
 def _coord(value: float) -> str:
@@ -1437,6 +1507,13 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
 
     stats = {"trays": [], "strokes": 0}
 
+    # What a move between strokes is made at: copicograf lifts into the fast
+    # group for it. Timed with the figures, so the order is the quickest one on
+    # this machine and not merely the shortest.
+    fast = bg.get("moves", {}).get("fast", {})
+    travel = (_group_figure(fast.get("acc"), 100.0),
+              _group_figure(fast.get("feedrate_1"), 2100.0) / 60.0)
+
     def prepare(entry):
         """Everything for one tray up to, but not including, the choreography.
 
@@ -1464,10 +1541,18 @@ def generate(conf: dict, images: dict[str, Path], workdir: Path, out_path: Path,
                              perimeters=int(float(slicer_conf.get("wall_line_count", 1) or 1)),
                              angle=infill_angle,
                              log=log)
+        # The painting starts after a pickup at this colour's cup and ends
+        # with a wash at the water, so the order is anchored at both.
+        ox, oy = canvas_origin(conf)
+        water = conf.get("trays", {}).get("water")
+        cup = (float(entry["x"]) - ox, float(entry["y"]) - oy)
+        rinse = ((float(water["x"]) - ox, float(water["y"]) - oy)
+                 if isinstance(water, dict) and "x" in water and "y" in water else cup)
         try:
             n = write_brush_paths(paths, adapted, log, line_w=line_w,
                                   mask=None if pattern == "scanline" else canvas,
-                                  bridge_lines=(pattern != "scanline"))
+                                  bridge_lines=(pattern != "scanline"),
+                                  travel=travel, start=cup, end=rinse)
         except PipelineError:
             # Nothing on this plate survives at this size with this stroke.
             # Not the run's problem to die of: it is one tray of several, and
