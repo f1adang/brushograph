@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.5](https://github.com/f1adang/brushograph/releases/tag/v2.23.5) — 2026-10-10
+
+- **Macros can go to the SD card:** after you press **Generate macros**, an **Upload to** choice appears next to **Upload selected to machine**. It starts on **Flash**, where the macros have always gone. Choose **SD card** if the controller's flash has no room left. **Delete all macros** still only clears the flash.
+
 ## [v2.23.4](https://github.com/f1adang/brushograph/releases/tag/v2.23.4) — 2026-10-10
 
 - **Two infill patterns that did nothing are gone:** Infill Pattern no longer offers archimedeanchords or hilbertcurve. Both were always painted as concentric, so choosing one never changed the painting. A saved config that names one still opens with it selected and paints the same as before.
