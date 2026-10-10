@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.4](https://github.com/f1adang/brushograph/releases/tag/v2.23.4) — 2026-10-10
+
+- **Two infill patterns that did nothing are gone:** Infill Pattern no longer offers archimedeanchords or hilbertcurve. Both were always painted as concentric, so choosing one never changed the painting. A saved config that names one still opens with it selected and paints the same as before.
+
 ## [v2.23.3](https://github.com/f1adang/brushograph/releases/tag/v2.23.3) — 2026-10-10
 
 - **Each shape is finished before the brush moves on:** the brush used to go to whichever stroke was nearest, and that often left part of a shape behind, so it had to come back across the picture at the end. On the dragonfly at a 0.3 mm stroke, the cyan plate went back to shapes it had already left 18 times. Now every connected patch of colour is painted in one go, and the patches are painted in the order that takes the machine least time, starting near the colour's cup and ending near the water. Jobs are about 1 to 2.5% quicker, and generating a large photograph takes a few seconds longer.
