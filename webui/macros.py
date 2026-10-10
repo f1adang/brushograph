@@ -235,6 +235,15 @@ assert all(x1 >= x0 and y1 >= y0
 # still holds as long as something is left.
 _RUN_UP = 10.0
 
+# The least either pen sheet commands on either axis, run-ups included: the
+# near end's share of the _CLEAR the far end is kept from. X0 and Y0 are not
+# the bed's edge but wherever zero.g left them, and it leaves them close to
+# the stops: it drives into them, backs off 12 mm in X and 3 in Y, and calls
+# that X10 Y0, so the X stop is at X-2. backlash.g took 0 as its floor and
+# ran every near-end run-up to X0 -- eighteen moves a sheet -- and on
+# Testikel, with half a millimetre of play, that was into the stop.
+_NEAR = _CLEAR
+
 # speedtest.g's approach, which is not a take-up of the play but a timed
 # distance: the acceleration is read off five of them (_SPEED_APPROACHES), and
 # a shorter one would be over too quickly to time by hand.
@@ -818,8 +827,9 @@ def _comb_stroke(bg: dict, vertical: bool, pos: float, start: float, end: float,
     # enough to be worth measuring. Clamped, because on a canvas starting at
     # the origin it backs straight into the endstop -- the first pair of a
     # Mikro's Y test asked for X -0.6, and what a move loses against a stop it
-    # loses for the rest of the file.
-    settle = max(0.0, start - run_up)
+    # loses for the rest of the file. Clamped short of the origin and not at
+    # it, because the origin is itself only a step or two off the stop (_NEAR).
+    settle = max(_NEAR, start - run_up)
     if vertical:
         travel = [
             f"G00 X{_fmt(pre)} Y{_fmt(settle)}",
@@ -873,8 +883,8 @@ def _text(bg: dict, text: str, x: float, y: float, h: float,
         for stroke in _GLYPHS[ch]:
             pts = [(x + px * w, y + py * h) for px, py in stroke]
             sx, sy = pts[0]
-            back_x = sx - _run_up(sx, 1, 0.0, reach_x)
-            back_y = sy - _run_up(sy, 1, 0.0, reach_y)
+            back_x = sx - _run_up(sx, 1, _NEAR, reach_x)
+            back_y = sy - _run_up(sy, 1, _NEAR, reach_y)
             lines += [f"G00 X{_fmt(back_x)} Y{_fmt(back_y)}",
                       f"G00 X{_fmt(sx)} Y{_fmt(sy)} ; arrive from below left",
                       _feed(bg, "normal"), f"G01 Z{_fmt(canvas_z)}",
@@ -1184,8 +1194,13 @@ def generate_macros(conf: dict) -> dict[str, str]:
                 lines.append(head + " -- out of reach, not drawn")
                 continue
             lines.append(head)
+            # Backed off no further than _NEAR, like backlash.g: the water cup
+            # can stand within a run-up of the origin, and the origin within
+            # two millimetres of the X stop. A tick that close comes in short
+            # or not at all -- the play is in it, by half a millimetre on
+            # Testikel, which is small against a cup and large against a stop.
             lines += _comb_stroke(bg, True, ex, oy, oy + tick, 1,
-                                  _run_up(ex, 1, 0.0, wx_lim), cz, go_lift)
+                                  _run_up(ex, 1, _NEAR, wx_lim), cz, go_lift)
         lines += [
             "; park",
             f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift",
@@ -1348,13 +1363,14 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # The corners. Every stroke backs off _RUN_UP before it comes in, so a
     # station can stand at the very edge of the paintable area only where the
     # machine can reach that far past it: the outermost ones go to the corners
-    # and are pulled in exactly as far as the run-up needs, and no further.
-    # Pinkograph's stations come out at X10 and X138 of a bed that paints 0 to
-    # 151, and at Y33 -- the bottom of the paper, with the containers in the
-    # Y below it -- and Y143 of 156.
-    x0 = max(ox, _RUN_UP)
+    # and are pulled in exactly as far as the run-up needs, and no further --
+    # at the near end as at the far one, where the run-up must stop _NEAR
+    # short of the origin. Pinkograph's stations come out at X13 and X138 of a
+    # bed that paints 0 to 151, and at Y28 -- the bottom of the paper, with
+    # the containers in the Y below it -- and Y143 of 156.
+    x0 = max(ox, _NEAR + _RUN_UP)
     x1 = max(x0, min(ox + paint_w, reach_x - _RUN_UP))
-    y0 = max(oy, _RUN_UP)
+    y0 = max(oy, _NEAR + _RUN_UP)
     y1 = max(y0, min(oy + paint_h, reach_y - _RUN_UP))
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
 
@@ -1376,8 +1392,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
             vy, hx = (py - span, py + span), (px - span, px + span)
         return [
             f"; station at X{_fmt(px)} Y{_fmt(py)} -- {note}",
-            *pair(True, px, vy[0], vy[1], 0.0, reach_x),
-            *pair(False, py, hx[0], hx[1], 0.0, reach_y),
+            *pair(True, px, vy[0], vy[1], _NEAR, reach_x),
+            *pair(False, py, hx[0], hx[1], _NEAR, reach_y),
         ]
 
     # Where the two gauges go, and how long a station's leg is, which is one
@@ -1520,7 +1536,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
 
     for i, (at, gap, name) in enumerate(zip(xg_at, xg_gaps, x_names)):
         lines.append(f"; X gauge pair {name} mm")
-        lines += gauge(True, at, gap, xg_run[0], xg_run[1], 0.0, reach_x)
+        lines += gauge(True, at, gap, xg_run[0], xg_run[1], _NEAR, reach_x)
         # Under the column, every other one a row further down when there
         # are two rows.
         ty = xg_run[0] - (i % x_rows + 1) * (xh + _LABEL_GAP)
@@ -1528,7 +1544,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
                        ty, xh, cz, go_lift, reach_x, reach_y)
     for at, gap in zip(yg_at, yg_gaps):
         lines.append(f"; Y gauge pair {_fmt(gap)} mm")
-        lines += gauge(False, at, gap, yg_run[0], yg_run[1], 0.0, reach_y)
+        lines += gauge(False, at, gap, yg_run[0], yg_run[1], _NEAR, reach_y)
 
     lines.append(f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift")
     # Not the shared park: that one ends at Dip Depth + 1, which is below the

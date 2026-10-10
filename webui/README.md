@@ -3712,6 +3712,16 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   the Y endstop — moving there first is a move into the stop. It ends washed
   and parked in the water, like `clean.g`, because there is black paint in the
   brush.
+
+  **Each tick's run-up stops at X 3**, the near-end limit `backlash.g` uses
+  (`_NEAR`), and not at X 0. A water cup can stand within a run-up of the
+  origin, and the origin is only 2 mm from the X stop, so the run-up behind
+  that tick went to X 0: Parang's water at X 7 backed off to X 0, and the
+  𝔐𝔦𝔨𝔯𝔬's at X 2 did the same. Parang's now takes a 4 mm run-up from X 3,
+  which still exceeds its play. The 𝔐𝔦𝔨𝔯𝔬's water is inside the limit and
+  gets no run-up, so that one tick can be off by the play, about 0.5 mm, and
+  that is much less of a fault than driving into the stop. Pinkograph's and
+  Testikel's cups are far enough in that their files are unchanged.
 - **mix-c.g, mix-m.g, mix-y.g, mix-k.g** each stir one colour cup. Watercolour
   in a crucible separates: pigment to the floor, water and the methylcellulose
   that thickens it above, and a job painted from a cup that has stood overnight
@@ -3816,9 +3826,24 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   what it loses for the rest of the file and every line after it lands short
   of where it says. On a sheet whose whole content is where lines land, that
   would not look like a fault at all. Pinkograph's far corners therefore stand
-  at 138 rather than 151, and its near ones at 10 rather than 0. Every pair on
+  at 138 rather than 151, and its near ones at 13 rather than 0. Every pair on
   all three configs checked gets its full 10 mm from **both** sides — that is
   the constraint the layout is solved against, not a hope.
+
+  **The near end is kept clear as well, which it was not.** The 3 mm was
+  taken off the far end only; at the near end the floor was 0, so the near
+  stations stood at X10 and every run-up and settle behind them went to X0 —
+  eighteen moves a sheet on every config, nineteen on the 𝔐𝔦𝔨𝔯𝔬. But X0 is
+  not the edge of the bed. It is wherever `zero.g` put it, and `zero.g` puts
+  it close to the stop: it drives into the stops, backs off 12 mm in X and
+  3 in Y and calls that X10 Y0, so the X stop is at X −2. With half a
+  millimetre of play that is no margin, and on Testikel the sheet ran into
+  the left stop. The floor is now `_NEAR`, the same 3 mm as the far end and
+  as `speedtest.g`'s near edge, and the near stations stand at X13 so that
+  the run-up still fits whole. Nothing in the sheet goes below X3 or Y3
+  except the final park at the water cup, which every job goes to anyway;
+  all 62 arrivals on a Mini and 53 on the 𝔐𝔦𝔨𝔯𝔬 still come in over the
+  full 10 mm, and the 𝔐𝔦𝔨𝔯𝔬's X gauge still shows four pairs.
 
   **The run-up is 10 mm.** It only has to exceed the play, and 3 mm is what a
   very poor machine has. It was 12, and was cut to 4 — which moved
