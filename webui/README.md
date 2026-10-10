@@ -1882,6 +1882,13 @@ usefully draw. They collapse onto the two that mean something here —
 ordered with the ones
 best suited to a brush first.
 
+It used to offer `archimedeanchords` and `hilbertcurve` as well. In Cura those
+are a spiral clipped to the shape and a space-filling maze of right-angled
+steps; here both have always been painted as `concentric`, so choosing one
+changed nothing and suggested otherwise. They are gone from the list. A config
+that names one still opens with it selected — the form keeps any value the list
+does not know — and still paints concentric.
+
 ### Bed levelling
 
 Canvas Height is one figure, and a sheet of paper taped to a bed is not one

@@ -1061,9 +1061,12 @@ ENUM_LABELS = {
 
 ENUMS = {
     # Ordered by how well
-    # they suit a brush: long flowing strokes first, raster last.
+    # they suit a brush: long flowing strokes first, raster last. Cura's
+    # archimedeanchords and hilbertcurve are not offered: planar paints both
+    # as concentric, so picking one changed nothing. A config naming one keeps
+    # it, shown first like any other value the list does not know.
     "slicer-infill_pattern": [
-        "concentric", "archimedeanchords", "alignedrectilinear", "rectilinear", "hilbertcurve", "scanline",
+        "concentric", "alignedrectilinear", "rectilinear", "scanline",
     ],
     "controller-controller_type": ["GRBL", "Marlin", "FluidNC"],
     "brushograph-cup_shape": ["classic", "modern", "custom"],
