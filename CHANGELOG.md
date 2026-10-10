@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.2](https://github.com/f1adang/brushograph/releases/tag/v2.23.2) — 2026-10-10
+
+- **backlash.g no longer runs into the left endstop:** the backlash sheet used to move the pen right back to X 0 before many of its strokes, and X 0 is only about 2 mm from the stop after zero.g. On a machine with a little play, the pen holder reached the stop. The sheet now stays at least 3 mm in from X 0, the same as at the far end, and the stations on the left now start at X 13 instead of X 10. containercenter.g had the same problem when the water cup is close to X 0, as on a 𝔐𝔦𝔨𝔯𝔬, and is fixed the same way. Generate the macros again and send `backlash.g` and `containercenter.g` to the machine again, because the copies already on it are the old ones.
+
 ## [v2.23.1](https://github.com/f1adang/brushograph/releases/tag/v2.23.1) — 2026-10-09
 
 - **The brush leaves a full CMYK cup above the paint:** when loading paint, the brush wipes itself by sliding up the stairs at the back of the cup. That wipe now finishes one step higher, at 8.2 mm on the Mini and 6.6 mm on the 𝔐𝔦𝔨𝔯𝔬 instead of 6.5 and 5.3. Before, in a well-filled cup the brush finished the wipe still under the paint and came out carrying too much. The mix macros now wipe the same way. Saved configs keep their old height until you press **Auto-space containers** or change **Cup Swipe Exit Z** yourself. If your Dip Depth is 0 rather than 1, use 7.2 on a Mini.
