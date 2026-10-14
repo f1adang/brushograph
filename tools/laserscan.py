@@ -8,7 +8,7 @@ FluidNC link (the Pi's UART is taken by the sensor):
   WiFi:  --cnc socket://192.168.1.50:23   (FluidNC telnet)
 
 Example:
-  python3 laserscan.py --cnc /dev/ttyUSB0 --x0 0 --x1 200 --y0 0 --y1 150 --step 5 --home
+  python3 laserscan.py --cnc /dev/ttyUSB0 --x1 200 --y0 0 --y1 150 --step 5
 """
 import argparse, csv, math, re, statistics, sys, time
 import serial
@@ -181,8 +181,6 @@ def write_preview(args):
     """Path only, for checking in a G-code viewer. Measuring needs the live run."""
     with open(args.gcode_only, "w") as f:
         f.write("G21\nG90\n")
-        if args.home:
-            f.write("$H\n")
         if args.z is not None:
             f.write(f"G0 Z{args.z:.3f}\n")
         for x, y in grid(args):
@@ -195,14 +193,13 @@ def main():
     p = argparse.ArgumentParser()
     p.add_argument("--cnc", default="/dev/ttyUSB0")
     p.add_argument("--tof", default="/dev/serial0")
-    p.add_argument("--x0", type=float, required=True)
+    p.add_argument("--x0", type=float, default=0.0)
     p.add_argument("--x1", type=float, required=True)
     p.add_argument("--y0", type=float, required=True)
     p.add_argument("--y1", type=float, required=True)
     p.add_argument("--step", type=float, default=5.0, help="grid spacing mm")
     p.add_argument("--feed", type=float, default=3000, help="mm/min")
     p.add_argument("--z", type=float, help="fixed Z for the scan (omit if no Z)")
-    p.add_argument("--home", action="store_true", help="run $H first")
     p.add_argument("--settle", type=float, default=0.3, help="s after stop")
     p.add_argument("--samples", type=int, default=9,
                    help="readings a point at most; it stops once more than half agree")
@@ -232,8 +229,6 @@ def main():
     try:
         cnc.send("G21")
         cnc.send("G90")
-        if args.home:
-            cnc.send("$H", timeout=180)
         if args.z is not None:
             cnc.send(f"G0 Z{args.z:.3f}")
             cnc.wait_idle()
