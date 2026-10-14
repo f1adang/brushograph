@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.8](https://github.com/f1adang/brushograph/releases/tag/v2.23.8) — 2026-10-14
+
+- **Watch the machine paint:** if a camera running [camera-streamer](https://github.com/ayufan/camera-streamer) is pointed at the bed, put its address in the new **Camera** setting under Machine setup, Connection, for example `192.168.1.106:8080`. **Watch the machine**, just below it, then shows the camera's picture with the machine's state over it: whether it is running, paused or in alarm, how fast it is moving, where the brush is in X, Y and Z, and which file it is painting and how far through it is. **Full screen** keeps the figures on the picture, so it can be left on a screen beside the machine. The page can be bookmarked, and **Back to the machine** returns you to the machine you came from. The browser talks to the machine and the camera directly, so it has to be on their network.
+
 ## [v2.23.7](https://github.com/f1adang/brushograph/releases/tag/v2.23.7) — 2026-10-14
 
 - **backlash.g covers the whole bed, whatever you are painting:** the backlash sheet used to be placed by the painting currently set up, so a small painting with an offset got a small sheet in one corner. Testikel, set to paint a 50 mm square at X 60 Y 60, measured only a fifth of the bed. The sheet now always spans the paintable area, from X 0 to **Max Width** and from **Canvas Start Y** to **Max Height**, so the figures it gives are good for every job on the machine. Lay a full sheet of paper on the bed before you run it. Generate the macros again and send `backlash.g` to the machine again.
