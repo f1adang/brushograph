@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.6](https://github.com/f1adang/brushograph/releases/tag/v2.23.6) — 2026-10-14
+
+- **The pen sheets follow the paper:** `backlash.g`, `containercenter.g` and `trump.g` were drawn at Canvas Height everywhere, which is only right at the calibration dot. On a bed that is not level the pen drew in the air in some places and pressed into the paper in others: on Testikel, nearly 2 mm above the paper at the far end. With **Bed levelling** on, the sheets now follow the bed's height the way a painting does. Only the pen's height changes; where the lines go is exactly as before. With Bed levelling off, the macros are unchanged. Generate the macros again and send these three to the machine again.
+
 ## [v2.23.5](https://github.com/f1adang/brushograph/releases/tag/v2.23.5) — 2026-10-10
 
 - **Macros can go to the SD card:** after you press **Generate macros**, an **Upload to** choice appears next to **Upload selected to machine**. It starts on **Flash**, where the macros have always gone. Choose **SD card** if the controller's flash has no room left. **Delete all macros** still only clears the flash.
