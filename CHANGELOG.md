@@ -5,6 +5,7 @@ Changes on `autonomy` since it forked off `main` at `216288c`.
 ## [v2.23.7](https://github.com/f1adang/brushograph/releases/tag/v2.23.7) — 2026-10-14
 
 - **backlash.g covers the whole bed, whatever you are painting:** the backlash sheet used to be placed by the painting currently set up, so a small painting with an offset got a small sheet in one corner. Testikel, set to paint a 50 mm square at X 60 Y 60, measured only a fifth of the bed. The sheet now always spans the paintable area, from X 0 to **Max Width** and from **Canvas Start Y** to **Max Height**, so the figures it gives are good for every job on the machine. Lay a full sheet of paper on the bed before you run it. Generate the macros again and send `backlash.g` to the machine again.
+- **The laser scan no longer offers to home:** `tools/laserscan.py` had a `--home` option that sent `$H` first, which needs limit switches the machine does not have. It is gone; zero the machine with `zero.g` before scanning. `--x0` can now be left out and starts the scan at X 0.
 
 ## [v2.23.6](https://github.com/f1adang/brushograph/releases/tag/v2.23.6) — 2026-10-14
 
