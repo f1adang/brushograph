@@ -70,7 +70,7 @@ from configspec import (CMYK_LABEL, CMYK_TO_TRAY, MODELS,  # noqa: E501
                         holder_of,
                         in_cup_order, model_of, tray_entries, with_defaults,
                         workable_x)
-from gcode_pipeline import to_ascii
+from gcode_pipeline import apply_levelling, to_ascii
 # After gcode_pipeline, which is what puts the repo root on sys.path: the
 # choreographer lives a directory up, beside the command-line ancestors.
 from copicograf import (DEFAULT_DIP_LANES, DIP_DWELL,  # noqa: E402
@@ -473,6 +473,24 @@ def _cap_feeds(text: str, ceiling: float) -> tuple[str, bool]:
         return "F" + _fmt(ceiling)
 
     return _FEED_WORD.sub(hold, text), lowered
+
+
+# The macros that put a pen on the paper. calibrate.g touches it too, but at
+# the dot, which is where the levelling reads nought by definition.
+_PEN_SHEETS = ("backlash.g", "containercenter.g", "trump.g")
+
+
+def _levelled(text: str, conf: dict) -> str:
+    """`text` with every move on the paper at the paper's own height.
+
+    `apply_levelling` opens what it levels with a line giving the range it
+    applied; here that goes under the macro's own header, like the feed note,
+    so a file still starts by saying what it is.
+    """
+    lines = apply_levelling(text.splitlines(), conf)
+    if lines and lines[0].startswith("; bed levelling:"):
+        return _with_note("\n".join(lines[1:]), lines[0])
+    return "\n".join(lines) + "\n"
 
 
 def _preamble(bg: dict) -> list[str]:
@@ -1100,7 +1118,9 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # What the two macros that draw have in common. Both touch down at
     # canvas_height, the figure the brush already paints the paper at, so a pen
     # fitted in its place draws at the height the config names and neither
-    # macro has to invent a pen height nobody has a setting for.
+    # macro has to invent a pen height nobody has a setting for. Written flat
+    # here and levelled at the end (_levelled), the same pass a job's moves go
+    # through, so the pen follows the paper where Bed levelling is on.
     cz = _num(bg, "canvas_height", 0)
     wx_lim = workable_x(conf)
     # How far either of them may command, run-ups included: a few millimetres
@@ -1863,6 +1883,17 @@ def generate_macros(conf: dict) -> dict[str, str]:
         lines += leg()
         lines += reference(note)
     out["speedtest.g"] = "\n".join(lines) + "\n"
+
+    # The pen sheets follow the paper, the way a job does. Canvas Height is
+    # true at the calibration dot and nowhere else, and these were drawn at it
+    # everywhere: on Testikel, levelled -2 at the right and -1 in the middle,
+    # backlash.g's first station touched and the middle and far stations drew
+    # in the air, 1 and 1.9 mm over the paper. A brush bends over a fault
+    # like that and a pen does not. It is the job's own pass, so it is on
+    # when Bed levelling is and does nothing when it is not, and it moves Z
+    # alone: what these sheets measure is where the lines land in X and Y.
+    for name in _PEN_SHEETS:
+        out[name] = _levelled(out[name], conf)
 
     # Nothing here crosses the bed faster than the config's Fast group says the
     # machine is driven -- zero.g's own figures included, which is the whole

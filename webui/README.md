@@ -1942,7 +1942,8 @@ moves at or under the between-shapes clearance, so the travel that crosses the
 bed at the tray lift is left alone. What is left — the pen-down, the painting,
 and the short lift over the paper — gets a Z of its own, which is what the file
 grows by: Z is modal in G-code and this makes it not be. On a test job that is
-1431 moves given a Z between −0.02 and +0.32 mm.
+1431 moves given a Z between −0.02 and +0.32 mm. The pen sheets among the
+macros go through the same pass (see `backlash.g` under *Macro generator*).
 
 A point outside the rectangle is clamped into it rather than extrapolated: past
 the last reading there is nothing measured, and a plane run out beyond its own
@@ -4027,6 +4028,29 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   There is no pen height setting and this does not invent one: the strokes
   touch down at `canvas_height`, the figure the brush already uses, so a pen
   is fitted to draw at the height the config names.
+
+  **And it follows the paper, as a job does.** Canvas Height is true at the
+  calibration dot and nowhere else, and until v2.23.6 the pen sheets were
+  drawn at it everywhere: `backlash.g`, `containercenter.g` and `trump.g` never
+  went through `apply_levelling`. Testikel is levelled 0 at the left, −1 in the
+  middle and −2 at the right, so its first station, 8 mm from the dot, drew,
+  and the middle and both far stations drew in the air: 0.99 mm over the paper
+  in the middle and 1.86 to 1.89 mm at the far end. A brush bends over a fault
+  that size, but a pen doesn't. On a probe map it goes the other way as well:
+  Parang's sheet ranges from 1.22 mm in the air to 0.81 mm pressed into the
+  paper. The three sheets now get the job's own pass, at the end of
+  `generate_macros` (`_levelled`), so they are levelled when **Bed levelling**
+  is on and come out byte for byte as before when it is off. That is every
+  session config on disk. The pass moves Z and nothing else, which is what a
+  sheet measuring X and Y needs. Checked on the three kept configs, every X/Y
+  point of the old file is still there, in order. A probe map adds a point
+  wherever a stroke crosses its grid, and those points lie on the stroke, so
+  no axis reverses: Pinkograph's sheet goes from 560 lines to 1064, Parang's
+  to 823, and Testikel's, levelled from five readings, gains only the note.
+  The 64 lifts to `go_in_tray_lift`, and all the travel made at that height,
+  are untouched, being above the between-shapes clearance. The `; bed levelling:` line goes under the
+  macro's own header, like the feed note. `calibrate.g` is left alone: its
+  dot is where the levelling reads nought.
 
   Macros never go through `apply_backlash` — only `gcode_pipeline.generate`
   does — so the sheet is drawn raw whatever **Backlash compensation** is set
