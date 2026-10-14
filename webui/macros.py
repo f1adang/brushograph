@@ -67,8 +67,8 @@ import re
 from configspec import (CMYK_LABEL, CMYK_TO_TRAY, MODELS,  # noqa: E501
                         RECTANGULAR_SHAPES, accel_rate, calibration_point,
                         canvas_origin, feed_line, feed_rate, fit_cups_to_shape,
-                        holder_of,
-                        in_cup_order, model_of, tray_entries, with_defaults,
+                        holder_of, in_cup_order, level_area, model_of,
+                        tray_entries, with_defaults,
                         workable_x)
 from gcode_pipeline import apply_levelling, to_ascii
 # After gcode_pipeline, which is what puts the repo root on sys.path: the
@@ -1317,14 +1317,39 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # Y, and the play at the ends -- which is the whole point of the far-end
     # boxes -- read where the belt is not at its longest.
     #
-    # The far edge is the paintable width or workable_x, whichever is nearer:
-    # workable_x is how far a job already asks the machine to go and so how
-    # far it is known to reach, and it is never the axis travel, because that
-    # is where zero.g drives into the stops on purpose. The near edge is the
-    # canvas offset, which is what keeps the pen out of the containers: on a
-    # Mini they sit in the 32 mm of Y below the paper.
-    paint_w = max(0.0, min(max_w, wx_lim) - ox)
-    paint_h = max(0.0, max_h - oy)
+    # Nor on where the canvas happens to sit. Until v2.23.7 three figures of
+    # the job's still leaked in: the near corner was the canvas origin, Offset
+    # X and Offset Y included, and the far X edge was workable_x, which is the
+    # last cup or the end of this painting, whichever is further. Testikel,
+    # set to paint 50 mm square at X60 Y60, drew its sheet over X60 to X133
+    # and Y88 to Y132 of a 156 by 145 bed -- a fifth of it -- and put the
+    # far-end figures in from a station 23 mm short of the end. Parang, whose
+    # last cup is at 148 of 152, stopped 4 mm short whatever it painted.
+    #
+    # So the sheet now stands on the machine's own ground, the same rectangle
+    # the bed levelling is read over (level_area): X0 to Max Width, and Canvas
+    # Start Y -- where the containers end, which is what keeps the pen out of
+    # them -- to Max Height. The pen goes down inside that and nowhere else.
+    #
+    # How far it may travel with the pen up is workable_x as if this job
+    # filled the bed: the form lets any painting reach Max Width less
+    # EDGE_HEADROOM, so the machine is already trusted that far, and every job
+    # visits its cups, so it is trusted as far as the last of them too. The
+    # 𝔐𝔦𝔨𝔯𝔬's black crucible is at X70.5, past its 65 mm painting width, and
+    # it is what lets the far stations stand at X57.5 with their run-ups whole
+    # rather than at X52. Still never the axis travel, which is where zero.g
+    # drives into the stops on purpose.
+    #
+    # A config naming no travel limit gets its model's rather than max_w's
+    # fallback, which is the painting's own size again, or 200 mm: past either
+    # end of a Mini, with no canvas left in the sum to catch it.
+    bed = MODELS[model_of(conf)]["settings"]
+    bed_w = _num(bg, "max_width", bed["max_width"])
+    bed_h = _num(bg, "max_height", bed["max_height"])
+    bx, by = level_area(conf)[:2]
+    paint_w, paint_h = max(0.0, bed_w - bx), max(0.0, bed_h - by)
+    full_bed = {**conf, "brushograph": {**bg, "offset_x": 0, "width": bed_w}}
+    sheet_x, sheet_y = workable_x(full_bed) - _CLEAR, bed_h - _CLEAR
 
     def pair(vertical, pos, start, end, lo, hi):
         """The two strokes of one test pair: one commanded line, drawn once
@@ -1386,12 +1411,12 @@ def generate_macros(conf: dict) -> dict[str, str]:
     # and are pulled in exactly as far as the run-up needs, and no further --
     # at the near end as at the far one, where the run-up must stop _NEAR
     # short of the origin. Pinkograph's stations come out at X13 and X138 of a
-    # bed that paints 0 to 151, and at Y28 -- the bottom of the paper, with
-    # the containers in the Y below it -- and Y143 of 156.
-    x0 = max(ox, _NEAR + _RUN_UP)
-    x1 = max(x0, min(ox + paint_w, reach_x - _RUN_UP))
-    y0 = max(oy, _NEAR + _RUN_UP)
-    y1 = max(y0, min(oy + paint_h, reach_y - _RUN_UP))
+    # bed that paints 0 to 151, and at Y23 -- Canvas Start Y, the bottom of
+    # the paper, with the containers in the Y below it -- and Y143 of 156.
+    x0 = max(bx, _NEAR + _RUN_UP)
+    x1 = max(x0, min(bx + paint_w, sheet_x - _RUN_UP))
+    y0 = max(by, _NEAR + _RUN_UP)
+    y1 = max(y0, min(by + paint_h, sheet_y - _RUN_UP))
     cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
 
     def station(px: float, py: float, sx: int, sy: int, note: str) -> list[str]:
@@ -1412,8 +1437,8 @@ def generate_macros(conf: dict) -> dict[str, str]:
             vy, hx = (py - span, py + span), (px - span, px + span)
         return [
             f"; station at X{_fmt(px)} Y{_fmt(py)} -- {note}",
-            *pair(True, px, vy[0], vy[1], _NEAR, reach_x),
-            *pair(False, py, hx[0], hx[1], _NEAR, reach_y),
+            *pair(True, px, vy[0], vy[1], _NEAR, sheet_x),
+            *pair(False, py, hx[0], hx[1], _NEAR, sheet_y),
         ]
 
     # Where the two gauges go, and how long a station's leg is, which is one
@@ -1458,7 +1483,7 @@ def generate_macros(conf: dict) -> dict[str, str]:
     x_names = [_fmt(g) for g in xg_gaps]
     x_mid = [a + g / 2 for a, g in zip(xg_at, xg_gaps)]
     x_w = [_text_w(n) for n in x_names]
-    x_lo, x_hi = cx + _CLEAR, min(ox + paint_w, reach_x)
+    x_lo, x_hi = cx + _CLEAR, min(bx + paint_w, sheet_x)
     band_h = band[1] - band[0]
 
     def label_fit(rows: int) -> float:
@@ -1556,15 +1581,15 @@ def generate_macros(conf: dict) -> dict[str, str]:
 
     for i, (at, gap, name) in enumerate(zip(xg_at, xg_gaps, x_names)):
         lines.append(f"; X gauge pair {name} mm")
-        lines += gauge(True, at, gap, xg_run[0], xg_run[1], _NEAR, reach_x)
+        lines += gauge(True, at, gap, xg_run[0], xg_run[1], _NEAR, sheet_x)
         # Under the column, every other one a row further down when there
         # are two rows.
         ty = xg_run[0] - (i % x_rows + 1) * (xh + _LABEL_GAP)
         lines += _text(bg, name, at + gap / 2 - _text_w(name) * xh / 2,
-                       ty, xh, cz, go_lift, reach_x, reach_y)
+                       ty, xh, cz, go_lift, sheet_x, sheet_y)
     for at, gap in zip(yg_at, yg_gaps):
         lines.append(f"; Y gauge pair {_fmt(gap)} mm")
-        lines += gauge(False, at, gap, yg_run[0], yg_run[1], _NEAR, reach_y)
+        lines += gauge(False, at, gap, yg_run[0], yg_run[1], _NEAR, sheet_y)
 
     lines.append(f"G00 Z{_fmt(go_lift)} ; Go In Tray Lift")
     # Not the shared park: that one ends at Dip Depth + 1, which is below the

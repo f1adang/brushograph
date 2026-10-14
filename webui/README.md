@@ -3861,20 +3861,49 @@ into a crucible that is not there, 44 mm past the last dish on the plate.
   132 and Y 32 to 121 — under a fifth of the X the belt has to stretch over
   and two thirds of the Y. The figures go into the machine config and are
   applied to *every* job on it, whatever size, so they are read over all the
-  ground those jobs can cover. The stations now stand at X 12 and X 141, and
-  at Y 32 — the bottom of the paper, with the containers in the Y below it —
-  and Y 141 of 156. A job's canvas then sits **inside** the four corners, so
-  the compensation interpolates between the figures rather than running out
-  past them.
+  ground those jobs can cover. The stations now stand at X 13 and X 138, and
+  at Y 23 — Canvas Start Y, the bottom of the paper, with the containers in
+  the Y below it — and Y 143 of 156. A job's canvas then sits **inside** the
+  four corners, so the compensation interpolates between the figures rather
+  than running out past them.
 
-  The far edge is `max_width` or `workable_x`, whichever is nearer: the second
-  is how far a job already asks the machine to go, and so how far it is known
-  to reach — never the axis travel, which is where `zero.g` drives into the
-  stops on purpose. The near edge in Y is the **canvas origin**, which is what
-  keeps the pen out of the containers: on Pinkograph they sit in the 32 mm of Y
-  below the paper. Because the sheet covers more than the canvas, it wants a
-  **full sheet of paper** on the bed — the file's header says so — or the
-  outer marks land on the bed itself.
+  **Nothing about the job reaches the sheet**, which until v2.23.7 three
+  things still did. The near corner was the canvas origin, so **Offset X** and
+  **Offset Y** moved it; and the far X edge was `max_width` or `workable_x`,
+  whichever was nearer, and `workable_x` is the last cup or the end of *this*
+  painting. Testikel, set to paint 50 mm square at X 60 Y 60, drew its sheet
+  over X 60 to 133 and Y 88 to 132 of a 156 × 145 bed — a fifth of it — and
+  read its far-end figures 23 mm short of the end. Parang's last cup is at
+  148 of 152, so its far stations stood at 135 whatever it painted.
+
+  The sheet now stands on the machine's own ground, the rectangle the bed
+  levelling is read over (`level_area`): X 0 to **Max Width**, and **Canvas
+  Start Y** to **Max Height**. The near edge in Y is what keeps the pen out of
+  the containers. The pen goes down inside that and nowhere else. With the
+  pen up it may travel as far as `workable_x` would say if the job filled the
+  bed: the form lets any painting reach Max Width less `EDGE_HEADROOM`, so
+  the machine is already trusted that far, and every job visits its cups, so
+  it is trusted that far too. That still matters on the 𝔐𝔦𝔨𝔯𝔬, whose black
+  crucible at X 70.5 is past its 65 mm painting width: it is what lets the far
+  stations stand at X 57.5 with their run-ups whole, where Max Width alone put
+  them at X 52. It is never the axis travel, which is where `zero.g` drives
+  into the stops on purpose. A config that names no Max Width or Max Height
+  takes its model's, not the painting's size, which is what `max_width`
+  otherwise falls back to and which no longer has a canvas in the sum to catch
+  it.
+
+  Checked on the three kept configs and a fresh Mini and 𝔐𝔦𝔨𝔯𝔬, each also
+  with its canvas shrunk to 30 % of the width, 30 mm tall and offset to 40 %
+  across and 20 mm up: the sheet's X and Y are identical either way (only Z
+  moves, by the levelling). Parang's far stations go from 135 to 139 and its
+  pen-up travel to X 149 of 152, Testikel's from 141 to 143 and to X 153 of
+  156, and Pinkograph's near ones from Y 28 to Y 23. A fresh Mini and 𝔐𝔦𝔨𝔯𝔬
+  are unchanged. Every arrival on every sheet still comes in over the full
+  10 mm.
+
+  Because the sheet covers more than the canvas, it wants a **full sheet of
+  paper** on the bed — the file's header says so — or the outer marks land on
+  the bed itself.
 
   Two rows across the bed — what the old sheet drew — can see the play change
   along X, which is the belt stretching on one axis and the beam twisting on
