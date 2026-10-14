@@ -283,7 +283,7 @@ def new_config(model: str) -> dict:
         ("slicer", OrderedDict([("infill_pattern", "concentric"), ("infill_line_distance", "0"),
                                 ("infill_angles", "[0]"), ("wall_line_count", "1")])),
         ("controller", OrderedDict([("controller_type", "FluidNC")])),
-        ("connection", OrderedDict([("hostname", "fluidnc.local")])),
+        ("connection", OrderedDict([("hostname", "fluidnc.local"), ("camera", "")])),
     ])
     return fit_cups_to_shape(with_defaults(conf))
 
@@ -512,6 +512,10 @@ ALWAYS_OFFERED = {
     # _walk gives this one key a control anyway.
     ("brushograph", "level_map"): [],
     ("connection", "hostname"): "fluidnc.local",
+    # Where a camera-streamer watching the bed answers, for the Watch page.
+    # Empty is none: most machines have no camera, and a made-up default
+    # would be a page full of a broken image rather than one that says so.
+    ("connection", "camera"): "",
 }
 
 
@@ -1087,6 +1091,10 @@ HELP = {
     "connection-hostname": "Where the machine answers on the network — the name or address of its "
                            "FluidNC controller, without http://. Used by Send to machine and "
                            "Upload & start.",
+    "connection-camera": "Where a camera-streamer watching the bed answers — name or address and "
+                         "port, without http://, e.g. 192.168.1.106:8080. Watch shows its picture "
+                         "with the machine's position and the running job over it. Empty is no "
+                         "camera.",
     "brushograph-width": "Width of a file (mm); you may upload larger files, but they need to be in the same aspect ratio",
     "brushograph-height": "Height of a file (mm); you may upload larger files, but they need to be in the same aspect ratio",
     "brushograph-offset_x": "How far right of X0 this painting starts (mm). The picture's own (0,0) corner lands here.",
@@ -1192,7 +1200,8 @@ def _field(path: list[str], value) -> dict:
     # plain rate -- is asking for that line, and says so.
     if path[-1] in PLAIN_KEYS and not isinstance(value, (int, float)):
         label = label_for(path[-1])
-    f = {"name": name, "label": label, "help": HELP.get(name), "value": value}
+    f = {"name": name, "label": label, "help": HELP.get(name), "value": value,
+         "optional": name in OPTIONAL_FIELDS}
     if name in LIST_FIELDS:
         # Carried through the form whole, as JSON in a hidden field, so every
         # post -- the plan, the download, an update, the G-code -- has it.
@@ -1230,6 +1239,11 @@ def _field(path: list[str], value) -> dict:
 
 # The lists that are settings rather than structure, and the control each gets.
 LIST_FIELDS = {"brushograph-level_map": "levelmap"}
+
+# Boxes that may be left empty, where empty is an answer rather than a mistake:
+# every other one is required, so that a cleared figure is caught before it is
+# posted. A machine with no camera says so by having none.
+OPTIONAL_FIELDS = {"connection-camera"}
 
 # Settings the config carries that are no box of their own: written with
 # something else and kept from the config whatever the form posts. How widely

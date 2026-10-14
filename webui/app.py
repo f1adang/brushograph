@@ -525,6 +525,38 @@ def about():
     return render_template("about.html")
 
 
+# A name or an address, and a port if it needs one. No scheme and no path: the
+# page puts the http:// and the /stream on itself.
+WATCH_HOST = re.compile(r"^[A-Za-z0-9._-]+(:[0-9]{1,5})?$")
+
+
+@app.get("/watch")
+def watch():
+    """The camera's picture with the machine's state drawn over it.
+
+    Taken from the query rather than from a session's config, so the page can
+    be bookmarked, or left open on a screen beside the machine, without
+    anybody having picked a config on that screen first. Nothing here talks to
+    the machine or the camera: the browser does both, for the same reason it
+    sends the jobs — it is on their network, and this server may not be.
+    """
+    def host(key: str) -> str:
+        value = (request.args.get(key) or "").strip()
+        value = re.sub(r"^https?://", "", value).rstrip("/")
+        return value if WATCH_HOST.match(value) else ""
+    # The config the link was followed from, so that going back opens it again
+    # rather than the empty page with no machine chosen. Checked as config_path
+    # would check it; anything else goes back to the plain page.
+    config = request.args.get("config", "")
+    mode = request.args.get("mode", "saved")
+    if SAFE_NAME.match(config) and config.endswith(".conf") and mode in ("saved", "uploaded"):
+        back = url_for("index", config=config, mode=mode)
+    else:
+        config, mode, back = "", "", url_for("index")
+    return render_template("watch.html", machine=host("machine"), camera=host("camera"),
+                           config=config, mode=mode, back=back)
+
+
 # ------------------------------------------------------------- machine config
 
 @app.get("/machine_config/get")

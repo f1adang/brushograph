@@ -301,6 +301,7 @@ text: {
 "Backlash Y": "Umkehrspiel Y",
 "Backlash Y far end": "Umkehrspiel Y am fernen Ende",
 "Hostname": "Netzwerkname",
+"Camera": "Kamera",
 "Acc": "Beschleunigung",
 "Feedrate 1": "Vorschub 1",
 "Feedrate (mm/minute)": "Vorschub (mm/Minute)",
@@ -326,6 +327,8 @@ text: {
 /* ------------------------------------------------------- the help bubbles */
 "Where the machine answers on the network — the name or address of its FluidNC controller, without http://. Used by Send to machine and Upload & start.":
   "Wo die Maschine im Netz antwortet — Name oder Adresse ihrer FluidNC-Steuerung, ohne http://. Wird von „An Maschine senden“ und „Übertragen & starten“ benutzt.",
+"Where a camera-streamer watching the bed answers — name or address and port, without http://, e.g. 192.168.1.106:8080. Watch shows its picture with the machine's position and the running job over it. Empty is no camera.":
+  "Wo ein camera-streamer antwortet, der die Arbeitsfläche beobachtet — Name oder Adresse und Port, ohne http://, z. B. 192.168.1.106:8080. „Beobachten“ zeigt sein Bild mit der Stellung der Maschine und dem laufenden Auftrag darüber. Leer heißt: keine Kamera.",
 "Width of a file (mm); you may upload larger files, but they need to be in the same aspect ratio":
   "Breite einer Datei (mm); größere Dateien sind zulässig, müssen aber dasselbe Seitenverhältnis haben",
 "Height of a file (mm); you may upload larger files, but they need to be in the same aspect ratio":
@@ -571,6 +574,48 @@ text: {
   "{name} ging nicht durch: warten und noch einmal versuchen ({go}/{tries}) …",
 "{base} stopped taking files at {name}: {error}. Sent {sent}/{total}, each tried {tries} times. Check the hostname under Machine setup, Connection, and that this page and the machine are on the same network — and if the ones that landed are the first few every time, the board's flash filesystem may be full: look at its file list and clear out what is not a macro.":
   "{base} nahm ab {name} keine Dateien mehr an: {error}. {sent}/{total} gesendet, jede {tries}-mal versucht. Prüfen Sie den Netzwerknamen unter „Maschineneinrichtung“, „Verbindung“ und dass diese Seite und die Maschine im selben Netz liegen — und wenn jedes Mal dieselben ersten Dateien ankommen, ist womöglich der Flash-Speicher der Platine voll: sehen Sie in deren Dateiliste nach und räumen Sie auf, was kein Makro ist.",
+
+/* ------------------------------------------------------------------ watch */
+"Watch — Brušograf WebUI": "Beobachten — Brušograf Weboberfläche",
+"Watch": "Beobachten",
+"The camera, with what the machine is doing over it": "Das Kamerabild, darüber was die Maschine tut",
+"The camera's picture of the machine": "Das Kamerabild der Maschine",
+"Watch the machine": "Maschine beobachten",
+"— the camera's picture, with where the brush is and how far the job has got.":
+  "— das Kamerabild, dazu wo der Pinsel steht und wie weit der Auftrag ist.",
+"Full screen": "Vollbild",
+"Connecting…": "Verbinde …",
+"Idle": "Bereit",
+"Running": "In Arbeit",
+"Jogging": "Verfahren von Hand",
+"Homing": "Referenzfahrt",
+"Alarm": "Alarm",
+"Checking G-code": "Prüfung der Maschinensteuerbefehle",
+"Asleep": "Ruhezustand",
+"Paused": "Angehalten",
+"Pausing…": "Hält an …",
+"Door open": "Tür offen",
+"Not connected": "Nicht verbunden",
+"{feed} mm/min": "{feed} mm/min",
+"work coordinates, as in the G-code": "Werkstückkoordinaten, wie in den Maschinensteuerbefehlen",
+"machine coordinates, until the work offset is heard":
+  "Maschinenkoordinaten, bis der Werkstückversatz gemeldet ist",
+"{file} · {pct}%": "{file} · {pct} %",
+"{file} · all sent": "{file} · vollständig übertragen",
+"{file} · stopped at {pct}%": "{file} · abgebrochen bei {pct} %",
+"Watching {machine}.": "{machine} wird beobachtet.",
+"{machine} is not answering. Trying again in {seconds} seconds.":
+  "{machine} antwortet nicht. Neuer Versuch in {seconds} Sekunden.",
+"No machine is set, so this is the camera alone.":
+  "Keine Maschine angegeben, daher nur das Kamerabild.",
+"No camera is set. Put camera-streamer's address under Machine setup, Connection, or below.":
+  "Keine Kamera angegeben. Tragen Sie die Adresse des camera-streamers unter „Maschineneinrichtung“, „Verbindung“ oder unten ein.",
+"The camera at {base} is not answering. Trying again every {seconds} seconds.":
+  "Die Kamera unter {base} antwortet nicht. Neuer Versuch alle {seconds} Sekunden.",
+"Give the machine's name and the camera's address below. A machine's config opens this page with both filled in, from Machine setup, Connection.":
+  "Geben Sie unten den Namen der Maschine und die Adresse der Kamera an. Aus der Konfiguration einer Maschine geöffnet, unter „Maschineneinrichtung“, „Verbindung“, ist beides schon ausgefüllt.",
+"This page is on https, and the machine and camera are on http, so the browser will block both. Open the WebUI over http on the same network.":
+  "Diese Seite liegt auf https, Maschine und Kamera auf http, daher unterbindet der Browser beides. Rufen Sie die Weboberfläche über http im selben Netz auf.",
 
 /* ---------------------------------------- fixed messages the server sends */
 "No file supplied": "Keine Datei übergeben",

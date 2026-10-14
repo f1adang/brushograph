@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watch — Brušograf WebUI</title>
+<script>
+/* Before the first paint, so a remembered theme never flashes the default one. */
+try { var t = localStorage.getItem("brushograph-theme");
+      if (t) document.documentElement.dataset.theme = t; } catch (e) {}
+</script>
+<link rel="stylesheet" href="{{ asset('webui.css') }}">
+<link rel="icon" type="image/png" href="{{ asset('favicon.png') }}">
+<link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+<link rel="apple-touch-icon" href="{{ asset('apple-touch-icon.png') }}">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <div class="brand-name"><h1>Watch</h1><p>The camera, with what the machine is doing over it</p></div>
+    <p class="picker"><a href="{{ back }}">← Back to the machine</a></p>
+  </div>
+</header>
+<main class="wrap watch-wrap">
+  {# The picture and the figures over it are one element, so that full screen
+     takes both: a stream shown full screen on its own loses the overlay. #}
+  <figure class="watch" id="watch" data-machine="{{ machine }}" data-camera="{{ camera }}">
+    <img id="watch-video" alt="The camera's picture of the machine" hidden>
+    <p class="watch-empty" id="watch-empty" hidden></p>
+    <div class="watch-overlay" id="watch-overlay" hidden>
+      <p class="watch-state"><b id="watch-state">Connecting…</b> <span id="watch-feed"></span></p>
+      <dl class="watch-pos">
+        <div><dt>X</dt><dd id="watch-x">–</dd></div>
+        <div><dt>Y</dt><dd id="watch-y">–</dd></div>
+        <div><dt>Z</dt><dd id="watch-z">–</dd></div>
+      </dl>
+      <p class="watch-frame" id="watch-frame"></p>
+      <div class="watch-job" id="watch-job" hidden>
+        <p class="watch-file" id="watch-file"></p>
+        <div class="watch-bar"><i id="watch-bar"></i></div>
+      </div>
+    </div>
+    <button type="button" class="ghost watch-full" id="watch-full" hidden>Full screen</button>
+  </figure>
+  <p class="note" id="watch-note"></p>
+
+  {# The page is opened from the machine's config with both filled in; this is
+     for a screen nobody picked a config on, and for trying a camera out. #}
+  <form class="watch-where" method="get" action="watch">
+    <label class="field"><span class="field-label">Machine</span>
+      <input type="text" name="machine" value="{{ machine }}" placeholder="testikel.local"
+             autocapitalize="off" spellcheck="false"></label>
+    <label class="field"><span class="field-label">Camera</span>
+      <input type="text" name="camera" value="{{ camera }}" placeholder="192.168.1.106:8080"
+             autocapitalize="off" spellcheck="false"></label>
+    {% if config %}<input type="hidden" name="config" value="{{ config }}">
+    <input type="hidden" name="mode" value="{{ mode }}">{% endif %}
+    <button type="submit" class="primary">Watch</button>
+  </form>
+</main>
+<footer>
+  <a href="{{ back }}">← Back to the machine</a>
+  <label class="theme-picker">
+    <span>Theme</span>
+    <select id="theme-select">
+      <option value="default">Default</option>
+      <option value="dark">Dark mode</option>
+      <option value="coconut">Coconut mode</option>
+      <option value="pinkograph">Pinkograph</option>
+      <option value="uwu">UwU</option>
+      <option value="kongress">𝕭𝖗𝖚𝖘𝖈𝖍𝖔𝖑𝖔𝖌𝖎𝖘𝖈𝖍𝖊𝖗 𝕶𝖔𝖓𝖌𝖗𝖊𝖘𝖘</option>
+      <option value="h4xx0r">h4xx0r</option>
+    </select>
+  </label>
+</footer>
+<script src="{{ asset('de.js') }}"></script>
+<script src="{{ asset('webui.js') }}"></script>
+</body>
+</html>

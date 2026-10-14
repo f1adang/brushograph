@@ -3633,6 +3633,74 @@ The one thing no amount of no-cors fixes: a page served over https may not
 reach a machine over http, and the browser blocks it as mixed content. That is
 detected and said plainly rather than failing silently.
 
+### Watching it paint
+
+`/watch?machine=<host>&camera=<host:port>` is a
+[camera-streamer](https://github.com/ayufan/camera-streamer)'s picture of the
+bed with the machine's position and the running job laid over it: the state
+(Running, Paused, Alarm …), the feed, X, Y and Z, the file and how far through
+it the card has read. **Watch the machine**, under Machine setup, Connection,
+opens it on the hostname and the new **Camera** setting (`connection.camera`,
+offered on every config and empty — no camera — unless set). The query is the
+whole of its state, so it can be bookmarked or left on a screen beside the
+machine without a config ever being picked there.
+
+The link also names the config it was followed from (`config`, `mode`), and
+**Back to the machine** leads to `/?config=<name>&mode=<mode>`, which opens that
+machine again. It used to lead to `/`, and the page there always started at
+"Choose a machine…", so the round trip lost the machine. The main page now keeps
+its address in step with the machine that is open, so a reload, or the
+browser's Back from About, comes back to it too. A kept config that has left
+the server since is not guessed at: the page starts with none.
+
+**The overlay is drawn by the page, not burned into the video.**
+camera-streamer has no text overlay and its pages are compiled into it, and
+drawing into its frames would mean a fork of it to build on the Pi. Instead the
+figure holds the stream's `<img>` and the overlay, and **Full screen** takes the
+figure, so both go together. `/stream` is MJPEG, which an `<img>` shows from any
+origin in every browser — about 1.0 MB/s at 7–8 frames a second on Testikel's
+camera. The WebRTC page has lower latency but is an iframe, which cannot carry
+the overlay into full screen with it. A tab that is hidden lets go of the stream
+and the socket, and takes them up again when it is shown.
+
+**The state is read, not asked for.** FluidNC gives every websocket an
+automatic status report every 200 ms while anything moves — Testikel sent 16 in
+three seconds, mid-job:
+
+    <Run|MPos:89.032,122.430,44.991|FS:494,0|WCO:-3.000,-14.000,46.000|SD:65.13,/sd/a.gcode>
+
+Asking is not possible while it paints: every `/command` answers
+`503 Try again when not moving`. Standing still the reports stop, so the page
+sends `?` — the realtime status request, which changes nothing and is answered
+in any state — on connecting and after four quiet seconds; twelve with no
+answer at all and it reconnects. The positions shown are **work** coordinates,
+the figures in the G-code: `MPos` less `WCO`, the offset arriving only every
+few reports, so until the first one the overlay says it is showing machine
+coordinates. `SD:` is the share of the file *read*, which runs ahead of the
+brush by what the planner holds; when it disappears from the report the file
+is closed, and the page says "all sent" from 99 % up and "stopped at" below.
+
+These come as **binary** frames on current FluidNC, coalesced, so one frame can
+hold several lines and a line can be split across two; text frames carry only
+its bookkeeping (`currentID:`, `PING:`). The page reads both. The **Upload &
+start** listener above still reads text frames only, so on this firmware it
+hears nothing back.
+
+**The page could not live on the machine.** That was the first idea — one host,
+and the websocket same-origin. FluidNC refuses to serve any file from its
+flash while it moves, because reading the flash stalls the steppers; the
+controller's own WebUI answers `503 Cannot load WebUI while GCode Program is
+Running` for the same reason.
+
+**It is a guest on the machine.** FluidNC keeps four websockets and drops the
+oldest for a fifth, so the page reconnects after 2, 5, 10 and then every 30
+seconds rather than at once: two watch tabs and the controller's WebUI would
+otherwise knock each other off in a loop. A camera that is not answering is
+retried every ten seconds; one that has sent no frame within eight is taken as
+not answering, because an address nobody is at fails only when the connection
+times out, over a minute later. `.local` names for both go through
+`/machine/resolve`, as the uploads do.
+
 ### The preview is swept, not spread
 
 The drawing's bounds used to come from `Math.min(...xs)` over one argument per

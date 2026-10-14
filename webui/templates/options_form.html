@@ -21,7 +21,7 @@
   {% elif f.type == 'number' %}
     <input type="number" name="{{ f.name }}" value="{{ f.value }}" step="any" required>
   {% else %}
-    <input type="text" name="{{ f.name }}" value="{{ f.value }}" required>
+    <input type="text" name="{{ f.name }}" value="{{ f.value }}"{% if not f.optional %} required{% endif %}>
   {% endif %}
 </label>
 {% endmacro %}
@@ -78,6 +78,11 @@
           <h3>{{ section.title }}</h3>
           <div class="grid">{% for f in section.fields %}{% if not f.group %}{{ field(f) }}{% endif %}{% endfor %}</div>
           {% for g in section.fields %}{% if g.group %}{{ group(g) }}{% endif %}{% endfor %}
+          {% if section.key == 'connection' %}
+          {# Its address follows the two fields above as they are typed. #}
+          <p class="note"><a id="machine-watch" href="watch">Watch the machine</a>
+            — the camera's picture, with where the brush is and how far the job has got.</p>
+          {% endif %}
         </section>
         {% endfor %}
 

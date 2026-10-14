@@ -331,6 +331,7 @@ function removeSavedOption(name) {
 function resetOptionsForm() {
   const box = $("options-form-container");
   if (!box) return;
+  history.replaceState(null, "", location.pathname);
   box.innerHTML = '<div class="placeholder"><p></p></div>';
   say(box.querySelector("p"), "Choose a machine to see its options.");
 }
@@ -441,6 +442,31 @@ if (configSelect) {
   });
 }
 
+/* A page opened as /?config=<name>&mode=<mode> opens that machine, as if it had
+   been picked: that is where /watch's way back leads, and what a reload of a
+   page with a machine open asks for. A kept config is picked in the list, so
+   the list says which it is; one that has left the server since is not
+   guessed at, and the page starts with none, as it would have. An uploaded
+   one lives in this browser's session, and the form says so if it is gone. */
+(function reopenMachine() {
+  const q = new URLSearchParams(location.search);
+  const name = q.get("config");
+  if (!name || !container) return;
+  if (q.get("mode") === "uploaded") {
+    machineConfigName = name;
+    machineConfigMode = "uploaded";
+    loadOptionsForm();
+    return;
+  }
+  const option = configSelect && [...configSelect.options].find((o) => o.value === name);
+  if (!option) {
+    history.replaceState(null, "", location.pathname);
+    return;
+  }
+  option.selected = true;
+  configSelect.dispatchEvent(new Event("change"));
+})();
+
 if (configFile) {
   configFile.addEventListener("change", async () => {
     if (!configFile.files.length) return;
@@ -500,6 +526,10 @@ async function loadOptionsForm() {
   proxyFileInputs(container);
   applyLanguage(container);
   if (!res.ok) return;
+  // The address names the machine that is open, so a reload, the browser's
+  // Back from another page, or a link from /watch opens it again.
+  history.replaceState(null, "", "?" + new URLSearchParams({
+    config: machineConfigName, mode: machineConfigMode }));
   wireForm();
 }
 
@@ -522,6 +552,12 @@ function wireForm() {
   // Up here because the plan's note below names it, and the plan is first
   // drawn before the rest of the form is wired.
   const EDGE_HEADROOM = 2;
+
+  pointTheWatchLink();
+  for (const name of ["connection-hostname", "connection-camera"]) {
+    const field = form.querySelector(`[name="${name}"]`);
+    if (field) field.addEventListener("input", pointTheWatchLink);
+  }
 
   /* ---- live machine sketch ---- */
   /* A figure past its limit is still drawn, and the plan says which limit.
@@ -2574,8 +2610,28 @@ function openMachineSocket(base, heard) {
 }
 
 function machineHost() {
-  const field = document.querySelector('[name="connection-hostname"]');
+  return hostField("connection-hostname");
+}
+
+/* A name and port as typed into one of the Connection fields, without the
+   http:// or the trailing slash somebody will paste in with it. */
+function hostField(name) {
+  const field = document.querySelector(`[name="${name}"]`);
   return field ? field.value.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "") : "";
+}
+
+/* The Watch link opens on the machine and camera the form says, as typed, not
+   on whatever the config said when it was loaded. */
+function pointTheWatchLink() {
+  const link = $("machine-watch");
+  if (!link) return;
+  const q = new URLSearchParams({ machine: machineHost(), camera: hostField("connection-camera") });
+  // And which config this is, so the watch page's way back opens it again.
+  if (machineConfigName) {
+    q.set("config", machineConfigName);
+    q.set("mode", machineConfigMode);
+  }
+  link.href = `watch?${q}`;
 }
 
 /* The delete button names the machine it is about to clear out, and keeps
@@ -2596,7 +2652,12 @@ function nameTheDeleteButton() {
  * already an address — carry on with what was typed. */
 async function machineBase() {
   const host = machineHost();
-  if (!host) return null;
+  return host ? resolveBase(host) : null;
+}
+
+/* The same for any name and port: the camera on the watch page has a `.local`
+   name as often as the machine does. */
+async function resolveBase(host) {
   const bare = host.split(":")[0];
   if (/^[0-9.]+$/.test(bare)) return "http://" + host;
   try {
@@ -2928,6 +2989,317 @@ async function deleteMacrosOnMachine() {
     nameTheDeleteButton();
   }
 }
+
+/* ------------------------------------------------------------------- watch */
+/* The camera's picture with the machine's state over it, on /watch.
+ *
+ * The state comes from the machine itself, over the websocket jobs are started
+ * through, and nothing has to be asked for while it works: FluidNC gives every
+ * websocket an automatic status report every 200 ms while anything moves —
+ * `<Run|MPos:89.032,122.430,44.991|FS:494,0|SD:65.13,/sd/a.gcode>` — and the
+ * page only reads them. Asking would not work anyway: while the machine moves,
+ * every /command answers `503 Try again when not moving`. Nor could the page be
+ * kept on the machine to spare the second host: FluidNC refuses to serve a file
+ * from its flash during a job, because reading the flash stalls the steppers.
+ *
+ * Standing still, the reports stop. So the page sends `?` — the realtime status
+ * request, answered in any state and changing nothing — on connecting and
+ * whenever it has heard nothing for a while. The answer is also how a
+ * connection that has quietly died is told from a machine with nothing to say.
+ *
+ * FluidNC keeps four websockets and drops the oldest for a fifth, so this one
+ * is a guest: it reconnects slower each time it is dropped, rather than
+ * knocking another page off in a loop, and it lets go while its tab is hidden.
+ */
+const WATCH_ASK_MS = 4000;                      // quiet this long, and it asks
+const WATCH_DEAD_MS = 12000;                    // quiet this long, and it reconnects
+const WATCH_RETRY_MS = [2000, 5000, 10000, 30000];
+const WATCH_CAMERA_RETRY_MS = 10000;
+const WATCH_CAMERA_FIRST_MS = 8000;              // no picture by then, and it is down
+
+/* "<Run|MPos:1,2,3|FS:494,0|SD:65.13,/sd/a.gcode>" -> {state: "Run", MPos: "1,2,3", …}.
+   Split on the first colon only: "Hold:0" is a state, and SD can carry one. */
+function parseStatus(line) {
+  const [state, ...fields] = line.slice(1, -1).split("|");
+  const out = { state };
+  for (const f of fields) {
+    const at = f.indexOf(":");
+    if (at > 0) out[f.slice(0, at)] = f.slice(at + 1);
+  }
+  return out;
+}
+
+const axesOf = (s) => s.split(",").slice(0, 3).map(Number);
+
+/* "65.13,/sd/a.gcode" while a file runs; "/sd/a.gcode: Sent" for the moment it
+   is opened, before there is a percentage to give. */
+function jobOf(sd) {
+  let m = /^\s*([\d.]+),(.*)$/.exec(sd);
+  if (m) return { pct: Number(m[1]), file: m[2].replace(/^.*\//, "") };
+  m = /^\s*(.*?):\s*Sent\s*$/.exec(sd);
+  return { pct: 0, file: (m ? m[1] : sd).trim().replace(/^.*\//, "") };
+}
+
+/* What FluidNC calls a state, in words. Hold:1 is a pause still slowing down;
+   Hold:0 is one that has stopped. */
+const WATCH_STATES = {
+  Idle: "Idle", Run: "Running", Jog: "Jogging", Home: "Homing", Alarm: "Alarm",
+  Check: "Checking G-code", Sleep: "Asleep", Hold: "Paused", "Hold:1": "Pausing…",
+  Door: "Door open",
+};
+const WATCH_BAD = new Set(["Alarm", "Door"]);
+
+/* Two decimals, and never "-0.00": a figure that flickers its sign at rest
+   reads as movement. */
+function mm(v) {
+  const s = v.toFixed(2);
+  return s === "-0.00" ? "0.00" : s;
+}
+
+(function watch() {
+  const fig = $("watch");
+  if (!fig) return;
+  const machine = fig.dataset.machine;
+  const camera = fig.dataset.camera;
+  const img = $("watch-video");
+  const empty = $("watch-empty");
+  const overlay = $("watch-overlay");
+  const note = $("watch-note");
+  const stateLine = fig.querySelector(".watch-state");
+  const show = {
+    state: $("watch-state"), feed: $("watch-feed"), frame: $("watch-frame"),
+    x: $("watch-x"), y: $("watch-y"), z: $("watch-z"),
+    job: $("watch-job"), file: $("watch-file"), bar: $("watch-bar"),
+  };
+
+  if (!machine && !camera) {
+    say(empty, "Give the machine's name and the camera's address below. A machine's "
+      + "config opens this page with both filled in, from Machine setup, Connection.");
+    empty.hidden = false;
+    return;
+  }
+  // An https page may not reach either over http; the browser blocks it as
+  // mixed content, and says nothing on the page about why.
+  if (location.protocol === "https:") {
+    say(note, "This page is on https, and the machine and camera are on http, so the "
+      + "browser will block both. Open the WebUI over http on the same network.");
+    note.className = "error";
+  }
+
+  const full = $("watch-full");
+  if (fig.requestFullscreen) {
+    full.hidden = false;
+    full.addEventListener("click", () => fig.requestFullscreen().catch(() => {}));
+  }
+
+  /* ---- the camera ---- */
+  /* camera-streamer's /stream is MJPEG, which an <img> shows from any origin
+     and in every browser. Its WebRTC page is lower latency, but an iframe
+     cannot have the overlay laid over it and still go full screen with it. */
+  let cameraBase = null;
+  let cameraRetry = null;
+  function cameraAlone(alone, english, vars) {
+    img.hidden = alone;
+    empty.hidden = !alone;
+    overlay.classList.toggle("alone", alone);
+    if (alone) say(empty, english, vars);
+  }
+  async function startCamera() {
+    clearTimeout(cameraRetry);
+    if (!camera) {
+      cameraAlone(true, "No camera is set. Put camera-streamer's address under Machine "
+        + "setup, Connection, or below.");
+      return;
+    }
+    cameraBase = cameraBase || await resolveBase(camera);
+    const failed = () => {
+      clearTimeout(cameraRetry);
+      img.onerror = null;
+      img.removeAttribute("src");
+      cameraAlone(true, "The camera at {base} is not answering. Trying again every "
+        + "{seconds} seconds.", { base: cameraBase, seconds: WATCH_CAMERA_RETRY_MS / 1000 });
+      cameraRetry = setTimeout(startCamera, WATCH_CAMERA_RETRY_MS);
+    };
+    img.onerror = failed;
+    // A fresh URL each time, or a retry is answered from the failure.
+    img.src = `${cameraBase}/stream?t=${Date.now()}`;
+    cameraAlone(false);
+    // An address nobody is at fails only when the connection times out, over
+    // a minute later, with an empty frame on the page until then. A stream
+    // that has sent no picture by now is taken as not there.
+    cameraRetry = setTimeout(() => { if (!img.naturalWidth) failed(); }, WATCH_CAMERA_FIRST_MS);
+  }
+  function stopCamera() {
+    clearTimeout(cameraRetry);
+    img.onerror = null;
+    // Emptying src is what closes the stream; a hidden <img> keeps pulling it.
+    img.removeAttribute("src");
+  }
+
+  /* ---- the machine ---- */
+  let machineBase = null;
+  let ws = null;
+  let heardAt = 0;
+  let askedAt = 0;
+  let retries = 0;
+  let reconnect = null;
+  let wco = null;       // the work offset comes every few reports, not in each
+  let job = null;       // the last file seen running, kept after it ends
+
+  function sayState(english, bad) {
+    say(show.state, english);
+    stateLine.classList.toggle("bad", !!bad);
+  }
+
+  function heard(line) {
+    if (!/^<.*>$/.test(line)) return;
+    const s = parseStatus(line);
+    const kind = s.state.split(":")[0];
+    sayState(WATCH_STATES[s.state] || WATCH_STATES[kind] || s.state, WATCH_BAD.has(kind));
+    const feed = s.FS ? Number(s.FS.split(",")[0]) : 0;
+    if (feed > 0) say(show.feed, "{feed} mm/min", { feed: Math.round(feed) });
+    else say(show.feed, "");
+
+    // Work coordinates, which are the figures in the G-code: what the machine
+    // reports is its own position, and the offset between comes now and then.
+    if (s.WCO) wco = axesOf(s.WCO);
+    let pos = null;
+    if (s.WPos) {
+      pos = axesOf(s.WPos);
+      say(show.frame, "work coordinates, as in the G-code");
+    } else if (s.MPos && wco) {
+      pos = axesOf(s.MPos).map((v, i) => v - (wco[i] || 0));
+      say(show.frame, "work coordinates, as in the G-code");
+    } else if (s.MPos) {
+      pos = axesOf(s.MPos);
+      say(show.frame, "machine coordinates, until the work offset is heard");
+    }
+    if (pos) {
+      show.x.textContent = mm(pos[0]);
+      show.y.textContent = mm(pos[1]);
+      show.z.textContent = pos.length > 2 ? mm(pos[2]) : "–";
+    }
+
+    if (s.SD !== undefined) {
+      job = { ...jobOf(s.SD), running: true };
+      say(show.file, "{file} · {pct}%", { file: job.file, pct: job.pct.toFixed(1) });
+      show.bar.style.width = `${Math.min(100, job.pct)}%`;
+      show.job.hidden = false;
+    } else if (job && job.running) {
+      // The report stops naming the file the moment it is closed, at the end
+      // or at a reset; how far it had got says which. The last few moves may
+      // still be in the planner, and the state above says so.
+      job.running = false;
+      if (job.pct >= 99) {
+        say(show.file, "{file} · all sent", { file: job.file });
+        show.bar.style.width = "100%";
+      } else {
+        say(show.file, "{file} · stopped at {pct}%", { file: job.file, pct: job.pct.toFixed(1) });
+      }
+    } else if (!job) {
+      say(show.file, "");
+      show.job.hidden = true;
+    }
+  }
+
+  function ask() {
+    askedAt = Date.now();
+    try { ws.send("?"); } catch (e) { /* closing; the watchdog will see it */ }
+  }
+
+  function connect() {
+    clearTimeout(reconnect);
+    let sock;
+    try {
+      sock = new WebSocket(machineBase.replace(/^http/, "ws") + "/", "webui-v3");
+    } catch (e) {
+      dropped();
+      return;
+    }
+    ws = sock;
+    // Binary, because that is how FluidNC sends its console now: coalesced,
+    // so one frame can carry several lines and a line can be cut between two.
+    // Its own bookkeeping (currentID:, PING:) comes as text, and so did the
+    // console on older firmware, so text is read as whole lines.
+    sock.binaryType = "arraybuffer";
+    const decoder = new TextDecoder();
+    let partial = "";
+    sock.onopen = () => {
+      heardAt = Date.now();
+      say(note, "Watching {machine}.", { machine });
+      ask();
+    };
+    sock.onmessage = (ev) => {
+      heardAt = Date.now();
+      retries = 0;
+      if (typeof ev.data === "string") {
+        ev.data.split("\n").forEach((l) => heard(l.trim()));
+        return;
+      }
+      partial += decoder.decode(ev.data, { stream: true });
+      const lines = partial.split("\n");
+      partial = lines.pop();
+      lines.forEach((l) => heard(l.trim()));
+    };
+    sock.onclose = () => { if (ws === sock) dropped(); };
+  }
+
+  function letGo() {
+    clearTimeout(reconnect);
+    const sock = ws;
+    ws = null;
+    if (sock) {
+      sock.onclose = null;
+      try { sock.close(); } catch (e) { /* already gone */ }
+    }
+  }
+
+  function dropped() {
+    letGo();
+    sayState("Not connected", true);
+    const wait = WATCH_RETRY_MS[Math.min(retries, WATCH_RETRY_MS.length - 1)];
+    retries += 1;
+    say(note, "{machine} is not answering. Trying again in {seconds} seconds.",
+        { machine, seconds: wait / 1000 });
+    reconnect = setTimeout(connect, wait);
+  }
+
+  async function startMachine() {
+    if (!machine) {
+      overlay.hidden = true;
+      say(note, "No machine is set, so this is the camera alone.");
+      return;
+    }
+    overlay.hidden = false;
+    machineBase = machineBase || await resolveBase(machine);
+    connect();
+  }
+
+  // A socket that is open but silent is as gone as a closed one, and a dead
+  // network may take minutes to say so; this notices sooner.
+  setInterval(() => {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    const quiet = Date.now() - heardAt;
+    if (quiet > WATCH_DEAD_MS) dropped();
+    else if (quiet > WATCH_ASK_MS && Date.now() - askedAt > WATCH_ASK_MS) ask();
+  }, 1000);
+
+  // A tab nobody is looking at gives its socket back to the machine and stops
+  // pulling a stream off the camera, which is a megabyte or so a second.
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      letGo();
+      stopCamera();
+    } else {
+      retries = 0;
+      startCamera();
+      startMachine();
+    }
+  });
+
+  startCamera();
+  startMachine();
+})();
 
 /* ------------------------------------------------------- language, applied */
 /* The head script has already put the remembered theme on <html>, so this runs
