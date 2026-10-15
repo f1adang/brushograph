@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.23.9](https://github.com/f1adang/brushograph/releases/tag/v2.23.9) — 2026-10-15
+
+- **Each machine remembers where its macros go:** the **Upload to** choice next to **Upload selected to machine** used to go back to **Flash** every time the page was opened, so a machine that keeps its macros on the SD card had to be switched over every time. The choice is now saved with the machine when you press **Update**, and is in a downloaded config too. Machines that never set it stay on Flash.
+
 ## [v2.23.8](https://github.com/f1adang/brushograph/releases/tag/v2.23.8) — 2026-10-14
 
 - **Watch the machine paint:** if a camera running [camera-streamer](https://github.com/ayufan/camera-streamer) is pointed at the bed, put its address in the new **Camera** setting under Machine setup, Connection, for example `192.168.1.106:8080`. **Watch the machine**, just below it, then shows the camera's picture with the machine's state over it: whether it is running, paused or in alarm, how fast it is moving, where the brush is in X, Y and Z, and which file it is painting and how far through it is. **Full screen** keeps the figures on the picture, so it can be left on a screen beside the machine. The page can be bookmarked, and **Back to the machine** returns you to the machine you came from. The browser talks to the machine and the camera directly, so it has to be on their network.
