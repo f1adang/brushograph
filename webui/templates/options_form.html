@@ -175,11 +175,13 @@
           <div class="actions">
             <button type="button" class="primary" id="macros-generate">Generate macros</button>
             <button type="button" class="primary" id="macros-download" hidden>Download selected</button>
+            {# A machine setting, connection.macros_target: named, so it is
+               posted, saved and downloaded with the rest of the config. #}
             <label class="macros-target" id="macros-target-field" hidden>
               <span>Upload to</span>
-              <select id="macros-target">
-                <option value="flash" selected>Flash</option>
-                <option value="sd">SD card</option>
+              <select id="macros-target" name="connection-macros_target">
+                <option value="flash" {{ 'selected' if macros_target != 'sd' }}>Flash</option>
+                <option value="sd" {{ 'selected' if macros_target == 'sd' }}>SD card</option>
               </select>
             </label>
             <button type="button" class="primary" id="macros-upload" hidden>Upload selected to machine</button>

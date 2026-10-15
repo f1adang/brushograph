@@ -516,6 +516,11 @@ ALWAYS_OFFERED = {
     # Empty is none: most machines have no camera, and a made-up default
     # would be a page full of a broken image rather than one that says so.
     ("connection", "camera"): "",
+    # Where Upload selected to machine sends the macros: "flash", the
+    # controller's own filesystem, or "sd", its card. Flash, because a card is
+    # swapped and reformatted and a standing macro should outlive that; a
+    # machine whose flash has no room says "sd" once and keeps saying it.
+    ("connection", "macros_target"): "flash",
 }
 
 
@@ -1250,6 +1255,11 @@ OPTIONAL_FIELDS = {"connection-camera"}
 # a probe map is smoothed comes with the map, set by the scanner it came from.
 HIDDEN_FIELDS = {"brushograph-level_map_smooth"}
 
+# Settings with a box, but not in their section's grid: the template puts it
+# beside the thing it is about, and posts it from there. Where the macros go
+# is chosen at the button that sends them.
+PLACED_FIELDS = {"connection-macros_target"}
+
 
 def _walk(path: list[str], value) -> list[dict]:
     """Flatten a config subtree into fields, keeping nested dicts as groups."""
@@ -1260,7 +1270,7 @@ def _walk(path: list[str], value) -> list[dict]:
                 groups.append({"label": label_for(k), "fields": _walk(path + [k], v)})
             elif isinstance(v, list) and "-".join(path + [k]) not in LIST_FIELDS:
                 continue  # lists (color_order, additionals) are structure, not settings
-            elif "-".join(path + [k]) in HIDDEN_FIELDS:
+            elif "-".join(path + [k]) in HIDDEN_FIELDS | PLACED_FIELDS:
                 continue
             else:
                 fields.append(_field(path + [k], v))

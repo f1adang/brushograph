@@ -4375,13 +4375,25 @@ SD card, which is where a job's G-code belongs and where `$SD/Run` looks;
 `/files` writes to the flash filesystem, which is where the controller's own
 dashboard theme already lives (see **Pinkograph**, above).
 
-**Flash is the default**, and every page load starts there, because that is
-where a standing macro belongs — a card can be swapped or reformatted, and a
-job's G-code is not meant to survive that, but these twelve are. The SD card
-is offered for the board whose flash has no room left once its dashboard is on
-it (see below): 39 KB is nothing to a card. The picker is not a config setting
-— it has no `name`, so it is never posted and never saved — because it is a
-choice about one upload, not a fact about the machine. The messages name the
+**Flash is the default**, because that is where a standing macro belongs — a
+card can be swapped or reformatted, and a job's G-code is not meant to survive
+that, but these twelve are. The SD card is offered for the board whose flash
+has no room left once its dashboard is on it (see below): 39 KB is nothing to a
+card.
+
+**The picker is a machine setting**, `connection.macros_target` (`flash` or
+`sd`). It began as a choice about one upload, with no `name`, never posted and
+never saved, so every page load started on Flash. That was wrong the first
+time it met a real machine: Parang keeps its macros on the card, and had to be
+switched over on every visit, and a send that was not switched over went to the
+flash it had been moved off. Which filesystem has room is a fact about the
+board, so it now lives in the config like the hostname. It is offered on every
+config as `flash`, so a config written before it opens exactly as before, and
+one that says `sd` keeps saying it. The control stays where the choice is made,
+beside the button, rather than in the Connection grid — `PLACED_FIELDS` keeps
+the generated form from drawing it a second time — and, being named, it is
+posted, saved by **Update**, and written into a downloaded config with
+everything else. The messages name the
 destination, and the one that gives up says the likely fault for each: a full
 flash filesystem, or no card in the slot. **Delete all macros** still clears
 only the flash, whichever the picker says. There is no `$SD/Run` here either: these are routines an operator

@@ -33,7 +33,7 @@ import subject
 import woodcut
 from configspec import (CLASSIC_DISH_OFFSETS, CLASSIC_DISH_SETTINGS, CMYK_TO_TRAY,
                         MODELS, apply_form,
-                        build_schema, new_config, tray_entries)
+                        build_schema, new_config, tray_entries, with_defaults)
 from macros import MACRO_SECTIONS, generate_macros
 from sketch import PALETTES, render as render_sketch
 from version import CHANGELOG_URL, VERSION
@@ -833,6 +833,9 @@ def options_form():
         # list in the page's script: which macro belongs to which section is
         # macros.py's business, and the checkboxes are only how it is asked.
         macro_sections=MACRO_SECTIONS,
+        # Drawn by the template beside the upload button rather than in the
+        # Connection grid (configspec.PLACED_FIELDS), so it is handed over here.
+        macros_target=with_defaults(conf)["connection"]["macros_target"],
     )
 
 
