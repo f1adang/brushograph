@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.24.2](https://github.com/f1adang/brushograph/releases/tag/v2.24.2) — 2026-10-16
+
+- **Unsaved machine settings are pointed out:** a change under **Machine setup** or **Brush & Paint settings** used to be lost without a word if you picked another machine or reloaded the page before pressing **Update** or **Download Machine Config**. Now a **Not saved** tag appears on the section you changed, **Save these settings** lists what has changed, and the page asks before opening another machine or being reloaded or closed. **Update** or **Download Machine Config** clears it, and so does changing the setting back. Painting dimensions and fill settings are not counted, since they change with every picture.
+
 ## [v2.24.1](https://github.com/f1adang/brushograph/releases/tag/v2.24.1) — 2026-10-16
 
 - **An out-of-date preview can no longer be sent:** after **Generate G-code**, changing anything that goes into the file — a picture, the brush, a cup position, the fill — used to leave the old preview and its buttons as they were, so **Upload & start** would paint the file made before the change. Now the preview turns grey, a line above it says the settings have changed, and **Download**, **Send to machine** and **Upload & start** are switched off until you press **Generate G-code** again. Changing the setting back turns them on again. Changing the hostname or where macros go does not count, and a `.gcode` file you open yourself is never greyed.
