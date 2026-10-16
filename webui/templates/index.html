@@ -109,8 +109,10 @@ try { var t = localStorage.getItem("brushograph-theme");
 
 <dialog id="info-dialog"></dialog>
 
-<!-- Asked before anything is taken off the server for good. A kept config is
-     shared, so the machine being deleted may be one somebody else set up. -->
+<!-- Asked before anything is lost for good: something taken off the server or
+     the machine -- a kept config is shared, so the machine being deleted may be
+     one somebody else set up -- or a machine's changes that were never saved.
+     Each asker names its own button. -->
 <dialog id="confirm-dialog">
   <form method="dialog">
     <p id="confirm-dialog-text"></p>

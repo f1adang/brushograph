@@ -59,7 +59,8 @@
        sets — model, containers, travel — is what the plan below draws. #}
     <!-- -------------------------------------------------------------- setup -->
     <details class="setup" id="machine-setup">
-      <summary><span>Machine setup</span><i>Model, connection, containers, brush heights, speeds, macros — set once per machine</i></summary>
+      <summary><span>Machine setup</span><i>Model, connection, containers, brush heights, speeds, macros — set once per machine</i>
+        <em class="unsaved" id="setup-unsaved-mark" hidden>Not saved</em></summary>
       <div class="setup-body">
 
         {# The model first: it sets much of what follows. Then which controller
@@ -130,6 +131,7 @@
             for everyone who opens this page. A name already taken is somebody else's machine and
             is never written over — this one goes in beside it, and the page says under what name.</p>
           {% endif %}
+          <p class="note warn" id="setup-unsaved" hidden></p>
           <div class="actions">
             <button type="submit" class="primary" id="options-form-machine-config">Download Machine Config</button>
             <button type="button" class="primary" id="options-form-update-config">Update {{ machine_config_name }}</button>

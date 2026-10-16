@@ -104,6 +104,12 @@ text: {
 "There is no machine config loaded to save.":
   "Es ist keine Maschinenkonfiguration geladen, die hinterlegt werden könnte.",
 "Updated {name} on the server.": "{name} auf dem Server aktualisiert.",
+"Not saved": "Nicht gespeichert",
+"Not saved yet: {fields}. Update keeps them on this server; Download Machine Config keeps them in a file.":
+  "Noch nicht gespeichert: {fields}. „Aktualisieren“ hinterlegt sie auf diesem Server, „Maschinenkonfiguration herunterladen“ in einer Datei.",
+"{name} has changes that are not saved: {fields}. Open another machine and lose them?":
+  "{name} hat Änderungen, die nicht gespeichert sind: {fields}. Eine andere Maschine öffnen und sie verwerfen?",
+"Discard changes": "Änderungen verwerfen",
 "Only a config kept on the server can be updated there.":
   "Nur eine auf dem Server hinterlegte Konfiguration kann dort aktualisiert werden.",
 "Macro generator": "Makrogenerator",

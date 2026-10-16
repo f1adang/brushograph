@@ -4892,6 +4892,37 @@ There is **no authentication** on keeping, updating or deleting a kept config �
 like everything else here, anyone who can reach the page can do it. A list that other people's uploads join only
 refreshes on a page load; the one you just kept appears at once.
 
+### What has not been saved
+
+Machine setup is edited in the page and kept only by **Update** or **Download
+Machine Config**. Anything else — another machine picked from the list, a
+reload, following *Watch the machine* — rebuilds the form from the copy it was
+loaded from, and an edit that had been neither updated nor downloaded was simply
+gone, with nothing on the page to say there had been one. Machine setup folds,
+so the edit was usually out of sight by then.
+
+The form now remembers what each machine setting said when it was loaded, and
+compares on every change. A setting that differs puts **Not saved** on the
+Machine setup fold or on **Brush & Paint settings**, whichever it is in, and
+**Save these settings** lists them by the names the form shows — *Cyan (C) X*,
+*Fast: Feedrate (mm/minute)*, since a cup's X is only *X* on the page and every
+speed group has a Feedrate. Putting a setting back clears it. Opening another
+machine asks first, naming them, with **Discard changes** or **Cancel**, and
+Cancel puts the list back on the machine still open. The browser asks, in its
+own words, before a reload or leaving the page.
+
+What counts is Machine setup and Brush & Paint settings: 61 fields on
+Pinkograph, 57 of them shown — the rest are the hidden `false` beside each
+checkbox, which never changes, and the probe map. Painting dimensions and the
+fill are written by Update too, but they change with every picture — Height
+follows each one loaded — so a marker counting them would be up nearly all the
+time and mean nothing.
+
+What clears it is **Update**, or **Download Machine Config**. A download does
+not change the copy the form reloads from, but someone who keeps their machine
+as a file has done all there is to do and is not to be asked again. A probe map
+is written into the config on the server the moment it is read, so it never
+counts as unsaved.
 
 ## Assets are never cached
 

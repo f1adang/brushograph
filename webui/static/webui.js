@@ -15,6 +15,9 @@ const container = $("options-form-container");
 
 let machineConfigName = null;
 let machineConfigMode = null;
+// The machine settings changed since they were loaded or saved, as the labels
+// the form shows them under. wireForm() points this at the form it wires.
+let unsavedEdits = () => [];
 let sketchUrl = null;
 let sketchSeq = 0;
 
@@ -331,6 +334,7 @@ function removeSavedOption(name) {
 function resetOptionsForm() {
   const box = $("options-form-container");
   if (!box) return;
+  unsavedEdits = () => [];
   history.replaceState(null, "", location.pathname);
   box.innerHTML = '<div class="placeholder"><p></p></div>';
   say(box.querySelector("p"), "Choose a machine to see its options.");
@@ -396,6 +400,7 @@ function showNewMachine(open) {
 async function createMachine() {
   const name = (newMachineName && newMachineName.value || "").trim();
   if (!name) return showCfgError("Give the machine a name.");
+  if (!(await mayLeaveMachine())) return;
   const fd = new FormData();
   fd.append("name", name);
   fd.append("model", newMachineModel ? newMachineModel.value : "mini");
@@ -429,10 +434,39 @@ if (newMachineName) {
   });
 }
 
+/* ---- leaving a machine with its changes unsaved ---- */
+/* Opening another machine replaces the form, and a reload rebuilds it from
+   the copy on the server, so an edit to the machine that was neither updated
+   nor downloaded is simply gone -- with nothing on the page to say there had
+   been one. Asked here before the form is swapped, and by the browser before
+   the page is left. */
+function mayLeaveMachine() {
+  const changed = unsavedEdits();
+  if (!changed.length) return Promise.resolve(true);
+  return askToConfirm(
+    "{name} has changes that are not saved: {fields}. Open another machine and lose them?",
+    { name: machineConfigName, fields: changed.join(", ") }, "Discard changes");
+}
+
+/* The pulldown back on the machine that is still open. */
+function reselectOpenMachine() {
+  if (!configSelect) return;
+  if (machineConfigMode === "saved") configSelect.value = machineConfigName;
+  else configSelect.selectedIndex = 0;
+}
+
+window.addEventListener("beforeunload", (e) => {
+  if (!unsavedEdits().length) return;
+  // The browser asks in its own words; a page cannot choose them any more.
+  e.preventDefault();
+  e.returnValue = "";
+});
+
 if (configSelect) {
-  configSelect.addEventListener("change", () => {
+  configSelect.addEventListener("change", async () => {
     if (configSelect.value === "__new__") return showNewMachine(true);
     if (!configSelect.value) return;
+    if (!(await mayLeaveMachine())) return reselectOpenMachine();
     showNewMachine(false);
     clearFile(configFile);
     showCfgNote(null);
@@ -470,6 +504,7 @@ if (configSelect) {
 if (configFile) {
   configFile.addEventListener("change", async () => {
     if (!configFile.files.length) return;
+    if (!(await mayLeaveMachine())) return clearFile(configFile);
     showCfgError(null);
     showCfgNote(null);
     const file = configFile.files[0];
@@ -511,6 +546,7 @@ if (configFile) {
 async function loadOptionsForm() {
   if (!container) return;
   showCfgError(null);
+  unsavedEdits = () => [];
   container.innerHTML = '<div class="placeholder"><p></p></div>';
   say(container.querySelector("p"), "Loading options…");
   const params = new URLSearchParams({
@@ -541,6 +577,7 @@ function wireForm() {
   // Every change in the form is answered here as well as wherever it is
   // handled: a programmatic one (a model, Auto-space, a probe map) is
   // announced to the form as an input event too, so nothing slips past.
+  const unsaved = trackUnsaved(form);
   previewMadeFrom = null;
   form.addEventListener("input", checkPreview);
   form.addEventListener("change", checkPreview);
@@ -963,7 +1000,12 @@ function wireForm() {
         if (field) field.hidden = p.length > 0;
       }
     };
-    const changed = (got) => { showMap(got); form.dispatchEvent(new Event("input")); };
+    // Already in the config on the server, so not an unsaved change.
+    const changed = (got) => {
+      showMap(got);
+      unsaved.saved([mapField]);
+      form.dispatchEvent(new Event("input"));
+    };
     picker.addEventListener("change", async () => {
       if (!picker.files.length) return;
       const fd = keeping();
@@ -1611,6 +1653,7 @@ function wireForm() {
         const data = await res.json();
         // The next update from this form is compared against what this one wrote.
         versionInput.value = data.version;
+        unsaved.saved();
         if (data.mode === "saved" && machineConfigMode !== "saved") nowKeptAs(data.name);
         else if (data.name !== machineConfigName) nowKeptAs(data.name);
         if (data.requested && data.name !== data.requested) {
@@ -1799,6 +1842,9 @@ function wireForm() {
 
       if (!wantsGcode) {
         saveBlob(blob, filename);
+        // A download counts as saving: someone who keeps their machine on
+        // their own disk has done all there is to do, and is not asked again.
+        unsaved.saved();
         say(statusBox, "Downloaded {file} ({size} KB).",
             { file: filename, size: (blob.size / 1024).toFixed(0) });
         statusBox.hidden = false;
@@ -1832,6 +1878,80 @@ function wireForm() {
       gcodeBtn.disabled = configBtn.disabled = false;
     }
   });
+
+  // Whatever this form says now is what the copy it was loaded from says --
+  // taken last, after everything above has set the form up.
+  unsaved.saved();
+}
+
+/* ---- machine settings not yet saved ---- */
+/* Machine setup and the brush: what is set for a machine rather than for a
+   picture. Update writes the painting's size and the fill as well, but those
+   change with every picture -- Height follows each one loaded -- so a marker
+   counting them would be up all the time and mean nothing. */
+const SAVED_REGIONS = ["machine-setup", "brush-paint"];
+
+function trackUnsaved(form) {
+  const regions = SAVED_REGIONS.map((id) => form.querySelector("#" + id)).filter(Boolean);
+  const fields = () => regions.flatMap((r) => [...r.querySelectorAll("[name]")])
+    .filter((i) => i.type !== "file");
+  const valueOf = (i) => (i.type === "checkbox" || i.type === "radio" ? String(i.checked) : i.value);
+  const baseline = new Map();
+  const changed = () => fields().filter((i) => baseline.has(i) && baseline.get(i) !== valueOf(i));
+
+  // Said the way the form labels it, so it can be found again. A cup's X is
+  // only "X" on the page, and every speed group has a Feedrate: those take
+  // the name of the row or group they are in.
+  const nameOf = (i) => {
+    const label = i.closest(".field")?.querySelector(".field-label")?.firstChild
+      || i.closest("label")?.querySelector("span");
+    let text = label ? label.textContent.trim() : i.name;
+    const coord = i.closest(".coord");
+    if (coord) text = `${coord.querySelector("b").textContent.trim()} ${text}`;
+    const speeds = i.name.startsWith("brushograph-moves-") && i.closest(".group.nested");
+    if (speeds) text = `${speeds.querySelector("h4").textContent.trim()}: ${text}`;
+    return text;
+  };
+
+  const setupMark = $("setup-unsaved-mark");
+  const brushHead = form.querySelector("#brush-paint > h3");
+  const brushMark = brushHead && el("em", "unsaved");
+  if (brushMark) {
+    say(brushMark, "Not saved");
+    brushMark.hidden = true;
+    brushHead.append(" ", brushMark);
+  }
+  const note = $("setup-unsaved");
+
+  const render = () => {
+    if (!form.isConnected) return;   // a machine since replaced
+    const now = changed();
+    const within = (id) => now.some((i) => i.closest("#" + id));
+    if (setupMark) setupMark.hidden = !within("machine-setup");
+    if (brushMark) brushMark.hidden = !within("brush-paint");
+    if (note) {
+      note.hidden = !now.length;
+      if (now.length) {
+        say(note, "Not saved yet: {fields}. Update keeps them on this server; "
+          + "Download Machine Config keeps them in a file.",
+          { fields: now.map(nameOf).join(", ") });
+      }
+    }
+  };
+  form.addEventListener("input", render);
+  form.addEventListener("change", render);
+  // The labels are read off the page, so a change of language reads them again.
+  document.addEventListener("brushograph:theme", render);
+
+  unsavedEdits = () => changed().map(nameOf);
+  return {
+    // Everything, or only the inputs named: a probe map is kept the moment it
+    // is read, while the rest of the form waits for Update.
+    saved(only) {
+      for (const i of only || fields()) baseline.set(i, valueOf(i));
+      render();
+    },
+  };
 }
 
 

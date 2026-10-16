@@ -1359,6 +1359,12 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
 .setup > summary span::before { content: "▸ "; color: var(--ink-faint); }
 .setup[open] > summary span::before { content: "▾ "; }
 .setup > summary i { font-style: normal; font-size: 13px; color: var(--ink-dim); }
+/* A machine setting changed and neither updated nor downloaded: a tag in the
+   warning colour, on the fold and on Brush & Paint, wherever the change is. */
+.unsaved {
+  font-style: normal; font-size: 12px; font-weight: 500; color: var(--warn);
+  border: 1px solid currentColor; border-radius: 3px; padding: 0 6px;
+}
 /* Machine setup opens the machine step, so the plan follows it. */
 .setup + .plan { margin-top: 18px; }
 .step-head + .setup { margin-top: 0; }
