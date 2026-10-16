@@ -127,6 +127,9 @@ text: {
 "Ink cutoff": "Farbschwelle",
 "A tint below the cutoff is left as paper; at or above it becomes that tray's ink. 0 keeps any non-zero tint.":
   "Ein Ton unterhalb der Schwelle bleibt Papier; ab der Schwelle wird er zur Farbe dieses Behälters. 0 behält jeden Ton, der nicht Null ist.",
+"Broad strokes": "Breite Striche",
+"Leave out everything too narrow for a broad brush, so the picture is painted as a few broad fields instead of many fine ones. Measured in strokes, so a wider brush leaves out more: 25 drops anything narrower than one stroke, 100 anything narrower than four. Thin dark lines go, and so do thin gaps of paper between two fields. 0 paints every detail the cutoff found.":
+  "Alles weglassen, was für einen breiten Pinsel zu schmal ist, damit das Bild als wenige breite Felder statt als viele feine gemalt wird. In Strichbreiten gemessen, also lässt ein breiterer Pinsel mehr weg: 25 verwirft alles, was schmaler als ein Strich ist, 100 alles, was schmaler als vier ist. Dünne dunkle Linien verschwinden, ebenso dünne Papierlücken zwischen zwei Feldern. 0 malt jedes Detail, das die Schwelle gefunden hat.",
 "Black contours": "Schwarze Umrisse",
 "Draw the picture's edges into the black plate. The cutoff says where an ink is solid and nothing about where one thing stops and the next starts, so flat colours come out as fields that meet with no line between them. 0 leaves the black plate as the separation made it; higher takes in weaker edges, until at 100 every ripple is drawn.":
   "Die Kanten des Bildes in die schwarze Druckplatte zeichnen. Die Schwelle sagt, wo eine Farbe deckt, und nichts darüber, wo ein Ding aufhört und das nächste anfängt; flache Farben geraten so zu Feldern, die ohne Linie dazwischen aneinanderstoßen. 0 lässt die schwarze Platte, wie die Zerlegung sie gemacht hat; höher nimmt schwächere Kanten hinzu, bis bei 100 jede Kräuselung gezeichnet wird.",

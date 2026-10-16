@@ -87,9 +87,88 @@ CONTOUR_WIDTH_STROKES = 0.5
 # more brush-downs saved. See the README's *Specks the brush cannot paint*.
 SPECK_BRUSH_AREAS = 4.0
 
+# Broad strokes, at the top of its slider: nothing on a plate narrower than
+# this many strokes, ink or paper. Painted 119 mm wide at a 0.5 mm stroke, two
+# strokes made Che Guevara a poster -- beret, hair, the shadow of the face --
+# and four took the eyes and the mouth with it; eight left a silhouette with
+# nothing inside. Past four there is no face left to simplify.
+BROAD_MAX_STROKES = 4.0
+# A bar this many sigmas wide comes through a Gaussian at exactly half its
+# height, so blurring at the width over this and keeping what is still more
+# than half ink takes off every mark narrower than the width, and nothing
+# wider: erf(1.35 / 2√2) is 0.5.
+_BAR_SIGMAS = 1.35
+# The widest blur done at full size, in pixels; see `_wide_blur`.
+_WIDE_BLUR_PX = 24.0
+
+
+def broad_sigma(breadth: float, brush_px: float) -> float:
+    """The blur, in this picture's pixels, that Broad strokes at `breadth` asks for."""
+    strokes = min(max(float(breadth), 0.0), 100.0) / 100.0 * BROAD_MAX_STROKES
+    return strokes * brush_px / _BAR_SIGMAS
+
+
+def broaden(ink: np.ndarray, sigma: float) -> np.ndarray:
+    """The plate with every mark narrower than `sigma` allows taken off it.
+
+    A majority vote over a neighbourhood the size of the mark: blurred, and
+    kept where more than half of what is round a pixel is ink. A thin line of
+    ink goes, and so does a thin lane of paper between two fields, which is
+    the same mark the other way round and as hard for a broad brush to leave
+    as the line is to paint. A coastline frayed by a gradient wandering across
+    the cutoff is pulled into one smooth edge, and a field that was mostly
+    islands becomes one field or none. What is wide enough stays where it was,
+    so a photograph keeps its ink, within two and a half points on every
+    plate of three portraits. A picture that is all texture moves more: The
+    Starry Night's sky is cyan pricked with light brushstrokes, the pricks
+    fill in, and the plate goes from 54% ink to 63% at a hundred.
+
+    Blurring the photograph before the cutoff was tried first and dropped. It
+    simplifies about as well, but whether a blurred mark lands above the cutoff
+    or below depends on the cutoff, so the slider would mean something
+    different at every cutoff: on The Starry Night, four strokes of it took the
+    black plate up 7 points at a cutoff of 15 and down 4 at 70. The majority
+    vote moved it by 3.5 at most, either way.
+    """
+    if sigma < 0.5:
+        return ink
+    return _wide_blur(ink.astype(np.float32), sigma) >= 0.5
+
+
+def _wide_blur(a: np.ndarray, sigma: float) -> np.ndarray:
+    """A Gaussian blur that costs the same however wide it is.
+
+    Worked small and brought back up. A broad brush on a small canvas asks for
+    a blur hundreds of pixels across, and a kernel that wide over a full
+    photograph takes seconds; what is blurred that far has nothing left in it
+    that the smaller copy cannot hold, and coming back up is a smooth
+    interpolation of a smooth field. At a blur of 142 px on The Starry Night it
+    took 0.06 s to the plain blur's 1.89, and left 0.19% of a plate's pixels on
+    the other side of half -- along the edges, and a pixel or two out. With
+    the samples an eighth of a blur apart rather than a twenty-fourth, three
+    times as many.
+
+    For a plate only, which is a threshold at half. Brought back up in a
+    straight line between samples, the gradient comes in steps, and Canny finds
+    a ridge on every one of them: contours found on it were hatched blobs where
+    the plain blur drew lines, however fine the samples.
+    """
+    import cv2  # imported late, as contour_mask does
+
+    h, w = a.shape[:2]
+    shrink = max(1.0, sigma / _WIDE_BLUR_PX)
+    if shrink > 1.0:
+        small = (max(1, round(w / shrink)), max(1, round(h / shrink)))
+        a = cv2.resize(a, small, interpolation=cv2.INTER_AREA)
+    s = sigma / shrink
+    a = cv2.GaussianBlur(a, (int(s * 6) | 1, int(s * 6) | 1), s)
+    if shrink > 1.0:
+        a = cv2.resize(a, (w, h), interpolation=cv2.INTER_LINEAR)
+    return a
+
 
 def contour_mask(cmyk: Image.Image, strength: float,
-                 brush_px: float = 0.0) -> np.ndarray:
+                 brush_px: float = 0.0, blur_px: float = 0.0) -> np.ndarray:
     """Where the picture's objects have their edges, as lines the brush can follow.
 
     Taken from the four ink channels rather than from brightness: a red shape
@@ -110,11 +189,24 @@ def contour_mask(cmyk: Image.Image, strength: float,
     planes = np.asarray(cmyk, dtype=np.float32)
     h, w = planes.shape[:2]
     diag = float(np.hypot(w, h))
-    sigma = max(1.0, CONTOUR_BLUR_FRAC * diag)
+    grain = max(1.0, CONTOUR_BLUR_FRAC * diag)
+    # Broad strokes has taken off every mark narrower than its blur, and
+    # contours found on the photograph as it is would draw them all back in, a
+    # line at a time. Found at the plates' own breadth they follow the fields
+    # that are left. The plain blur, however wide, and not `_wide_blur`.
+    sigma = max(grain, blur_px)
     soft = cv2.GaussianBlur(planes, (int(sigma * 4) | 1, int(sigma * 4) | 1), sigma)
 
-    gx = np.stack([cv2.Scharr(soft[..., c], cv2.CV_32F, 1, 0) for c in range(4)], -1)
-    gy = np.stack([cv2.Scharr(soft[..., c], cv2.CV_32F, 0, 1) for c in range(4)], -1)
+    # A gradient blurred n times wider is n times shallower, and Canny reads it
+    # in whole numbers: at 18 px a face's edges were rounded down into dashes.
+    # Scaled back up by the extra blur, every edge is read at the precision it
+    # had at the grain's blur; the thresholds are percentiles, so the scale
+    # changes nothing else, and with no extra blur it is one.
+    gain = sigma / grain
+    gx = np.stack([cv2.Scharr(soft[..., c], cv2.CV_32F, 1, 0, scale=gain)
+                   for c in range(4)], -1)
+    gy = np.stack([cv2.Scharr(soft[..., c], cv2.CV_32F, 0, 1, scale=gain)
+                   for c in range(4)], -1)
     mag = np.hypot(gx, gy)
     loudest = mag.argmax(-1)
     rows, cols = np.indices(loudest.shape)
@@ -218,7 +310,8 @@ def to_cmyk(image: Image.Image) -> Image.Image:
 def threshold_plates(image: Image.Image, cutoff: float = 40.0,
                      knockout: bool = True,
                      contours: float = 0.0,
-                     brush_px: float = 0.0) -> dict[str, Image.Image]:
+                     brush_px: float = 0.0,
+                     breadth: float = 0.0) -> dict[str, Image.Image]:
     """1-bit images keyed C/M/Y/K, black where that ink should paint.
 
     `contours` adds the picture's own edges to the black plate, nought for none
@@ -244,6 +337,10 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     specks of ink too small for it (`tidy`), and sets how wide the contours
     are drawn (`contour_mask`). Nought leaves the plates as the cutoff made
     them, and the contours a pixel wide.
+
+    `breadth` is Broad strokes, nought to a hundred: every mark on every plate
+    narrower than up to BROAD_MAX_STROKES strokes is taken off (`broaden`), so
+    the painting is a few broad fields rather than many fine ones.
     """
     # Already upright and already turned to lie along the canvas if it needed
     # to be: that is images.lay_along, and the caller does it, because the
@@ -252,6 +349,13 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     level = _cutoff_level(cutoff)
     ink = {name: np.asarray(channel) >= level
            for name, channel in zip(CHANNELS, cmyk.split())}
+    # Before the knockout. Broadened after it, a black line too thin to keep
+    # would go from the black plate and leave behind the lane it had already
+    # cut through the colours: bare paper where there was a line. Before it,
+    # the colours are knocked out only where the broad black still paints.
+    sigma = broad_sigma(breadth, brush_px)
+    if sigma > 0:
+        ink = {name: broaden(mask, sigma) for name, mask in ink.items()}
     if knockout:
         for name in ("C", "M", "Y"):
             ink[name] = ink[name] & ~ink["K"]
@@ -266,7 +370,7 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     # line laid over the colour is a line over the colour, which is what a
     # contour is for; and it is one plate's worth of drawing either way.
     if contours > 0:
-        ink["K"] = ink["K"] | contour_mask(cmyk, contours, brush_px)
+        ink["K"] = ink["K"] | contour_mask(cmyk, contours, brush_px, sigma)
     return {name: Image.fromarray(
         np.where(mask, 0, 255).astype(np.uint8), "L").convert("1")
         for name, mask in ink.items()}
@@ -279,11 +383,12 @@ def ink_fraction(img: Image.Image) -> float:
 def plates_for_trays(image: Image.Image, cutoff: float = 40.0,
                      knockout: bool = True,
                      contours: float = 0.0,
-                     brush_px: float = 0.0) -> dict[str, Image.Image]:
+                     brush_px: float = 0.0,
+                     breadth: float = 0.0) -> dict[str, Image.Image]:
     """Plates keyed by tray name (cyan, magenta, yellow, kroma)."""
     return {CMYK_TO_TRAY[ch]: plate
             for ch, plate in threshold_plates(
-                image, cutoff, knockout, contours, brush_px).items()}
+                image, cutoff, knockout, contours, brush_px, breadth).items()}
 
 
 def _ink_mask(plate: Image.Image) -> np.ndarray:

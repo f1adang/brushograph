@@ -901,6 +901,108 @@ A second photograph at 1 mm goes from 1,613 strokes to 485 and from 1.91 h to
 1.60.
 Generation is quicker for it, too: 20 s to 18 on the 0.3 mm run.
 
+#### Broad strokes
+
+Tidying the specks takes off what the brush cannot paint at all. Much of what
+is left it can paint but only with patience: a lock of hair, a fold in a
+sleeve, the light hatching in a painted sky. Each one is its own brush-down
+and its own outline. **Broad strokes** leaves out everything narrower than a
+chosen width, so the picture is painted as a few broad fields. 0 leaves the
+plates as the cutoff made them; 100 leaves out anything narrower than four
+strokes (`BROAD_MAX_STROKES`).
+
+**The width is counted in strokes**, the stroke's width in the photograph's
+own pixels, like the specks and the contours. "Too fine to paint" is a fact
+about the brush, so the same setting leaves out more with a wider brush or on
+a smaller painting. Changing **Infill line distance** or the painted width
+redraws the plates on show, which nothing else did before.
+
+**It is a majority vote, on each plate** (`broaden`). The plate is blurred
+and kept wherever more than half of what lies round a pixel is ink. A bar comes
+through a Gaussian at exactly half height when it is 1.35 sigmas wide, so
+blurring at the chosen width over 1.35 takes off every mark narrower than
+that width, and nothing wider. It cuts both ways. A thin line of ink goes, and
+so does a thin lane of paper between two fields: the same mark the other way
+round, and just as hard for a broad brush to leave as the line is to paint. A
+coastline frayed by a gradient that wanders back and forth across the cutoff
+becomes one smooth edge. A field that was mostly islands becomes one solid
+field, or paper.
+
+**Blurring the photograph before the cutoff was tried first.** It simplifies
+about as well. But whether a blurred mark comes out above the cutoff or below
+depends on the cutoff, so the slider would mean something different at every
+cutoff. On *The Starry Night*, four strokes of it took the black plate up 7
+points at a cutoff of 15 and down 4 at 70. The majority vote moved it by 3.5
+at most either way. Across three portraits it keeps every plate within two and
+a half points of its ink. A picture that is all texture moves more: the
+*Starry Night* sky is cyan pricked with light brushstrokes, the pricks fill
+in, and the cyan plate goes from 54% ink to 61% at 25.
+
+**Before the knockout.** Broadened after it, a black line too thin to keep
+would leave the black plate but not the lane it had already cut through the
+colours: bare paper where there was a line. Broadened first, the colours are
+knocked out only where the broad black still paints.
+
+**The contours are found at the same breadth.** Found on the photograph as it
+is, Black contours would draw back, a line at a time, every edge the slider
+had just taken off. So the edge finding blurs by whichever is wider, its own
+two thousandths of the diagonal or the plates' blur. A gradient blurred n
+times wider is n times shallower, and Canny reads it in whole numbers: at
+18 px the edges of a face came out as dashes, 62 runs where there should be
+46, until the gradient was scaled back up by the extra blur. The thresholds are
+percentiles, so that scale changes nothing else, and with no extra blur it is
+one. At 50 on Che Guevara, contours at 40 drew the beret, the face and the
+jacket in 106 runs instead of 234, and dropped the palm fronds' tangle.
+
+**A wide blur is worked small** (`_wide_blur`). A 3 mm brush on the 𝔐𝔦𝔨𝔯𝔬 at
+100 asks for a blur over 300 px wide, and a kernel that size over a full
+photograph takes seconds per plate. So a plate is shrunk until the blur is
+24 px, blurred, and enlarged again. At a 142 px blur on *The Starry Night*
+that took 0.06 s to the full-size blur's 1.89, and left 0.19% of a plate's
+pixels on the other side of half; at 8 px, three times as many. **Not for the
+contours.** Enlarging in straight lines between samples leaves the gradient in
+steps, and Canny finds a ridge on every step: where the full-size blur drew a
+line, the shrunk one drew hatched blobs, however fine the samples. The
+contours always take the full-size blur, which costs about a second only at
+those extreme settings and only with contours on.
+
+Brushparang, 119 mm wide at a 0.5 mm stroke, cutoff 40, no contours:
+
+| | Broad strokes | painted | travel | brush downs | dips | rough time |
+|---|---|---|---|---|---|---|
+| *The Starry Night* | 0 | 48.70 m | 78.87 m | 4,585 | 382 | 7.34 h |
+| | 25 | 34.34 m | 53.64 m | 651 | 275 | **2.42 h** |
+| | 50 | 33.41 m | 50.66 m | 408 | 265 | 1.92 h |
+| | 100 | 32.95 m | 48.10 m | 320 | 257 | 1.62 h |
+| Marilyn | 0 | 24.76 m | 41.91 m | 694 | 207 | 1.97 h |
+| | 25 | 24.40 m | 40.26 m | 471 | 201 | 1.61 h |
+| | 50 | 23.88 m | 39.28 m | 373 | 198 | **1.43 h** |
+| | 100 | 23.07 m | 38.21 m | 288 | 194 | 1.28 h |
+| selfie in a room | 0 | 18.22 m | 31.81 m | 750 | 156 | 1.78 h |
+| | 25 | 17.41 m | 29.97 m | 343 | 149 | 1.24 h |
+| | 50 | 17.14 m | 28.79 m | 238 | 148 | **1.05 h** |
+| | 100 | 16.91 m | 27.19 m | 179 | 143 | 0.87 h |
+| Che Guevara | 0 | 8.45 m | 14.76 m | 302 | 72 | 0.70 h |
+| | 25 | 8.03 m | 13.98 m | 150 | 70 | 0.52 h |
+| | 50 | 7.82 m | 13.13 m | 118 | 67 | **0.44 h** |
+| | 100 | 7.82 m | 13.83 m | 103 | 69 | 0.40 h |
+
+Times come from the page's own estimate (its `parseGcode` and `runSeconds`,
+run on the files). Nearly all the saving is in brush-downs: the painted
+distance hardly moves, because the fields are still painted, while each fine
+mark that goes takes its outline, its landing blot and its share of trips to
+the cups with it. *The Starry Night* is the extreme case: its hatching was
+4,000 separate marks, and at 25 the swirls and every star are still there.
+Generating it took 1.7 s instead of 13.8.
+
+**Where a face goes.** On Che and Marilyn the eyes, brows and mouth hold to 50;
+at 100 Marilyn is a poster with a mouth and no eyes. Che at two strokes (50)
+is the familiar stencil, and at four (100) the face has gone; eight was tried
+and left a silhouette. **With Simplify**, whose hairlines are half a stroke
+wide, the hairlines are gone by 15 and the bolder feature lines by 50, so the
+two pull against each other. Simplify adds the detail a face needs, and Broad
+strokes takes off anything that fine.
+
 #### Isolating the subject of a colour photograph
 
 The colour photograph is offered **Isolate** on the same terms as a tray's

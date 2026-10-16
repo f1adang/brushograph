@@ -1431,6 +1431,7 @@ function wireForm() {
   const cmykCutoff = $("cmyk-cutoff");
   const cmykKnockout = $("cmyk-knockout");
   const cmykContours = $("cmyk-contours");
+  const cmykBreadth = $("cmyk-breadth");
   const cmykIsolate = $("cmyk-isolate");
   const cmykSimplify = $("cmyk-simplify");
   const cmykCaricature = $("cmyk-caricature");
@@ -1455,6 +1456,7 @@ function wireForm() {
     if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
     if (cmykKnockout) fd.append("cmyk_knockout", cmykKnockout.checked ? "true" : "false");
     if (cmykContours) fd.append("cmyk_contours", cmykContours.value);
+    if (cmykBreadth) fd.append("cmyk_breadth", cmykBreadth.value);
     fd.append("cmyk_isolate", cmykIsolate && cmykIsolate.checked ? "true" : "false");
     fd.append("cmyk_simplify", cmykSimplify && cmykSimplify.checked ? "true" : "false");
     fd.append("cmyk_caricature", cmykCaricature && cmykCaricature.checked ? "true" : "false");
@@ -1496,10 +1498,11 @@ function wireForm() {
   }
 
   if (cmykInput && cmykControls) {
-    // Both sliders redraw the plates, and neither redraws them per pixel of
+    // Every slider redraws the plates, and none redraws them per pixel of
     // travel: finding the contours is a second's work on a large photograph,
     // so the request waits until the thumb has stopped.
     for (const [slider, out] of [[cmykCutoff, $("cmyk-cutoff-out")],
+                                 [cmykBreadth, $("cmyk-breadth-out")],
                                  [cmykContours, $("cmyk-contours-out")]]) {
       if (!slider || !out) continue;
       slider.addEventListener("input", () => {
@@ -1513,6 +1516,20 @@ function wireForm() {
       if (!box) continue;
       box.addEventListener("change", () => {
         if (cmykFile()) previewCmyk();
+      });
+    }
+    // Broad strokes counts in strokes, so a wider brush, or the same brush on
+    // a smaller painting, leaves out more of the picture: the plates on show
+    // have to follow, or they are plates for a brush no longer chosen. Picking
+    // a brush number writes the line distance and fires `input` on it. Longer
+    // to wait than a slider, because this is typed into, a digit at a time.
+    for (const n of ["slicer-infill_line_distance", "brushograph-width"]) {
+      const field = form.querySelector(`[name="${n}"]`);
+      if (!field) continue;
+      field.addEventListener("input", () => {
+        if (!cmykFile() || !cmykFrame || cmykFrame.hidden) return;
+        clearTimeout(cmykPreviewTimer);
+        cmykPreviewTimer = setTimeout(previewCmyk, 500);
       });
     }
     cmykInput.addEventListener("change", () => {
