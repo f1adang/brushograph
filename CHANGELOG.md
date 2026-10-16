@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.24](https://github.com/f1adang/brushograph/releases/tag/v2.24) — 2026-10-16
+
+- **Broad strokes for a colour photograph:** a new slider under **Ink cutoff** leaves out everything too narrow for a broad brush, so the photograph is painted as a few broad fields instead of many fine ones. It is measured in strokes, so a wider brush leaves out more: 25 drops anything narrower than one stroke, 100 anything narrower than four. Thin dark lines go, and so do thin gaps of paper between two fields; **Black contours** follows the broad fields rather than drawing the fine detail back in. Most of the time saved is brush-downs. Painted 119 mm wide at a 0.5 mm stroke, *The Starry Night* went from 7.3 hours to 2.4 at 25, and a portrait from 2.0 hours to 1.4 at 50 with its eyes and mouth still there. The plates on show now also redraw when you change the brush or the painted width. At 0, the default, nothing changes. Simplify's fine lines are half a stroke wide, so they go from about 15 upwards.
+
 ## [v2.23.9](https://github.com/f1adang/brushograph/releases/tag/v2.23.9) — 2026-10-15
 
 - **Each machine remembers where its macros go:** the **Upload to** choice next to **Upload selected to machine** used to go back to **Flash** every time the page was opened, so a machine that keeps its macros on the SD card had to be switched over every time. The choice is now saved with the machine when you press **Update**, and is in a downloaded config too. Machines that never set it stay on Flash.
