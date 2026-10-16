@@ -426,6 +426,8 @@ text: {
   "Konturen werden verfolgt, zerlegt und zu Pinselstrichen geplant.",
 "Downloaded {file} ({size} KB).": "Heruntergeladen: {file} ({size} KB).",
 "Ready: {file} ({size} KB). Preview below.": "Fertig: {file} ({size} KB). Vorschau unten.",
+"The form has changed since this was generated, so the path below and the file it would send are the old settings. Generate G-code again, or put the change back.":
+  "Das Formular hat sich geändert, seit dies berechnet wurde: Der Weg unten und die Datei, die gesendet würde, sind die alten Einstellungen. Berechnen Sie die Maschinensteuerbefehle neu oder nehmen Sie die Änderung zurück.",
 "The file is ready, but the preview could not be drawn: {error}":
   "Die Datei ist fertig, die Vorschau ließ sich aber nicht zeichnen: {error}",
 "Download {file}": "{file} herunterladen",

@@ -1313,6 +1313,12 @@ button:focus-visible, summary:focus-visible, .inline-file:focus-within {
  * only read true on light paper, so these stay white in every theme. The id
  * outranks the themes' own .canvas-wrap backgrounds. */
 #preview-card .canvas-wrap, #cmyk-frame { background: #ffffff; }
+/* The form has moved on since this was generated. Grey as well as faint: the
+ * pigments are what make it read as the painting, so they are the first thing
+ * to go from one that no longer is. */
+#preview-stale { margin: 18px 0 0; }
+#preview-card.is-stale .canvas-wrap,
+#preview-card.is-stale .sim-stats { opacity: .4; filter: grayscale(1); }
 .sim-stats { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
 .sim-stat {
   background: var(--sheet); border: 1px solid var(--line); border-radius: 5px;

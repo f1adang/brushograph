@@ -538,6 +538,12 @@ function wireForm() {
   const gcodeBtn = $("options-form-gcode");
   const configBtn = $("options-form-machine-config");
   const sketch = $("machine-sketch");
+  // Every change in the form is answered here as well as wherever it is
+  // handled: a programmatic one (a model, Auto-space, a probe map) is
+  // announced to the form as an input event too, so nothing slips past.
+  previewMadeFrom = null;
+  form.addEventListener("input", checkPreview);
+  form.addEventListener("change", checkPreview);
 
   // Sections that fold are <details> now, which the browser opens and closes
   // itself, keyboard and screen reader included.
@@ -1759,17 +1765,13 @@ function wireForm() {
     errBox.hidden = true;
     statusBox.hidden = true;
 
-    const fd = new FormData(form);
+    const fd = wantsGcode ? gcodeFormData(form) : new FormData(form);
+    // Taken as it is posted, so a change made while it generates still counts.
+    const madeFrom = wantsGcode ? formFingerprint(fd) : null;
     if (!wantsGcode) {
       form.querySelectorAll('input[type="file"]').forEach((i) => fd.delete(i.name));
       fd.append("config_only", "true");
     } else {
-      // A put-away card still holds whatever was chosen before the photograph
-      // was loaded, and the server lets a tray picture replace that tray's
-      // plate. Dropping it here is what makes putting the card away mean
-      // something, and leaves the file in the input for when it comes back.
-      form.querySelectorAll('article.tray[hidden] input[type="file"]')
-        .forEach((i) => fd.delete(i.name));
       const any = [...form.querySelectorAll('article.tray:not([hidden]) input[type="file"], #cmyk-photo')]
         .some((i) => i.files.length);
       if (!any) {
@@ -1806,11 +1808,13 @@ function wireForm() {
       // download when it is what you wanted.
       const text = await blob.text();
       offerDownload(blob, filename);
+      previewMadeFrom = madeFrom;
       say(statusBox, "Ready: {file} ({size} KB). Preview below.",
           { file: filename, size: (blob.size / 1024).toFixed(0) });
       statusBox.hidden = false;
       try {
         showGcode(text);
+        checkPreview();
       } catch (err) {
         // The file is already downloadable at this point, so a preview that
         // fails used to leave an empty box and no explanation.
@@ -2009,6 +2013,66 @@ function saveBlob(blob, filename) {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+/* ---- a preview the form has moved on from ---- */
+/* The preview, Download, Send and Upload & start all stand for the file the
+   last Generate made, and they used to stay up whatever was changed after it:
+   a new picture, another brush, a cup moved. Nothing on the page said the file
+   was now the old settings', and Upload & start would paint it. So the form is
+   fingerprinted as it is posted, and compared on every change after: while
+   they differ the preview is greyed, a line says why, and the three buttons
+   are off. Putting the change back brings them back -- it is the file's
+   settings that matter, not whether something was touched. */
+let previewMadeFrom = null;   // null: nothing generated here, or a file opened
+let sendingJob = false;
+
+/* The form as Generate G-code posts it. A put-away card still holds whatever
+   was chosen before the photograph was loaded, and the server lets a tray
+   picture replace that tray's plate. Dropping it here is what makes putting
+   the card away mean something, and leaves the file in the input for when it
+   comes back. */
+function gcodeFormData(form) {
+  const fd = new FormData(form);
+  form.querySelectorAll('article.tray[hidden] input[type="file"]')
+    .forEach((i) => fd.delete(i.name));
+  return fd;
+}
+
+/* What of a post decides the G-code. Connection is where the file goes, not
+   what is in it, and the config's version changes with a save that changes
+   nothing about the painting. A picture is known by name, size and date: its
+   bytes are not read for this on every keystroke. An empty file input posts a
+   nameless File dated the moment it was asked for, so it is no picture at all
+   rather than a new one every time. */
+function formFingerprint(fd) {
+  const parts = [];
+  for (const [name, value] of fd) {
+    if (name.startsWith("connection-") || name === "machine_config_version") continue;
+    const said = !(value instanceof File) ? value
+      : value.name ? `${value.name}/${value.size}/${value.lastModified}` : "";
+    parts.push(name + "=" + said);
+  }
+  return parts.join("\n");
+}
+
+function previewIsStale() {
+  const form = $("options-form");
+  return !!form && previewMadeFrom !== null
+    && formFingerprint(gcodeFormData(form)) !== previewMadeFrom;
+}
+
+function checkPreview() {
+  const card = $("preview-card");
+  if (!card || card.hidden) return;
+  const stale = previewIsStale();
+  card.classList.toggle("is-stale", stale);
+  const note = $("preview-stale");
+  if (note) note.hidden = !stale;
+  for (const id of ["gcode-download", "gcode-send", "gcode-run"]) {
+    const b = $(id);
+    if (b) b.disabled = stale || (sendingJob && id !== "gcode-download");
+  }
 }
 
 let pendingFile = null;
@@ -2526,7 +2590,7 @@ function wireSimulator() {
   const download = $("gcode-download");
   if (download) {
     download.addEventListener("click", () => {
-      if (pendingFile) saveBlob(pendingFile.blob, pendingFile.filename);
+      if (pendingFile && !previewIsStale()) saveBlob(pendingFile.blob, pendingFile.filename);
     });
   }
   const send = $("gcode-send");
@@ -2537,8 +2601,11 @@ function wireSimulator() {
     open.addEventListener("change", async () => {
       const file = open.files[0];
       if (!file) return;
+      // A file from the disk answers to nothing in the form, so it is never stale.
+      previewMadeFrom = null;
       showGcode(await file.text());
       offerDownload(file, file.name);
+      checkPreview();
       open.value = "";
     });
   }
@@ -2700,7 +2767,7 @@ function machineSay(english, vars, bad) {
 }
 
 async function sendToMachine(start) {
-  if (!pendingFile) return;
+  if (!pendingFile || previewIsStale()) return;
   const base = await machineBase();
   if (!base) {
     machineSay("Set a hostname under Machine setup, Connection.", null, true);
@@ -2719,6 +2786,7 @@ async function sendToMachine(start) {
   const buttons = [$("gcode-send"), $("gcode-run")].filter(Boolean);
   const labels = buttons.map(labelOf);
   buttons.forEach((b) => { b.disabled = true; });
+  sendingJob = true;
   let ws = null;
 
   try {
@@ -2755,7 +2823,10 @@ async function sendToMachine(start) {
       { base, error: t(String(e.message || e)) }, true);
   } finally {
     if (ws) { try { ws.close(); } catch (e) { /* already gone */ } }
+    sendingJob = false;
     buttons.forEach((b, i) => { b.disabled = false; say(b, labels[i]); });
+    // The form may have moved on while the file was going.
+    checkPreview();
   }
 }
 

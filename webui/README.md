@@ -3803,6 +3803,38 @@ not answering, because an address nobody is at fails only when the connection
 times out, over a minute later. `.local` names for both go through
 `/machine/resolve`, as the uploads do.
 
+### The preview goes grey when the form moves on
+
+The preview and its three buttons stand for the file the last Generate made, and
+they used to stay up whatever was changed after it. Pick another picture, move a
+cup, fit another brush: the path on the page and the file behind Download, Send
+and Upload & start were still the old settings', and nothing said so. Upload &
+start would have painted them.
+
+The form is now fingerprinted as Generate posts it — every field that goes to
+the server, a picture by its name, size and date rather than its bytes — and
+again on every change after. While the two differ the preview and its figures
+are greyed, a line above them says the file is the old settings', and the three
+buttons are off. Putting the change back turns them on again: what matters is
+whether the file is what the form says, not whether anything was touched.
+
+Left out of the fingerprint: **Connection** — hostname, camera, where macros go
+— which says where a file is sent, not what is in it; and the config's version,
+which an Update changes without changing anything in the painting. A `.gcode`
+opened from disk answers to nothing in the form and is never greyed.
+
+Two things turned up on the way. An empty file input posts a nameless, empty
+File dated the moment the form is read, so a fingerprint taking every file's
+date differed from itself a moment later, and every preview came up grey the
+instant it was drawn; an empty input now counts as no picture. And every change
+the page makes itself — a model, Auto-space, a brush's paint per run, a probe
+map — already announces itself to the form as an input event, for the plan's
+sake, so one listener on the form sees them all.
+
+On Pinkograph the fingerprint covers 93 of the 97 fields posted, and answering
+an input event with a preview up takes 0.08 ms in Firefox (500 events,
+averaged), so it is done on every keystroke rather than debounced.
+
 ### The preview is swept, not spread
 
 The drawing's bounds used to come from `Math.min(...xs)` over one argument per
@@ -4859,6 +4891,7 @@ Kept configs' size limit applies to what an update writes, too.
 There is **no authentication** on keeping, updating or deleting a kept config —
 like everything else here, anyone who can reach the page can do it. A list that other people's uploads join only
 refreshes on a page load; the one you just kept appears at once.
+
 
 ## Assets are never cached
 
