@@ -274,6 +274,14 @@
           weaker edges, until at 100 every ripple is drawn.</p>
         <div class="switches">
           <label class="switch">
+            <input type="hidden" name="cmyk_mix" value="false">
+            <input type="checkbox" name="cmyk_mix" id="cmyk-mix" value="true">
+            <span><b>Mix the colours</b><i>Paint each colour as whichever inks, laid one over
+              another, look most like it, instead of deciding each ink on its own. Orange is
+              then yellow rather than red, and a face lit by a yellow wall stays yellow. The
+              cutoff then says how much nearer an ink must be than bare paper.</i></span>
+          </label>
+          <label class="switch">
             <input type="hidden" name="cmyk_knockout" value="false">
             <input type="checkbox" name="cmyk_knockout" id="cmyk-knockout" value="true" checked>
             <span><b>Black knocks out the colours</b>Leave cyan, magenta and yellow

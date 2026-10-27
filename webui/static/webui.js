@@ -1478,6 +1478,7 @@ function wireForm() {
   const cmykNote = $("cmyk-note");
   const cmykCutoff = $("cmyk-cutoff");
   const cmykKnockout = $("cmyk-knockout");
+  const cmykMix = $("cmyk-mix");
   const cmykContours = $("cmyk-contours");
   const cmykBreadth = $("cmyk-breadth");
   const cmykIsolate = $("cmyk-isolate");
@@ -1503,6 +1504,7 @@ function wireForm() {
     }
     if (cmykCutoff) fd.append("cmyk_threshold", cmykCutoff.value);
     if (cmykKnockout) fd.append("cmyk_knockout", cmykKnockout.checked ? "true" : "false");
+    fd.append("cmyk_mix", cmykMix && cmykMix.checked ? "true" : "false");
     if (cmykContours) fd.append("cmyk_contours", cmykContours.value);
     if (cmykBreadth) fd.append("cmyk_breadth", cmykBreadth.value);
     fd.append("cmyk_isolate", cmykIsolate && cmykIsolate.checked ? "true" : "false");
@@ -1560,7 +1562,7 @@ function wireForm() {
         cmykPreviewTimer = setTimeout(previewCmyk, 180);
       });
     }
-    for (const box of [cmykKnockout, cmykIsolate, cmykSimplify, cmykCaricature]) {
+    for (const box of [cmykMix, cmykKnockout, cmykIsolate, cmykSimplify, cmykCaricature]) {
       if (!box) continue;
       box.addEventListener("change", () => {
         if (cmykFile()) previewCmyk();

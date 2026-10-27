@@ -161,6 +161,9 @@ text: {
 "Insta face filter": "Gesichtsretusche",
 "Evens the light on the face and smooths the skin, keeping eyes, brows and lips sharp.":
   "Gleicht das Licht im Gesicht aus und glättet die Haut; Augen, Brauen und Lippen bleiben scharf.",
+"Mix the colours": "Farben mischen",
+"Paint each colour as whichever inks, laid one over another, look most like it, instead of deciding each ink on its own. Orange is then yellow rather than red, and a face lit by a yellow wall stays yellow. The cutoff then says how much nearer an ink must be than bare paper.":
+  "Jede Farbe der Fotografie mit den Farben malen, die übereinandergelegt ihr am ähnlichsten sehen, statt über jede Farbe für sich zu entscheiden. Orange wird dann gelb statt rot, und ein Gesicht vor einer gelben Wand bleibt gelb. Die Farbschwelle sagt dann, um wie viel näher eine Farbe liegen muss als das blanke Papier.",
 "Simplify": "Vereinfachen",
 "Redraw the photograph the way a cartoon is drawn: a few flat colours, dark lines for the eyes, brows, nose and mouth, and fine lines where light and shade meet. Flat colours separate into clean fields rather than ragged ones, so there is less to paint.":
   "Die Fotografie so neu zeichnen, wie man einen Comic zeichnet: wenige flache Farben, dunkle Linien für Augen, Brauen, Nase und Mund und feine Linien, wo Licht und Schatten aneinanderstoßen. Flache Farben zerfallen in saubere Felder statt in ausgefranste, also gibt es weniger zu malen.",

@@ -1003,6 +1003,105 @@ wide, the hairlines are gone by 15 and the bolder feature lines by 50, so the
 two pull against each other. Simplify adds the detail a face needs, and Broad
 strokes takes off anything that fine.
 
+#### Mixing the colours
+
+The cutoff decides each ink on its own, and an ink on its own does not know
+what colour it is helping to make. Through the paper profile, orange is
+magenta 51% and yellow 91%; at 40 both are painted, and magenta over yellow is
+red. Olive is cyan 47% and yellow 87%, and comes out green. A face lit by a
+yellow-painted wall came out solid red. **Mix the colours** makes the decision
+once per colour instead (`mix_inks`): among the eight things the brush can lay
+in one spot, it paints the one that looks most like the photograph there.
+Orange and olive go to yellow, and the yellow-lit face stays yellow with red
+lips. It is off unless ticked.
+
+**The eight** (`OVERPRINTS`) are paper, each ink alone, each pair of colours
+one over the other, and black. What each looks like is read off the same
+paper profile, backwards and relative colorimetric. Read perceptually, as the
+photograph goes in, solid cyan landed 21 units of CIELAB from the preview's
+pigment cyan; relative colorimetric puts it 2 away and magenta 5, so the plate
+preview shows the colours that were chosen. **Not all three colours at once.**
+The profile prints them as a dark grey six units lighter than black, and three
+passes for what black does in one. Offered, it took every anti-aliased grey in
+a line drawing. **Not black over a colour**, which is black.
+
+**Plain distance in CIELAB, not CIEDE2000.** CIEDE2000 was tried first. It
+forgives a difference in colourfulness, which is what it is for, and here that
+is the one difference that matters: a neutral grey came out nearer cyan than
+paper or black, so every grey edge of a black-and-white portrait grew cyan
+specks, and a beige wall in shade went green.
+
+**The photograph is first laid into the inks' range.** Its colours are muted
+and the inks are not, so matched as they are, almost every mid-tone is nearer
+black or paper than any ink: the painting of a deer on straw came out 7% yellow
+and 59% black. So its black is put on black ink's lightness, and its
+colourfulness is multiplied (`MIX_CHROMA_GAIN`). On that painting:
+
+| gain | yellow | black | |
+|---|---|---|---|
+| 1 | 6% | 37% | still mostly black and paper |
+| 1.5 | 29% | 28% | straw patchy |
+| **2** | 46% | 20% | straw yellow, the deer red-brown, the sky blue |
+| 3 | 58% | 11% | a shaded beige wall in another photograph solid yellow |
+
+Doubling a grey leaves it grey, so a black-and-white drawing still separates
+onto the black plate alone.
+
+**The cutoff still says how much is paper.** The distance to paper is scaled
+by 2^((40 − cutoff) / 30) (`MIX_CUTOFF_SPAN`), so at 40, the default, every
+colour goes to whatever is nearest, and higher makes paper win more often. Share
+of the picture inked at all, plain cutoff / mixed, on 600 px copies:
+
+| cutoff | 0 | 20 | 40 | 60 | 80 | 100 |
+|---|---|---|---|---|---|---|
+| body paint on a terrace | 100 / 88 | 89 / 81 | 69 / 67 | 41 / 45 | 11 / 27 | 0 / 13 |
+| deer on straw | 100 / 100 | 100 / 98 | 84 / 85 | 27 / 46 | 6 / 19 | 0 / 7 |
+| postcards on a rack | 100 / 99 | 99 / 98 | 81 / 91 | 20 / 59 | 1 / 14 | 0 / 3 |
+| Che Guevara | 96 / 50 | 51 / 49 | 47 / 48 | 45 / 47 | 43 / 46 | 0 / 45 |
+
+At 40 the two are within ten points on all seven photographs tried. They part
+at the ends, and on purpose: the plain cutoff at 0 paints any tint, so Che's
+white paper is painted in all three colours, one over another; the mix paints
+only what is nearer an ink than paper.
+Up at 100 the mix keeps the darks black where the cutoff loses them, because a
+dark colour is far from paper whatever the scale.
+
+**Black knocks out the colours** keeps its meaning. A mixed plate has nothing
+under the black to begin with; unticked, the colour bed is put back under it,
+the inks the plain cutoff would have laid there.
+
+**It costs nothing, and usually saves.** The plates are chosen together, so a
+colour is painted twice only where it needs two inks: on the deer, the area
+painted in two coats went from a quarter of the picture to an eighth. Brushparang, 111 mm
+square at a 0.5 mm stroke, cutoff 40, no contours, times from the page's own
+estimate:
+
+| | Broad strokes | | painted | travel | brush downs | dips | rough time |
+|---|---|---|---|---|---|---|---|
+| deer on straw | 0 | cutoff | 26.83 m | 47.98 m | 2,268 | 221 | 3.42 h |
+| | | mixed | 23.01 m | 41.35 m | 1,435 | 192 | **2.58 h** |
+| | 25 | cutoff | 25.96 m | 42.96 m | 317 | 212 | 1.56 h |
+| | | mixed | 21.00 m | 35.65 m | 262 | 175 | **1.32 h** |
+| body paint | 0 | cutoff | 39.05 m | 65.66 m | 1,491 | 311 | 3.77 h |
+| | | mixed | 37.15 m | 61.55 m | 1,077 | 296 | **3.31 h** |
+| | 25 | cutoff | 38.23 m | 62.45 m | 565 | 304 | 2.48 h |
+| | | mixed | 34.71 m | 56.63 m | 441 | 276 | **2.14 h** |
+| yellow-lit selfie | 0 | cutoff | 45.35 m | 80.83 m | 687 | 345 | 3.03 h |
+| | | mixed | 45.96 m | 77.32 m | 573 | 345 | 2.95 h |
+| Che Guevara | 0 | cutoff | 15.89 m | 29.76 m | 310 | 122 | 1.40 h |
+| | | mixed | 15.99 m | 30.50 m | 309 | 125 | 1.41 h |
+
+It is worked on the photograph's distinct colours, not its pixels, and adds
+about 0.3 s to separating a 1800 × 2400 photograph.
+
+What it does not do: shade. A plate is still ink or paper, so a photograph
+comes out in at most eight flat colours, and a colour halfway between two of
+them goes wholly to one. Skin is the hard case. Fair skin is paper either way,
+and a tan goes to red, because red is nearer it than yellow or paper. Teal is
+nearer green than cyan, and a greyish mauve pavement goes to solid dark blue.
+The profile is a press's, not these watercolours',
+so "nearest" is the press's idea of what the paints look like.
+
 #### Isolating the subject of a colour photograph
 
 The colour photograph is offered **Isolate** on the same terms as a tray's

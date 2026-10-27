@@ -16,9 +16,14 @@ pipeline already traces.
 The black plate can also be given the picture's contours, because a cutoff
 tells you where an ink is solid and nothing at all about where one object
 stops and the next begins.
+
+Or the plates can be chosen together rather than one ink at a time: each
+colour in the photograph painted as whichever overprint of the inks looks
+most like it (`mix_inks`).
 """
 from __future__ import annotations
 
+from functools import lru_cache
 from pathlib import Path
 
 import numpy as np
@@ -100,6 +105,30 @@ BROAD_MAX_STROKES = 4.0
 _BAR_SIGMAS = 1.35
 # The widest blur done at full size, in pixels; see `_wide_blur`.
 _WIDE_BLUR_PX = 24.0
+
+# Mixing the colours. The paints a two-tone plate can lay in one spot, as
+# (C, M, Y, K): paper, each ink alone, each pair of colours one over the
+# other, and black. Not all three colours together, which is a dark grey the
+# profile puts within six units of black's lightness and costs three passes
+# where black costs one: offered, it took every anti-aliased grey in a line
+# drawing. Nor black over a colour, which is black.
+OVERPRINTS = ((0, 0, 0, 0), (1, 0, 0, 0), (0, 1, 0, 0), (0, 0, 1, 0),
+              (1, 1, 0, 0), (1, 0, 1, 0), (0, 1, 1, 0), (0, 0, 0, 1))
+# A photograph's colours are muted and the inks are not. Matched as they are,
+# a mid-tone is nearer black or paper than any ink: a painting of a deer on
+# straw came out 7% yellow and 59% black. So the photograph is first laid into
+# the inks' own range: its black on black ink's lightness, and its
+# colourfulness doubled. The straw was then 46% yellow and the black 20%; at
+# one and a half the straw was patchy, and at three a shaded beige wall went
+# solid yellow. Doubling a grey leaves it grey,
+# so a black-and-white drawing still separates onto black alone.
+MIX_CHROMA_GAIN = 2.0
+# How the Ink cutoff reads when the colours are mixed: the distance to paper
+# is scaled by two to the power (40 - cutoff) / this. At 40, the default, a
+# colour goes to whatever is nearest, and the share of a photograph inked was
+# within ten points of the plain cutoff's on each of seven photographs.
+# Higher, paper wins more often; at 100 an ink must be ten times nearer.
+MIX_CUTOFF_SPAN = 30.0
 
 
 def broad_sigma(breadth: float, brush_px: float) -> float:
@@ -307,11 +336,85 @@ def to_cmyk(image: Image.Image) -> Image.Image:
     return rgb.convert("CMYK")
 
 
+def _lab(rgb: np.ndarray) -> np.ndarray:
+    """CIELAB of an (n, 3) array of 8-bit sRGB colours: L 0-100, a and b signed."""
+    import cv2  # imported late, as contour_mask does
+
+    return cv2.cvtColor(rgb.reshape(1, -1, 3).astype(np.float32) / 255.0,
+                        cv2.COLOR_RGB2LAB)[0]
+
+
+@lru_cache(maxsize=1)
+def overprint_lab() -> np.ndarray:
+    """What each of OVERPRINTS looks like, in CIELAB.
+
+    Read off the same paper profile the separation uses, backwards and
+    relative colorimetric: solid ink as the profile says it prints, on paper
+    that is the photograph's white. Perceptual, the way the photograph goes
+    in, put solid cyan 21 units of CIELAB from PIGMENT's cyan; relative
+    colorimetric puts it 2 away and magenta 5, so the colours chosen are the
+    colours the plate preview paints them in.
+    """
+    solids = Image.new("CMYK", (len(OVERPRINTS), 1))
+    solids.putdata([tuple(255 * v for v in ink) for ink in OVERPRINTS])
+    if _SRGB.is_file() and _CMYK.is_file():
+        intent = getattr(ImageCms, "Intent", None)
+        rendering = intent.RELATIVE_COLORIMETRIC if intent is not None else 1
+        rgb = ImageCms.profileToProfile(solids, str(_CMYK), str(_SRGB),
+                                        outputMode="RGB", renderingIntent=rendering)
+    else:
+        rgb = solids.convert("RGB")
+    return _lab(np.asarray(rgb))
+
+
+def mix_inks(image: Image.Image, cutoff: float = 40.0) -> dict[str, np.ndarray]:
+    """Ink masks keyed C/M/Y/K, every colour painted as the overprint nearest it.
+
+    The cutoff decides each ink on its own, and an ink on its own does not know
+    what colour it is helping to make. Orange is magenta 51% and yellow 91%, so
+    at 40 both paint and orange comes out red; olive is cyan 47% and yellow 87%,
+    and comes out green. Here the decision is made once for the colour, among
+    the eight things the brush can lay down (OVERPRINTS), by which looks most
+    like it: orange and olive go to yellow. On a photograph it is the muted
+    colours that move most -- a face lit yellow by a yellow wall was red under
+    the cutoff and is yellow here, with red lips.
+
+    Measured as plain distance in CIELAB, after laying the photograph into the
+    inks' range (MIX_CHROMA_GAIN). CIEDE2000 was tried first and dropped: it
+    forgives a difference in colourfulness, which is what it is for, and here
+    it is the one difference that matters. A neutral grey came out nearer cyan
+    than paper or black, so every anti-aliased edge of a black-and-white
+    drawing grew cyan specks, and a beige wall in shade went green.
+
+    Worked on the photograph's distinct colours rather than its pixels: a
+    photograph holds a few hundred thousand, and matching them takes a tenth
+    of a second.
+    """
+    rgb = np.asarray(flatten(image))
+    h, w = rgb.shape[:2]
+    packed = ((rgb[..., 0].astype(np.uint32) << 16)
+              | (rgb[..., 1].astype(np.uint32) << 8) | rgb[..., 2])
+    colours, where = np.unique(packed.ravel(), return_inverse=True)
+    lab = _lab(np.stack([colours >> 16, (colours >> 8) & 255, colours & 255],
+                        -1).astype(np.uint8))
+    inks = overprint_lab()
+    black = float(inks[:, 0].min())
+    lab[:, 0] = black + lab[:, 0] * (100.0 - black) / 100.0
+    lab[:, 1:] *= MIX_CHROMA_GAIN
+    dist = np.linalg.norm(lab[:, None, :] - inks[None, :, :], axis=-1)
+    paper = OVERPRINTS.index((0, 0, 0, 0))
+    dist[:, paper] *= 2.0 ** ((40.0 - float(cutoff)) / MIX_CUTOFF_SPAN)
+    choice = dist.argmin(1)[where.reshape(-1)].reshape(h, w)
+    table = np.array(OVERPRINTS, bool)
+    return {name: table[choice, i] for i, name in enumerate(CHANNELS)}
+
+
 def threshold_plates(image: Image.Image, cutoff: float = 40.0,
                      knockout: bool = True,
                      contours: float = 0.0,
                      brush_px: float = 0.0,
-                     breadth: float = 0.0) -> dict[str, Image.Image]:
+                     breadth: float = 0.0,
+                     mix: bool = False) -> dict[str, Image.Image]:
     """1-bit images keyed C/M/Y/K, black where that ink should paint.
 
     `contours` adds the picture's own edges to the black plate, nought for none
@@ -341,6 +444,12 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     `breadth` is Broad strokes, nought to a hundred: every mark on every plate
     narrower than up to BROAD_MAX_STROKES strokes is taken off (`broaden`), so
     the painting is a few broad fields rather than many fine ones.
+
+    `mix` chooses the four plates together, each colour as the overprint that
+    looks most like it (`mix_inks`), rather than each ink at its own cutoff.
+    The cutoff then says how much nearer an ink must be than paper. Nothing in
+    a mixed plate lies under the black, so with `knockout` off the colour bed
+    is put back under it: the inks the plain cutoff would have laid there.
     """
     # Already upright and already turned to lie along the canvas if it needed
     # to be: that is images.lay_along, and the caller does it, because the
@@ -349,6 +458,12 @@ def threshold_plates(image: Image.Image, cutoff: float = 40.0,
     level = _cutoff_level(cutoff)
     ink = {name: np.asarray(channel) >= level
            for name, channel in zip(CHANNELS, cmyk.split())}
+    if mix:
+        mixed = mix_inks(image, cutoff)
+        if not knockout:
+            for name in ("C", "M", "Y"):
+                mixed[name] |= mixed["K"] & ink[name]
+        ink = mixed
     # Before the knockout. Broadened after it, a black line too thin to keep
     # would go from the black plate and leave behind the lane it had already
     # cut through the colours: bare paper where there was a line. Before it,
@@ -384,11 +499,12 @@ def plates_for_trays(image: Image.Image, cutoff: float = 40.0,
                      knockout: bool = True,
                      contours: float = 0.0,
                      brush_px: float = 0.0,
-                     breadth: float = 0.0) -> dict[str, Image.Image]:
+                     breadth: float = 0.0,
+                     mix: bool = False) -> dict[str, Image.Image]:
     """Plates keyed by tray name (cyan, magenta, yellow, kroma)."""
     return {CMYK_TO_TRAY[ch]: plate
             for ch, plate in threshold_plates(
-                image, cutoff, knockout, contours, brush_px, breadth).items()}
+                image, cutoff, knockout, contours, brush_px, breadth, mix).items()}
 
 
 def _ink_mask(plate: Image.Image) -> np.ndarray:

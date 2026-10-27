@@ -262,6 +262,10 @@ def _cmyk_breadth(form) -> float:
     return _num(form, "cmyk_breadth", 0.0)
 
 
+def _cmyk_mix(form) -> bool:
+    return _flag(form, "cmyk_mix", "false")
+
+
 def _cmyk_brush_px(form, photo: Image.Image) -> float:
     """The stroke's width in the photograph's own pixels, for tidying its plates."""
     scale = _scale_params(form)
@@ -454,7 +458,8 @@ def cmyk_preview():
                                            _cmyk_knockout(request.form),
                                            _cmyk_contours(request.form),
                                            _cmyk_brush_px(request.form, photo),
-                                           _cmyk_breadth(request.form))
+                                           _cmyk_breadth(request.form),
+                                           _cmyk_mix(request.form))
     except Exception as exc:  # noqa: BLE001 - shown to the user as-is
         return jsonify(error=f"Could not separate that image: {exc}"), 400
     # White paper and the light theme's lettering in every theme: the plates
@@ -1030,7 +1035,8 @@ def options_form_post():
                                                    _cmyk_knockout(request.form),
                                                    _cmyk_contours(request.form),
                                                    _cmyk_brush_px(request.form, photo),
-                                                   _cmyk_breadth(request.form))
+                                                   _cmyk_breadth(request.form),
+                                                   _cmyk_mix(request.form))
                 wanted = {e["tray"] for e in entries if e["image"]}
                 for tray, plate in plates.items():
                     if tray not in wanted or tray in images:
