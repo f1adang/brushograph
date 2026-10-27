@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.24.3](https://github.com/f1adang/brushograph/releases/tag/v2.24.3) — 2026-10-27
+
+- **Filled shapes paint solid:** the strokes that fill a shape used to be laid exactly one brush width apart, so they only met if the brush laid its full width everywhere. A small brush rarely does, and lettering came out as an outline, a thin line of bare paper, then the fill. The strokes now overlap by a fifth. At a 0.3 mm stroke, with the brush laying a fifth less than its width, the bare paper left in *Überflüger*'s lettering goes from 3.6% to 0.5%. A solid shape takes about a fifth more painting, and more trips to the cups to match. Only the inside of a shape changes; its edge stays where it was.
+
 ## [v2.24.2](https://github.com/f1adang/brushograph/releases/tag/v2.24.2) — 2026-10-16
 
 - **Unsaved machine settings are pointed out:** a change under **Machine setup** or **Brush & Paint settings** used to be lost without a word if you picked another machine or reloaded the page before pressing **Update** or **Download Machine Config**. Now a **Not saved** tag appears on the section you changed, **Save these settings** lists what has changed, and the page asks before opening another machine or being reloaded or closed. **Update** or **Download Machine Config** clears it, and so does changing the setting back. Painting dimensions and fill settings are not counted, since they change with every picture.
