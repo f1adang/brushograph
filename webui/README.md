@@ -1685,8 +1685,8 @@ showed this up.
 `_spiral` walks a nest as one path instead: round the outer ring, **in to the
 nearest point of the ring below it**, round that, and on to the middle. It is
 the line a person fills a shape with and it is one stroke with no lift in it.
-Rings sit exactly one line width apart, so the step inward may reach
-`SPIRAL_REACH` (2.2) line widths and no further — past that it is not the ring
+Rings sit one ring spacing apart (see *Neighbouring strokes overlap*), so the
+step inward may reach `SPIRAL_REACH` (2.2) spacings and no further — past that it is not the ring
 below, it is another shape, and it starts a spiral of its own. One ring a depth
 a spiral, too, or a shape that erodes into two gets both halves sewn to the same
 tail.
@@ -1705,6 +1705,53 @@ cross it.
 It changes nothing for the `lines` style, which has one depth of rings and its
 scanlines besides, and nothing for a shape only one ring deep — which is most
 of a photograph, and why the figures move by a fifth rather than by a half.
+
+### Neighbouring strokes overlap
+
+The rings of a fill used to sit exactly one stroke apart, at
+`first + k × line_w`, and so did scanlines. On paper that meets edge to edge
+only if the brush lays its full nominal width everywhere and every ring lands
+exactly where it was told — and a watercolour brush does neither. The tip lays
+thinner as a load runs out, and a ring a tenth of a millimetre off opens a lane
+of paper beside it. *Überflüger*'s lettering, painted on its black plate with a
+small brush, came out as an outline, a hairline of bare paper, then the fill:
+a profile across the Ü reads dark ring, paper, a faint line, paper, solid. The
+file was not missing anything — rasterised at the nominal width it left 0.3% of
+the letters bare — it had no margin.
+
+Fill strokes are laid `RING_STEP` (0.8) strokes apart now, rings and scanlines
+both, a fifth of overlap the way a slicer overlaps its extrusions. The
+outermost ring stays where `EDGE_BIAS` puts it, so the edge of a shape does not
+move; it is only the strokes inside it that close up. **Infill line distance**
+is still the stroke's width, and still what decides how far in the first ring
+sits, how far a bridge may reach and how wide the preview draws a stroke.
+
+Measured on *Überflüger*'s black plate through the whole pipeline on
+Pinkograph, 149 × 125 mm, backlash and levelling off; "bare" is the share of
+the lettering further than half the laid stroke from any painted line, with
+the brush laying its nominal width, 90% of it and 80%:
+
+| stroke | spacing | painted | dips | letters bare at 100% | 90% | 80% |
+|---|---|---|---|---|---|---|
+| 0.3 mm | 1.0 | 7.77 m | 60 | 0.3% | 0.6% | 3.6% |
+| | 0.8 | 9.13 m | 68 | 0.1% | 0.2% | 0.5% |
+| 0.5 mm | 1.0 | 4.92 m | 40 | 0.9% | 1.7% | 6.9% |
+| | 0.8 | 5.51 m | 44 | 0.1% | 0.5% | 1.0% |
+| 1 mm | 1.0 | 3.34 m | 29 | 2.5% | 4.9% | 10.9% |
+| | 0.8 | 3.55 m | 30 | 2.3% | 3.1% | 4.6% |
+
+**It costs paint.** A solid shape is painted about a fifth more — 17.5% at
+0.3 mm, where nearly all of the plate is fill, 6% at 1 mm, where more of it is
+centrelines and outlines that do not change — and dips follow the painted
+length. Brush-downs hardly move: the spirals are the same spirals with more
+turns. Measured first on the paths alone, before the dips, at 0.3 mm with the
+brush laying 90%: 0.9 left 2.0% of the plate bare to 0.8's 1.0%, and 0.7 left
+0.6% for 28% more painting where 0.8 costs 18%.
+
+The `lines` style gets the overlap too, and is the better for it — at 0.5 mm
+its lettering goes from 12.2% bare to 7.1% at the nominal width — but that is
+still far more than concentric leaves, and where the rest of it goes has not
+been looked into.
 
 ### The edge of the picture is an edge
 

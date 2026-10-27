@@ -8,8 +8,9 @@ inside that — is a planar operation, so it is done here as one.
 
 The trick is the distance transform. Every pixel is labelled with its distance
 to the nearest bare paper, and then an outline inset by d is simply the contour
-of "at least d from the edge". A concentric fill is the same thing at
-d = w/2, 3w/2, 5w/2 …, so the whole fill falls out of one distance transform
+of "at least d from the edge". A concentric fill is the same thing at a
+depth per ring, each a little under a stroke further in than the last
+(RING_STEP), so the whole fill falls out of one distance transform
 plus a threshold per ring — and because the rings do not depend on each other,
 they are drawn in parallel.
 
@@ -47,8 +48,27 @@ FALLBACK_PATTERN = "concentric"
 # little further out covers it, the way the slicer's extrusion width did.
 EDGE_BIAS = 0.8
 
-# How far the step from one ring to the one inside it may reach, in line
-# widths. Rings sit exactly one apart, so a step much longer than that is not
+# How far apart neighbouring fill strokes are laid, as a fraction of the
+# stroke. Exactly one stroke apart, which is what this was, the edges of two
+# rings meet only if the brush lays its full nominal width everywhere and
+# lands every ring where it was told to -- and a watercolour brush does
+# neither: the tip lays thinner as a load runs out, and a ring a tenth of a
+# millimetre off opens a lane of paper beside it. Lettering on the black plate
+# of Ueberflueger came out as an outline, a hairline of paper, and the fill.
+# Measured on that plate at 0.3 mm on Pinkograph, the lettering left bare with
+# the brush laying its nominal stroke, 90% of it and 80%:
+#
+#   step  painted  dips  bare at 100%  90%   80%
+#   1.0   7.77 m   60    0.3%          0.6%  3.6%
+#   0.8   9.13 m   68    0.1%          0.2%  0.5%
+#
+# A fifth of overlap is what a slicer gives its extrusions, for the same
+# reason, and it costs about a fifth more painting (README: Neighbouring
+# strokes overlap).
+RING_STEP = 0.8
+
+# How far the step from one ring to the one inside it may reach, in ring
+# spacings. Rings sit exactly one apart, so a step much longer than that is not
 # the ring below -- it is another shape, and it starts a spiral of its own.
 SPIRAL_REACH = 2.2
 
@@ -108,7 +128,7 @@ def _spiral(by_depth: list[list[list[tuple[float, float]]]],
     point of the ring below it, round that, and on to the middle. It is the
     line a person fills a shape with, and it is one stroke with no lift in it.
 
-    `reach` is how far the step inward may be. Rings sit one line width apart,
+    `reach` is how far the step inward may be. Rings sit one RING_STEP apart,
     so anything much over that is a different shape and starts a spiral of its
     own -- which is what keeps the two sides of a shape that erodes into two
     from being sewn together across the gap between them.
@@ -236,13 +256,14 @@ def build(ink: np.ndarray, width_mm: float, height_mm: float, line_w: float,
     dt = _distance(ink)
     deepest_mm = float(dt.max()) / px_per_mm
     first_mm = line_w * EDGE_BIAS / 2.0
+    step = line_w * RING_STEP
 
     walls = 0 if style == "scanline" else max(1, int(perimeters))
-    depths = [first_mm + k * line_w for k in range(walls)]
+    depths = [first_mm + k * step for k in range(walls)]
     if infill and style == "concentric":
         k = walls
-        while first_mm + k * line_w <= deepest_mm:
-            depths.append(first_mm + k * line_w)
+        while first_mm + k * step <= deepest_mm:
+            depths.append(first_mm + k * step)
             k += 1
     depths = [d for d in depths if d <= deepest_mm]
 
@@ -260,12 +281,12 @@ def build(ink: np.ndarray, width_mm: float, height_mm: float, line_w: float,
                 by_depth = list(pool.map(ring, depths))
         else:
             by_depth = [ring(depths[0])]
-        paths.extend(_spiral(by_depth, line_w * SPIRAL_REACH))
+        paths.extend(_spiral(by_depth, step * SPIRAL_REACH))
 
     if infill and style in ("lines", "scanline"):
-        inner = first_mm + walls * line_w
+        inner = first_mm + walls * step
         if inner <= deepest_mm:
-            paths.extend(_scanlines(dt, inner * px_per_mm, line_w, sx, sy,
+            paths.extend(_scanlines(dt, inner * px_per_mm, step, sx, sy,
                                     height_mm, angle))
 
     paths = [p for p in paths if len(p) > 1]
