@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.25](https://github.com/f1adang/brushograph/releases/tag/v2.25) — 2026-10-27
+
+- **Mix the colours of a photograph:** a new **Mix the colours** switch under the colour photograph paints each colour with whichever inks, laid one over another, look most like it. Without it, each ink is decided on its own at the **Ink cutoff**, which turns orange red (magenta and yellow both pass the cutoff), olive green, and a face lit by a yellow wall solid red. With it, orange and olive are yellow and the face stays yellow with red lips. A colour is painted in two coats only where it needs two inks, so paintings usually get quicker: a painting of a deer on straw went from 3.4 hours to 2.6, a photograph of two people from 3.8 hours to 3.3, and a black-and-white portrait stayed as it was. The **Ink cutoff** still decides how much is left as paper. A painting is still at most eight flat colours, so fair skin stays paper and a tan goes red. Off unless you tick it.
+
 ## [v2.24.3](https://github.com/f1adang/brushograph/releases/tag/v2.24.3) — 2026-10-27
 
 - **Filled shapes paint solid:** the strokes that fill a shape used to be laid exactly one brush width apart, so they only met if the brush laid its full width everywhere. A small brush rarely does, and lettering came out as an outline, a thin line of bare paper, then the fill. The strokes now overlap by a fifth. At a 0.3 mm stroke, with the brush laying a fifth less than its width, the bare paper left in *Überflüger*'s lettering goes from 3.6% to 0.5%. A solid shape takes about a fifth more painting, and more trips to the cups to match. Only the inside of a shape changes; its edge stays where it was.
