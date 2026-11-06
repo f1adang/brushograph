@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.25.2](https://github.com/f1adang/brushograph/releases/tag/v2.25.2) — 2026-11-06
+
+- **A four-colour photograph's file is called `photo-CMYK.gcode`:** it was `photo-cmyk.gcode`, in lowercase, while every other file names its colours in capitals, like `photo-YMC.gcode`. Now they match.
+
 ## [v2.25.1](https://github.com/f1adang/brushograph/releases/tag/v2.25.1) — 2026-11-06
 
 - **Solid lettering on a machine with play in it:** filled shapes painted with a small brush still came out with lanes of bare paper inside them: down the middle of a stem, or between the strokes a little way in from the edge. The cause was the machine's backlash. Backlash compensation is only as good as its figures, and whatever they are out by moves a stroke that far sideways, by an amount that depends on which way the axis last turned. The two sides of a filled shape are always painted in opposite directions, and the ordering sometimes painted part of a fill backwards. Now every ring of a fill goes round the same way, and a stroke runs down the middle of each shape and back up it, covering the seam where its two sides meet. In *Überflüger*'s lettering at a 0.3 mm stroke, with compensation 0.2 mm out, the bare paper left inside the letters goes from about 3% to 0.2–0.3%. Filled shapes take about a fifth more painting at 0.3 mm, and a tenth more at 0.5 and 1 mm. A photograph painted at 0.3 mm takes about 13% longer. Getting the backlash figures right with `backlash.g` is still worth doing, because the fill can only cover an error up to about a stroke wide.
