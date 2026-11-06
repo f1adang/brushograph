@@ -584,13 +584,15 @@ Two actions:
 - **Download Config** returns the edited config as a `.conf`. Types are
   preserved and keys the form does not cover are passed through untouched.
 - **Generate Gcode** runs the pipeline and offers one G-code file, named after
-  the picture and the colours that painted it: `vali_letten-c1.gcode`. The
-  numbers are the tray numbers shown in the form, so a file can be matched to
+  the picture and the colours that painted it: `vali_letten-C.gcode`. The
+  letters are the colour codes shown in the form, so a file can be matched to
   the run that made it without opening it. With several trays the name carries
-  each in painting order — `photo-c1_c2.gcode`. A colour photograph separated
-  into all four process plates says `photo-cmyk.gcode` instead: four tray
-  numbers name the cups that were dipped but not what the run was, and the
-  separation is what someone picking the file off the card is looking for. The
+  each in painting order, run together — `photo-CM.gcode`. A colour photograph
+  separated into all four process plates says `photo-CMYK.gcode` instead: four
+  codes name the cups that were dipped but not what the run was, and the
+  separation is what someone picking the file off the card is looking for. It
+  is in capitals like every other code; it was `photo-cmyk.gcode` until v2.25.2,
+  which read as a different kind of name from `photo-CMY.gcode` beside it. The
   file is not saved automatically: it is drawn in the preview first and
   downloaded from a button, so a run can be looked at before it is kept.
 

@@ -290,7 +290,7 @@ def _gcode_name(images: dict, entries: list, cmyk: bool) -> str:
     can be matched to the run that made it without opening it.
 
     A photograph separated into all four process plates is named
-    `vali_letten-cmyk.gcode` instead. Four colour codes would say which cups
+    `vali_letten-CMYK.gcode` instead, in capitals like every other colour code. Four colour codes would say which cups
     were dipped but not what the run was, and the separation is the thing worth
     reading off the card.
 
@@ -302,7 +302,7 @@ def _gcode_name(images: dict, entries: list, cmyk: bool) -> str:
     first = images[used[0]["tray"]].filename if used else ""
     stem = "".join(c for c in Path(first).stem if c.isalnum() or c in "-_") or "brushograph"
     process = {e["tray"] for e in used} == set(CMYK_TO_TRAY.values())
-    colours = "cmyk" if cmyk and process else "".join(str(e.get("color") or e.get("index", "")) for e in used)
+    colours = "CMYK" if cmyk and process else "".join(str(e.get("color") or e.get("index", "")) for e in used)
     return f"{stem}-{colours}.gcode" if colours else f"{stem}.gcode"
 
 
