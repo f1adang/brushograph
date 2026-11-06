@@ -1852,6 +1852,141 @@ its lettering goes from 12.2% bare to 7.1% at the nominal width — but that is
 still far more than concentric leaves, and where the rest of it goes has not
 been looked into.
 
+### The seam down the middle of a stem
+
+The overlap did not finish it. *Überflüger* painted again at 0.3 mm on
+Pinkograph and came back with lanes of paper still in the lettering, and they
+were not hairlines. The long s had a lane about a millimetre wide most of the
+way down the middle, the l a hairline down its middle, and the b and the Ü
+had lanes along their stems a ring or two in from the edge. That much bare
+paper is not a shortfall of margin. Rasterised at the nominal width, the file
+left 1% of the inside of the letters bare, and not in that pattern.
+
+**It is the machine's play, and the direction each ring is laid in.**
+Pinkograph is compensated for 0.8 to 1.3 mm of X play and 1 mm of Y, and the
+compensation is exact only if those figures are. Whatever they are out by
+moves a stroke that far to one side, depending on which way the axis last
+turned. With a 0.3 mm brush, a figure a tenth out is a third of a stroke.
+Strokes laid next to each other in the same direction move together, so that
+does no harm to them. It opens a lane wherever two neighbouring strokes were
+laid in opposite directions, and a concentric fill has two places where they
+are:
+
+- **Down the middle.** A ring goes round, so the two sides of a stem are
+  laid in opposite directions, up one side and down the other, and where
+  they meet, the two halves land on opposite faces of the slack. That is the
+  long s and the l. No order of the rings avoids it: every loop has two
+  sides, and turning every other ring the other way would put a seam between
+  every pair of rings instead.
+- **Between rings, where a spiral was painted backwards.** Chaining, the
+  brush kept down through the ink and the tour all paint a stroke from
+  whichever end is quicker. A spiral painted from its other end is laid from
+  the middle out, turning the other way. A shape with a narrow part is
+  several spirals, and when some are turned and some are not, the rings down
+  one side of a stem alternate direction. That is the b and the Ü. On this
+  plate at 0.3 mm, 155 rings were going round the wrong way.
+
+All of this was measured by simulation, not on paper. The G-code goes through
+an axis that keeps some play the compensation missed: positive if it
+compensated too little, negative if too much. Each stroke lands half of it
+behind the way its axis last went, and reversals under 0.05 mm are ignored,
+as the compensation ignores them. "Lanes" are the share of the lettering more
+than 0.2 mm in from its edge that is left bare with the brush laying its
+nominal width. Bare ink nearer the edge than that is the letter painted a
+little thinner. A residual does that too, and nothing here sets out to fix
+it. The model reproduces what the photograph shows: a lane down the middle of
+the long s, and lanes between rings in the b and the Ü. It is the black plate
+alone, 123.5 × 125 mm, the aspect the page keeps, with backlash and levelling
+off except for the timing.
+
+**Two changes, which only work together:**
+
+- **A spine** (`planar._spines`). The seam is painted over, once in each
+  direction. The contour of a skeleton one pixel wide goes down one side of
+  it and back up the other: out and back along every branch, as one loop.
+  The way down lands with one half of the stem and the way back with the
+  other, so between them they cover a lane up to a stroke wide, whichever
+  sign the residual has. It is drawn down what lies one ring inside the
+  outermost one (`SPINE_DEPTH`).
+- **Every ring turned one way** (`rings_one_way`). After the order is settled,
+  each closed loop inside a stroke is turned so the deeper ink is on its left.
+  The depth is read off the distance transform either side of each side and
+  weighted by length. A ring starts and ends at one point, so it can be
+  reversed in place: the stroke keeps its length, its ends and the tour's
+  timing.
+
+Interior lanes, against the file this replaced:
+
+| stroke | | −0.3 mm | −0.2 | 0 | +0.2 | +0.3 | painted | dips | rough time |
+|---|---|---|---|---|---|---|---|---|---|
+| 0.3 mm | before | 5.05% | 3.32% | 1.05% | 3.13% | 5.22% | 6.42 m | 50 | 0.394 h |
+| | after | 0.28% | 0.16% | 0.08% | 0.34% | 0.57% | 7.63 m | 58 | 0.477 h |
+| 0.5 mm | before | 1.78% | 0.95% | 1.26% | 2.70% | 3.85% | 4.25 m | 35 | 0.251 h |
+| | after | 0.41% | 0.24% | 0.13% | 0.34% | 0.55% | 4.76 m | 38 | 0.276 h |
+| 1 mm | before | 0.71% | 0.35% | 0.47% | 1.35% | 1.98% | 2.52 m | 23 | 0.156 h |
+| | after | 0.10% | 0.12% | 0.16% | 0.23% | 0.33% | 2.89 m | 26 | 0.174 h |
+
+**It costs about a fifth more painting at 0.3 mm**, and the run time follows:
+21% longer on the lettering, about a tenth at 0.5 and 1 mm. *The Starry
+Night*, four plates at 149 mm and 0.3 mm with backlash on, goes from 16.85 h
+to 19.03 h and from 750 dips to 897. Paint on bare paper does not move (10.1%
+to 9.9% of what is laid on the lettering at 0.3 mm), and generation hardly
+does: 62 s to 64 s on that photograph.
+
+**The two need each other.** At 0.3 mm, rings turned one way with no spine
+take −0.2 from 3.32% to 2.62% and +0.2 from 3.13% to 1.29%: better, and
+still a lane down every stem. A spine on rings left the way the tour turned
+them depends on the tour, because which spirals the order happens to reverse
+changes with every stroke added. Started 1, 1.5, 2, 2.5 and 3 rings in, it
+measured 0.39%, 1.08%, 0.46%, 0.38% and 1.62% at −0.2. With the rings
+turned one way as well, those are 0.16%, 0.43%, 0.18%, 0.17% and 0.17%, and
+0 rings in is 0.17%. Why 1.5 stays the odd one out has not been looked into.
+
+**How deep the spine starts** is then about cost, and about the broad brush:
+
+| from ring | 0.3 mm: −0.2 / +0.2 | painted | 1 mm: −0.2 / +0.2 | painted |
+|---|---|---|---|---|
+| no spine | 2.62% / 1.29% | 6.42 m | 0.47% / 1.22% | 2.52 m |
+| 0 | 0.17% / 0.31% | 8.76 m | 0.11% / 0.14% | 3.29 m |
+| 1 | 0.16% / 0.34% | 7.63 m | 0.12% / 0.23% | 2.89 m |
+| 1.5 | 0.43% / 0.69% | 7.11 m | 0.13% / 0.24% | 2.73 m |
+| 2 | 0.18% / 0.45% | 6.96 m | 0.47% / 1.22% | 2.52 m |
+| 3 | 0.17% / 0.49% | 6.86 m | 0.47% / 1.22% | 2.52 m |
+
+From the outermost ring, the spine also runs down every hairline, beside the
+ring that already covers it, and out into every corner: a seventh more
+painting than one ring in, for nothing much. Two rings in is cheaper at a
+fine stroke, and a photograph notices: *The Starry Night* would be 17.62 h
+and 800 dips rather than 19.03 h and 897. But at 1 mm a letter is filled in
+two or three rings a side, nothing is two rings deep, and the spine is never
+drawn, so the lanes stay as they were. One ring in works at every brush.
+
+**What was tried and left out:**
+
+- **Taking the wobble out of the rings.** Any run of an axis shorter than half
+  a stroke was held level, so a straight side traced off a staircase of
+  pixels would not turn the X motor round at every step. It cut more than half
+  of the short reversals, and 1,690 take-ups against 2,164. It did nothing for
+  the lanes once a spine was in (0.15% / 0.42% with it at ±0.2, 0.14% / 0.33%
+  without). It also moved points by up to a full half-stroke, not the quarter
+  it was written for, because a run held level can be held again on the next
+  pass.
+- **Simplifying the spine harder**, 1.5 and 3 px instead of 0.75. It changed
+  neither the take-ups nor the time, which come from the extra painting and
+  not from the spine's own staircase.
+- **Judging the rescue pass at 80% of the stroke.** That pass grows every
+  stroke by a pixel before asking what was missed, which at 20 px/mm judges
+  the brush a third wider than it is. Judged at 80%, it took the lanes at
+  ±0.3 mm from 1.0% to 0.3–0.6% with only a spine to help. With the rings
+  turned one way as well, it gained nothing (0.30% / 0.67% against
+  0.30% / 0.62%) for two more dips. It also changed the dragonfly's
+  hairlines, which this measure does not see, so it was not worth having.
+
+None of this replaces figures that are right. A residual wider than a stroke
+still opens a lane the spine cannot cover, and either sign still paints the
+letters thinner or fatter by half of it. The macro `backlash.g` is how the
+figures are found.
+
 ### The edge of the picture is an edge
 
 `cv2.distanceTransform` gives every ink pixel its distance to the nearest

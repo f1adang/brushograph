@@ -12,7 +12,9 @@ of "at least d from the edge". A concentric fill is the same thing at a
 depth per ring, each a little under a stroke further in than the last
 (RING_STEP), so the whole fill falls out of one distance transform
 plus a threshold per ring — and because the rings do not depend on each other,
-they are drawn in parallel.
+they are drawn in parallel. One thinning of the same transform gives the
+stroke down the middle of each shape that covers the seam where its rings
+meet (`_spines`).
 
 Offsetting the polygons one at a time instead, as this first did, is both
 slower and stubbornly serial: in a real picture a single connected shape is
@@ -71,6 +73,32 @@ RING_STEP = 0.8
 # spacings. Rings sit exactly one apart, so a step much longer than that is not
 # the ring below -- it is another shape, and it starts a spiral of its own.
 SPIRAL_REACH = 2.2
+
+# Whether a concentric fill also lays a stroke down the middle of each shape
+# and back up it. See `_spines`.
+SPINE = True
+
+# Where the spine is drawn: down the middle of what lies at least this many
+# ring steps inside the outermost ring. Measured on Ueberflueger's black plate,
+# 123.5 mm wide on Pinkograph, interior lanes -- bare ink more than 0.2 mm
+# from the edge -- with 0.2 mm of play left uncompensated, each way, and the
+# rings turned one way (README: The seam down the middle of a stem):
+#
+#                 0.3 mm stroke                1 mm stroke
+#   from ring   -0.2 / +0.2   painted  dips  -0.2 / +0.2   painted  dips
+#   none        2.62% / 1.29%  6.42 m   50    0.47% / 1.22%  2.52 m   23
+#   0           0.17% / 0.31%  8.76 m   66    0.11% / 0.14%  3.29 m   29
+#   1           0.16% / 0.34%  7.63 m   58    0.12% / 0.23%  2.89 m   26
+#   1.5         0.43% / 0.69%  7.11 m   55    0.13% / 0.24%  2.73 m   25
+#   2           0.18% / 0.45%  6.96 m   54    0.47% / 1.22%  2.52 m   23
+#   3           0.17% / 0.49%  6.86 m   53    0.47% / 1.22%  2.52 m   23
+#
+# From the outermost ring the spine also runs down every hairline, beside the
+# ring that already covers it, and out into every corner: a seventh more
+# painting than one ring in, for nothing much. Two rings in is cheaper at a
+# fine stroke, but a broad one fills a letter in two or three rings a side,
+# so nothing is two rings deep and the spine is never drawn at all.
+SPINE_DEPTH = 1.0
 
 # A shape flatter than this in pixels cannot hold a ring worth painting.
 _MIN_RING_PTS = 3
@@ -202,6 +230,51 @@ def _contours_at(dt: np.ndarray, depth_px: float, sx: float, sy: float,
     return rings
 
 
+def _spines(dt: np.ndarray, depth_px: float, sx: float, sy: float,
+            height_mm: float) -> list[list[tuple[float, float]]]:
+    """A stroke down the middle of every shape and back up it.
+
+    A concentric fill goes round, so the two sides of a stem are always laid
+    in opposite directions: up one side, down the other. Where they meet, down
+    the middle, the rings of one side lie against rings laid the other way,
+    and on a machine with play in it the two land on opposite faces of the
+    slack. Compensation takes the play out exactly only if its figure is
+    exact. Whatever it is out by, the two halves of the stem are that far from
+    where they were meant to meet: pushed together, the letter comes out that
+    much thinner; pulled apart, a lane of paper opens down the middle. On
+    Pinkograph, with 0.8 to 1.3 mm of play and a 0.3 mm brush, a figure a
+    tenth out is a third of a stroke. *Ueberflueger*'s long s came back with a lane about a
+    millimetre wide most of the way down it, and the l beside it with a
+    hairline.
+
+    No order of the rings avoids it. Every loop has two sides, and turning
+    every other ring the other way puts the seam between every pair of rings
+    instead of down the middle. So the seam is painted over, once in each
+    direction. The contour of a line one pixel wide goes down one side of it
+    and back up the other, which is exactly that walk: out and back along
+    every branch of the skeleton, as one loop. The way down lands with one
+    half of the stem and the way back with the other, and between them they
+    cover a lane up to a stroke wide, whichever way the figure is out.
+    """
+    region = ((dt >= depth_px) * 255).astype(np.uint8)
+    if not region.any():
+        return []
+    skeleton = cv2.ximgproc.thinning(region, thinningType=cv2.ximgproc.THINNING_ZHANGSUEN)
+    contours, _ = cv2.findContours((skeleton > 0).astype(np.uint8), cv2.RETR_LIST,
+                                   cv2.CHAIN_APPROX_NONE)
+    out = []
+    for contour in contours:
+        if len(contour) < 2:
+            continue
+        if SIMPLIFY_PX > 0 and len(contour) > 2:
+            contour = cv2.approxPolyDP(contour, SIMPLIFY_PX, True)
+        line = [(float(p[0][0]) * sx, height_mm - float(p[0][1]) * sy) for p in contour]
+        line.append(line[0])
+        if len(line) > 1:
+            out.append(line)
+    return out
+
+
 def _scanlines(dt: np.ndarray, depth_px: float, line_w: float, sx: float, sy: float,
                height_mm: float, angle_deg: float) -> list[list[tuple[float, float]]]:
     """Parallel strokes across everything at least `depth_px` in from the edge.
@@ -282,6 +355,9 @@ def build(ink: np.ndarray, width_mm: float, height_mm: float, line_w: float,
         else:
             by_depth = [ring(depths[0])]
         paths.extend(_spiral(by_depth, step * SPIRAL_REACH))
+        if SPINE and infill and style == "concentric":
+            paths.extend(_spines(dt, (first_mm + SPINE_DEPTH * step) * px_per_mm,
+                                 sx, sy, height_mm))
 
     if infill and style in ("lines", "scanline"):
         inner = first_mm + walls * step

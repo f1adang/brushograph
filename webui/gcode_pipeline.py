@@ -7,11 +7,13 @@ actually on PATH instead of hardcoded macOS app bundles.
 """
 from __future__ import annotations
 
+import bisect
 import os
 import re
 import sys
 import unicodedata
 from concurrent.futures import ThreadPoolExecutor
+from itertools import pairwise
 from pathlib import Path
 
 import cv2
@@ -54,6 +56,13 @@ INK_HOP_REACH = 30.0
 
 # How many of the nearest ends are asked whether the ink reaches them.
 INK_HOP_TRIES = 12
+
+# Whether every ring is turned to go round the same way once the order is
+# settled, and how far either side of it the ink is looked at to tell which
+# way that is, as a fraction of the stroke: under the 0.8 the next ring in
+# sits at, so the probe lands between the two. See `rings_one_way`.
+RINGS_ONE_WAY = True
+RING_SIDE_PROBE = 0.4
 
 # How many pixels wide the brush must be in the raster the geometry is worked
 # on. Everything downstream — the distance transform, the contours, the rescue
@@ -199,6 +208,92 @@ class InkMask:
             if not self.at(a[0] + dx * t, a[1] + dy * t):
                 return False
         return True
+
+
+def rings_one_way(polys, mask: InkMask, line_w: float):
+    """Every ring turned round so the deeper ink is on its left.
+
+    A spiral goes round one way, and every ring of it goes round that way, so
+    all the rings down one side of a stem are laid in one direction and land on
+    the same face of the machine's slack. That holds until the order is
+    settled. Chaining, the brush kept down through the ink, and the tour all
+    paint a stroke from whichever end is quicker, and a spiral painted from its
+    other end is laid from the middle out, *turning the other way*. Where a
+    shape has been split into several spirals, which is most shapes with a
+    narrow part, some of them get turned and some do not, and then the rings
+    down one side of a stem alternate: one with the axis turned one way, the
+    next the other. On a machine whose compensation is a little out, those
+    land apart, and a lane of paper opens between them -- not down the
+    middle, where `planar._spines` covers the seam, but anywhere across the
+    stem. On *Ueberflueger*'s black plate at 0.3 mm, 155 rings had been turned.
+
+    A ring is a closed loop inside the stroke: the path comes back to the
+    point it started round from. So it can be turned back in place, the same
+    points in the other order, and both its ends stay where they were -- the
+    stroke is as long, starts and ends where it did, and the tour's timing
+    stands. Which way a loop goes is read off the ink: the depth just to the
+    left of each side against the depth just to the right, weighted by the
+    length of the side. Rings round the inside of a hole go round with the
+    ink on their left too, which is the other way round in the plane, and
+    that is right: what matters is that every ring along a side goes the same
+    way as its neighbour. A loop with no deeper side -- the spine's walk down
+    and back -- may be turned either way, and goes down and back whichever.
+    """
+    padded = cv2.copyMakeBorder(mask.ink.astype(np.uint8), 1, 1, 1, 1,
+                                cv2.BORDER_CONSTANT, value=0)
+    depth = cv2.distanceTransform(padded, cv2.DIST_L2, 5)[1:-1, 1:-1]
+    h, w = depth.shape
+    reach = line_w * RING_SIDE_PROBE
+
+    def deep(x, y):
+        col = int(x / mask.width_mm * w)
+        row = int((1.0 - y / mask.height_mm) * h)
+        if 0 <= row < h and 0 <= col < w:
+            return float(depth[row, col])
+        return 0.0
+
+    def hand(loop):
+        """+1 if the deeper ink lies to the left of the way round, -1 if right."""
+        vote = 0.0
+        for (ax, ay), (bx, by) in pairwise(loop):
+            dx, dy = bx - ax, by - ay
+            length = (dx * dx + dy * dy) ** 0.5
+            if length < 1e-9:
+                continue
+            mx, my = (ax + bx) / 2, (ay + by) / 2
+            nx, ny = -dy / length * reach, dx / length * reach
+            # Weighted by length, so a long side outvotes the corner.
+            diff = deep(mx + nx, my + ny) - deep(mx - nx, my - ny)
+            vote += length * (1 if diff > 0 else -1 if diff < 0 else 0)
+        return 1 if vote > 0 else -1 if vote < 0 else 0
+
+    turned = 0
+    out = []
+    for poly in polys:
+        poly = list(poly)
+        # Where each point comes up again. Reversing a span permutes only
+        # what lies inside it, and the walk carries on from its far end, so
+        # these stay right for everything still ahead.
+        at: dict = {}
+        for k, pt in enumerate(poly):
+            at.setdefault(pt, []).append(k)
+        i = 0
+        while i < len(poly):
+            # The next time the path comes back to where it is: that span is
+            # a closed loop, and reversing it in place leaves both its ends
+            # where they were.
+            later = at[poly[i]]
+            n = bisect.bisect_left(later, i + 3)
+            if n == len(later):
+                i += 1
+                continue
+            j = later[n]
+            if hand(poly[i:j + 1]) < 0:
+                poly[i:j + 1] = poly[i:j + 1][::-1]
+                turned += 1
+            i = j
+        out.append(poly)
+    return out, turned
 
 
 def order_polylines(polys, tol_grid: float = 8.0, permit=None, reach: float = 0.0,
@@ -649,6 +744,10 @@ def write_brush_paths(polys, dst: Path, log, line_w: float = 1.0,
         if len(polys) < before:
             log(f"  brush kept down through the ink {before - len(polys)} times")
         polys = tour.arrange(polys, mask.sections(polys), seconds, start, end)
+        if RINGS_ONE_WAY:
+            polys, turned = rings_one_way(polys, mask, line_w)
+            if turned:
+                log(f"  {turned} rings turned back the way the rest go round")
     else:
         polys = order_polylines(polys)
     lengths = sorted(_length(p) for p in polys)
