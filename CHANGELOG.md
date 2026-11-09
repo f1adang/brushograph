@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.25.3](https://github.com/f1adang/brushograph/releases/tag/v2.25.3) — 2026-11-10
+
+- **`plot_heightmap.py` measures from the calibration dot:** the plot of a probe scan drew every height against the scan's middle value, while the levelling and the heat map in the plan measure from the calibration dot, where the brush is set to just touch. On the three kept maps the two differed by 0.45 to 0.79 mm. Now the plot uses the same zero as the plan, marks the dot with a red cross, and says when the dot lies outside the scan. Give it the machine's config with `--conf` so it knows where the dot is; without one it assumes a Mini.
+
 ## [v2.25.2](https://github.com/f1adang/brushograph/releases/tag/v2.25.2) — 2026-11-06
 
 - **A four-colour photograph's file is called `photo-CMYK.gcode`:** it was `photo-cmyk.gcode`, in lowercase, while every other file names its colours in capitals, like `photo-YMC.gcode`. Now they match.
