@@ -2445,6 +2445,13 @@ the spot from the one function, so they cannot drift apart. It was the middle of
 the bed until then — `level_c`'s spot, the five-reading scheme's assumption about
 where Canvas Height is set — which nothing on the machine actually touched.
 Moving it moved every correction on Parang's probe map by 0.45 mm.
+`tools/plot_heightmap.py` reads its zero the same way, through the same two
+functions, and marks the dot; it used the median of the readings until then,
+which sat 0.48 to 0.79 mm away from the dot on Parang's, Pinkograph's and
+Testikel's maps. It takes Canvas Start Y from `--conf`, or from `--model`'s
+defaults (a Mini's 25 if neither is given). It does not undo the scan's
+backlash, because that lives in `gcode_pipeline`, which needs OpenCV. On those
+three maps undoing it changes the zero at the dot by at most 0.001 mm.
 
 **A scan should start at the dot.** On Parang the dot is at X 5, Y 30, and both
 scans begin further up the bed, the probe's at Y 40 and the laser's at Y 45. A
