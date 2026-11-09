@@ -2447,7 +2447,7 @@ where Canvas Height is set — which nothing on the machine actually touched.
 Moving it moved every correction on Parang's probe map by 0.45 mm.
 `tools/plot_heightmap.py` reads its zero the same way, through the same two
 functions, and marks the dot; it used the median of the readings until then,
-which sat 0.48 to 0.79 mm away from the dot on Parang's, Pinkograph's and
+which sat 0.45 to 0.79 mm away from the dot on Parang's, Pinkograph's and
 Testikel's maps. It takes Canvas Start Y from `--conf`, or from `--model`'s
 defaults (a Mini's 25 if neither is given). It does not undo the scan's
 backlash, because that lives in `gcode_pipeline`, which needs OpenCV. On those

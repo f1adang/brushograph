@@ -11,7 +11,7 @@ the heat map in the WebUI's plan. Canvas Start Y is the machine's: read from
 --conf, or the model's default (a Mini unless --model says otherwise).
 
 It used to be the median, which nothing on the machine touches: on the three
-kept maps the dot sits 0.48 to 0.79 mm away from it.
+kept maps the dot sits 0.45 to 0.79 mm away from it.
 """
 import argparse
 import json
