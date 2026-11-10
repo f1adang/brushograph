@@ -2,6 +2,10 @@
 
 Changes on `autonomy` since it forked off `main` at `216288c`. 
 
+## [v2.26](https://github.com/f1adang/brushograph/releases/tag/v2.26) — 2026-11-10
+
+- **Map a bed without wiring a probe into the machine:** the Probe Pico, in `tools/pico-probe/`, is a 3D Touch probe on a Raspberry Pi Pico 2 W that you mount in the brush holder and carry from machine to machine. It joins your WiFi, drives the machine itself and has its own page at http://probepico.local/, where you connect to a machine, test the probe, and run a scan. The file it writes loads with **Probe map** like `probescan.py`'s. Each point is touched twice, quickly and then carefully a motor step at a time, so the WiFi's delay does not reach the reading: two scans of one bed agreed to within 0.02–0.04 mm. A scan that stops early, or is stopped, can be continued in the same file with **Continue**, or with **Load a CSV to continue…** for a copy you kept. A scan stops by itself if the probe finds nothing at three points in a row. The wiring, installing and the measurements are in its README.
+
 ## [v2.25.3](https://github.com/f1adang/brushograph/releases/tag/v2.25.3) — 2026-11-10
 
 - **`plot_heightmap.py` measures from the calibration dot:** the plot of a probe scan drew every height against the scan's middle value, while the levelling and the heat map in the plan measure from the calibration dot, where the brush is set to just touch. On the three kept maps the two differed by 0.45 to 0.79 mm. Now the plot uses the same zero as the plan, marks the dot with a red cross, and says when the dot lies outside the scan. Give it the machine's config with `--conf` so it knows where the dot is; without one it assumes a Mini.
