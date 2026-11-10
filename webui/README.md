@@ -2373,6 +2373,15 @@ from lowest to highest is refused — that is a probe that came down on a clamp,
 file from another machine or the wrong units, and a brush lifted 2 mm between
 shapes would be driven into the bed by it.
 
+`tools/pico-probe/` writes the same file without the probe being wired to the
+machine: a 3D Touch on a Raspberry Pi Pico 2 W, carried from machine to machine
+in the brush holder, which drives FluidNC over WiFi and reads the touch itself.
+With no G38.2 to stop on, it finds each point twice — a jog down cancelled on the
+touch, which overshoots by 0.435 mm median, then single motor steps down from
+just above, the axis standing still at each — and two scans of one bed agreed
+to 0.018 mm RMS on Parang and 0.038 on Barbie (testikel). Its own README has the
+wiring and the measurements.
+
 **A reading that is not the bed is left out.** Pinkograph's laser scan went
 over a cable lying on the bed: across Y 115–120 at the left the sensor read up
 to 48 mm further than the paper round it, with touches at Y 95–100, two lone
